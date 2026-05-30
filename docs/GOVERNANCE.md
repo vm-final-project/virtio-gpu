@@ -52,23 +52,7 @@ must not introduce a custom compute-remoting framework.
 
 | Directory | Owner role | Must not contain |
 |---|---|---|
-| `vm-final-project/` | Source, local tests, local eval generators, docs, latest evidence. | Manifest-runner `exp-*` scripts, second manifest lock, generated run archives. |
-| `../manifest/` | Reproducibility manifests, experiment specs, env capture, hashing, validation, reproduce scripts, run archives. | VM source code, app/lib unit tests, VM-local eval/perf generator scripts. |
-
-## Manifest and claim policy
-
-The sibling `../manifest/` directory is the only reproducibility-manifest owner. `vm-final-project` must not carry a second manifest lock or duplicate `exp-*` runner scripts. For a release-grade claim, `config/governance.json` records links into `../manifest/` plus VM-local evidence:
-
-1. `../manifest/manifests/*.yaml` repo/test list,
-2. `../manifest/experiments/tests/*.yaml` experiment spec,
-3. VM-side command such as `make eval-check`,
-4. VM-side latest result file consumed by README/paper,
-5. claim policy for PASS vs structured blocked results.
-
-A claim without this chain is **non-release**. Do not manually promote README or
-paper claims from local recollection; regenerate the evidence matrix or mark the
-row as blocked/non-release. Generated run archives belong under `../manifest/results/`;
-VM keeps only curated latest evidence files needed by docs and paper.
+| `vm-final-project/` | Source, local tests, local eval generators, docs, latest evidence. Reproducibility manifests, experiment specs, env capture, hashing, validation, reproduce scripts, run archives. | Manifest-runner `exp-*` scripts, second manifest lock, generated run archives. VM source code, app/lib unit tests, VM-local eval/perf generator scripts.|
 
 ## Enforcement
 
