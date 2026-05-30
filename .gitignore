@@ -1,0 +1,83 @@
+# 
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+
+# C / C++
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+*.exp
+*.ilk
+*.pdb
+*.map
+*.app
+CMakeCache.txt
+compile_commands.json
+build/
+build-*/
+bin/
+
+# Linux
+*.swp
+*.swo
+.DS_Store
+.Trash-*/
+lost+found/
+lib/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+
+# Windows
+Desktop.ini
+*.lnk
+*.tmp
+*.temp
+
+# Editors / IDEs
+*.code-workspace
+
+.unikraft/
+build/
+*.uk/
+*.kraft/
+/unikraft/
+
+# cscope
+cscope.out
+cscope.in.out
+cscope.po.out
+cscope.files
+cscope.out.*
+cscope.out*
+
+# KraftKit generated configs (root build artifacts)
+# Reference configs live in config/ and are tracked
+
+# KraftKit root-level generated appliance configs.
+# Curated reference configs belong under config/.
+/.config.*_qemu-x86_64
+/.config.*_qemu-x86_64.old
+
+# CMake generated state
+CMakeFiles/
+
+# Generated duplicate run/result histories. Curated latest evidence stays tracked
+# at results/*_latest.*; reproducibility run archives belong under ../manifest/results/.
+/results/eval/
+/results/app-perf/
+/results/perf/
+/results/llama-env/
