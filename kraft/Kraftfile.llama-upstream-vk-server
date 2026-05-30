@@ -1,0 +1,91 @@
+spec: v0.6
+
+name: vogue-llama-upstream-vk-server
+
+# Upstream llama.cpp Vulkan server-only single-application appliance
+# (llm.server.vk gate). Same Venus dispatch chain as the bench appliance
+# (libukggml_vulkan → libukvenus SUBMIT_3D → virtio-gpu-gl-pci,venus=true);
+# the only difference is the Kconfig mode, which compiles server.cpp
+# instead of bench.cpp.
+#
+# Reference QEMU invocation (plan-optimize.md L4.1/L4.2):
+#   qemu-system-x86_64 -machine accel=kvm -cpu max -m 4G \
+#       -kernel .unikraft/build/vogue-llama-upstream-vk-server_qemu-x86_64 \
+#       -display egl-headless,gl=on \
+#       -device virtio-gpu-gl-pci,hostmem=8G,blob=true,venus=true \
+#       -virtfs local,path=$(pwd)/rootfs/llama,mount_tag=model,security_model=none,id=model \
+#       -serial mon:stdio
+# The hostmem=8G window backs Venus host-visible blobs (KV cache); blob=true
+# is required for that mapping; venus=true exposes capset id=4 to the guest.
+# See scripts/llm_server_vk_check.py for the gate that records the host
+# device flags alongside any same-run llama.cpp request metrics.
+
+unikraft:
+  source: ../unikraft
+  kconfig:
+    CONFIG_APP_LLAMA_UPSTREAM_VK: 'y'
+    CONFIG_APP_LLAMA_UPSTREAM_VK_ROOTFS_9PFS: 'y'
+    CONFIG_APP_LLAMA_UPSTREAM_VK_MODE_SERVER: 'y'
+    CONFIG_APP_LLAMA_UPSTREAM_VK_THREADS: '1'
+    CONFIG_OPTIMIZE_DEADELIM: 'y'
+    CONFIG_LIBMUSL: 'y'
+    CONFIG_LIBCXX: 'y'
+    CONFIG_CXX_THREADS: 'y'
+    CONFIG_LIBCXXABI: 'y'
+    CONFIG_LIBUNWIND: 'y'
+    CONFIG_LIBCOMPILER_RT: 'y'
+    CONFIG_LIBPOSIX_TTY: 'y'
+    CONFIG_LIBPOSIX_TTY_STDIO: 'y'
+    CONFIG_LIBPOSIX_TTY_STDOUT_SERIAL: 'y'
+    CONFIG_LIBPOSIX_TTY_STDIN_NULL: 'y'
+    CONFIG_LIBPOSIX_PROCESS: 'y'
+    CONFIG_LIBPOSIX_TIME: 'y'
+    CONFIG_LIBPOSIX_MMAP: 'y'
+    CONFIG_LIBPOSIX_VFS: 'y'
+    CONFIG_LIBVFSCORE: 'y'
+    CONFIG_LIBRAMFS: 'y'
+    CONFIG_LIBVFSCORE_AUTOMOUNT_CI: 'y'
+    CONFIG_LIBVFSCORE_AUTOMOUNT_CI_RAMFS: 'y'
+    CONFIG_LIBUK9P: 'y'
+    CONFIG_LIBVIRTIO_9P: 'y'
+    CONFIG_LIB9PFS: 'y'
+    CONFIG_LIBPTHREAD_EMBEDDED: 'y'
+    CONFIG_LIBUKDMA: 'y'
+    CONFIG_LIBUKBUF: 'y'
+    CONFIG_LIBUKVIRTIO_GPU: 'y'
+    CONFIG_LIBUKVIRTIO_GPU_BACKEND_REAL: 'y'
+    CONFIG_LIBUKVIRTGPU_DRM: 'y'
+    CONFIG_LIBUKVK_ICD: 'y'
+    CONFIG_LIBUKVENUS: 'y'
+    CONFIG_LIBUKGGML_VULKAN: 'y'
+
+targets:
+  - qemu/x86_64
+
+libraries:
+  libmusl:
+    source: ../lib-musl
+  libcxx:
+    source: ../lib-libcxx
+  libcxxabi:
+    source: ../lib-libcxxabi
+  libunwind:
+    source: ../lib-libunwind
+  libcompiler-rt:
+    source: ../lib-compiler-rt
+  libukdma:
+    source: ./libs/libukdma
+  libukbuf:
+    source: ./libs/libukdma_pool
+  libukvirtio_gpu:
+    source: ./libs/libukvirtio_gpu
+  libukvirtgpu_drm:
+    source: ./libs/libukvirtgpu_drm
+  libukvk_icd:
+    source: ./libs/libukvk_icd
+  libukvenus:
+    source: ./libs/libukvenus
+  libukggml_vulkan:
+    source: ./libs/libukggml_vk
+  app-llama-upstream-vk:
+    source: ./apps/app-llama-upstream-vk

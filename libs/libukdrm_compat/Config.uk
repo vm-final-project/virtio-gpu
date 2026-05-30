@@ -1,0 +1,7 @@
+config LIBUKDRM_COMPAT
+	bool "bounded libdrm compatibility facade for kmscube proof"
+	default n
+	select LIBUKVIRTIO_GPU
+	help
+	  Narrow DRM/KMS compatibility surface for the K1 kmscube proof. This is not
+	  a generic /dev/dri or ioctl emulation layer.

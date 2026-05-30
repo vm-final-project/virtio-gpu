@@ -1,0 +1,10 @@
+config APP_GLMARK2
+	bool "glmark2-es2 subset benchmark"
+	default n
+	select LIBUKEGL
+	select LIBUKDMA
+	select LIBUKVIRTIO_GPU
+	help
+	  Minimal port of glmark2-es2 scene-clear and scene-build scenes to
+	  Unikraft.  Uses the libukegl EGL/GLES2 shim and virtio-gpu 2D
+	  scanout.  Evidence row: gfx.glmark2.sw.

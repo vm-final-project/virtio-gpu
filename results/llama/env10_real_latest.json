@@ -1,0 +1,9 @@
+{
+  "status": "blocked:egl-not-initialized",
+  "evidence_id": "env10-real",
+  "generated_utc": "2026-05-22T11:06:05Z",
+  "pp512": null,
+  "tg128": null,
+  "claim_allowed": "Blocked: EGL not initialized on this host. No llm.bench.vk.real throughput claim.",
+  "claim_forbidden": "Real GPU throughput, Vulkan acceleration, or Venus computation claim."
+}

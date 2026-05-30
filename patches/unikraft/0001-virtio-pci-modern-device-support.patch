@@ -1,0 +1,624 @@
+diff --git a/drivers/virtio/pci/virtio_pci.c b/drivers/virtio/pci/virtio_pci.c
+index 8f79e75..73fe902 100644
+--- a/drivers/virtio/pci/virtio_pci.c
++++ b/drivers/virtio/pci/virtio_pci.c
+@@ -33,11 +33,13 @@
+ #include <uk/config.h>
+ #include <uk/arch/types.h>
+ #include <errno.h>
++#include <string.h>
+ #include <uk/alloc.h>
+ #include <uk/print.h>
+ #include <uk/lcpu.h>
+ #include <uk/intctlr.h>
+ #include <uk/bus/pci.h>
++#include <uk/arch/util.h>
+ #include <virtio/virtio_config.h>
+ #include <virtio/virtio_bus.h>
+ #include <virtio/virtqueue.h>
+@@ -46,6 +48,34 @@
+ #define VENDOR_QUMRANET_VIRTIO           (0x1AF4)
+ #define VIRTIO_PCI_MODERN_DEVICEID_START (0x1040)
+ 
++/* VirtIO modern PCI capability types (virtio-v1.1 s4.1.4) */
++#define VIRTIO_PCI_CAP_COMMON_CFG     1
++#define VIRTIO_PCI_CAP_NOTIFY_CFG     2
++#define VIRTIO_PCI_CAP_ISR_CFG        3
++#define VIRTIO_PCI_CAP_DEVICE_CFG     4
++#define VIRTIO_PCI_CAP_SHARED_MEM_CFG 8
++#define PCI_CAP_ID_VNDR               0x09
++
++/* virtio_pci_common_cfg field offsets */
++#define VPCIM_COMMON_DFSEL   0x00
++#define VPCIM_COMMON_DF      0x04
++#define VPCIM_COMMON_GFSEL   0x08
++#define VPCIM_COMMON_GF      0x0c
++#define VPCIM_COMMON_STATUS  0x14
++#define VPCIM_COMMON_QSEL    0x16
++#define VPCIM_COMMON_QSIZ    0x18
++#define VPCIM_COMMON_QEN     0x1c
++#define VPCIM_COMMON_QNOFF   0x1e
++#define VPCIM_COMMON_QDESCLO 0x20
++#define VPCIM_COMMON_QDESCHI 0x24
++#define VPCIM_COMMON_QDRVLO  0x28
++#define VPCIM_COMMON_QDRVHI  0x2c
++#define VPCIM_COMMON_QDEVLO  0x30
++#define VPCIM_COMMON_QDEVHI  0x34
++
++/* Max queues tracked for per-queue notify offsets */
++#define VPCI_MODERN_MAX_QUEUES 16
++
+ static struct uk_alloc *a;
+ 
+ /**
+@@ -54,12 +84,23 @@ static struct uk_alloc *a;
+ struct virtio_pci_dev {
+ 	/* Virtio Device */
+ 	struct virtio_dev vdev;
+-	/* Pci base address */
++	/* Pci base address (legacy I/O port) */
+ 	__u64 pci_base_addr;
+-	/* ISR Address Range */
++	/* ISR Address Range (legacy) */
+ 	__u64 pci_isr_addr;
+ 	/* Pci device information */
+ 	struct pci_device *pdev;
++	/* Modern PCI path (device_id >= 0x1040) */
++	int is_modern;
++	volatile void *modern_common_cfg;
++	volatile void *modern_notify_base;
++	__u32 modern_notify_mult;
++	volatile void *modern_isr;
++	volatile void *modern_device_cfg;
++	volatile void *modern_shm_base;
++	__u64 modern_shm_len;
++	/* Per-queue notify offset, populated during vq_setup */
++	__u16 modern_notify_offs[VPCI_MODERN_MAX_QUEUES];
+ };
+ 
+ /**
+@@ -95,6 +136,9 @@ static int virtio_pci_handle(void *arg);
+ static int vpci_legacy_notify(struct virtio_dev *vdev, __u16 queue_id);
+ static int virtio_pci_legacy_add_dev(struct pci_device *pci_dev,
+ 				     struct virtio_pci_dev *vpci_dev);
++static int vpci_modern_notify(struct virtio_dev *vdev, __u16 queue_id);
++static int virtio_pci_modern_add_dev(struct pci_device *pci_dev,
++				     struct virtio_pci_dev *vpci_dev);
+ 
+ /**
+  * Configuration operations legacy PCI device.
+@@ -133,14 +177,15 @@ static int virtio_pci_handle(void *arg)
+ 
+ 	UK_ASSERT(arg);
+ 
+-	/* Reading the isr status is used to acknowledge the interrupt */
+-	isr_status = virtio_cread8((void *)d->pci_isr_addr, 0);
++	/* Read-and-clear ISR: modern uses MMIO, legacy uses I/O port */
++	if (d->is_modern)
++		isr_status = *(volatile __u8 *)d->modern_isr;
++	else
++		isr_status = virtio_cread8((void *)d->pci_isr_addr, 0);
+ 
+-	if (isr_status & VIRTIO_PCI_ISR_CONFIG) {
+-		/* We don't support configuration interrupt on the device */
+-		uk_pr_warn_isr("Unsupported config change interrupt received on virtio-pci device %p\n",
++	if (isr_status & VIRTIO_PCI_ISR_CONFIG)
++		uk_pr_warn_isr("Unsupported config change interrupt on virtio-pci device %p\n",
+ 			       d);
+-	}
+ 
+ 	if (isr_status & VIRTIO_PCI_ISR_HAS_INTR)
+ 		UK_TAILQ_FOREACH(vq, &d->vdev.vqs, next)
+@@ -394,6 +439,481 @@ static int virtio_pci_legacy_add_dev(struct pci_device *pci_dev,
+ }
+ 
+ 
++/* ---- Modern VirtIO-PCI support (device IDs 0x1040+) ---- */
++
++/* Read an 8-bit value from PCI config space at byte offset `off`. */
++static __u8 vpci_cfg_read8(struct pci_device *pdev, __u8 off)
++{
++	__u32 addr = PCI_ENABLE_BIT
++		     | ((__u32)pdev->addr.bus      << PCI_BUS_SHIFT)
++		     | ((__u32)pdev->addr.devid    << PCI_DEVICE_SHIFT)
++		     | ((__u32)pdev->addr.function << PCI_FUNCTION_SHIFT)
++		     | (off & 0xfc);
++	uk_arch_x86_64_outl(PCI_CONFIG_ADDR, addr);
++	return (__u8)(uk_arch_x86_64_inl(PCI_CONFIG_DATA) >> ((off & 3) << 3));
++}
++
++/* Read a 16-bit value from PCI config space at byte offset `off` (must be 2-aligned). */
++static __u16 vpci_cfg_read16(struct pci_device *pdev, __u8 off)
++{
++	__u32 addr = PCI_ENABLE_BIT
++		     | ((__u32)pdev->addr.bus      << PCI_BUS_SHIFT)
++		     | ((__u32)pdev->addr.devid    << PCI_DEVICE_SHIFT)
++		     | ((__u32)pdev->addr.function << PCI_FUNCTION_SHIFT)
++		     | (off & 0xfc);
++	uk_arch_x86_64_outl(PCI_CONFIG_ADDR, addr);
++	return (__u16)(uk_arch_x86_64_inl(PCI_CONFIG_DATA) >> ((off & 2) << 3));
++}
++
++/* Read a 32-bit value from PCI config space at byte offset `off` (must be 4-aligned). */
++static __u32 vpci_cfg_read32(struct pci_device *pdev, __u8 off)
++{
++	__u32 addr = PCI_ENABLE_BIT
++		     | ((__u32)pdev->addr.bus      << PCI_BUS_SHIFT)
++		     | ((__u32)pdev->addr.devid    << PCI_DEVICE_SHIFT)
++		     | ((__u32)pdev->addr.function << PCI_FUNCTION_SHIFT)
++		     | (off & 0xfc);
++	uk_arch_x86_64_outl(PCI_CONFIG_ADDR, addr);
++	return uk_arch_x86_64_inl(PCI_CONFIG_DATA);
++}
++
++/* Read the physical base address of a PCI BAR (index 0–5).
++ * Returns the MMIO physical address (bits[1:0] cleared).
++ * For 64-bit BARs (type bits[2:1] == 2), reads the upper 32 bits from bar+1.
++ */
++static __u64 vpci_read_bar(struct pci_device *pdev, __u8 bar_idx)
++{
++	__u8 bar_off = (__u8)(0x10 + bar_idx * 4);
++	__u32 lo = vpci_cfg_read32(pdev, bar_off);
++	__u32 bar_type = (lo >> 1) & 0x3;
++	__u32 hi = 0;
++
++	/* Clear type/prefetch bits to get base address */
++	if (lo & 0x1)
++		lo &= ~0x3u;  /* I/O BAR */
++	else
++		lo &= ~0xfu;  /* MMIO BAR */
++
++	if (bar_type == 0x2 && bar_idx < 5) {
++		/* 64-bit MMIO BAR: upper half is in the next BAR slot */
++		hi = vpci_cfg_read32(pdev, (__u8)(bar_off + 4));
++	}
++	return ((__u64)hi << 32) | lo;
++}
++
++/* Walk the PCI capability list and populate modern MMIO pointers.
++ * Returns 0 if all mandatory caps (common, notify, isr) were found.
++ */
++static int virtio_pci_find_modern_caps(struct pci_device *pdev,
++				       struct virtio_pci_dev *vpci_dev)
++{
++	__u8 cap_ptr;
++	int found_common = 0, found_notify = 0, found_isr = 0;
++
++	/* Read capabilities pointer (offset 0x34) */
++	cap_ptr = vpci_cfg_read8(pdev, 0x34);
++	uk_pr_info("[VOGUE] virtio-pci modern: device=%04x cap_list_ptr=0x%02x\n",
++		   pdev->id.device_id, cap_ptr);
++
++	while (cap_ptr >= 0x40) {
++		__u8 cap_id  = vpci_cfg_read8(pdev, cap_ptr);
++		__u8 cap_next = vpci_cfg_read8(pdev, (__u8)(cap_ptr + 1));
++		__u8 cfg_type, bar_idx;
++		__u32 cap_off, cap_len;
++		__u64 bar_base;
++
++		if (cap_id != PCI_CAP_ID_VNDR) {
++			cap_ptr = cap_next;
++			continue;
++		}
++
++		cfg_type = vpci_cfg_read8(pdev, (__u8)(cap_ptr + 3));
++		bar_idx  = vpci_cfg_read8(pdev, (__u8)(cap_ptr + 4));
++		cap_off  = vpci_cfg_read32(pdev, (__u8)(cap_ptr + 8));
++		cap_len  = vpci_cfg_read32(pdev, (__u8)(cap_ptr + 12));
++
++		if (bar_idx > 5) {
++			cap_ptr = cap_next;
++			continue;
++		}
++
++		bar_base = vpci_read_bar(pdev, bar_idx);
++		if (!bar_base) {
++			cap_ptr = cap_next;
++			continue;
++		}
++
++		switch (cfg_type) {
++		case VIRTIO_PCI_CAP_COMMON_CFG:
++			vpci_dev->modern_common_cfg =
++				(volatile void *)(unsigned long)(bar_base + cap_off);
++			found_common = 1;
++			uk_pr_info("[VOGUE] virtio-pci modern: common_cfg @ 0x%llx\n",
++				   (unsigned long long)(bar_base + cap_off));
++			break;
++		case VIRTIO_PCI_CAP_NOTIFY_CFG:
++			vpci_dev->modern_notify_base =
++				(volatile void *)(unsigned long)(bar_base + cap_off);
++			/* notify_off_multiplier immediately follows the common cap fields */
++			vpci_dev->modern_notify_mult =
++				vpci_cfg_read32(pdev, (__u8)(cap_ptr + 16));
++			found_notify = 1;
++			uk_pr_info("[VOGUE] virtio-pci modern: notify_base @ 0x%llx mult=%u\n",
++				   (unsigned long long)(bar_base + cap_off),
++				   vpci_dev->modern_notify_mult);
++			break;
++		case VIRTIO_PCI_CAP_ISR_CFG:
++			vpci_dev->modern_isr =
++				(volatile void *)(unsigned long)(bar_base + cap_off);
++			found_isr = 1;
++			uk_pr_info("[VOGUE] virtio-pci modern: isr @ 0x%llx\n",
++				   (unsigned long long)(bar_base + cap_off));
++			break;
++		case VIRTIO_PCI_CAP_DEVICE_CFG:
++			vpci_dev->modern_device_cfg =
++				(volatile void *)(unsigned long)(bar_base + cap_off);
++			uk_pr_info("[VOGUE] virtio-pci modern: device_cfg @ 0x%llx\n",
++				   (unsigned long long)(bar_base + cap_off));
++			break;
++		case VIRTIO_PCI_CAP_SHARED_MEM_CFG: {
++			__u32 off_hi  = vpci_cfg_read32(pdev, (__u8)(cap_ptr + 16));
++			__u32 len_hi  = vpci_cfg_read32(pdev, (__u8)(cap_ptr + 20));
++			__u64 full_off = ((__u64)off_hi << 32) | cap_off;
++			__u64 full_len = ((__u64)len_hi << 32) | cap_len;
++			vpci_dev->modern_shm_base =
++				(volatile void *)(unsigned long)(bar_base + full_off);
++			vpci_dev->modern_shm_len = full_len;
++			uk_pr_info("[VOGUE] virtio-pci modern: shm @ 0x%llx len=0x%llx\n",
++				   (unsigned long long)(bar_base + full_off),
++				   (unsigned long long)full_len);
++			break;
++		}
++		default:
++			break;
++		}
++
++		cap_ptr = cap_next;
++	}
++
++	if (!found_common || !found_notify || !found_isr) {
++		uk_pr_err("virtio-pci modern: missing caps (common=%d notify=%d isr=%d)\n",
++			  found_common, found_notify, found_isr);
++		return -ENODEV;
++	}
++	return 0;
++}
++
++/* MMIO helpers for modern VirtIO-PCI.
++ * On x86_64, virtio_cread/cwrite use I/O port instructions (in/out), which
++ * only work for the legacy I/O BAR. Modern BARs are MMIO and require
++ * direct memory access via virtio_mmio_cread/cwrite_bytes.
++ */
++static inline __u8 vpcim_read8(const volatile void *base, __u8 off)
++{
++	__u8 v;
++
++	virtio_mmio_cread_bytes(base, off, &v, 1, 1);
++	return v;
++}
++
++static inline __u16 vpcim_read16(const volatile void *base, __u8 off)
++{
++	__u16 v;
++
++	virtio_mmio_cread_bytes(base, off, &v, 2, 2);
++	return v;
++}
++
++static inline __u32 vpcim_read32(const volatile void *base, __u8 off)
++{
++	__u32 v;
++
++	virtio_mmio_cread_bytes(base, off, &v, 4, 4);
++	return v;
++}
++
++static inline void vpcim_write8(volatile void *base, __u8 off, __u8 v)
++{
++	virtio_mmio_cwrite_bytes(base, off, &v, 1, 1);
++}
++
++static inline void vpcim_write16(volatile void *base, __u8 off, __u16 v)
++{
++	virtio_mmio_cwrite_bytes(base, off, &v, 2, 2);
++}
++
++static inline void vpcim_write32(volatile void *base, __u8 off, __u32 v)
++{
++	virtio_mmio_cwrite_bytes(base, off, &v, 4, 4);
++}
++
++/* Modern config ops callbacks */
++
++static __u8 vpci_modern_status_get_internal(struct virtio_pci_dev *vpdev)
++{
++	return vpcim_read8(vpdev->modern_common_cfg, VPCIM_COMMON_STATUS);
++}
++
++static void vpci_modern_dev_reset(struct virtio_dev *vdev)
++{
++	struct virtio_pci_dev *vpdev = to_virtiopcidev(vdev);
++
++	vpcim_write8(vpdev->modern_common_cfg,
++		     VPCIM_COMMON_STATUS, VIRTIO_CONFIG_STATUS_RESET);
++	/* Poll until device acknowledges reset (STATUS reads back 0) */
++	while (vpcim_read8(vpdev->modern_common_cfg, VPCIM_COMMON_STATUS)
++	       != VIRTIO_CONFIG_STATUS_RESET)
++		;
++}
++
++static __u8 vpci_modern_status_get(struct virtio_dev *vdev)
++{
++	struct virtio_pci_dev *vpdev = to_virtiopcidev(vdev);
++
++	return vpci_modern_status_get_internal(vpdev);
++}
++
++static void vpci_modern_status_set(struct virtio_dev *vdev, __u8 status)
++{
++	struct virtio_pci_dev *vpdev = to_virtiopcidev(vdev);
++	__u8 curr;
++
++	UK_ASSERT(vdev || status != VIRTIO_CONFIG_STATUS_RESET);
++	curr = vpci_modern_status_get_internal(vpdev);
++	vpcim_write8(vpdev->modern_common_cfg, VPCIM_COMMON_STATUS, curr | status);
++}
++
++static __u64 vpci_modern_features_get(struct virtio_dev *vdev)
++{
++	struct virtio_pci_dev *vpdev = to_virtiopcidev(vdev);
++	__u64 features;
++	__u32 lo, hi;
++
++	/* Select feature word 0 */
++	vpcim_write32(vpdev->modern_common_cfg, VPCIM_COMMON_DFSEL, 0);
++	lo = vpcim_read32(vpdev->modern_common_cfg, VPCIM_COMMON_DF);
++	/* Select feature word 1 */
++	vpcim_write32(vpdev->modern_common_cfg, VPCIM_COMMON_DFSEL, 1);
++	hi = vpcim_read32(vpdev->modern_common_cfg, VPCIM_COMMON_DF);
++	features = ((__u64)hi << 32) | lo;
++	uk_pr_info("[VOGUE] virtio-pci modern: host_features=0x%llx (common_cfg=%p)\n",
++		   (unsigned long long)features, (void *)vpdev->modern_common_cfg);
++	return features;
++}
++
++static void vpci_modern_features_set(struct virtio_dev *vdev)
++{
++	struct virtio_pci_dev *vpdev = to_virtiopcidev(vdev);
++
++	vdev->features = virtqueue_feature_negotiate(vdev->features);
++
++	/* Write feature word 0 */
++	vpcim_write32(vpdev->modern_common_cfg, VPCIM_COMMON_GFSEL, 0);
++	vpcim_write32(vpdev->modern_common_cfg, VPCIM_COMMON_GF,
++		      (__u32)vdev->features);
++	/* Write feature word 1 */
++	vpcim_write32(vpdev->modern_common_cfg, VPCIM_COMMON_GFSEL, 1);
++	vpcim_write32(vpdev->modern_common_cfg, VPCIM_COMMON_GF,
++		      (__u32)(vdev->features >> 32));
++}
++
++static int vpci_modern_config_get(struct virtio_dev *vdev, __u16 offset,
++				  void *buf, __u32 len, __u8 type_len)
++{
++	struct virtio_pci_dev *vpdev = to_virtiopcidev(vdev);
++
++	if (!vpdev->modern_device_cfg)
++		return -ENODEV;
++	virtio_mmio_cread_bytes(vpdev->modern_device_cfg,
++				(__u8)offset, buf, len,
++				(type_len && type_len <= 4) ? type_len : 1);
++	return 0;
++}
++
++static int vpci_modern_config_set(struct virtio_dev *vdev, __u16 offset,
++				  const void *buf, __u32 len)
++{
++	struct virtio_pci_dev *vpdev = to_virtiopcidev(vdev);
++
++	if (!vpdev->modern_device_cfg)
++		return -ENODEV;
++	virtio_mmio_cwrite_bytes(vpdev->modern_device_cfg,
++				 (__u8)offset, buf, len, 1);
++	return 0;
++}
++
++static int vpci_modern_vq_find(struct virtio_dev *vdev, __u16 num_vqs,
++			       __u16 *qdesc_size)
++{
++	struct virtio_pci_dev *vpdev = to_virtiopcidev(vdev);
++	int vq_cnt = 0, i, rc;
++
++	UK_ASSERT(vdev);
++	vpdev = to_virtiopcidev(vdev);
++
++	rc = uk_intctlr_irq_register(vpdev->pdev->irq, virtio_pci_handle, vpdev);
++	if (rc != 0) {
++		uk_pr_err("Failed to register the interrupt\n");
++		return rc;
++	}
++
++	for (i = 0; i < num_vqs; i++) {
++		vpcim_write16(vpdev->modern_common_cfg, VPCIM_COMMON_QSEL, (__u16)i);
++		qdesc_size[i] = vpcim_read16(vpdev->modern_common_cfg,
++					     VPCIM_COMMON_QSIZ);
++		if (unlikely(!qdesc_size[i])) {
++			uk_pr_err("Virtqueue %d not available\n", i);
++			continue;
++		}
++		vq_cnt++;
++	}
++	return vq_cnt;
++}
++
++static int vpci_modern_notify(struct virtio_dev *vdev, __u16 queue_id)
++{
++	struct virtio_pci_dev *vpdev = to_virtiopcidev(vdev);
++	__u32 notify_off;
++	volatile __u16 *notify_addr;
++
++	UK_ASSERT(vdev);
++	if (unlikely(queue_id >= VPCI_MODERN_MAX_QUEUES))
++		return -EINVAL;
++
++	notify_off = vpdev->modern_notify_offs[queue_id];
++	notify_addr = (volatile __u16 *)
++		((unsigned long)vpdev->modern_notify_base
++		 + notify_off * vpdev->modern_notify_mult);
++	*notify_addr = queue_id;
++	return 0;
++}
++
++static struct virtqueue *vpci_modern_vq_setup(struct virtio_dev *vdev,
++					      __u16 queue_id,
++					      __u16 num_desc,
++					      virtqueue_callback_t callback,
++					      struct uk_alloc *alloc)
++{
++	struct virtio_pci_dev *vpdev = to_virtiopcidev(vdev);
++	struct virtqueue *vq;
++	__paddr_t desc_addr, avail_addr, used_addr;
++	__u16 notify_off;
++	long flags;
++
++	UK_ASSERT(vdev != NULL);
++	UK_ASSERT(queue_id < VPCI_MODERN_MAX_QUEUES);
++
++	vq = virtqueue_create(queue_id, num_desc, VIRTIO_PCI_VRING_ALIGN,
++			      callback, vpci_modern_notify, vdev, alloc);
++	if (PTRISERR(vq)) {
++		uk_pr_err("Failed to create virtqueue: %d\n", PTR2ERR(vq));
++		return vq;
++	}
++
++	desc_addr  = virtqueue_physaddr(vq);
++	avail_addr = virtqueue_get_avail_addr(vq);
++	used_addr  = virtqueue_get_used_addr(vq);
++
++	/* Program the queue into the device */
++	vpcim_write16(vpdev->modern_common_cfg, VPCIM_COMMON_QSEL, queue_id);
++	vpcim_write16(vpdev->modern_common_cfg, VPCIM_COMMON_QSIZ, num_desc);
++
++	/* Descriptor table address (lo/hi 32-bit words) */
++	vpcim_write32(vpdev->modern_common_cfg,
++		      VPCIM_COMMON_QDESCLO, (__u32)desc_addr);
++	vpcim_write32(vpdev->modern_common_cfg,
++		      VPCIM_COMMON_QDESCHI, (__u32)(desc_addr >> 32));
++
++	/* Available ring address */
++	vpcim_write32(vpdev->modern_common_cfg,
++		      VPCIM_COMMON_QDRVLO, (__u32)avail_addr);
++	vpcim_write32(vpdev->modern_common_cfg,
++		      VPCIM_COMMON_QDRVHI, (__u32)(avail_addr >> 32));
++
++	/* Used ring address */
++	vpcim_write32(vpdev->modern_common_cfg,
++		      VPCIM_COMMON_QDEVLO, (__u32)used_addr);
++	vpcim_write32(vpdev->modern_common_cfg,
++		      VPCIM_COMMON_QDEVHI, (__u32)(used_addr >> 32));
++
++	/* Save per-queue notify offset before enabling */
++	notify_off = vpcim_read16(vpdev->modern_common_cfg, VPCIM_COMMON_QNOFF);
++	vpdev->modern_notify_offs[queue_id] = notify_off;
++
++	/* Enable the queue */
++	vpcim_write16(vpdev->modern_common_cfg, VPCIM_COMMON_QEN, 1);
++
++	flags = uk_lcpu_save_irqf();
++	UK_TAILQ_INSERT_TAIL(&vpdev->vdev.vqs, vq, next);
++	uk_lcpu_restore_irqf(flags);
++
++	return vq;
++}
++
++static void vpci_modern_vq_release(struct virtio_dev *vdev,
++				   struct virtqueue *vq, struct uk_alloc *alloc)
++{
++	struct virtio_pci_dev *vpdev = to_virtiopcidev(vdev);
++	long flags;
++
++	UK_ASSERT(vq != NULL);
++	UK_ASSERT(alloc != NULL);
++
++	/* Disable the queue */
++	vpcim_write16(vpdev->modern_common_cfg, VPCIM_COMMON_QSEL, vq->queue_id);
++	vpcim_write16(vpdev->modern_common_cfg, VPCIM_COMMON_QEN, 0);
++
++	flags = uk_lcpu_save_irqf();
++	UK_TAILQ_REMOVE(&vpdev->vdev.vqs, vq, next);
++	uk_lcpu_restore_irqf(flags);
++
++	virtqueue_destroy(VIRTIO_PCI_VRING_ALIGN, vq, alloc);
++}
++
++static struct virtio_config_ops vpci_modern_ops = {
++	.device_reset = vpci_modern_dev_reset,
++	.config_get   = vpci_modern_config_get,
++	.config_set   = vpci_modern_config_set,
++	.features_get = vpci_modern_features_get,
++	.features_set = vpci_modern_features_set,
++	.status_get   = vpci_modern_status_get,
++	.status_set   = vpci_modern_status_set,
++	.vqs_find     = vpci_modern_vq_find,
++	.vq_setup     = vpci_modern_vq_setup,
++	.vq_release   = vpci_modern_vq_release,
++};
++
++static int virtio_pci_modern_add_dev(struct pci_device *pci_dev,
++				     struct virtio_pci_dev *vpci_dev)
++{
++	int rc;
++
++	if (pci_dev->id.device_id < VIRTIO_PCI_MODERN_DEVICEID_START) {
++		uk_pr_err("Not a modern virtio device: %04x\n",
++			  pci_dev->id.device_id);
++		return -EINVAL;
++	}
++
++	rc = virtio_pci_find_modern_caps(pci_dev, vpci_dev);
++	if (rc != 0) {
++		uk_pr_err("Failed to find modern VirtIO-PCI capabilities: %d\n", rc);
++		return rc;
++	}
++
++	vpci_dev->is_modern = 1;
++	vpci_dev->vdev.cops = &vpci_modern_ops;
++	/* Derive virtio_id from PCI device ID: 0x1040 + virtio_id */
++	vpci_dev->vdev.id.virtio_device_id =
++		(__u16)(pci_dev->id.device_id - VIRTIO_PCI_MODERN_DEVICEID_START);
++
++	uk_pr_info("Added modern virtio-pci device %04x (virtio_id=%04x)\n",
++		   pci_dev->id.device_id,
++		   vpci_dev->vdev.id.virtio_device_id);
++	return 0;
++}
++
++/* ---- End of modern VirtIO-PCI support ---- */
++
+ static int virtio_pci_add_dev(struct pci_device *pci_dev)
+ {
+ 	struct virtio_pci_dev *vpci_dev = NULL;
+@@ -401,7 +921,7 @@ static int virtio_pci_add_dev(struct pci_device *pci_dev)
+ 
+ 	UK_ASSERT(pci_dev != NULL);
+ 
+-	vpci_dev = uk_malloc(a, sizeof(*vpci_dev));
++	vpci_dev = uk_calloc(a, 1, sizeof(*vpci_dev));
+ 	if (!vpci_dev) {
+ 		uk_pr_err("Failed to allocate virtio-pci device\n");
+ 		return -ENOMEM;
+@@ -411,14 +931,14 @@ static int virtio_pci_add_dev(struct pci_device *pci_dev)
+ 	vpci_dev->pdev = pci_dev;
+ 	vpci_dev->pci_base_addr = pci_dev->base;
+ 
+-	/**
+-	 * Probing for the legacy virtio device. We separate the legacy probing
+-	 * with the possibility of supporting the modern PCI device in the
+-	 * future.
+-	 */
+-	rc = virtio_pci_legacy_add_dev(pci_dev, vpci_dev);
++	/* Route to modern path for device IDs 0x1040+ */
++	if (pci_dev->id.device_id >= VIRTIO_PCI_MODERN_DEVICEID_START)
++		rc = virtio_pci_modern_add_dev(pci_dev, vpci_dev);
++	else
++		rc = virtio_pci_legacy_add_dev(pci_dev, vpci_dev);
++
+ 	if (rc != 0) {
+-		uk_pr_err("Failed to probe (legacy) pci device: %d\n", rc);
++		uk_pr_err("Failed to probe virtio-pci device: %d\n", rc);
+ 		goto free_pci_dev;
+ 	}
+ 

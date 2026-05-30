@@ -1,0 +1,13 @@
+uk-llama-vk-cpp: booted C++ Venus compute proof
+uk-llama-vk-cpp: runtime=lib-musl+lib-libcxx+lib-libcxxabi
+uk-llama-vk-cpp: cpp_runtime_smoke=cpp-runtime:12345
+uk-llama-vk-cpp: PASS evidence_id=llama-vk-cpp-runtime cpp=1
+uk-llama-vk-cpp: vulkan_icd device=virtio-gpu-venus
+uk-llama-vk-cpp: venus_compute_dispatch=pass:encoded-1424-bytes
+virgl_render_server[375938]: vkr: failed to look up object 4294967297 of type 3
+virgl_render_server[375938]: vkr: vkAllocateMemory resulted in CS error
+virgl_render_server[375938]: vkr: submit_cmd: vn_dispatch_command failed
+virgl_render_server[375938]: failed to dispatch context op 5
+uk-llama-vk-cpp: venus_compute_submit=pass:submitted
+uk-llama-vk-cpp: device=virtio-gpu-venus bytes=1424 cpp=1
+uk-llama-vk-cpp: PASS evidence_id=llama-vk-cpp-compute venus=1

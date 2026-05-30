@@ -1,0 +1,67 @@
+config APP_LLAMA_UPSTREAM_VK
+	bool "app-llama-upstream-vk: upstream llama.cpp Vulkan/Venus single-application appliance"
+	default n
+	select LIBUKGGML_VULKAN
+	select LIBMUSL
+	select LIBCXX
+	select LIBCXXABI
+	select LIBUNWIND
+	select LIBPTHREAD_EMBEDDED
+	help
+	  Upstream llama.cpp Vulkan path. Uses the VULKAN_HPP_DEFAULT_DISPATCHER
+	  wired via libukggml_vulkan, routes through libukvenus SUBMIT_3D → QEMU
+	  virtio-gpu-gl-pci,venus=true → host Vulkan ICD. Single-purpose: choose
+	  bench-only or server-only at Kconfig time; the unused source file is
+	  excluded from the build.
+
+choice
+	prompt "Rootfs transport"
+	default APP_LLAMA_UPSTREAM_VK_ROOTFS_9PFS
+
+config APP_LLAMA_UPSTREAM_VK_ROOTFS_9PFS
+	bool "9pfs"
+
+config APP_LLAMA_UPSTREAM_VK_ROOTFS_INITRD
+	bool "initramfs"
+endchoice
+
+choice
+	prompt "Single-application entrypoint"
+	default APP_LLAMA_UPSTREAM_VK_MODE_BENCH
+
+config APP_LLAMA_UPSTREAM_VK_MODE_BENCH
+	bool "bench-only: run llama.cpp Vulkan pp/tg benchmark and exit"
+
+config APP_LLAMA_UPSTREAM_VK_MODE_SERVER
+	bool "server-only: boot llama.cpp Vulkan server entrypoint"
+endchoice
+
+config APP_LLAMA_UPSTREAM_VK_THREADS
+	int "llama.cpp Vulkan helper threads"
+	default 1
+	help
+	  CPU helper thread count for the Vulkan llama.cpp path; the GPU does the
+	  compute, but the host-side scheduling loop still needs a few threads.
+
+config APP_LLAMA_UPSTREAM_VK_PARALLEL
+	int "Concurrent inference slots (continuous batching)"
+	default 1
+	help
+	  plan-optimize.md L2.2 — number of llama.cpp slots dispatched in one
+	  forward pass. Higher counts win on aggregate throughput but split the
+	  KV cache; see llama.cpp Discussion #18308 for the trade-off curve.
+
+config APP_LLAMA_UPSTREAM_VK_PROMPT_CACHE
+	bool "Enable prefix/prompt cache (plan-optimize.md L2.3)"
+	default y
+	help
+	  Re-use llama.cpp's KV cache for matching prompt prefixes. The server
+	  prints a per-decode `prompt_cache_hit=` line so the eval gate can
+	  attribute TTFT wins to this knob.
+
+config APP_LLAMA_UPSTREAM_VK_CTX
+	int "Context window per slot (tokens)"
+	default 512
+	help
+	  Per-slot context length. Aggregate KV memory ≈ PARALLEL × CTX × 2 ×
+	  layers × dim — keep small while iterating on plan-optimize.md L2.5.

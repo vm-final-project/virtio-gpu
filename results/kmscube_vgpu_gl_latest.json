@@ -1,0 +1,85 @@
+{
+  "metadata": {
+    "generated_utc": "2026-05-30T07:33:49.933790Z"
+  },
+  "rows": [
+    {
+      "row_id": "K1",
+      "status": "pass",
+      "evidence": "results/kmscube_vgpu_gl/latest/build.log;results/kmscube_vgpu_gl/latest/run.log;results/kmscube_vgpu_gl/latest/frame-proof.json;results/kmscube_vgpu_gl/latest/mesa-feasibility.json",
+      "claim_allowed": "Unikraft-native kmscube EGL/GLES scanout proof over a non-software VirtIO-GPU-GL/virgl path.",
+      "claim_forbidden": "GPU tensor acceleration, LLM offload, generalized Mesa compatibility, glmark2 success, or performance speedup.",
+      "next_step": "Plan glmark2-es2-drm quantitative benchmark only after preserving K1 evidence.",
+      "details": {
+        "pass_fields": {
+          "frames": "3",
+          "renderer": "virgl",
+          "submits_3d": "3",
+          "evidence_id": "virgl-clear-proof",
+          "real_virtio_gpu": "1",
+          "w": "1280",
+          "h": "800"
+        },
+        "frame": {
+          "frames": 3,
+          "width": 1280,
+          "height": 800,
+          "renderer": "virgl",
+          "submits_3d": 3,
+          "evidence_id": "virgl-clear-proof",
+          "variance_check": "pass",
+          "status": "pass",
+          "source": "virgl-submit-pass-marker",
+          "run_log": "results/kmscube_vgpu_gl/latest/run.log",
+          "pass_marker": "uk-kmscube: PASS kmscube_vgpu_gl frames=3 renderer=virgl submits_3d=3 evidence_id=virgl-clear-proof real_virtio_gpu=1 w=1280 h=800",
+          "written_at": "2026-05-30T07:33:49.933219Z",
+          "qmp_screendump_sha256": "e1f812282fb42ba3fb9d9a1f98fe1fffe8f4894b176bd820a277fc715018ff05",
+          "qmp_screendump": ""
+        },
+        "feasibility": {
+          "status": "blocked:feasibility-not-yet-implemented",
+          "kmscube_source": "upstream https://gitlab.freedesktop.org/mesa/kmscube/; commit not vendored yet",
+          "mesa_components_enabled": [],
+          "mesa_components_disabled": [
+            "GLX",
+            "X11",
+            "Wayland",
+            "Vulkan",
+            "OpenCL",
+            "video",
+            "GStreamer",
+            "PNG",
+            "unrelated Gallium drivers",
+            "dynamic driver loading"
+          ],
+          "required_unikraft_posix_assumptions": [
+            "mmap",
+            "TLS",
+            "pthreads",
+            "atomics",
+            "filesystem paths",
+            "dlopen",
+            "/dev/dri",
+            "ioctl",
+            "fd passing",
+            "env vars",
+            "timers",
+            "signals"
+          ],
+          "selected_seam": "deliberate blocker until bounded Mesa EGL/GLES/virgl static slice is implemented",
+          "scope_expansion_triggers": [
+            "broad /dev/dri emulation",
+            "generic ioctl layer",
+            "dynamic Mesa driver loading",
+            "full Mesa distro import"
+          ],
+          "first_missing_dependency": "bounded Mesa EGL/GLES/virgl static slice for Unikraft"
+        },
+        "evidence_identity": {
+          "run_log_sha256": "2388873c83f8a73df7c252ebbec2ee8f63ef04e4388810f6480f17626c57c5e8",
+          "build_log_sha256": "3f72424cacd1b9817535f0af03f9bfcc3ee5d4f6a787199d86c8b74752774c63"
+        }
+      }
+    }
+  ]
+}

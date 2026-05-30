@@ -1,0 +1,8 @@
+{
+  "status": "pass",
+  "evidence_id": "llama-vk-n3-build",
+  "generated_utc": "2026-05-25T08:56:08Z",
+  "image": ".unikraft/build/vogue-llama-vk_qemu-x86_64",
+  "claim_allowed": "N3 vogue-llama-vk image builds with ggml-vulkan and Venus libraries linked.",
+  "claim_forbidden": "GPU throughput, Vulkan execution, or any runtime claim."
+}

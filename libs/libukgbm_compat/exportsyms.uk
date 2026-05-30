@@ -1,0 +1,4 @@
+uk_gbm_compat_bo_init
+uk_gbm_compat_bo_fill_test_pattern
+uk_gbm_compat_bo_fini
+uk_gbm_compat_scope

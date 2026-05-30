@@ -1,0 +1,20 @@
+config LIBUKVIRTIO_GPU
+	bool "libukvirtio_gpu"
+	default n
+	help
+	  VirtIO-GPU guest frontend for Unikraft. Requires the real VirtIO
+	  bus backend for QEMU/PCIe virtio-gpu evidence. The fake test backend
+	  lives in tests/virtio_gpu_fake.c and is compiled directly by the
+	  native test harness — it is not part of this library.
+
+config LIBUKVIRTIO_GPU_BACKEND_REAL
+	bool "real Unikraft virtio-gpu backend"
+	depends on LIBUKVIRTIO_GPU
+	default y if LIBUKVIRTIO_GPU
+	select VIRTIO_DEVICE
+	select LIBVIRTIO_BUS
+	select LIBUKSGLIST
+	select LIBUKALLOC
+	help
+	  Real guest driver for QEMU/PCIe virtio-gpu device using Unikraft's
+	  virtio bus, control queue, and resource commands.

@@ -1,0 +1,60 @@
+{
+  "metadata": {
+    "generated_utc": "2026-05-29T21:16:47.035812Z",
+    "source": "scripts/image_size_check.py",
+    "principle": "Unikraft single-purpose images carry only the linked-in source per Kconfig mode (see paper \u00a77)."
+  },
+  "rows": [
+    {
+      "name": "kmscube",
+      "row": "gfx.kmscube.sw",
+      "image": ".unikraft/build/vogue_qemu-x86_64",
+      "size_bytes": 1110192,
+      "size_human": "1.06 MiB",
+      "status": "pass"
+    },
+    {
+      "name": "glmark2",
+      "row": "gfx.glmark2.sw",
+      "image": ".unikraft/build/vogue-glmark2_qemu-x86_64",
+      "size_bytes": null,
+      "size_human": "n/a",
+      "status": "blocked:image-missing",
+      "blocker": "image not built locally; run the corresponding make target before image-size-check"
+    },
+    {
+      "name": "llama-cpu-bench",
+      "row": "llm.bench.cpu",
+      "image": ".unikraft/build/vogue-llama-upstream-bench_qemu-x86_64",
+      "size_bytes": null,
+      "size_human": "n/a",
+      "status": "blocked:image-missing",
+      "blocker": "image not built locally; run the corresponding make target before image-size-check"
+    },
+    {
+      "name": "llama-cpu-server",
+      "row": "llm.server.cpu",
+      "image": ".unikraft/build/vogue-llama-upstream-server_qemu-x86_64",
+      "size_bytes": 3430040,
+      "size_human": "3.27 MiB",
+      "status": "pass"
+    },
+    {
+      "name": "llama-vk-bench",
+      "row": "llm.bench.vk",
+      "image": ".unikraft/build/vogue-llama-upstream-vk_qemu-x86_64",
+      "size_bytes": 25263128,
+      "size_human": "24.09 MiB",
+      "status": "pass"
+    },
+    {
+      "name": "llama-vk-server",
+      "row": "llm.server.vk",
+      "image": ".unikraft/build/vogue-llama-upstream-vk-server_qemu-x86_64",
+      "size_bytes": null,
+      "size_human": "n/a",
+      "status": "blocked:image-missing",
+      "blocker": "image not built locally; run the corresponding make target before image-size-check"
+    }
+  ]
+}

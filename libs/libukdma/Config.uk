@@ -1,0 +1,5 @@
+config LIBUKDMA
+	bool "libukdma"
+	default n
+	help
+	  production libukdma component.

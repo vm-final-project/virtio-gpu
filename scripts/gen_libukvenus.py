@@ -1,0 +1,174 @@
+#!/usr/bin/env python3
+"""Generator scaffold for libs/libukvenus, modeled on venus-protocol.
+
+`venus-protocol` (in this repository's sibling tree) walks `xmls/vk.xml` plus
+`VK_MESA_venus_protocol.xml` / `VK_EXT_command_serialization.xml`, then renders
+Mako templates into `include/venus_protocol/*.h`.  libukvenus already follows
+the same wire format on the guest side, so the same flow can autogenerate the
+project-local encoder.
+
+This file is intentionally small: it defines the artifact layout and a
+machine-readable plan, and shells out to the upstream `venus-protocol` checkout
+when present so we never fork the templates.  The implementation work the user
+needs to do to fully replace hand-written encoder code is:
+
+  1. Pin a `venus-protocol` upstream commit (sibling checkout
+     `../../venus-protocol`).
+  2. Symlink/copy the upstream `xmls/` into `scripts/venus/xmls/` so the
+     generator can be re-run offline.
+  3. Add Mako templates under `scripts/venus/templates/` that emit:
+         libs/libukvenus/include/uk/venus_protocol.h
+         libs/libukvenus/include/uk/venus_dispatch.h
+         libs/libukvenus/generated/venus_cs_encode.c
+     Only Venus-encoder slices we actually use (instance/device/command-buffer/
+     pipeline) should be enabled in `VK_XML_EXTENSION_LIST` to keep the
+     resulting image minimal.
+  4. Wire `make gen-libukvenus` into the build so a regen is a single command.
+
+Run modes:
+
+    python3 scripts/gen_libukvenus.py --plan       # print artifact plan as JSON
+    python3 scripts/gen_libukvenus.py --check      # validate venus-protocol checkout
+    python3 scripts/gen_libukvenus.py --generate   # invoke upstream generator
+
+The actual generator is delegated to the sibling `venus-protocol/vn_protocol.py`
+to avoid forking 3,000 lines of Mesa code into VOGUE.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+LIBVENUS = ROOT / "libs" / "libukvenus"
+VENUS_PROTOCOL = ROOT.parent / "venus-protocol"
+
+# Slices we actually emit. Keep this list minimal — every extra extension
+# bloats the encoder and the final unikernel image.
+WANTED_EXTENSIONS = [
+    "VK_EXT_command_serialization",
+    "VK_MESA_venus_protocol",
+    "VK_KHR_get_physical_device_properties2",
+    "VK_KHR_external_memory",
+    "VK_KHR_external_memory_capabilities",
+    "VK_KHR_external_semaphore",
+    "VK_KHR_external_semaphore_capabilities",
+    "VK_KHR_synchronization2",
+]
+
+ARTIFACTS = [
+    {
+        "path": str(LIBVENUS.relative_to(ROOT) / "generated" / "vn_protocol_driver_defines.h"),
+        "template": "driver_defines.h",
+        "purpose": "Command IDs and wire-format constants used by libukvenus encoders.",
+    },
+    {
+        "path": str(LIBVENUS.relative_to(ROOT) / "generated" / "vn_protocol_driver_types.h"),
+        "template": "driver_types.h",
+        "purpose": "Packed types layered on top of vulkan.h for guest-side encoding.",
+    },
+    {
+        "path": str(LIBVENUS.relative_to(ROOT) / "generated" / "vn_protocol_driver_commands.h"),
+        "template": "driver_commands.h",
+        "purpose": "SUBMIT_3D command writers consumed by venus_cs.c.",
+    },
+]
+
+
+def cmd_plan(_args: argparse.Namespace) -> int:
+    payload = {
+        "generator": "venus-protocol (upstream Mako templates)",
+        "checkout": str(VENUS_PROTOCOL),
+        "wanted_extensions": WANTED_EXTENSIONS,
+        "artifacts": ARTIFACTS,
+        "make_target": "gen-libukvenus",
+        "notes": [
+            "Generated files land under libs/libukvenus/generated/ and are git-ignored.",
+            "Hand-written wrappers in libs/libukvenus/{venus_cs,venus_init,venus_compute}.c "
+            "stay small and call into the generated encoders.",
+            "Bumping the upstream Vulkan SDK only requires updating "
+            "../venus-protocol and re-running this script.",
+        ],
+    }
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+def cmd_check(_args: argparse.Namespace) -> int:
+    problems: list[str] = []
+    if not VENUS_PROTOCOL.is_dir():
+        problems.append(f"missing sibling checkout: {VENUS_PROTOCOL}")
+    else:
+        for path in ("vn_protocol.py", "vkxml.py", "xmls/vk.xml", "templates"):
+            if not (VENUS_PROTOCOL / path).exists():
+                problems.append(f"venus-protocol/{path} missing")
+    if shutil.which("python3") is None:
+        problems.append("python3 not on PATH")
+    try:
+        import mako  # noqa: F401
+    except ImportError:
+        problems.append("python module 'mako' not installed (pip install Mako)")
+
+    if problems:
+        for p in problems:
+            print(f"gen_libukvenus check: FAIL {p}")
+        return 1
+    print(f"gen_libukvenus check: PASS venus-protocol={VENUS_PROTOCOL}")
+    return 0
+
+
+def cmd_generate(args: argparse.Namespace) -> int:
+    if cmd_check(args) != 0:
+        return 1
+
+    out_dir = LIBVENUS / "generated"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Delegate to the upstream generator so we never fork template logic.
+    upstream_script = VENUS_PROTOCOL / "vn_protocol.py"
+    cmd = [
+        sys.executable,
+        str(upstream_script),
+        "--out-dir",
+        str(out_dir),
+    ]
+    print(f"gen_libukvenus: running {' '.join(cmd)}")
+    try:
+        subprocess.run(cmd, check=True, cwd=VENUS_PROTOCOL)
+    except subprocess.CalledProcessError as exc:
+        print(f"gen_libukvenus: FAIL upstream generator exit={exc.returncode}")
+        return exc.returncode
+
+    print(f"gen_libukvenus: PASS wrote artifacts under {out_dir.relative_to(ROOT)}")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    sub = parser.add_subparsers(dest="mode", required=False)
+    sub.add_parser("plan").set_defaults(func=cmd_plan)
+    sub.add_parser("check").set_defaults(func=cmd_check)
+    sub.add_parser("generate").set_defaults(func=cmd_generate)
+    parser.add_argument("--plan", dest="legacy_plan", action="store_true")
+    parser.add_argument("--check", dest="legacy_check", action="store_true")
+    parser.add_argument("--generate", dest="legacy_generate", action="store_true")
+
+    args = parser.parse_args(argv)
+    if getattr(args, "legacy_plan", False):
+        return cmd_plan(args)
+    if getattr(args, "legacy_check", False):
+        return cmd_check(args)
+    if getattr(args, "legacy_generate", False):
+        return cmd_generate(args)
+    if getattr(args, "func", None) is not None:
+        return args.func(args)
+    parser.print_help()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

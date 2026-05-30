@@ -1,0 +1,114 @@
+################################################################################
+# libukggml_vulkan — Static Vulkan ICD dispatch for ggml-vulkan (vk.ggml-dispatch)
+#
+# All ggml sources are compiled IN-TREE with Unikraft's clang + libc++ to avoid
+# ABI mismatches from prebuilt GCC/libstdc++ archives (std::__cxx11, __snprintf_chk,
+# backtrace, std::_Rb_tree*, etc.). No prebuilt ggml archives are used.
+################################################################################
+
+$(eval $(call addlib,libukggml_vulkan))
+
+ifeq ($(CONFIG_LIBUKGGML_VULKAN),y)
+
+# ── Path variables (can be overridden on the make command line) ───────────────
+# Defaults derive from the same external roots the top-level Makefile exports
+# (config/external_paths.json): LLAMA_ROOT for the ggml/llama.cpp checkout and
+# its cmake VK build tree, plus the Vulkan/SPIRV header roots. No personal
+# checkout paths are baked in; override any of these on the make command line.
+LLAMA_ROOT      ?= $(realpath $(LIBUKGGML_VULKAN_BASE)/../../../llama.cpp)
+# Upstream ggml/llama.cpp checkout
+GGML_VK_SRC     ?= $(LLAMA_ROOT)/ggml/src
+GGML_VK_INC     ?= $(LLAMA_ROOT)/ggml/include
+# Pre-generated SPIRV shader sources/header (from the cmake VK cross-build,
+# i.e. `make llama-upstream-cmake-vk` → build-unikraft-vk).
+GGML_VK_SHADERS ?= $(LLAMA_ROOT)/build-unikraft-vk/ggml/src/ggml-vulkan
+# SPIRV + Vulkan headers
+GGML_SPIRV_INC  ?= $(SPIRV_HEADERS_INCLUDE)
+GGML_VULKAN_INC ?= $(VULKAN_HEADERS_INCLUDE)
+# Clang built-in headers (immintrin.h etc.)
+CLANG_RESOURCE_DIR ?= $(shell clang -print-resource-dir 2>/dev/null)
+
+# ── VOGUE shim sources ────────────────────────────────────────────────────────
+LIBUKGGML_VULKAN_SRCS-y += $(LIBUKGGML_VULKAN_BASE)/uk_vulkan_dispatch.c
+LIBUKGGML_VULKAN_SRCS-y += $(LIBUKGGML_VULKAN_BASE)/uk_ggml_vk_loader.cpp
+# Libstdc++ compat shims (for any remaining __throw_* refs in older ggml bits)
+LIBUKGGML_VULKAN_SRCS-y += $(LIBUKGGML_VULKAN_BASE)/uk_stdcxx_compat.cpp
+
+# ── Upstream ggml core (compiled in-tree against libc++) ─────────────────────
+# Core: ggml.c (main tensor engine), alloc, backend scheduler, quants, threading, gguf
+# ggml.cpp (terminate-handler wrapper) is intentionally OMITTED: it only installs a
+# std::set_terminate handler for backtrace printing, which is unused in Unikraft.
+LIBUKGGML_VULKAN_SRCS-y += $(GGML_VK_SRC)/ggml.c
+LIBUKGGML_VULKAN_SRCS-y += $(GGML_VK_SRC)/ggml-alloc.c
+LIBUKGGML_VULKAN_SRCS-y += $(GGML_VK_SRC)/ggml-backend.cpp
+LIBUKGGML_VULKAN_SRCS-y += $(GGML_VK_SRC)/ggml-backend-meta.cpp
+LIBUKGGML_VULKAN_SRCS-y += $(GGML_VK_SRC)/ggml-quants.c
+LIBUKGGML_VULKAN_SRCS-y += $(GGML_VK_SRC)/ggml-threading.cpp
+LIBUKGGML_VULKAN_SRCS-y += $(GGML_VK_SRC)/gguf.cpp
+# Vulkan backend (also in-tree — avoids libstdc++ vtable/typeinfo ABI mismatch)
+LIBUKGGML_VULKAN_SRCS-y += $(GGML_VK_SRC)/ggml-vulkan/ggml-vulkan.cpp
+# Pre-compiled SPIRV shader blobs referenced by ggml-vulkan-shaders.hpp
+LIBUKGGML_VULKAN_SRCS-y += $(wildcard $(GGML_VK_SHADERS)/*.comp.cpp)
+# NOTE: ggml-backend-dl.cpp and ggml-backend-reg.cpp are OMITTED:
+#   - ggml-backend-dl.cpp uses dlopen (not available in this Unikraft config)
+#   - ggml-backend-reg.cpp depends on ggml-backend-dl.h; main.cpp calls
+#     ggml_backend_vk_init() directly and does not use the backend registry.
+#   - ggml-opt.cpp is omitted (LR scheduler, not needed for inference).
+
+# ── Public headers ────────────────────────────────────────────────────────────
+LIBUKGGML_VULKAN_CINCLUDES-y   += -I$(LIBUKGGML_VULKAN_BASE)/include
+LIBUKGGML_VULKAN_CXXINCLUDES-y += -I$(LIBUKGGML_VULKAN_BASE)/include
+
+# ── Dependency library headers (for uk_vulkan_dispatch.c) ────────────────────
+LIBUKGGML_VULKAN_CINCLUDES-y   += -I$(LIBUKVIRTIO_GPU_BASE)/include
+LIBUKGGML_VULKAN_CINCLUDES-y   += -I$(LIBUKVIRTGPU_DRM_BASE)/include
+LIBUKGGML_VULKAN_CINCLUDES-y   += -I$(LIBUKVK_ICD_BASE)/include
+LIBUKGGML_VULKAN_CINCLUDES-y   += -I$(LIBUKVENUS_BASE)/include
+
+# ── C++ compilation flags ─────────────────────────────────────────────────────
+LIBUKGGML_VULKAN_CXXFLAGS-y += -std=c++17
+
+# Wire vulkan.hpp to our static dispatch table (uk_vulkan_dispatch.c).
+# Do NOT define VULKAN_HPP_NO_EXCEPTIONS here: ggml-vulkan.cpp uses vk::SystemError
+# and direct object returns (both require the exceptions-enabled API).
+# uk_ggml_vk_loader.cpp defines its own NO_EXCEPTIONS guard locally.
+LIBUKGGML_VULKAN_CXXFLAGS-y += -DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1
+
+# Declare Vulkan as enabled (activates ggml-vulkan paths inside ggml sources)
+LIBUKGGML_VULKAN_CXXFLAGS-y += -DGGML_USE_VULKAN=1
+LIBUKGGML_VULKAN_CFLAGS-y   += -DGGML_USE_VULKAN=1
+
+# Version defines required by ggml.c (set by cmake target_compile_definitions in ggml-base)
+LIBUKGGML_VULKAN_CFLAGS-y   += -DGGML_VERSION=\"0.12.0\" -DGGML_COMMIT=\"fcae601e4\"
+LIBUKGGML_VULKAN_CXXFLAGS-y += -DGGML_VERSION=\"0.12.0\" -DGGML_COMMIT=\"fcae601e4\"
+
+# ── Include paths for ggml sources ───────────────────────────────────────────
+# ggml public headers (ggml.h, ggml-backend.h, ggml-vulkan.h, etc.)
+LIBUKGGML_VULKAN_CXXFLAGS-y += -I$(GGML_VK_INC)
+LIBUKGGML_VULKAN_CFLAGS-y   += -I$(GGML_VK_INC)
+# ggml internal headers (ggml-impl.h, ggml-backend-impl.h, etc.)
+LIBUKGGML_VULKAN_CXXFLAGS-y += -I$(GGML_VK_SRC)
+LIBUKGGML_VULKAN_CFLAGS-y   += -I$(GGML_VK_SRC)
+# ggml-vulkan internal headers
+LIBUKGGML_VULKAN_CXXFLAGS-y += -I$(GGML_VK_SRC)/ggml-vulkan
+# SPIRV headers (needed by ggml-vulkan.cpp internals)
+LIBUKGGML_VULKAN_CXXFLAGS-y += -I$(GGML_SPIRV_INC)
+# Vulkan headers (VK_HEADER_VERSION 352+)
+LIBUKGGML_VULKAN_CXXFLAGS-y += -I$(GGML_VULKAN_INC)
+# Pre-generated ggml-vulkan-shaders.hpp
+LIBUKGGML_VULKAN_CXXFLAGS-y += -I$(GGML_VK_SHADERS)
+# Clang built-in headers (immintrin.h, x86intrin.h, etc.) for x86 SIMD
+LIBUKGGML_VULKAN_CXXFLAGS-y += -I$(CLANG_RESOURCE_DIR)/include
+LIBUKGGML_VULKAN_CFLAGS-y   += -I$(CLANG_RESOURCE_DIR)/include
+
+# Prevent glibc-specific fortified functions and backtrace in ggml.c.
+# On Ubuntu clang may inherit _FORTIFY_SOURCE from the host env; musl doesn't
+# provide __snprintf_chk / __vsnprintf_chk / __fprintf_chk, so force it off.
+LIBUKGGML_VULKAN_CFLAGS-y   += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0
+LIBUKGGML_VULKAN_CXXFLAGS-y += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0
+
+# ── Suppress warnings from upstream ggml sources ─────────────────────────────
+LIBUKGGML_VULKAN_CXXFLAGS-y += -Wno-unknown-pragmas -Wno-unused-function
+LIBUKGGML_VULKAN_CFLAGS-y   += -Wno-unused-function
+
+endif # CONFIG_LIBUKGGML_VULKAN

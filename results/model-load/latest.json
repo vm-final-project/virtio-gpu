@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "generated_utc": "2026-05-29T21:17:23.079737Z",
+    "source": "scripts/model_load_time_check.py",
+    "principle": "plan-optimize.md L1.4 \u2014 huge-page mmap loader gate; use_mmap=False until lib-9pfs grows mmap support."
+  },
+  "rows": [
+    {
+      "name": "llm.bench.cpu",
+      "log": "results/llama/upstream_cpu_serial.log",
+      "status": "blocked:no-log"
+    },
+    {
+      "name": "llm.server.cpu",
+      "log": "results/llama/upstream_server_cpu_serial.log",
+      "status": "blocked:no-log"
+    },
+    {
+      "name": "llm.bench.vk",
+      "log": "results/llama/upstream_vk_serial.log",
+      "status": "blocked:no-log"
+    },
+    {
+      "name": "llm.server.vk",
+      "log": "results/llama/upstream_server_vk_serial.log",
+      "status": "blocked:no-log"
+    }
+  ]
+}

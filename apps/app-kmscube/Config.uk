@@ -1,0 +1,13 @@
+config APP_KMSCUBE
+	bool "KMScube VirtIO-GPU-GL application"
+	default n
+	select LIBUKSWRENDER
+	select LIBUKEGL
+	select LIBUKDMA
+	select LIBUKVIRTIO_GPU
+	select LIBUKVENUS
+	help
+	  KMScube ported to Unikraft.  Uses the software render path (gfx.kmscube.sw)
+	  backed by libukswrender and virtio-gpu 2D scanout.  The upstream
+	  cube-smooth GLES2 path compiles against libukegl but renders via
+	  the CPU rasterizer until a virgl encoder is complete (K1).

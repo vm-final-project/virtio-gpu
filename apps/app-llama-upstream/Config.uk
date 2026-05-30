@@ -1,0 +1,57 @@
+config APP_LLAMA_UPSTREAM
+	bool "app-llama-upstream: upstream llama.cpp CPU benchmark (W3)"
+	default n
+	select LIBMUSL
+	select LIBCXX
+	select LIBCXXABI
+	select LIBUNWIND
+	select LIBPTHREAD_EMBEDDED
+	select LIBPOSIX_LIBDL
+	help
+	  Upstream llama.cpp CPU path (W3). Uses the upstream llama_backend_init /
+	  llama_model_load_from_file / llama_decode API against a 9pfs-mounted GGUF
+	  model. Emits uk-llama-upstream: pp512=… tg128=… PASS.
+
+choice
+	prompt "Rootfs transport"
+	default APP_LLAMA_UPSTREAM_ROOTFS_9PFS
+
+config APP_LLAMA_UPSTREAM_ROOTFS_9PFS
+	bool "9pfs"
+
+config APP_LLAMA_UPSTREAM_ROOTFS_INITRD
+	bool "initramfs"
+endchoice
+
+
+choice
+	prompt "Single-application entrypoint"
+	default APP_LLAMA_UPSTREAM_MODE_BENCH
+
+config APP_LLAMA_UPSTREAM_MODE_BENCH
+	bool "bench-only: run llama.cpp pp/tg benchmark and exit"
+
+config APP_LLAMA_UPSTREAM_MODE_SERVER
+	bool "server-only: boot llama.cpp server entrypoint"
+endchoice
+
+config APP_LLAMA_UPSTREAM_THREADS
+	int "llama.cpp worker threads"
+	default 1
+	help
+	  Thread count passed to llama_context_params for bench/server modes.
+
+config APP_LLAMA_UPSTREAM_PARALLEL
+	int "Concurrent inference slots (continuous batching)"
+	default 1
+	help
+	  plan-optimize.md L2.2 — number of llama.cpp slots dispatched in one
+	  forward pass. See llama.cpp Discussion #18308.
+
+config APP_LLAMA_UPSTREAM_PROMPT_CACHE
+	bool "Enable prefix/prompt cache (plan-optimize.md L2.3)"
+	default y
+	help
+	  Re-use llama.cpp's KV cache for matching prompt prefixes. The server
+	  prints a per-decode `prompt_cache=` line so the eval gate can attribute
+	  TTFT wins to this knob.

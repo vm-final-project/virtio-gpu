@@ -1,0 +1,3 @@
+$(eval $(call addlib,appvulkansmoke))
+
+APPVULKANSMOKE_SRCS-y += $(APPVULKANSMOKE_BASE)/main.c

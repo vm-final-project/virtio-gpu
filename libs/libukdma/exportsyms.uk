@@ -1,0 +1,5 @@
+uk_dma_alloc
+uk_dma_free
+uk_dma_build_sg
+uk_dma_sync_for_device
+uk_dma_sync_for_cpu

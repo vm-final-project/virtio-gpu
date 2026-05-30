@@ -1,0 +1,4 @@
+$(eval $(call addlib,libukegl))
+CINCLUDES-$(CONFIG_LIBUKEGL)   += -I$(LIBUKEGL_BASE)/include
+CXXINCLUDES-$(CONFIG_LIBUKEGL) += -I$(LIBUKEGL_BASE)/include
+LIBUKEGL_SRCS-$(CONFIG_LIBUKEGL) += $(LIBUKEGL_BASE)/src/egl_glue.c

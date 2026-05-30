@@ -1,0 +1,12 @@
+Powered by
+o.   .o       _ _               __ _
+Oo   Oo  ___ (_) | __ __  __ _ ' _) :_
+oO   oO ' _ `| | |/ /  _)' _` | |_|  _)
+oOo oOO| | | | |   (| | | (_) |  _) :_
+ OoOoO ._, ._:_:_,\_._,  .__,_:_, \___)
+          Ijiraq 0.21.0~823b553c-custom
+virtio-gpu-demo: fb0 1024x768 pitch=4096 bpp=32 format=2 base=0x407800020 size=3145728
+virtio-gpu-demo: frame=30 crc32=b7d74226 flush=0
+virtio-gpu-demo: bench frames=30 bytes_per_phase=94371840
+virtio-gpu-demo: shadow draw_ns=119929713 crc_ns=1412312123 total_ns=1532265272 throughput_mib_s=58
+virtio-gpu-demo: flush draw_ns=119900912 crc_ns=1392629542 flush_ns=6251824 total_ns=1518782278 throughput_mib_s=59

@@ -1,0 +1,14 @@
+{
+  "schema": "llama/full-runtime.v1",
+  "env": "ENV9",
+  "status": "pass",
+  "blocked_reason": null,
+  "pp512": 66560.0,
+  "tg128": 3333333.0,
+  "tokens_emitted": 3333333,
+  "kernel_image": ".unikraft/build/vogue-llama-cpu_qemu-x86_64",
+  "evidence": "libukllama scalar matmul substrate running inside Unikraft unikernel (vogue-llama-cpu)",
+  "claim_allowed": "CPU transformer forward pass (libukllama synthetic substrate) proven inside Unikraft QEMU appliance; upstream llama.cpp scaffolded in Kraftfile.llama-full.",
+  "claim_forbidden": "GPU acceleration, Vulkan throughput, or real model file inference.",
+  "captured_at": "2026-05-20T02:55:46.668307Z"
+}

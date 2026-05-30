@@ -1,0 +1,8 @@
+{
+  "status": "blocked:build",
+  "blocked_stage": "build",
+  "first_missing_dependency": "Kraft/Unikraft toolchain failed; see results/glmark2/latest/build.log",
+  "evidence_log": "results/glmark2/latest/build.log",
+  "claim_allowed": "Build blocker documented; no gfx.glmark2.sw QEMU pass claim.",
+  "claim_forbidden": "Full glmark2 suite, QEMU performance, or acceleration claim."
+}

@@ -1,0 +1,11 @@
+{
+  "status": "blocked:no-pass-line",
+  "generated_utc": "2026-05-22T10:59:08Z",
+  "evidence_id": "llama-upstream-vk",
+  "pp512": null,
+  "tg128": null,
+  "pass": false,
+  "run_log": "results/llama/upstream_vk_latest.log",
+  "claim_allowed": "Blocked; no claim.",
+  "claim_forbidden": "Any claim without same-run PASS artifacts."
+}

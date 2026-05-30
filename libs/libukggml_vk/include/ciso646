@@ -1,0 +1,10 @@
+// ciso646 — stub for builds where lib-libcxx does not provide this header.
+// In C++17 and earlier, <ciso646> is a deprecated no-op (it defines
+// alternative operator tokens via <iso646.h>, but they are already keywords
+// in C++). We satisfy the include here so vulkan.hpp feature-test macros
+// work without modification to the Vulkan headers.
+#ifndef _UK_CISO646_STUB_H
+#define _UK_CISO646_STUB_H
+// No content needed: the alternative tokens (and, or, not, etc.) are
+// built-in keywords in every C++ compiler we target.
+#endif // _UK_CISO646_STUB_H

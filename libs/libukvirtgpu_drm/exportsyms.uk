@@ -1,0 +1,9 @@
+uk_drm_virtgpu_open
+uk_drm_virtgpu_ioctl
+uk_drm_virtgpu_getparam
+uk_drm_virtgpu_context_init
+uk_drm_virtgpu_execbuffer
+uk_drm_virtgpu_resource_create_blob
+uk_drm_virtgpu_map
+uk_drm_virtgpu_wait
+uk_drm_virtgpu_close

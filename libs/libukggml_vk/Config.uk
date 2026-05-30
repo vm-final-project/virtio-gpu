@@ -1,0 +1,17 @@
+config LIBUKGGML_VULKAN
+	bool "libukggml_vulkan: static Vulkan/Venus dispatch for upstream ggml-vulkan"
+	default n
+	select LIBUKVENUS
+	select LIBUKVIRTIO_GPU
+	select LIBUKVIRTGPU_DRM
+	select LIBUKVK_ICD
+	help
+	  Minimal support layer for linking upstream llama.cpp ggml-vulkan.cpp into
+	  a Unikraft image. It provides the static Vulkan loader/dispatch entry
+	  points that ggml-vulkan expects and routes the pinned API subset through
+	  libukvenus and VirtIO-GPU SUBMIT_3D.
+
+	  This library intentionally does not implement a custom GGUF parser, ggml
+	  substrate, llama runtime, or compute-remoting ABI. Those responsibilities
+	  stay in upstream llama.cpp/ggml; VOGUE only supplies the Unikraft/Venus
+	  integration glue and SPIR-V shader-object wiring needed by ggml-vulkan.

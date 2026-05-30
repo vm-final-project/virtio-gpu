@@ -1,0 +1,11 @@
+menuconfig LIBUKVK_ICD
+	bool "libukvk_icd: Vulkan ICD shim for Unikraft (vk.icd)"
+	default n
+	select LIBUKVIRTGPU_DRM
+	help
+	  Vulkan Installable Client Driver (ICD) bootstrap layer for Unikraft.
+	  Sits above libukvirtgpu_drm (vk.drm-shim) and initializes a Venus/Vulkan
+	  context over VirtIO-GPU. Provides the ICD entry surface used by
+	  Vulkan benchmark ports (app-vkmark).
+	  Required for vk.icd gate (Vulkan ICD substrate over Venus/VirtIO-GPU).
+	  Rendering requires a Venus command encoder (future work).

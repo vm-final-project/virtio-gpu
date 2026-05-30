@@ -1,0 +1,10 @@
+################################################################################
+# libukvk_icd — Vulkan ICD shim for Unikraft (vk.icd gate)
+################################################################################
+$(eval $(call addlib,libukvk_icd))
+
+LIBUKVK_ICD_SRCS-y += $(LIBUKVK_ICD_BASE)/vulkan_icd.c
+
+LIBUKVK_ICD_CINCLUDES-y += -I$(LIBUKVK_ICD_BASE)/include
+LIBUKVK_ICD_CINCLUDES-y += -I$(LIBUKVIRTGPU_DRM_BASE)/include
+LIBUKVK_ICD_CINCLUDES-y += -I$(LIBUKVIRTIO_GPU_BASE)/include

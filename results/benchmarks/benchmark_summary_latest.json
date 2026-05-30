@@ -1,0 +1,71 @@
+{
+  "status": "pass",
+  "written_at": "2026-05-29T21:16:35Z",
+  "rows": [
+    {
+      "row_id": "gfx.kmscube.sw",
+      "benchmark": "kmscube",
+      "status": "pass",
+      "metric": "avg_frame_ms",
+      "value": 1.969,
+      "scope": "native software/substrate fake-backend"
+    },
+    {
+      "row_id": "gfx.kmscube.sw",
+      "benchmark": "kmscube",
+      "status": "pass",
+      "metric": "fps",
+      "value": 507.91,
+      "scope": "native software/substrate fake-backend"
+    },
+    {
+      "row_id": "gfx.glmark2.sw",
+      "benchmark": "glmark2 scene clear",
+      "status": "pass",
+      "metric": "avg_frame_ms",
+      "value": 5.259,
+      "scope": "native software/substrate fake-backend"
+    },
+    {
+      "row_id": "gfx.glmark2.sw",
+      "benchmark": "glmark2 scene clear",
+      "status": "pass",
+      "metric": "fps",
+      "value": 190.16,
+      "scope": "native software/substrate fake-backend"
+    },
+    {
+      "row_id": "VSTAT",
+      "benchmark": "real driver static gate",
+      "status": "pass",
+      "metric": "latency_ms_mean",
+      "value": 37.0669834,
+      "scope": "static gate overhead, not GPU performance"
+    },
+    {
+      "row_id": "VSTAT",
+      "benchmark": "real driver static gate",
+      "status": "pass",
+      "metric": "latency_ms_median",
+      "value": 36.737527,
+      "scope": "static gate overhead, not GPU performance"
+    },
+    {
+      "row_id": "VSTAT",
+      "benchmark": "real driver static gate",
+      "status": "pass",
+      "metric": "latency_ms_p95",
+      "value": 38.202398,
+      "scope": "static gate overhead, not GPU performance"
+    },
+    {
+      "row_id": "xport.qemu-vgpu",
+      "benchmark": "QEMU Venus probe",
+      "status": "blocked:probe-incomplete",
+      "metric": "probe_status",
+      "value": "blocked:probe-incomplete",
+      "scope": "real QEMU probe; pass required for acceleration claims"
+    }
+  ],
+  "claim_boundary": "Only native software/substrate rows are performance PASS rows. Venus/QEMU rows are readiness/blocker measurements unless xport.qemu-vgpu is pass."
+}

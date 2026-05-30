@@ -1,0 +1,14 @@
+{
+  "schema": "llama/vulkan-build.v2",
+  "evidence_id": "bld-host-vk",
+  "status": "pass",
+  "pass": true,
+  "generated_utc": "2026-05-29T20:00:08.822674Z",
+  "image": ".unikraft/build/vogue-llama-upstream-vk_qemu-x86_64",
+  "image_bytes": 25263128,
+  "ggml_vk_symbols": 228,
+  "ggml_use_vulkan": true,
+  "claim_allowed": "Upstream ggml Vulkan backend compiles inside the Unikraft clang toolchain and links into the appliance against libukggml_vk/libukvenus/libukvirtgpu_drm: 228 ggml_vk_* symbols present with -DGGML_USE_VULKAN=1.",
+  "claim_forbidden": "Vulkan execution, llama tokens via GPU, or any throughput claim.",
+  "next_step": "Boot under a venus-capable QEMU to advance llm.bench.vk."
+}

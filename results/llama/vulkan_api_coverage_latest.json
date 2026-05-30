@@ -1,0 +1,366 @@
+{
+  "status": "pass",
+  "generated_utc": "2026-05-30T08:12:24Z",
+  "source": "/mydata/JerryT/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan.cpp",
+  "dispatch": "libs/libukggml_vk/uk_vulkan_dispatch.c",
+  "required_count": 59,
+  "supported_required_count": 59,
+  "missing_required": [],
+  "optional_missing": [
+    "vkCmdBeginDebugUtilsLabelEXT",
+    "vkCmdEndDebugUtilsLabelEXT",
+    "vkCmdInsertDebugUtilsLabelEXT",
+    "vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV",
+    "vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR",
+    "vkQueueBeginDebugUtilsLabelEXT",
+    "vkQueueEndDebugUtilsLabelEXT",
+    "vkSetDebugUtilsObjectNameEXT"
+  ],
+  "unknown_methods_reviewed": [
+    "buffers_in_use",
+    "copyFrom",
+    "getPipelineExecutableStatisticsKHR",
+    "pfn_vkQueueBeginDebugUtilsLabelEXT",
+    "setQueueCreateInfos",
+    "waitEvents",
+    "waitSemaphores"
+  ],
+  "rows": [
+    {
+      "api": "vkAllocateCommandBuffers",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkAllocateDescriptorSets",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkAllocateMemory",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkBindBufferMemory",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkCmdBeginDebugUtilsLabelEXT",
+      "status": "optional-missing",
+      "required_for_claim": false
+    },
+    {
+      "api": "vkCmdBindDescriptorSets",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkCmdBindPipeline",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkCmdCopyBuffer",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkCmdDispatch",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkCmdEndDebugUtilsLabelEXT",
+      "status": "optional-missing",
+      "required_for_claim": false
+    },
+    {
+      "api": "vkCmdFillBuffer",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkCmdInsertDebugUtilsLabelEXT",
+      "status": "optional-missing",
+      "required_for_claim": false
+    },
+    {
+      "api": "vkCmdPipelineBarrier",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkCmdResetQueryPool",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkCreateBuffer",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkCreateCommandPool",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkCreateComputePipelines",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkCreateDescriptorPool",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkCreateDescriptorSetLayout",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkCreateDevice",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkCreateEvent",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkCreateFence",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkCreatePipelineLayout",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkCreateQueryPool",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkCreateSemaphore",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkCreateShaderModule",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkDestroyBuffer",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkDestroyCommandPool",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkDestroyDescriptorPool",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkDestroyDescriptorSetLayout",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkDestroyDevice",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkDestroyEvent",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkDestroyFence",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkDestroyPipeline",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkDestroyPipelineLayout",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkDestroyQueryPool",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkDestroySemaphore",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkDestroyShaderModule",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkEnumerateDeviceExtensionProperties",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkEnumeratePhysicalDevices",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkFreeMemory",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkGetBufferDeviceAddress",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkGetBufferMemoryRequirements",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkGetDeviceQueue",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkGetFenceStatus",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkGetInstanceProcAddr",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkGetMemoryHostPointerPropertiesEXT",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV",
+      "status": "optional-missing",
+      "required_for_claim": false
+    },
+    {
+      "api": "vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR",
+      "status": "optional-missing",
+      "required_for_claim": false
+    },
+    {
+      "api": "vkGetPhysicalDeviceFeatures2",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkGetPhysicalDeviceMemoryProperties",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkGetPhysicalDeviceMemoryProperties2",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkGetPhysicalDeviceProperties",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkGetPhysicalDeviceProperties2",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkGetPhysicalDeviceQueueFamilyProperties",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkGetQueryPoolResults",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkMapMemory",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkQueueBeginDebugUtilsLabelEXT",
+      "status": "optional-missing",
+      "required_for_claim": false
+    },
+    {
+      "api": "vkQueueEndDebugUtilsLabelEXT",
+      "status": "optional-missing",
+      "required_for_claim": false
+    },
+    {
+      "api": "vkQueueSubmit",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkResetCommandPool",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkResetEvent",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkResetFences",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkSetDebugUtilsObjectNameEXT",
+      "status": "optional-missing",
+      "required_for_claim": false
+    },
+    {
+      "api": "vkSetEvent",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkUpdateDescriptorSets",
+      "status": "supported",
+      "required_for_claim": true
+    },
+    {
+      "api": "vkWaitForFences",
+      "status": "supported",
+      "required_for_claim": true
+    }
+  ],
+  "claim_boundary": "Covers the pinned ggml-vulkan.cpp API surface, not general Vulkan conformance."
+}

@@ -1,0 +1,31 @@
+{
+  "schema": "kmscube/frame-pixel-proof.v1",
+  "ppm": "results/kmscube_vgpu_gl/latest/qmp-screendump.ppm",
+  "patch": {
+    "x0": 232,
+    "y0": 72,
+    "w": 256,
+    "h": 256
+  },
+  "mean_rgba": [
+    22.5,
+    22.5,
+    22.5,
+    255
+  ],
+  "stddev_max": 57.208,
+  "matched_colour_index": null,
+  "pixel_variance_ok": true,
+  "colour_band_ok": false,
+  "colour_band_source": "none",
+  "virgl_submit_proof": {
+    "renderer": "virgl",
+    "submits_3d": 3,
+    "frames": 3,
+    "errors": []
+  },
+  "virgl_submit_is_pixel_proof": false,
+  "virgl_submit_diagnostic_ok": true,
+  "run_log_sha256": "2388873c83f8a73df7c252ebbec2ee8f63ef04e4388810f6480f17626c57c5e8",
+  "captured_at": "2026-05-30T07:33:49.930857Z"
+}

@@ -1,0 +1,9 @@
+menuconfig LIBUKVIRTGPU_DRM
+	bool "libukvirtgpu_drm: Mesa/Linux virtgpu UAPI shim (vk.drm-shim)"
+	default n
+	select LIBUKVIRTIO_GPU
+	help
+	  Translates DRM_IOCTL_VIRTGPU_* calls into VirtIO-GPU protocol
+	  commands via libukvirtio_gpu. Provides the ioctl surface expected
+	  by Mesa's Venus guest driver (vn_renderer_virtgpu.c).
+	  Required for vk.drm-shim gate (Venus Vulkan ICD access from unikernel).

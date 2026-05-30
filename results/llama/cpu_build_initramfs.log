@@ -1,0 +1,2 @@
+level=error msg="unknown flag: --override-config"
+vogue-llama-cpu: build blocked rc=1

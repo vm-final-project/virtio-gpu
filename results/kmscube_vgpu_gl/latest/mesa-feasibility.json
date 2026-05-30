@@ -1,0 +1,39 @@
+{
+  "status": "blocked:feasibility-not-yet-implemented",
+  "kmscube_source": "upstream https://gitlab.freedesktop.org/mesa/kmscube/; commit not vendored yet",
+  "mesa_components_enabled": [],
+  "mesa_components_disabled": [
+    "GLX",
+    "X11",
+    "Wayland",
+    "Vulkan",
+    "OpenCL",
+    "video",
+    "GStreamer",
+    "PNG",
+    "unrelated Gallium drivers",
+    "dynamic driver loading"
+  ],
+  "required_unikraft_posix_assumptions": [
+    "mmap",
+    "TLS",
+    "pthreads",
+    "atomics",
+    "filesystem paths",
+    "dlopen",
+    "/dev/dri",
+    "ioctl",
+    "fd passing",
+    "env vars",
+    "timers",
+    "signals"
+  ],
+  "selected_seam": "deliberate blocker until bounded Mesa EGL/GLES/virgl static slice is implemented",
+  "scope_expansion_triggers": [
+    "broad /dev/dri emulation",
+    "generic ioctl layer",
+    "dynamic Mesa driver loading",
+    "full Mesa distro import"
+  ],
+  "first_missing_dependency": "bounded Mesa EGL/GLES/virgl static slice for Unikraft"
+}

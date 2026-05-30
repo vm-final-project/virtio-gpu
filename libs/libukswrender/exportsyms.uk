@@ -1,0 +1,9 @@
+uk_sw_framebuf_alloc
+uk_sw_framebuf_free
+uk_sw_framebuf_clear
+uk_sw_framebuf_crc
+uk_sw_cube_init
+uk_sw_cube_render
+uk_sw_draw_triangle
+uk_sw_draw_rect
+uk_sw_draw_gradient

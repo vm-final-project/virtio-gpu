@@ -1,0 +1,176 @@
+uk_ggml_vulkan_dispatch_test: N3 static Vulkan ICD dispatch layer
+================================================================
+
+[A] Proc lookup — vkGetInstanceProcAddr / vkGetDeviceProcAddr
+  PASS  proc:vkCreateInstance
+  PASS  proc:vkDestroyInstance
+  PASS  proc:vkEnumeratePhysicalDevices
+  PASS  proc:vkGetPhysicalDeviceProperties
+  PASS  proc:vkGetPhysicalDeviceProperties2
+  PASS  proc:vkGetPhysicalDeviceFeatures
+  PASS  proc:vkGetPhysicalDeviceFeatures2
+  PASS  proc:vkGetPhysicalDeviceMemoryProperties
+  PASS  proc:vkGetPhysicalDeviceMemoryProperties2
+  PASS  proc:vkGetPhysicalDeviceQueueFamilyProperties
+  PASS  proc:vkEnumerateDeviceExtensionProperties
+  PASS  proc:vkEnumerateInstanceLayerProperties
+  PASS  proc:vkEnumerateInstanceExtensionProperties
+  PASS  proc:vkCreateDevice
+  PASS  proc:vkDestroyDevice
+  PASS  proc:vkGetDeviceQueue
+  PASS  proc:vkAllocateMemory
+  PASS  proc:vkFreeMemory
+  PASS  proc:vkMapMemory
+  PASS  proc:vkUnmapMemory
+  PASS  proc:vkCreateBuffer
+  PASS  proc:vkDestroyBuffer
+  PASS  proc:vkGetBufferMemoryRequirements
+  PASS  proc:vkGetBufferMemoryRequirements2
+  PASS  proc:vkBindBufferMemory
+  PASS  proc:vkGetBufferDeviceAddress
+  PASS  proc:vkCreateShaderModule
+  PASS  proc:vkDestroyShaderModule
+  PASS  proc:vkCreateDescriptorSetLayout
+  PASS  proc:vkCreateDescriptorPool
+  PASS  proc:vkAllocateDescriptorSets
+  PASS  proc:vkUpdateDescriptorSets
+  PASS  proc:vkCreatePipelineLayout
+  PASS  proc:vkDestroyPipelineLayout
+  PASS  proc:vkCreateComputePipelines
+  PASS  proc:vkDestroyPipeline
+  PASS  proc:vkCreateCommandPool
+  PASS  proc:vkAllocateCommandBuffers
+  PASS  proc:vkFreeCommandBuffers
+  PASS  proc:vkBeginCommandBuffer
+  PASS  proc:vkEndCommandBuffer
+  PASS  proc:vkResetCommandBuffer
+  PASS  proc:vkResetCommandPool
+  PASS  proc:vkGetMemoryHostPointerPropertiesEXT
+  PASS  proc:vkCmdBindPipeline
+  PASS  proc:vkCmdBindDescriptorSets
+  PASS  proc:vkCmdPushConstants
+  PASS  proc:vkCmdDispatch
+  PASS  proc:vkCmdCopyBuffer
+  PASS  proc:vkCmdFillBuffer
+  PASS  proc:vkCmdPipelineBarrier
+  PASS  proc:vkQueueSubmit
+  PASS  proc:vkQueueWaitIdle
+  PASS  proc:vkDeviceWaitIdle
+  PASS  proc:vkCreateFence
+  PASS  proc:vkDestroyFence
+  PASS  proc:vkResetFences
+  PASS  proc:vkWaitForFences
+  PASS  proc:vkGetFenceStatus
+  PASS  proc:vkCreateSemaphore
+  PASS  proc:vkCreateQueryPool
+  PASS  proc:vkGetQueryPoolResults
+  PASS  proc:vkCmdResetQueryPool
+  PASS  proc:vkCmdWriteTimestamp
+  PASS  proc:vkCmdBeginQuery
+  PASS  proc:vkCmdEndQuery
+  PASS  proc:vkGetPhysicalDeviceProperties2KHR
+  PASS  proc:vkGetPhysicalDeviceFeatures2KHR
+  PASS  proc:vkGetPhysicalDeviceMemoryProperties2KHR
+  PASS  proc:vkGetBufferMemoryRequirements2KHR
+  PASS  proc:vkGetBufferDeviceAddressKHR
+  PASS  proc:unknown_fn returns NULL
+  PASS  proc:empty_name returns NULL
+  PASS  proc:null_name returns NULL
+  PASS  devproc:vkCmdDispatch
+  PASS  devproc:vkQueueSubmit
+  PASS  devproc:unknown returns NULL
+  PASS  get_proc_addr_fn:non_null
+  PASS  get_proc_addr_fn:finds_vkCreateInstance
+
+[B] Dispatch init — uk_ggml_vulkan_dispatch_init()
+  PASS  init:returns_zero
+  PASS  init:idempotent
+
+[C] Call stubs — VK_SUCCESS from each registered function
+  PASS  stub:CreateInstance returns VK_SUCCESS
+  PASS  stub:CreateInstance sets instance handle
+  PASS  stub:EnumPhysDevs count==1
+  PASS  stub:EnumPhysDevs returns VK_SUCCESS
+  PASS  stub:EnumPhysDevs sets pdev handle
+  PASS  stub:GetPhysDevProps vendorID==NVIDIA(0x10de)
+  PASS  stub:GetPhysDevFeatures robustBufferAccess==VK_TRUE
+  PASS  stub:GetPhysDevMemProps memTypeCount==3
+  PASS  stub:CreateDevice returns VK_SUCCESS
+  PASS  stub:CreateDevice sets device handle
+  PASS  stub:GetDeviceQueue sets queue handle
+  PASS  stub:AllocateMemory returns VK_SUCCESS
+  PASS  stub:AllocateMemory sets memory handle
+  PASS  stub:CreateBuffer(in) returns VK_SUCCESS
+  PASS  stub:CreateBuffer(in) sets handle
+  PASS  stub:CreateBuffer(out) returns VK_SUCCESS
+  PASS  stub:CreateBuffer handles are distinct
+  PASS  stub:GetBufMemReq alignment==256
+  PASS  stub:GetBufMemReq memoryTypeBits==0x7
+  PASS  stub:BindBufferMemory(in) returns VK_SUCCESS
+  PASS  stub:BindBufferMemory(out) returns VK_SUCCESS
+  PASS  stub:MapMemory returns VK_SUCCESS
+  PASS  stub:MapMemory returns non-NULL pointer
+  PASS  stub:CreateShaderModule returns VK_SUCCESS
+  PASS  stub:CreateShaderModule sets handle
+  PASS  stub:CreateDescriptorSetLayout returns VK_SUCCESS
+  PASS  stub:CreateDescriptorSetLayout sets handle
+  PASS  stub:CreateDescriptorPool returns VK_SUCCESS
+  PASS  stub:CreateDescriptorPool sets handle
+  PASS  stub:AllocateDescriptorSets returns VK_SUCCESS
+  PASS  stub:AllocateDescriptorSets sets handle
+  PASS  stub:UpdateDescriptorSets storage buffer called
+  PASS  stub:CreatePipelineLayout returns VK_SUCCESS
+  PASS  stub:CreatePipelineLayout sets handle
+  PASS  stub:CreateComputePipelines returns VK_SUCCESS
+  PASS  stub:CreateComputePipelines sets handle
+  PASS  stub:CreateCommandPool returns VK_SUCCESS
+  PASS  stub:CreateCommandPool sets handle
+  PASS  stub:AllocateCommandBuffers returns VK_SUCCESS
+  PASS  stub:AllocateCommandBuffers sets handle
+  PASS  stub:BeginCommandBuffer returns VK_SUCCESS
+  PASS  stub:CmdBindPipeline called without crash
+  PASS  stub:CmdBindDescriptorSets called without crash
+  PASS  stub:CmdPushConstants called without crash
+  PASS  stub:CmdCopyBuffer called without crash
+  PASS  stub:CmdFillBuffer called without crash
+  PASS  stub:CmdPipelineBarrier called without crash
+  PASS  stub:CmdDispatch called without crash
+  PASS  stub:EndCommandBuffer returns VK_SUCCESS
+  PASS  stub:CreateFence returns VK_SUCCESS
+  PASS  stub:CreateFence sets handle
+  PASS  stub:QueueSubmit returns VK_SUCCESS
+  PASS  stub:WaitForFences returns VK_SUCCESS
+  PASS  stub:ResetFences returns VK_SUCCESS
+  PASS  stub:cleanup destroy/free path called
+
+[D] Full compute bootstrap sequence
+  PASS  seq:01:CreateInstance
+  PASS  seq:02:EnumeratePhysicalDevices
+  PASS  seq:03:CreateDevice
+  PASS  seq:04:GetDeviceQueue
+  PASS  seq:05:AllocateMemory
+  PASS  seq:06:CreateBuffer(in)
+  PASS  seq:07:CreateBuffer(out)
+  PASS  seq:08:BindBufferMemory(in)
+  PASS  seq:09:BindBufferMemory(out)
+  PASS  seq:10:CreateShaderModule
+  PASS  seq:11:CreateDescriptorSetLayout
+  PASS  seq:12:CreateDescriptorPool
+  PASS  seq:13:AllocateDescriptorSets
+  PASS  seq:14:CreatePipelineLayout
+  PASS  seq:15:CreateComputePipelines
+  PASS  seq:16:CreateCommandPool
+  PASS  seq:17:AllocateCommandBuffers
+  PASS  seq:18:BeginCommandBuffer
+  PASS  seq:19:CmdBind+Dispatch called
+  PASS  seq:20:EndCommandBuffer
+  PASS  seq:21:CreateFence
+  PASS  seq:21:QueueSubmit
+  PASS  seq:22:WaitForFences
+  PASS  seq:23:ResetFences
+  INFO  sequence: all 23 steps completed without device loss
+
+================================================================
+Results: 160 passed, 0 failed
+uk_ggml_vulkan_dispatch_test: all checks PASS
+uk-llama-vk-n3: PASS evidence_id=llama-vk-n3-dispatch gpu=1 venus=1 substrate=static-vk-icd

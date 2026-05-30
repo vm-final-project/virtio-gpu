@@ -1,0 +1,3 @@
+$(eval $(call addlib,libukdrm_compat))
+CINCLUDES-$(CONFIG_LIBUKDRM_COMPAT) += -I$(LIBUKDRM_COMPAT_BASE)/include
+LIBUKDRM_COMPAT_SRCS-$(CONFIG_LIBUKDRM_COMPAT) += $(LIBUKDRM_COMPAT_BASE)/drm_compat.c

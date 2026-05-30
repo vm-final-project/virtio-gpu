@@ -1,0 +1,4 @@
+$(eval $(call addlib,libukbuf))
+CINCLUDES-$(CONFIG_LIBUKBUF) += -I$(LIBUKBUF_BASE)/include
+CXXINCLUDES-$(CONFIG_LIBUKBUF) += -I$(LIBUKBUF_BASE)/include
+LIBUKBUF_SRCS-$(CONFIG_LIBUKBUF) += $(LIBUKBUF_BASE)/buf_pool.c

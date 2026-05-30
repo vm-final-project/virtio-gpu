@@ -1,0 +1,11 @@
+{
+  "status": "pass",
+  "generated_utc": "2026-05-28T17:05:38Z",
+  "evidence_id": "llama-vk-probe",
+  "physical_device": "NVIDIA RTX 4000 Ada Generation",
+  "backends": "Vulkan",
+  "vulkaninfo_present": true,
+  "source": "/Users/caichaowei/NTU/114_2/virtual-machine/final-project/vm-final-project/results/llama/vulkan-baselines/vulkan-rtx4000.json",
+  "claim_allowed": "The host Vulkan ICD exposes a Venus-capable device to the same upstream ggml-vulkan binary the Unikraft port targets.",
+  "claim_forbidden": "Unikraft-internal Vulkan ICD compute dispatch claim \u2014 that is LLAMA-VK-UK."
+}

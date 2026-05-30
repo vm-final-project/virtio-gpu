@@ -1,0 +1,16 @@
+{
+  "format": "ppm-p6",
+  "width": 720,
+  "height": 400,
+  "maxval": 255,
+  "bytes": 864000,
+  "sha256": "e2b2ab9bc02e361b11246fae8d30573fa9b80ddb57e071baf6cad2faf8afbd32",
+  "sample_unique_values": 2,
+  "variance_check": "pass",
+  "status": "pass",
+  "source": "qmp-screendump",
+  "marker": "uk-kmscube: frame_ready marker=qmp-screendump-hold",
+  "run_log": "results/kmscube_vgpu_gl/latest/run.log",
+  "screendump": "results/kmscube_vgpu_gl/latest/qmp-screendump.ppm",
+  "written_at": "2026-05-30T08:12:23Z"
+}

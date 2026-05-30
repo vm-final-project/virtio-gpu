@@ -1,0 +1,1 @@
+uk-kmscube: PASS kmscube_vgpu_gl frames=3 frame_crc=a egl_version=1 gl_renderer=llvmpipe capset=virgl submits_3d=1 frame_source=guest-readback evidence_id=x

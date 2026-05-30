@@ -1,0 +1,21 @@
+{
+  "generated_utc": "2026-05-28T17:05:38Z",
+  "evidence_id": "llama-vk-linux",
+  "llama_cpp_dir": "/home/jerrytsai/llama.cpp",
+  "llama_bench_present": false,
+  "ggml_vulkan_so_present": false,
+  "baseline_dir": "/Users/caichaowei/NTU/114_2/virtual-machine/final-project/vm-final-project/results/llama/vulkan-baselines",
+  "status": "pass",
+  "pp512_t_per_s": 213050.36,
+  "tg128_t_per_s": 2409.6,
+  "gpu_info": "NVIDIA RTX 4000 Ada Generation",
+  "model_filename": "/home/jerrytsai/vm-final-project/tmp/archive-llm-substrate/models/tiny-random-LlamaForCausalLM-Q2_K.gguf",
+  "all_envs": [
+    "cpu-1t",
+    "cpu-32t",
+    "cuda-gpu",
+    "vulkan-gpu"
+  ],
+  "claim_allowed": "Linux-host Vulkan/Venus baseline measured against the same upstream ggml-vulkan binary the Unikraft port uses.",
+  "claim_forbidden": "Unikraft-internal Vulkan compute claim \u2014 that gate is LLAMA-VK-RUN."
+}
