@@ -1,6 +1,6 @@
 # VOGUE App Multi-Environment Benchmark
 
-Generated: 2026-05-29T21:40:40Z
+Generated: 2026-05-30T11:52:48Z
 
 All blocked rows are documented expected states, not failures.
 
@@ -8,16 +8,16 @@ All blocked rows are documented expected states, not failures.
 
 | Environment | Status | Key Metrics | Note |
 |-------------|--------|-------------|------|
-| Native fake backend | `pass` | fps=458.57; avg_frame_ms=2.181; transfers=60; fences=120; fi | gfx.kmscube.sw: 60 frames @ 458.6 FPS (640x480, BGRA) |
-| QEMU + Unikraft CPU (2D path) | `pass-substrate:cpu` | qemu_probe=blocked:probe-incomplete; frames_software=3; fram | gfx.kmscube.sw path is substrate evidence; xport.qemu-vgpu r |
-| QEMU + Unikraft VirtIO-GPU Vulkan | `blocked:ring-buffer-frame-proof-missing` | venus_ring_native=all-pass; ring_qemu_status=blocked:ring-or | K1: blocked on same-run QEMU frame proof. |
+| Native fake backend | `pass` | fps=454.66; avg_frame_ms=2.199; transfers=60; fences=120; fi | gfx.kmscube.sw: 60 frames @ 454.7 FPS (640x480, BGRA) |
+| QEMU + Unikraft CPU (2D path) | `pass-substrate:cpu` | qemu_probe=pass; frames_software=3; frame_crcs=['0x2d89905c' | gfx.kmscube.sw path is substrate evidence; xport.qemu-vgpu r |
+| QEMU + Unikraft VirtIO-GPU Vulkan | `blocked:ring-buffer-frame-proof-missing` | venus_ring_native=all-pass; ring_qemu_status=pass | K1: blocked on same-run QEMU frame proof. |
 
 ## app-glmark2
 
 | Environment | Status | Key Metrics | Note |
 |-------------|--------|-------------|------|
-| Native fake backend | `pass` | fps=172.88; avg_frame_ms=5.784; frames=120; fences=240 | gfx.glmark2.sw: 120 frames @ 172.9 FPS (1280x800) |
-| QEMU + Unikraft CPU (2D path) | `pass-substrate:cpu` | substrate_fps_native=172.88; qemu_probe=pass | gfx.glmark2.sw path: substrate FPS measured natively; QEMU 2 |
+| Native fake backend | `pass` | fps=176.32; avg_frame_ms=5.672; frames=120; fences=240 | gfx.glmark2.sw: 120 frames @ 176.3 FPS (1280x800) |
+| QEMU + Unikraft CPU (2D path) | `pass-substrate:cpu` | substrate_fps_native=176.32; qemu_probe=pass | gfx.glmark2.sw path: substrate FPS measured natively; QEMU 2 |
 | QEMU + Unikraft VirtIO-GPU Vulkan | `blocked:ring-buffer-frame-proof-missing` |  | gfx.glmark2.sw→G1vk: blocked on proto.venus-ring QEMU gate. |
 
 ## app-vkmark

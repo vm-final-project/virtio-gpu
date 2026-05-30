@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-05-29T21:16:47.035812Z",
+    "generated_utc": "2026-05-30T11:39:40.377314Z",
     "source": "scripts/image_size_check.py",
     "principle": "Unikraft single-purpose images carry only the linked-in source per Kconfig mode (see paper \u00a77)."
   },
@@ -9,7 +9,7 @@
       "name": "kmscube",
       "row": "gfx.kmscube.sw",
       "image": ".unikraft/build/vogue_qemu-x86_64",
-      "size_bytes": 1110192,
+      "size_bytes": 1114352,
       "size_human": "1.06 MiB",
       "status": "pass"
     },
