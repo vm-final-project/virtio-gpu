@@ -37,6 +37,7 @@
 #define VN_CMD_vkCreateDevice                    11u
 #define VN_CMD_vkDestroyDevice                   12u
 #define VN_CMD_vkGetDeviceQueue                  17u
+#define VN_CMD_vkGetDeviceQueue2                 155u
 #define VN_CMD_vkQueueSubmit                     18u
 #define VN_CMD_vkQueueWaitIdle                   19u
 #define VN_CMD_vkDeviceWaitIdle                  20u
@@ -251,9 +252,73 @@ void uk_venus_encode_vkGetDeviceQueue(struct uk_venus_encoder *enc,
 				      uint32_t queue_family_index,
 				      uint32_t queue_index,
 				      uint64_t queue_handle);
+void uk_venus_encode_vkGetDeviceQueue2(struct uk_venus_encoder *enc,
+				       uint64_t device_handle,
+				       uint32_t queue_family_index,
+				       uint32_t queue_index,
+				       uint32_t ring_idx,
+				       uint64_t queue_handle);
 void uk_venus_encode_vkQueueSubmit_empty(struct uk_venus_encoder *enc,
 					 uint64_t queue_handle,
 					 uint64_t fence_handle);
+
+/* Reply-bearing Venus query commands (real round-trip via reply shmem). */
+void uk_venus_encode_vkSetReplyCommandStreamMESA(struct uk_venus_encoder *enc,
+						 uint32_t resource_id,
+						 uint64_t offset,
+						 uint64_t size);
+void uk_venus_encode_vkGetPhysicalDeviceProperties(struct uk_venus_encoder *enc,
+						   uint64_t physdev_handle);
+void uk_venus_encode_vkGetPhysicalDeviceMemoryProperties(struct uk_venus_encoder *enc,
+							 uint64_t physdev_handle);
+
+/*
+ * uk_venus_query_device_name — perform a REAL Venus round-trip on an existing
+ * Venus context to read the host physical device's name. Submits
+ * [vkSetReplyCommandStreamMESA][vkGetPhysicalDeviceProperties] over SUBMIT_3D
+ * into a freshly-created host-visible reply blob, waits on the fence, and
+ * extracts the deviceName from the host-written reply.
+ *
+ * physdev_handle must be a VkPhysicalDevice id already registered on ctx (e.g.
+ * via vkEnumeratePhysicalDevices). On success returns 0 and writes a
+ * NUL-terminated name into name_out; returns <0 if the round-trip failed or no
+ * plausible name was found (caller should fall back to its default).
+ */
+int uk_venus_query_device_name(struct uk_virtio_gpu_dev *dev,
+			       struct uk_virtio_gpu_context *ctx,
+			       uint64_t physdev_handle,
+			       char *name_out, unsigned int name_cap);
+
+/*
+ * uk_venus_query_memory_properties — REAL Venus round-trip that fills a
+ * 520-byte VkPhysicalDeviceMemoryProperties with the host device's real memory
+ * types and heaps (so ggml-vulkan selects a memory type index that actually
+ * exists and is host-visible on the host GPU). physdev_handle must already be
+ * registered on ctx. Returns 0 and fills props_out on success, <0 otherwise.
+ */
+int uk_venus_query_memory_properties(struct uk_virtio_gpu_dev *dev,
+				     struct uk_virtio_gpu_context *ctx,
+				     uint64_t physdev_handle,
+				     void *props_out);
+
+/* Create the device via Venus and read the host VkResult back (reply
+ * round-trip), so the caller can detect a failing device creation. */
+int uk_venus_create_device_checked(struct uk_virtio_gpu_dev *dev,
+				   struct uk_virtio_gpu_context *ctx,
+				   uint64_t physdev_handle,
+				   uint64_t device_handle,
+				   uint32_t queue_family_index,
+				   int32_t *vk_result_out);
+
+/* Real Venus round-trip for a buffer's VkMemoryRequirements (size/alignment/
+ * memoryTypeBits) from the host. Returns 0 and fills outputs on success. */
+int uk_venus_query_buffer_requirements(struct uk_virtio_gpu_dev *dev,
+				       struct uk_virtio_gpu_context *ctx,
+				       uint64_t device_handle,
+				       uint64_t buffer_handle,
+				       uint64_t *size_out,
+				       uint64_t *align_out,
+				       uint32_t *type_bits_out);
 
 /*
  * Venus ring transport commands (Mesa VK_EXT_command_serialization extension).
@@ -380,6 +445,11 @@ uint32_t uk_venus_ring_load_head(const struct uk_venus_ring *ring);
 void uk_venus_encode_vkAllocateMemory(struct uk_venus_encoder *enc,
 				      uint64_t device, uint64_t mem_handle,
 				      uint64_t alloc_size, uint32_t mem_type_index);
+void uk_venus_encode_vkAllocateMemory_import(struct uk_venus_encoder *enc,
+					     uint64_t device, uint64_t mem_handle,
+					     uint64_t alloc_size,
+					     uint32_t mem_type_index,
+					     uint32_t resource_id);
 void uk_venus_encode_vkFreeMemory(struct uk_venus_encoder *enc,
 				  uint64_t device, uint64_t memory);
 void uk_venus_encode_vkMapMemory(struct uk_venus_encoder *enc,

@@ -14,9 +14,25 @@
 #if CONFIG_APP_LLAMA_UPSTREAM_VK_MODE_BENCH
 
 #include <vector>
+#include <cstdlib>
 
 int main(void)
 {
+    /* The ggml-vulkan async-upload path uses timeline/binary semaphores that the
+     * static Venus dispatch does not implement; force the synchronous upload
+     * path (vkCmdCopyBuffer + queue submit + fence). */
+    setenv("GGML_VK_DISABLE_ASYNC", "1", 1);
+
+    /* Force big device buffers (model weights, KV cache, compute graph) into
+     * PURE VK_MEMORY_PROPERTY_DEVICE_LOCAL memory. Without this, ggml's default
+     * "discrete GPU" path prefers DeviceLocal|HostVisible (rebar) memory and
+     * tries to map every device buffer into the guest's finite host-visible
+     * VirtIO-GPU window (hostmem=512M), which overflows for anything but a tiny
+     * model. Pure device-local memory lives on the real V100 (allocated host-
+     * side via Venus) and is filled through a small bounded host-visible staging
+     * buffer + vkCmdCopyBuffer, exactly as on a real BAR-limited discrete GPU. */
+    setenv("GGML_VK_DISABLE_HOST_VISIBLE_VIDMEM", "1", 1);
+
     const char *model_path = "/mnt/model/model.gguf";
     llama_model *model = load_model_vk(model_path, "uk-llama-upstream-vk");
     if (!model)

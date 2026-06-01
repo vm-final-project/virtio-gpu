@@ -3,13 +3,13 @@
   "acceleration_status": "ready-for-venus-smoke",
   "repetitions": 5,
   "static_gate_latency_ms": {
-    "mean": 46.8217718,
-    "median": 46.421288,
-    "min": 37.701837,
-    "max": 63.073444,
-    "p95": 47.445584
+    "mean": 37.4663564,
+    "median": 35.948552,
+    "min": 30.817326,
+    "max": 47.652801,
+    "p95": 37.019414
   },
   "qemu_probe_status": "pass",
   "claim_boundary": "Static/native gates are measured here; STK/Vulkan acceleration is blocked until QEMU Venus probe is pass.",
-  "written_at": "2026-05-30T08:12:23Z"
+  "written_at": "2026-05-31T17:35:32Z"
 }

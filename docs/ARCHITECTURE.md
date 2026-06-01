@@ -19,6 +19,60 @@ application port (kmscube/glmark2/vkmark/llama.cpp)
 The project does not import Linux DRM/KMS or Mesa into the guest. It implements
 only the bounded interfaces needed by the artifact rows.
 
+## Dependency graph
+
+`make depgraph` (`scripts/gen_depgraph.py`, design in
+`docs/dependency-graph-plan.md`) extracts the virtio-gpu dependency multigraph
+across three codebases and one protocol seam — the Linux guest driver
+(`../linux/drivers/gpu/drm/virtio`), our VOGUE `libs/*`, and the QEMU device
+model (`../qemu-src/hw/display`) — directly from their `Kconfig`/`Config.uk`,
+`Makefile`/`meson.build`, and `#include` graphs. Edges are typed `build`
+(dashed), `compile` (blue), and `runtime` (bold). Artifacts and full catalogue
+live in [`results/depgraph/`](../results/depgraph/README.md):
+
+| View | Insight | Files |
+|---|---|---|
+| A — The Collapse | Linux links 13 DRM/KMS/GEM objects + subsystem `select`s; VOGUE reaches the same seam through a thin `libuk*` chain, depending on **none** of that tower. | `results/depgraph/view-a-collapse.{svg,mmd}` |
+| B — Three Kinds of One Edge | Where build wiring diverges from the runtime hot path on the VOGUE Vulkan chain. | `results/depgraph/view-b-edge-kinds.{svg,mmd}` |
+| C — The Invariant Spine | Linux **and** VOGUE emit the same `VIRTIO_GPU_CMD_*`/Venus opcodes that QEMU consumes — interchangeable guests, one host contract. | `results/depgraph/view-c-spine.{svg,mmd}` |
+
+View C — the shared protocol contract that both guests speak to QEMU:
+
+```mermaid
+flowchart LR
+  subgraph linux["Linux DRM guest"]
+    linux_virtgpu_vq["virtgpu_vq"]
+    linux_virtgpu_submit["virtgpu_submit"]
+  end
+  subgraph vogue["VOGUE guest"]
+    vogue_libukggml_vk["libukggml_vk"]
+    vogue_libukvenus["libukvenus"]
+    vogue_libukvirtgpu_drm["libukvirtgpu_drm"]
+    vogue_libukvirtio_gpu["libukvirtio_gpu"]
+  end
+  subgraph seam["Protocol seam"]
+    seam_ctrlq["VirtIO-GPU control/cursor queues"]
+    seam_venus_ring["Venus command ring"]
+  end
+  subgraph qemu["QEMU host"]
+    qemu_virtio_gpu["virtio-gpu"]
+    qemu_virtio_gpu_virgl["virtio-gpu-virgl"]
+    qemu_ext_virglrenderer["virglrenderer"]
+  end
+  vogue_libukggml_vk ==>|vk cmd encode| vogue_libukvenus
+  vogue_libukvenus ==>|VENUS ring submit| vogue_libukvirtio_gpu
+  vogue_libukvirtgpu_drm ==>|EXECBUFFER ioctl| vogue_libukvirtio_gpu
+  vogue_libukvirtio_gpu ==>|VIRTIO_GPU_CMD_*| seam_ctrlq
+  vogue_libukvenus ==>|VK command stream| seam_venus_ring
+  linux_virtgpu_vq ==>|VIRTIO_GPU_CMD_*| seam_ctrlq
+  linux_virtgpu_submit ==>|EXECBUFFER| seam_venus_ring
+  seam_ctrlq ==>|cmd dispatch| qemu_virtio_gpu
+  seam_venus_ring ==>|venus decode| qemu_virtio_gpu_virgl
+  qemu_virtio_gpu_virgl ==>|host Vulkan| qemu_ext_virglrenderer
+```
+
+Regenerate with `make depgraph`; `make depgraph-check` is the drift gate.
+
 ## llama.cpp taxonomy
 
 | Class | Surface | Purpose | Evidence status |

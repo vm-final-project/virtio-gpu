@@ -26,7 +26,7 @@
 #define VK_STYPE_DEVICE_CREATE_INFO           3u
 #define VK_STYPE_MEMORY_ALLOCATE_INFO         5u
 #define VK_STYPE_MAPPED_MEMORY_RANGE          6u
-#define VK_STYPE_SUBMIT_INFO                 12u
+#define VK_STYPE_SUBMIT_INFO                  4u  /* VK_STRUCTURE_TYPE_SUBMIT_INFO */
 #define VK_STYPE_FENCE_CREATE_INFO           8u
 #define VK_STYPE_BUFFER_CREATE_INFO          12u
 #define VK_STYPE_SHADER_MODULE_CREATE_INFO   16u
@@ -108,6 +108,41 @@ void uk_venus_encode_vkAllocateMemory(struct uk_venus_encoder *enc,
 	uk_venus_encode_uint64(enc, mem_handle);
 }
 
+/*
+ * vkAllocateMemory with VkImportMemoryResourceInfoMESA in the pNext chain — the
+ * Venus host-visible memory path (Mesa vn_device_memory.c). The host backs the
+ * VkDeviceMemory with the named virtio-gpu blob resource so the guest's mapping
+ * of that blob aliases the host VkDeviceMemory: guest CPU writes are visible to
+ * the host GPU and vice-versa. resource_id is a host-visible blob attached to
+ * the same Venus context.
+ *
+ * VkMemoryAllocateInfo pNext chain (Mesa vn_encode_*_pnext, packed):
+ *   [u64 pNext present=1][u32 sType=1000384002 IMPORT_MEMORY_RESOURCE_INFO_MESA]
+ *   [u64 import.pNext present=0][u32 resourceId]
+ */
+void uk_venus_encode_vkAllocateMemory_import(struct uk_venus_encoder *enc,
+					     uint64_t device, uint64_t mem_handle,
+					     uint64_t alloc_size,
+					     uint32_t mem_type_index,
+					     uint32_t resource_id)
+{
+	uk_venus_encode_command_header(enc, VN_CMD_vkAllocateMemory,
+				       VN_COMMAND_FLAGS_NONE);
+	uk_venus_encode_uint64(enc, device);
+	uk_venus_encode_pointer_flag(enc, 1);                 /* VkMemoryAllocateInfo present */
+	uk_venus_encode_uint32(enc, VK_STYPE_MEMORY_ALLOCATE_INFO);
+	/* pNext = VkImportMemoryResourceInfoMESA */
+	uk_venus_encode_pointer_flag(enc, 1);                 /* pNext present */
+	uk_venus_encode_uint32(enc, 1000384002u);             /* IMPORT_MEMORY_RESOURCE_INFO_MESA */
+	uk_venus_encode_pointer_flag(enc, 0);                 /* import.pNext = NULL */
+	uk_venus_encode_uint32(enc, resource_id);             /* import.resourceId */
+	uk_venus_encode_uint64(enc, alloc_size);
+	uk_venus_encode_uint32(enc, mem_type_index);
+	uk_venus_encode_pointer_flag(enc, 0);                 /* pAllocator */
+	uk_venus_encode_pointer_flag(enc, 1);                 /* pMemory output */
+	uk_venus_encode_uint64(enc, mem_handle);
+}
+
 void uk_venus_encode_vkFreeMemory(struct uk_venus_encoder *enc,
 				  uint64_t device, uint64_t memory)
 {
@@ -161,9 +196,11 @@ void uk_venus_encode_vkGetBufferMemoryRequirements(struct uk_venus_encoder *enc,
 						   uint64_t device,
 						   uint64_t buffer)
 {
+	/* VK_COMMAND_GENERATE_REPLY_BIT_EXT (0x1): the host writes the
+	 * VkMemoryRequirements reply stream only when this flag is set. */
 	uk_venus_encode_command_header(enc,
 				       VN_CMD_vkGetBufferMemoryRequirements,
-				       VN_COMMAND_FLAGS_NONE);
+				       0x1u);
 	uk_venus_encode_uint64(enc, device);
 	uk_venus_encode_uint64(enc, buffer);
 	/* pMemoryRequirements: present (output — host fills it in reply) */

@@ -1,4 +1,4 @@
-make[1]: Entering directory '/mydata/JerryT/vm-final-project/tests'
+make[1]: Entering directory '/mydata/JerryT/virtio-gpu/tests'
 make[2]: 'build/dma_buf_test' is up to date.
 make[2]: 'build/virtio_gpu_test' is up to date.
 make[2]: 'build/virtio_gpu_2d_render_test' is up to date.
@@ -207,7 +207,7 @@ venus_cs_test:
   PASS  ring_perf:probe_ok
   PASS  ring_perf:create_ok
   PASS  ring_perf:writes_ok
-venus_ring_perf: bytes=65536 writes=256 elapsed_ns=7942 throughput_mib_s=7869.55
+venus_ring_perf: bytes=65536 writes=256 elapsed_ns=5055 throughput_mib_s=12364.00
 venus_cs_test: all checks passed
 venus_compute_test: Venus compute dispatch wire-format tests
 ============================================================
@@ -539,4 +539,4 @@ ggml_vk_dispatch_test: N3 static Vulkan ICD dispatch layer
 Results: 164 passed, 0 failed
 ggml_vk_dispatch_test: all checks PASS
 uk-llama-vk-n3: PASS evidence_id=llama-vk-n3-dispatch gpu=1 venus=1 substrate=static-vk-icd
-make[1]: Leaving directory '/mydata/JerryT/vm-final-project/tests'
+make[1]: Leaving directory '/mydata/JerryT/virtio-gpu/tests'

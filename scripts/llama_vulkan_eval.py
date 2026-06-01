@@ -16,6 +16,7 @@ import argparse
 import json
 import re
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -159,6 +160,12 @@ def main() -> int:
     if args.mode == "upstream-cpu":
         return upstream_runtime("cpu")
     if args.mode == "upstream-vk":
+        # Real boot through QEMU virtio-gpu-gl venus=true (no longer a stub).
+        # llama_vk_real_run.py writes the honest same-run artifacts; if the image
+        # is missing it falls back to the documented image-missing blocker.
+        if (ROOT / ".unikraft" / "build" / "vogue-llama-upstream-vk_qemu-x86_64").exists():
+            import subprocess as _sp
+            return _sp.call([sys.executable, str(ROOT / "scripts" / "llama_vk_real_run.py")])
         return upstream_runtime("vk")
     return reference_gate(args.mode)
 

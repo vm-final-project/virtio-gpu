@@ -1,0 +1,34 @@
+digraph "View C: The Invariant Protocol Spine" {
+  rankdir=LR;
+  node [fontsize=10];
+  label="View C: The Invariant Protocol Spine"; labelloc=t; fontsize=14;
+  subgraph "cluster_linux" { label="Linux DRM guest"; style=rounded; color="#bbbbbb";
+    "linux:virtgpu_vq" [label="virtgpu_vq",shape=box,style=filled,fillcolor="#fde2e2"];
+    "linux:virtgpu_submit" [label="virtgpu_submit",shape=box,style=filled,fillcolor="#fde2e2"];
+  }
+  subgraph "cluster_vogue" { label="VOGUE (Unikraft) guest"; style=rounded; color="#bbbbbb";
+    "vogue:libukggml_vk" [label="libukggml_vk",shape=box,style=filled,fillcolor="#e2f0fd"];
+    "vogue:libukvenus" [label="libukvenus",shape=box,style=filled,fillcolor="#e2f0fd"];
+    "vogue:libukvirtgpu_drm" [label="libukvirtgpu_drm",shape=box,style=filled,fillcolor="#e2f0fd"];
+    "vogue:libukvirtio_gpu" [label="libukvirtio_gpu",shape=box,style=filled,fillcolor="#e2f0fd"];
+  }
+  subgraph "cluster_seam" { label="Protocol seam"; style=rounded; color="#bbbbbb";
+    "seam:ctrlq" [label="VirtIO-GPU control/cursor queues",shape=hexagon,style=filled,fillcolor="#fff3c4"];
+    "seam:venus-ring" [label="Venus command ring",shape=hexagon,style=filled,fillcolor="#fff3c4"];
+  }
+  subgraph "cluster_qemu" { label="QEMU hypervisor"; style=rounded; color="#bbbbbb";
+    "qemu:ext:virglrenderer" [label="virglrenderer",shape=ellipse,style=filled,fillcolor="#e8f6e8"];
+    "qemu:virtio-gpu-virgl" [label="virtio-gpu-virgl",shape=box,style=filled,fillcolor="#e8f6e8"];
+    "qemu:virtio-gpu" [label="virtio-gpu",shape=box,style=filled,fillcolor="#e8f6e8"];
+  }
+  "vogue:libukggml_vk" -> "vogue:libukvenus" [penwidth=2.2,color="#c0392b",label="vk cmd encode"];
+  "vogue:libukvenus" -> "vogue:libukvirtio_gpu" [penwidth=2.2,color="#c0392b",label="VENUS ring submit"];
+  "vogue:libukvirtgpu_drm" -> "vogue:libukvirtio_gpu" [penwidth=2.2,color="#c0392b",label="EXECBUFFER ioctl"];
+  "vogue:libukvirtio_gpu" -> "seam:ctrlq" [penwidth=2.2,color="#c0392b",label="VIRTIO_GPU_CMD_*"];
+  "vogue:libukvenus" -> "seam:venus-ring" [penwidth=2.2,color="#c0392b",label="VK command stream"];
+  "linux:virtgpu_vq" -> "seam:ctrlq" [penwidth=2.2,color="#c0392b",label="VIRTIO_GPU_CMD_*"];
+  "linux:virtgpu_submit" -> "seam:venus-ring" [penwidth=2.2,color="#c0392b",label="EXECBUFFER"];
+  "seam:ctrlq" -> "qemu:virtio-gpu" [penwidth=2.2,color="#c0392b",label="cmd dispatch"];
+  "seam:venus-ring" -> "qemu:virtio-gpu-virgl" [penwidth=2.2,color="#c0392b",label="venus decode"];
+  "qemu:virtio-gpu-virgl" -> "qemu:ext:virglrenderer" [penwidth=2.2,color="#c0392b",label="host Vulkan"];
+}

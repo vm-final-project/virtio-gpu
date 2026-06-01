@@ -8,12 +8,12 @@
     "h": 256
   },
   "mean_rgba": [
-    22.5,
-    22.5,
-    22.5,
+    20.8,
+    20.8,
+    20.8,
     255
   ],
-  "stddev_max": 57.208,
+  "stddev_max": 55.327,
   "matched_colour_index": null,
   "pixel_variance_ok": true,
   "colour_band_ok": false,
@@ -26,6 +26,6 @@
   },
   "virgl_submit_is_pixel_proof": false,
   "virgl_submit_diagnostic_ok": true,
-  "run_log_sha256": "2388873c83f8a73df7c252ebbec2ee8f63ef04e4388810f6480f17626c57c5e8",
-  "captured_at": "2026-05-30T07:33:49.930857Z"
+  "run_log_sha256": "413e69f2e07c4ca84a2631214f04aca36a06ce0504b5281eefc4691d2bb6d194",
+  "captured_at": "2026-05-31T02:55:36.752638Z"
 }

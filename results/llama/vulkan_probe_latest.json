@@ -1,11 +1,14 @@
 {
+  "schema": "llama/uk-vulkan-probe.v1",
+  "evidence_id": "uk-vulkan-probe",
   "status": "pass",
-  "generated_utc": "2026-05-28T17:05:38Z",
-  "evidence_id": "llama-vk-probe",
-  "physical_device": "NVIDIA RTX 4000 Ada Generation",
-  "backends": "Vulkan",
-  "vulkaninfo_present": true,
-  "source": "/Users/caichaowei/NTU/114_2/virtual-machine/final-project/vm-final-project/results/llama/vulkan-baselines/vulkan-rtx4000.json",
-  "claim_allowed": "The host Vulkan ICD exposes a Venus-capable device to the same upstream ggml-vulkan binary the Unikraft port targets.",
-  "claim_forbidden": "Unikraft-internal Vulkan ICD compute dispatch claim \u2014 that is LLAMA-VK-UK."
+  "pass": true,
+  "generated_utc": "2026-06-01T07:01:15.869585Z",
+  "physical_device": "Tesla V100-SXM2-16GB",
+  "api_version": "1.2",
+  "capset_venus": true,
+  "transport": "virtio-gpu-gl venus=true; vkSetReplyCommandStreamMESA reply round-trip",
+  "run_log": "results/llama/upstream_vk_latest.log",
+  "claim_allowed": "Unikraft libukvk_icd/libukggml_vulkan enumerated a real Venus physical device (Tesla V100-SXM2-16GB) by reading the host reply over Venus.",
+  "claim_forbidden": "Vulkan compute execution, llama.cpp tokens, or throughput."
 }

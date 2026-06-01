@@ -162,6 +162,7 @@ APPLLAMA_UPSTREAM_VK_SRCS-y += $(LLAMA_SRC)/llama-impl.cpp
 APPLLAMA_UPSTREAM_VK_SRCS-y += $(LLAMA_SRC)/llama-io.cpp
 APPLLAMA_UPSTREAM_VK_SRCS-y += $(LLAMA_SRC)/llama-kv-cache.cpp
 APPLLAMA_UPSTREAM_VK_SRCS-y += $(LLAMA_SRC)/llama-kv-cache-iswa.cpp
+APPLLAMA_UPSTREAM_VK_SRCS-y += $(LLAMA_SRC)/llama-kv-cache-dsa.cpp
 APPLLAMA_UPSTREAM_VK_SRCS-y += $(LLAMA_SRC)/llama-memory.cpp
 APPLLAMA_UPSTREAM_VK_SRCS-y += $(LLAMA_SRC)/llama-memory-hybrid.cpp
 APPLLAMA_UPSTREAM_VK_SRCS-y += $(LLAMA_SRC)/llama-memory-hybrid-iswa.cpp

@@ -15,6 +15,10 @@ config LIBUKVIRTIO_GPU_BACKEND_REAL
 	select LIBVIRTIO_BUS
 	select LIBUKSGLIST
 	select LIBUKALLOC
+	select LIBUKLOCK
+	select LIBUKLOCK_MUTEX
 	help
 	  Real guest driver for QEMU/PCIe virtio-gpu device using Unikraft's
-	  virtio bus, control queue, and resource commands.
+	  virtio bus, control queue, and resource commands. The control queue is
+	  serialised with a uk_mutex (mirrors the Linux virtio-gpu ctrlq.qlock) so
+	  ggml-vulkan's concurrent pipeline-compile threads can share it safely.

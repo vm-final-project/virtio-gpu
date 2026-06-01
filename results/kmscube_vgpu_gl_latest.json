@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-05-30T07:33:49.933790Z"
+    "generated_utc": "2026-05-31T02:55:36.766450Z"
   },
   "rows": [
     {
@@ -32,9 +32,9 @@
           "source": "virgl-submit-pass-marker",
           "run_log": "results/kmscube_vgpu_gl/latest/run.log",
           "pass_marker": "uk-kmscube: PASS kmscube_vgpu_gl frames=3 renderer=virgl submits_3d=3 evidence_id=virgl-clear-proof real_virtio_gpu=1 w=1280 h=800",
-          "written_at": "2026-05-30T07:33:49.933219Z",
-          "qmp_screendump_sha256": "e1f812282fb42ba3fb9d9a1f98fe1fffe8f4894b176bd820a277fc715018ff05",
-          "qmp_screendump": ""
+          "written_at": "2026-05-31T02:55:36.762925Z",
+          "qmp_screendump_sha256": "e2b2ab9bc02e361b11246fae8d30573fa9b80ddb57e071baf6cad2faf8afbd32",
+          "qmp_screendump": "results/kmscube_vgpu_gl/latest/qmp-screendump.ppm"
         },
         "feasibility": {
           "status": "blocked:feasibility-not-yet-implemented",
@@ -76,8 +76,8 @@
           "first_missing_dependency": "bounded Mesa EGL/GLES/virgl static slice for Unikraft"
         },
         "evidence_identity": {
-          "run_log_sha256": "2388873c83f8a73df7c252ebbec2ee8f63ef04e4388810f6480f17626c57c5e8",
-          "build_log_sha256": "3f72424cacd1b9817535f0af03f9bfcc3ee5d4f6a787199d86c8b74752774c63"
+          "run_log_sha256": "413e69f2e07c4ca84a2631214f04aca36a06ce0504b5281eefc4691d2bb6d194",
+          "build_log_sha256": "2e20d425472ab994d18e82bd4c4972c163843f70dbdd3c327be8a3da2f8e05fb"
         }
       }
     }

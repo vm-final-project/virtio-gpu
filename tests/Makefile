@@ -120,7 +120,7 @@ $(BUILD)/virtgpu_drm_ioctl_test: virtgpu_drm_ioctl_test.c ../libs/libukvirtgpu_d
 $(BUILD)/vk_icd_bootstrap_test: vk_icd_bootstrap_test.c ../libs/libukvk_icd/vulkan_icd.c ../libs/libukvirtgpu_drm/drm_virtgpu.c ./virtio_gpu_fake.c ../libs/libukdma/dma_alloc.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(BUILD)/venus_cs_test: venus_cs_test.c ../libs/libukvenus/venus_cs.c ../libs/libukvenus/venus_init.c ./virtio_gpu_fake.c ../libs/libukdma/dma_alloc.c | $(BUILD)
+$(BUILD)/venus_cs_test: venus_cs_test.c ../libs/libukvenus/venus_cs.c ../libs/libukvenus/venus_init.c ../libs/libukvenus/venus_compute.c ./virtio_gpu_fake.c ../libs/libukdma/dma_alloc.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(BUILD)/venus_compute_test: venus_compute_test.c ../libs/libukvenus/venus_cs.c ../libs/libukvenus/venus_compute.c | $(BUILD)

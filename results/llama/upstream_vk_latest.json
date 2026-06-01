@@ -1,11 +1,15 @@
 {
-  "status": "blocked:no-pass-line",
-  "generated_utc": "2026-05-22T10:59:08Z",
+  "schema": "llama/upstream-runtime.v2",
   "evidence_id": "llama-upstream-vk",
-  "pp512": null,
-  "tg128": null,
+  "status": "blocked:venus-compute-dispatch-incomplete",
   "pass": false,
+  "generated_utc": "2026-06-01T07:01:15.871510Z",
+  "image": ".unikraft/build/vogue-llama-upstream-vk_qemu-x86_64",
+  "host": "Linux-6.18.33-x86_64-with-glibc2.39",
+  "venus_device": "Tesla V100-SXM2-16GB",
+  "host_render_error": null,
   "run_log": "results/llama/upstream_vk_latest.log",
-  "claim_allowed": "Blocked; no claim.",
-  "claim_forbidden": "Any claim without same-run PASS artifacts."
+  "claim_allowed": "Real boot of the upstream llama.cpp Vulkan appliance under QEMU virtio-gpu-gl venus=true; throughput only when status==pass.",
+  "claim_forbidden": "Throughput/acceleration claim unless status==pass with same-run pp512/tg128.",
+  "frontier": "libukvk_icd reply-read ICD path incomplete: physical-device memory/queue properties are still fabricated and host-visible vkMapMemory readback is not wired, so model load cannot allocate/dispatch on the GPU."
 }

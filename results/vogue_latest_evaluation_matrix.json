@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-05-30T08:12:25.100418Z",
+    "generated_utc": "2026-05-31T17:35:33.927985Z",
     "source": "scripts/eval_matrix.py",
     "paper": "paper/main.typ"
   },
@@ -33,7 +33,7 @@
       "workload": "kmscube compatibility + native app-performance path",
       "status": "pass",
       "required_evidence": "kmscube compatibility, 2D render pipeline pass, and generated app-performance row",
-      "evidence": "results/app_perf_latest.json; avg_frame_ms=2.037; fps=490.81; transfers=60; flushes=60; fences=120",
+      "evidence": "results/app_perf_latest.json; avg_frame_ms=2.121; fps=471.57; transfers=60; flushes=60; fences=120",
       "claim_allowed": "Upstream kmscube source can be supported through VOGUE shims and software-rendered scanout; native software-path frame cost is measured.",
       "claim_forbidden": "K1 virgl rendering, hardware acceleration, full Mesa compatibility, or QEMU performance.",
       "next_step": "Implement non-software virgl/Venus render payloads for K1."
@@ -44,7 +44,7 @@
       "workload": "EGL scene-clear native app-performance path",
       "status": "pass",
       "required_evidence": "generated scene-clear app-performance row",
-      "evidence": "results/app_perf_latest.json; avg_frame_ms=5.304; fps=188.55; transfers=120; flushes=120; fences=240",
+      "evidence": "results/app_perf_latest.json; avg_frame_ms=5.329; fps=187.66; transfers=120; flushes=120; fences=240",
       "claim_allowed": "The scene-clear subset exercises EGL-style clear/present costs through the same substrate and reports native frame cost.",
       "claim_forbidden": "Full glmark2 suite score, QEMU performance, or GPU acceleration.",
       "next_step": "Collect same-run QEMU and full-scene logs after K1 exists."
@@ -185,10 +185,10 @@
       "row_id": "host.vk.probe",
       "claim": "Unikraft Vulkan loader/ICD enumerates a Venus device",
       "workload": "app-vulkan-smoke or app-llama-upstream-vk: vkEnumeratePhysicalDevices via libukvk_icd over libukvirtgpu_drm + libukvenus + virtio-gpu-gl with venus=true",
-      "status": "blocked:wrong-domain-artifact",
+      "status": "pass",
       "required_evidence": "Guest log line `vk: physical_device=<name> api=<version>` and capset(venus) detected in the same run; recorded in results/llama/vulkan_probe_latest.json",
       "evidence": "results/llama/vulkan_probe_latest.json",
-      "claim_allowed": "No Unikraft Vulkan loader claim; current artifact status is blocked:wrong-domain-artifact.",
+      "claim_allowed": "The Unikraft Vulkan loader path is alive enough to see a Venus-capable device; this is a substrate gate, not a compute gate.",
       "claim_forbidden": "Vulkan compute execution, llama.cpp tokens, or any throughput claim.",
       "next_step": "Extend libukvk_icd to surface vkEnumeratePhysicalDevices/PhysicalDeviceProperties and run scripts/llama_vulkan_probe.py."
     },
@@ -262,7 +262,7 @@
       "row_id": "llm.bench.vk",
       "claim": "Upstream llama.cpp Vulkan bench-only appliance on Unikraft via Venus SUBMIT_3D",
       "workload": "apps/app-llama-upstream-vk/bench.cpp: upstream llama.cpp Vulkan via libukggml_vulkan \u2192 libukvenus SUBMIT_3D \u2192 QEMU virtio-gpu-gl-pci,venus=true",
-      "status": "blocked:no-pass-line",
+      "status": "blocked:venus-compute-dispatch-incomplete",
       "required_evidence": "Build or run blocked; see results/llama/upstream_vk_latest.json",
       "evidence": "results/llama/upstream_vk_latest.json",
       "claim_allowed": "Blocked; no throughput claim.",
@@ -295,7 +295,7 @@
       "row_id": "llm.bench.vk.real",
       "claim": "Upstream llama.cpp full Vulkan path via real virtio-gpu-gl Venus backend (W4)",
       "workload": "apps/app-llama-upstream-vk: upstream llama.cpp ggml-vulkan dispatches through Venus SUBMIT_3D to QEMU virtio-gpu-gl-pci,venus=true; real GPU compute executed",
-      "status": "blocked:egl-not-initialized",
+      "status": "blocked:venus-compute-dispatch-incomplete",
       "required_evidence": "Blocked; see results/llama/env10_real_latest.json",
       "evidence": "results/llama/env10_real_latest.json",
       "claim_allowed": "Blocked; no throughput claim.",

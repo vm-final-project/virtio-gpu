@@ -320,6 +320,110 @@ void uk_venus_encode_vkGetDeviceQueue(struct uk_venus_encoder *enc,
 	uk_venus_encode_uint64(enc, queue_handle);
 }
 
+/*
+ * vkSetReplyCommandStreamMESA (VN_CMD = 178) — tell the host where to write the
+ * reply stream for subsequent reply-bearing commands in the same submission.
+ * Mirrors Mesa vn_encode_vkSetReplyCommandStreamMESA + VkCommandStreamDescriptionMESA:
+ *   [u32 cmd_type=178][u32 flags=0]
+ *   [u64 pStream present=1]
+ *     [u32 resourceId][u64 offset][u64 size]   (size_t encoded as u64)
+ */
+void uk_venus_encode_vkSetReplyCommandStreamMESA(struct uk_venus_encoder *enc,
+						 uint32_t resource_id,
+						 uint64_t offset,
+						 uint64_t size)
+{
+	uk_venus_encode_command_header(enc,
+				       (uint32_t)VN_CMD_vkSetReplyCommandStreamMESA,
+				       VN_COMMAND_FLAGS_NONE);
+	uk_venus_encode_pointer_flag(enc, 1);   /* pStream present */
+	uk_venus_encode_uint32(enc, resource_id);
+	uk_venus_encode_uint64(enc, offset);    /* size_t */
+	uk_venus_encode_uint64(enc, size);      /* size_t */
+}
+
+/*
+ * vkGetPhysicalDeviceProperties (VN_CMD = 6) request form. Mirrors Mesa
+ * vn_encode_vkGetPhysicalDeviceProperties: header, physicalDevice, then the
+ * output pointer. The _partial body for VkPhysicalDeviceProperties is empty
+ * (all limits/sparse fields are skipped on the request), so nothing follows the
+ * pointer flag. The host writes the full VkPhysicalDeviceProperties into the
+ * reply stream set by vkSetReplyCommandStreamMESA.
+ */
+void uk_venus_encode_vkGetPhysicalDeviceProperties(struct uk_venus_encoder *enc,
+						   uint64_t physdev_handle)
+{
+	/* VK_COMMAND_GENERATE_REPLY_BIT_EXT (0x1): the host only writes the reply
+	 * stream for commands whose flags request it (vn_dispatch_*). */
+	uk_venus_encode_command_header(enc,
+				       (uint32_t)VN_CMD_vkGetPhysicalDeviceProperties,
+				       0x1u /* VK_COMMAND_GENERATE_REPLY_BIT_EXT */);
+	uk_venus_encode_uint64(enc, physdev_handle);
+	uk_venus_encode_pointer_flag(enc, 1);   /* pProperties present; partial=0 bytes */
+}
+
+/*
+ * vkGetPhysicalDeviceMemoryProperties (VN_CMD = 8) request form. Mirrors Mesa
+ * vn_encode_vkGetPhysicalDeviceMemoryProperties + the _partial body of
+ * VkPhysicalDeviceMemoryProperties: two array sizes (VK_MAX_MEMORY_TYPES=32,
+ * VK_MAX_MEMORY_HEAPS=16); the per-element partials are empty. The
+ * GENERATE_REPLY flag tells the host to write the reply stream.
+ */
+void uk_venus_encode_vkGetPhysicalDeviceMemoryProperties(struct uk_venus_encoder *enc,
+							 uint64_t physdev_handle)
+{
+	uk_venus_encode_command_header(enc,
+				       (uint32_t)VN_CMD_vkGetPhysicalDeviceMemoryProperties,
+				       0x1u /* VK_COMMAND_GENERATE_REPLY_BIT_EXT */);
+	uk_venus_encode_uint64(enc, physdev_handle);
+	uk_venus_encode_pointer_flag(enc, 1);     /* pMemoryProperties present */
+	uk_venus_encode_array_size(enc, 32u);     /* VK_MAX_MEMORY_TYPES */
+	uk_venus_encode_array_size(enc, 16u);     /* VK_MAX_MEMORY_HEAPS */
+}
+
+/*
+ * vkGetDeviceQueue2 (VN_CMD = 155). The Venus host (virglrenderer
+ * vkr_dispatch_vkGetDeviceQueue) REQUIRES vkGetDeviceQueue2 — the legacy
+ * vkGetDeviceQueue unconditionally sets the context fatal. The pQueueInfo MUST
+ * carry a VkDeviceQueueTimelineInfoMESA in its pNext with a non-zero ringIdx
+ * (vkr_queue_assign_ring_idx), binding the queue to a host sync ring.
+ *
+ * Mirrors Mesa vn_encode_vkGetDeviceQueue2 + VkDeviceQueueInfo2(_pnext/_self) +
+ * VkDeviceQueueTimelineInfoMESA_self:
+ *   [u32 cmd=155][u32 flags=0][u64 device]
+ *   [u64 pQueueInfo present=1]
+ *     [u32 sType=DEVICE_QUEUE_INFO_2 1000145003]
+ *     pnext chain:
+ *       [u64 present=1][u32 sType=DEVICE_QUEUE_TIMELINE_INFO_MESA 1000384005]
+ *       [u64 timeline.pNext=NULL 0][u32 ringIdx]
+ *     self: [u32 flags][u32 queueFamilyIndex][u32 queueIndex]
+ *   [u64 pQueue present=1][u64 queue_handle]
+ */
+void uk_venus_encode_vkGetDeviceQueue2(struct uk_venus_encoder *enc,
+				       uint64_t device_handle,
+				       uint32_t queue_family_index,
+				       uint32_t queue_index,
+				       uint32_t ring_idx,
+				       uint64_t queue_handle)
+{
+	uk_venus_encode_command_header(enc, (uint32_t)VN_CMD_vkGetDeviceQueue2,
+				       VN_COMMAND_FLAGS_NONE);
+	uk_venus_encode_uint64(enc, device_handle);
+	uk_venus_encode_pointer_flag(enc, 1);            /* pQueueInfo present */
+	uk_venus_encode_uint32(enc, 1000145003u);        /* sType DEVICE_QUEUE_INFO_2 */
+	/* pNext = VkDeviceQueueTimelineInfoMESA */
+	uk_venus_encode_pointer_flag(enc, 1);            /* timeline present */
+	uk_venus_encode_uint32(enc, 1000384005u);        /* sType TIMELINE_INFO_MESA */
+	uk_venus_encode_pointer_flag(enc, 0);            /* timeline.pNext = NULL */
+	uk_venus_encode_uint32(enc, ring_idx);           /* ringIdx (1..63) */
+	/* VkDeviceQueueInfo2 self */
+	uk_venus_encode_uint32(enc, 0u);                 /* flags */
+	uk_venus_encode_uint32(enc, queue_family_index);
+	uk_venus_encode_uint32(enc, queue_index);
+	uk_venus_encode_pointer_flag(enc, 1);            /* pQueue present */
+	uk_venus_encode_uint64(enc, queue_handle);
+}
+
 void uk_venus_encode_vkQueueSubmit_empty(struct uk_venus_encoder *enc,
 					 uint64_t queue_handle,
 					 uint64_t fence_handle)

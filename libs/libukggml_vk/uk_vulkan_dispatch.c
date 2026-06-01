@@ -25,7 +25,9 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
+#include <uk/mutex.h>
 
 #include <uk/virtio_gpu.h>
 #include <uk/drm_virtgpu.h>
@@ -71,9 +73,26 @@ static int                           g_disp_initialized;
 /* Convenience: points into g_icd.drm._ctx after init */
 static struct uk_virtio_gpu_context *g_ctx;
 
+/* Real host VkPhysicalDeviceMemoryProperties (520B), filled by the first real
+ * round-trip in stub_vkGetPhysicalDeviceMemoryProperties. Used by both that stub
+ * and the host-visible memory-type test in stub_vkAllocateMemory. */
+static uint8_t g_memprops[520];
+static int     g_memprops_valid;
+
+/* The Venus VkDevice is a singleton created exactly once (duplicate object ids
+ * are fatal to the host context). */
+static int     g_device_created;
+
 /* ── Handle pool ───────────────────────────────────────────────────────── */
 #define UK_VK_HANDLE_BASE  0x0002000000000000ULL
-static uint64_t g_next_handle = UK_VK_HANDLE_BASE + 1;
+/* Dynamic object ids MUST start above the fixed well-known handles below,
+ * otherwise a dynamically-allocated object (buffer/memory/...) reuses the id of
+ * the instance/physdev/device/queue. The host (virglrenderer
+ * vkr_context_validate_object_id) treats a duplicate object id as fatal and
+ * tears the Venus context down — which surfaced as a vkCreateDevice /
+ * vkGetDeviceQueue "CS error" once real allocations began. */
+#define UK_VK_HANDLE_FIRST_DYNAMIC (UK_VK_HANDLE_BASE + 0x100ULL)
+static uint64_t g_next_handle = UK_VK_HANDLE_FIRST_DYNAMIC;
 
 /* Fixed well-known handles for the singleton instance / device path */
 #define UK_H_INSTANCE  (UK_VK_HANDLE_BASE + 0x01ULL)
@@ -81,13 +100,33 @@ static uint64_t g_next_handle = UK_VK_HANDLE_BASE + 1;
 #define UK_H_DEVICE    (UK_VK_HANDLE_BASE + 0x03ULL)
 #define UK_H_QUEUE     (UK_VK_HANDLE_BASE + 0x04ULL)
 
+/* ggml-vulkan compiles its compute pipelines concurrently (std::async over
+ * std::thread::hardware_concurrency() workers — each worker calls
+ * vkCreateShaderModule / vkCreateComputePipelines / vkDestroyShaderModule).
+ * The static dispatch shares one encode buffer (g_enc_buf), and the real Mesa
+ * Venus driver serialises ring submission, so we must too: a recursive
+ * uk_mutex guards every encode+submit and handle allocation is atomic. Without
+ * this, concurrent encoders stomp g_enc_buf and the host decodes a corrupted
+ * command stream (e.g. a stale VkShaderModule id that then fails object lookup
+ * with a CS error). The VirtIO-GPU control queue is separately serialised by
+ * g_ctrlq_lock in libukvirtio_gpu (mirrors the Linux ctrlq.qlock). */
+static struct uk_mutex g_disp_lock =
+	UK_MUTEX_INITIALIZER_RECURSIVE(g_disp_lock);
+
 static inline uint64_t uk_vk_alloc_handle(void)
 {
-    return g_next_handle++;
+    return __atomic_fetch_add(&g_next_handle, 1, __ATOMIC_SEQ_CST);
 }
 
 /* ── Encoder buffer pool ───────────────────────────────────────────────── */
-#define UK_DISPATCH_BUF_SIZE (64u * 1024u)
+/* Must hold the largest single Venus command we encode. The dominant case is
+ * vkCreateShaderModule, whose body is a full SPIR-V module: ggml-vulkan's big
+ * matmul / flash-attention shaders reach ~72 KB and some specialised variants
+ * are larger, so a 64 KB buffer silently overflowed (uk_venus_submit returns
+ * -EOVERFLOW, the create is dropped, and a later pipeline referencing the
+ * never-created VkShaderModule fails host object lookup with a CS error).
+ * 2 MB covers every ggml-vulkan SPIR-V with wide margin. */
+#define UK_DISPATCH_BUF_SIZE (2u * 1024u * 1024u)
 static uint8_t g_enc_buf[UK_DISPATCH_BUF_SIZE];
 
 /* ── SUBMIT_3D batching (P1.3) ─────────────────────────────────────────────
@@ -113,7 +152,11 @@ static inline int uk_dispatch_batch_active(void)
 }
 
 /* Helpers for single-call encode + submit, batched when active. */
+static inline void uk_disp_lock(void)   { uk_mutex_lock(&g_disp_lock); }
+static inline void uk_disp_unlock(void) { uk_mutex_unlock(&g_disp_lock); }
+
 #define UK_ENC_BEGIN() \
+    uk_disp_lock(); \
     struct uk_venus_encoder _local_enc; \
     struct uk_venus_encoder *_enc_p = uk_dispatch_batch_active() ? &g_batch_enc : &_local_enc; \
     if (!uk_dispatch_batch_active()) \
@@ -127,8 +170,12 @@ static inline int uk_dispatch_batch_active(void)
         if (uk_dispatch_batch_active()) { \
             g_batch_enc = _enc; /* keep accumulator up to date */ \
         } else { \
+            if (_enc.overflow) \
+                printf("uk-ggml-vk: ERROR encoder overflow pos=%u buf=%u " \
+                       "(command dropped)\n", _enc.pos, UK_DISPATCH_BUF_SIZE); \
             uk_venus_submit(g_gpu, g_ctx, &_enc); \
         } \
+        uk_disp_unlock(); \
     } while (0)
 
 /*
@@ -275,6 +322,17 @@ static VkResult stub_vkSetEvent(VkDevice, VkEvent);
 static VkResult stub_vkResetEvent(VkDevice, VkEvent);
 static VkResult stub_vkCreateSemaphore(VkDevice, const void *, const void *, VkSemaphore *);
 static void     stub_vkDestroySemaphore(VkDevice, VkSemaphore, const void *);
+static VkResult stub_vkWaitSemaphores(VkDevice, const void *, uint64_t);
+static VkResult stub_vkSignalSemaphore(VkDevice, const void *);
+static VkResult stub_vkGetSemaphoreCounterValue(VkDevice, VkSemaphore, uint64_t *);
+static void     stub_vkCmdSetEvent(VkCommandBuffer, VkEvent, uint32_t);
+static void     stub_vkCmdResetEvent(VkCommandBuffer, VkEvent, uint32_t);
+static void     stub_vkCmdWaitEvents(VkCommandBuffer, uint32_t, const void *, uint32_t, uint32_t, uint32_t, const void *, uint32_t, const void *, uint32_t, const void *);
+static void     stub_vkCmdPipelineBarrier2(VkCommandBuffer, const void *);
+static void     stub_vkCmdCopyBuffer2(VkCommandBuffer, const void *);
+static VkResult stub_vkQueueSubmit2(VkQueue, uint32_t, const void *, VkFence);
+static VkResult stub_vkFlushMappedMemoryRanges(VkDevice, uint32_t, const void *);
+static VkResult stub_vkInvalidateMappedMemoryRanges(VkDevice, uint32_t, const void *);
 static VkResult stub_vkCreateQueryPool(VkDevice, const void *, const void *, VkQueryPool *);
 static void     stub_vkDestroyQueryPool(VkDevice, VkQueryPool, const void *);
 static VkResult stub_vkGetQueryPoolResults(VkDevice, VkQueryPool, uint32_t, uint32_t, size_t, void *, VkDeviceSize, uint32_t);
@@ -372,6 +430,17 @@ static const struct uk_vk_proc k_procs[] = {
     PROC(vkSetEvent),
     PROC(vkResetEvent),
     PROC(vkCreateSemaphore),
+    PROC(vkWaitSemaphores),
+    PROC(vkSignalSemaphore),
+    PROC(vkGetSemaphoreCounterValue),
+    PROC(vkCmdSetEvent),
+    PROC(vkCmdResetEvent),
+    PROC(vkCmdWaitEvents),
+    PROC(vkCmdPipelineBarrier2),
+    PROC(vkCmdCopyBuffer2),
+    PROC(vkQueueSubmit2),
+    PROC(vkFlushMappedMemoryRanges),
+    PROC(vkInvalidateMappedMemoryRanges),
     PROC(vkDestroySemaphore),
     PROC(vkCreateQueryPool),
     PROC(vkDestroyQueryPool),
@@ -537,18 +606,50 @@ static void stub_vkGetPhysicalDeviceProperties(VkPhysicalDevice physdev,
     p[3] = 0x27b0;      /* deviceID: RTX 4000 Ada */
     p[4] = 2;           /* deviceType: DISCRETE_GPU */
     char *name = (char *)(p + 5); /* deviceName at byte 20 */
-    const char *devname = "VOGUE-Venus/NVIDIA RTX 4000 Ada";
-    __builtin_memcpy(name, devname, __builtin_strlen(devname) + 1);
+    /* Real Venus round-trip: read the host physical device's name back over the
+     * Venus reply path (vkSetReplyCommandStreamMESA + vkGetPhysicalDeviceProperties).
+     * UK_H_PHYSDEV is already bound to the host's real device by the
+     * vkEnumeratePhysicalDevices submitted earlier, so this returns e.g.
+     * "Tesla V100-SXM2-16GB". Cached after the first success; falls back to a
+     * descriptive default if the round-trip is unavailable (e.g. fake backend). */
+    static char real_name[256];
+    static int  real_name_state; /* 0=untried, 1=have real, -1=failed */
+    if (real_name_state == 0 && g_gpu && g_ctx) {
+        if (uk_venus_query_device_name(g_gpu, g_ctx, UK_H_PHYSDEV,
+                                       real_name, sizeof(real_name)) == 0
+            && real_name[0]) {
+            real_name_state = 1;
+            printf("uk-ggml-vk: venus physical_device=%s\n", real_name);
+        } else {
+            real_name_state = -1;
+        }
+    }
+    if (real_name_state == 1) {
+        __builtin_memcpy(name, real_name, __builtin_strlen(real_name) + 1);
+    } else {
+        const char *devname = "VOGUE-Venus/NVIDIA RTX 4000 Ada";
+        __builtin_memcpy(name, devname, __builtin_strlen(devname) + 1);
+    }
     /* Key limits (byte offsets within VkPhysicalDeviceProperties): */
     *(uint32_t *)(b + 324) = 0xFFFFFFFFu; /* maxStorageBufferRange */
     *(uint32_t *)(b + 328) = 256u;         /* maxPushConstantsSize */
     *(uint32_t *)(b + 332) = 4096u;        /* maxMemoryAllocationCount */
     *(uint32_t *)(b + 360) = 32u;          /* maxBoundDescriptorSets */
     *(uint32_t *)(b + 512) = 49152u;       /* maxComputeSharedMemorySize: 48 KB */
+    /* maxComputeWorkGroupCount[3] @ bytes 516/520/524 (real V100 values). ggml
+     * GGML_ASSERTs the dispatch grid <= these; if 0, every dispatch aborts. */
+    *(uint32_t *)(b + 516) = 2147483647u;  /* maxComputeWorkGroupCount[0] */
+    *(uint32_t *)(b + 520) = 65535u;       /* maxComputeWorkGroupCount[1] */
+    *(uint32_t *)(b + 524) = 65535u;       /* maxComputeWorkGroupCount[2] */
     *(uint32_t *)(b + 528) = 1024u;        /* maxComputeWorkGroupInvocations */
     *(uint32_t *)(b + 532) = 1024u;        /* maxComputeWorkGroupSize[0] */
     *(uint32_t *)(b + 536) = 1024u;        /* maxComputeWorkGroupSize[1] */
     *(uint32_t *)(b + 540) = 64u;          /* maxComputeWorkGroupSize[2] */
+    /* minMemoryMapAlignment (VkPhysicalDeviceLimits, size_t @ byte 600). ggml's
+     * Vulkan_Host buffer type alignment is this value; if 0, GGML_PAD(size,0)=0
+     * makes pinned host buffers (e.g. token_embd.weight) compute a 0-size and
+     * fail to allocate ("unable to allocate Vulkan_Host buffer"). */
+    *(uint64_t *)(b + 600) = 4096ULL;      /* minMemoryMapAlignment */
     *(uint64_t *)(b + 616) = 256ULL;       /* minUniformBufferOffsetAlignment */
     *(uint64_t *)(b + 624) = 16ULL;        /* minStorageBufferOffsetAlignment */
 }
@@ -641,6 +742,29 @@ static void stub_vkGetPhysicalDeviceMemoryProperties(VkPhysicalDevice physdev,
 {
     (void)physdev;
     if (!pMemProps) return;
+
+    /* Real Venus round-trip: read the host GPU's actual memory types/heaps so
+     * ggml selects a memory type index that truly exists and is host-visible on
+     * the host (required for vkAllocateMemory + host-visible blob export to
+     * succeed). Cached after the first success; falls back to the fabricated
+     * layout below on failure (e.g. fake backend). */
+    static int real_mp_state; /* 0=untried, 1=have real, -1=failed */
+    if (real_mp_state == 0 && g_gpu && g_ctx) {
+        if (uk_venus_query_memory_properties(g_gpu, g_ctx, UK_H_PHYSDEV, g_memprops) == 0
+            && *(uint32_t *)g_memprops > 0u) {
+            real_mp_state = 1;
+            g_memprops_valid = 1;
+            printf("uk-ggml-vk: venus memory types=%u heaps=%u\n",
+                   *(uint32_t *)g_memprops, *(uint32_t *)(g_memprops + 260));
+        } else {
+            real_mp_state = -1;
+        }
+    }
+    if (real_mp_state == 1) {
+        memcpy(pMemProps, g_memprops, 520);
+        return;
+    }
+
     memset(pMemProps, 0, 520); /* sizeof(VkPhysicalDeviceMemoryProperties) */
     uint32_t *mp = (uint32_t *)pMemProps;
     /* memoryTypeCount = 3 */
@@ -658,8 +782,14 @@ static void stub_vkGetPhysicalDeviceMemoryProperties(VkPhysicalDevice physdev,
      *   bytes 264+: memoryHeaps[16] (each VkMemoryHeap = 16 bytes: size(8)+flags(4)+pad(4))
      */
     *(uint32_t *)((uint8_t *)pMemProps + 260) = 2u; /* memoryHeapCount */
+    /* VkMemoryHeap = { VkDeviceSize size; VkMemoryHeapFlags flags; } (16B w/ pad).
+     * heap[0] starts at 264: size@264, flags@272. heap[1]: size@280, flags@288.
+     * The device-local heap MUST carry VK_MEMORY_HEAP_DEVICE_LOCAL_BIT (0x1) or
+     * ggml_backend_vk_get_device_memory() skips it and reports "0 MiB free". */
     *(uint64_t *)((uint8_t *)pMemProps + 264) = 21474836480ULL; /* heap[0].size = 20 GiB device */
+    *(uint32_t *)((uint8_t *)pMemProps + 272) = 0x1u;           /* heap[0].flags = DEVICE_LOCAL */
     *(uint64_t *)((uint8_t *)pMemProps + 280) = 34359738368ULL; /* heap[1].size = 32 GiB system */
+    *(uint32_t *)((uint8_t *)pMemProps + 288) = 0x0u;           /* heap[1].flags = host/system */
 }
 
 static void stub_vkGetPhysicalDeviceMemoryProperties2(VkPhysicalDevice physdev,
@@ -722,11 +852,33 @@ static VkResult stub_vkCreateDevice(VkPhysicalDevice physdev, const void *ci,
                                     const void *alloc, VkDevice *pDevice)
 {
     (void)physdev; (void)ci; (void)alloc;
+    /* The Venus device object (UK_H_DEVICE) is a singleton: it must be created
+     * on the host EXACTLY ONCE. A duplicate id is fatal to the host context
+     * (vkr_context_validate_object_id), so guard against repeated creation. */
+    *pDevice = (VkDevice)UK_H_DEVICE;
+    if (g_device_created)
+        return VK_SUCCESS;
+    g_device_created = 1;
+
+    if (g_gpu && g_ctx) {
+        /* Create the device and confirm the host accepted it (reply round-trip):
+         * the host only registers the device object on VK_SUCCESS. */
+        int32_t vkres = -1;
+        uk_venus_create_device_checked(g_gpu, g_ctx, UK_H_PHYSDEV,
+                                       UK_H_DEVICE, 0u, &vkres);
+        /* The Venus host requires vkGetDeviceQueue2 with a
+         * VkDeviceQueueTimelineInfoMESA (ringIdx) — the legacy vkGetDeviceQueue
+         * fatally tears down the context. */
+        UK_ENC_BEGIN();
+        uk_venus_encode_vkGetDeviceQueue2(&_enc, UK_H_DEVICE, 0u, 0u, 1u, UK_H_QUEUE);
+        UK_ENC_SUBMIT();
+        return VK_SUCCESS;
+    }
+    /* Fallback: fire-and-forget create + queue (fake backend / no real ctx). */
     UK_ENC_BEGIN();
     uk_venus_encode_vkCreateDevice(&_enc, UK_H_PHYSDEV, UK_H_DEVICE, 0u, 1.0f, 0, (const char **)0);
     uk_venus_encode_vkGetDeviceQueue(&_enc, UK_H_DEVICE, 0u, 0u, UK_H_QUEUE);
     UK_ENC_SUBMIT();
-    *pDevice = (VkDevice)UK_H_DEVICE;
     return VK_SUCCESS;
 }
 
@@ -736,6 +888,61 @@ static void stub_vkGetDeviceQueue(VkDevice d, uint32_t fi, uint32_t qi, VkQueue 
 {
     (void)d; (void)fi; (void)qi;
     *q = (VkQueue)UK_H_QUEUE;
+}
+
+/* Host-visible memory backing (Venus import-resource path).
+ *
+ * ggml stages model weights / IO through HOST_VISIBLE memory then copies to
+ * device-local buffers. For real Venus those bytes must reach the host GPU, so a
+ * host-visible VkDeviceMemory is backed by a host-visible virtio-gpu blob
+ * (VkImportMemoryResourceInfoMESA): the guest maps the blob and writes into it,
+ * and the host's VkDeviceMemory aliases the same shmem. Device-local memory
+ * keeps the plain fire-and-forget alloc (host VRAM, never mapped by the guest). */
+#define UK_HV_MEM_MAX 128
+static struct uk_hv_mem {
+    uint64_t handle;
+    struct uk_virtio_gpu_blob blob;
+    uint8_t  used;
+} g_hv_mem[UK_HV_MEM_MAX];
+
+/* A memory type is host-visible if its propertyFlags carries
+ * VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT (0x2). With real properties we read the
+ * real type's flags; otherwise the fabricated layout makes types 1 and 2
+ * host-visible. */
+static inline int uk_mem_type_host_visible(uint32_t idx)
+{
+    if (g_memprops_valid && idx < 32u) {
+        uint32_t flags = *(uint32_t *)(g_memprops + 4 + idx * 8);
+        return (flags & 0x2u) != 0u;
+    }
+    return idx == 1u || idx == 2u;
+}
+
+static struct uk_hv_mem *uk_hv_mem_find(uint64_t handle)
+{
+    for (int i = 0; i < UK_HV_MEM_MAX; i++)
+        if (g_hv_mem[i].used && g_hv_mem[i].handle == handle)
+            return &g_hv_mem[i];
+    return NULL;
+}
+
+/* VkBuffer handle -> requested size, so vkGetBufferMemoryRequirements can report
+ * the real size without a Venus round-trip. */
+#define UK_BUF_SIZE_MAX 1024
+static struct { uint64_t handle; uint64_t size; } g_buf_size[UK_BUF_SIZE_MAX];
+static int g_buf_size_next;
+static void uk_buf_size_put(uint64_t handle, uint64_t size)
+{
+    int slot = g_buf_size_next++ % UK_BUF_SIZE_MAX;
+    g_buf_size[slot].handle = handle;
+    g_buf_size[slot].size = size;
+}
+static uint64_t uk_buf_size_find(uint64_t handle)
+{
+    for (int i = 0; i < UK_BUF_SIZE_MAX; i++)
+        if (g_buf_size[i].handle == handle)
+            return g_buf_size[i].size;
+    return 0;
 }
 
 static VkResult stub_vkAllocateMemory(VkDevice dev, const void *ci,
@@ -752,6 +959,60 @@ static VkResult stub_vkAllocateMemory(VkDevice dev, const void *ci,
      */
     uint64_t sz       = rd_u64(ci, OFF_MEM_ALLOC_SIZE);
     uint32_t mem_type = rd_u32(ci, OFF_MEM_ALLOC_TYPE);
+    printf("VOGUE-DBG allocMem type=%u size=%lluMB hostvis=%d\n",
+           mem_type, (unsigned long long)(sz >> 20),
+           uk_mem_type_host_visible(mem_type));
+
+    /* Host-visible types: expose the host VkDeviceMemory to the guest via a
+     * HOST3D blob whose blob_id is the memory's Venus object id. The host
+     * (virglrenderer vkr_context_get_blob) resolves blob_id -> VkDeviceMemory
+     * and exports its mapping, so the guest's blob mapping aliases the host
+     * memory the GPU uses. Order matters: allocate the memory (fence-synced)
+     * BEFORE creating the blob that references it. Device-local memory keeps the
+     * plain fire-and-forget alloc (host VRAM, never mapped by the guest). */
+    if (uk_mem_type_host_visible(mem_type) && g_gpu && g_ctx
+        && !uk_dispatch_batch_active() && sz) {
+        struct uk_hv_mem *slot = NULL;
+        for (int i = 0; i < UK_HV_MEM_MAX; i++)
+            if (!g_hv_mem[i].used) { slot = &g_hv_mem[i]; break; }
+        if (slot) {
+            struct uk_virtio_gpu_blob *b = &slot->blob;
+            uint64_t bsz = (sz + 0xFFFull) & ~0xFFFull; /* page-round */
+            uint8_t  abuf[128];
+            struct uk_venus_encoder aenc;
+            uk_gpu_fence_id fence = 0;
+            memset(b, 0, sizeof(*b));
+            /* 1. allocate the host-visible VkDeviceMemory (object id = h) and
+             *    fence-wait so the host registers it before the blob create. */
+            uk_venus_encoder_init(&aenc, abuf, sizeof(abuf));
+            uk_venus_encode_vkAllocateMemory(&aenc, UK_H_DEVICE, h, sz, mem_type);
+            if (uk_virtio_gpu_gl_context_submit(g_gpu, g_ctx, aenc.buf, aenc.pos,
+                                                &fence) == 0) {
+                (void)uk_virtio_gpu_fence_wait(g_gpu, fence, 2000000000ull);
+                /* 2. export it: HOST3D blob with blob_id = memory id (h). */
+                int rc_c = uk_virtio_gpu_gl_blob_create_with_ctx(g_gpu, g_ctx->id, bsz,
+                        UK_VIRTIO_GPU_BLOB_MEM_HOST3D,
+                        UK_VIRTIO_GPU_BLOB_FLAG_USE_MAPPABLE, h, b);
+                int rc_m = rc_c ? -1 : uk_virtio_gpu_gl_blob_map(g_gpu, b);
+                int rc_a = (rc_m || !b->mapped_addr) ? -1 :
+                           uk_virtio_gpu_gl_context_attach_resource(g_gpu, g_ctx, b->resource_id);
+                if (rc_c == 0 && rc_m == 0 && b->mapped_addr && rc_a == 0) {
+                    slot->handle = h;
+                    slot->used = 1;
+                    *pMem = (VkDeviceMemory)h;
+                    return VK_SUCCESS;
+                }
+            }
+            /* Export failed: the memory id h is already allocated on the host;
+             * tear the partial blob down and fall back (guest-local staging). */
+            if (b->mapped)  uk_virtio_gpu_gl_blob_unmap(g_gpu, b);
+            if (b->created) uk_virtio_gpu_gl_blob_destroy(g_gpu, b);
+            memset(b, 0, sizeof(*b));
+            *pMem = (VkDeviceMemory)h;
+            return VK_SUCCESS;
+        }
+    }
+
     UK_ENC_BEGIN();
     uk_venus_encode_vkAllocateMemory(&_enc, UK_H_DEVICE, h, sz, mem_type);
     UK_ENC_SUBMIT();
@@ -761,21 +1022,35 @@ static VkResult stub_vkAllocateMemory(VkDevice dev, const void *ci,
 
 static void stub_vkFreeMemory(VkDevice d, VkDeviceMemory m, const void *a)
 {
-    (void)d; (void)m; (void)a;
+    (void)d; (void)a;
+    struct uk_hv_mem *hv = uk_hv_mem_find((uint64_t)m);
+    if (hv) {
+        if (g_gpu && hv->blob.created)
+            (void)uk_virtio_gpu_gl_context_detach_resource(g_gpu, g_ctx,
+                                                           hv->blob.resource_id);
+        if (g_gpu && hv->blob.mapped)
+            (void)uk_virtio_gpu_gl_blob_unmap(g_gpu, &hv->blob);
+        if (g_gpu && hv->blob.created)
+            (void)uk_virtio_gpu_gl_blob_destroy(g_gpu, &hv->blob);
+        hv->used = 0;
+    }
 }
 
-/* Host-visible memory map: return a local staging buffer.
- * For Venus device-local memory, map returns an unmapped pointer;
- * ggml-vulkan only maps host-visible (staging) memory.
- */
-#define UK_STAGING_BUF_SIZE (256u * 1024u * 1024u) /* 256 MiB staging */
+/* Host-visible memory map: fall back to a local staging buffer for memory that
+ * is not backed by a host-visible blob (see uk_hv_mem above). */
+#define UK_STAGING_BUF_SIZE (256u * 1024u * 1024u) /* fallback staging */
 static uint8_t g_staging_mem[UK_STAGING_BUF_SIZE];
 
 static VkResult stub_vkMapMemory(VkDevice dev, VkDeviceMemory mem,
                                  VkDeviceSize offset, VkDeviceSize size,
                                  uint32_t flags, void **ppData)
 {
-    (void)dev; (void)mem; (void)size; (void)flags;
+    (void)dev; (void)size; (void)flags;
+    struct uk_hv_mem *hv = uk_hv_mem_find((uint64_t)mem);
+    if (hv && hv->blob.mapped_addr) {
+        *ppData = (void *)((uint8_t *)hv->blob.mapped_addr + offset);
+        return VK_SUCCESS;
+    }
     *ppData = (void *)(g_staging_mem + (offset & (UK_STAGING_BUF_SIZE - 1)));
     return VK_SUCCESS;
 }
@@ -802,6 +1077,7 @@ static VkResult stub_vkCreateBuffer(VkDevice dev, const void *ci,
      */
     uint64_t sz    = rd_u64(ci, OFF_BUF_SIZE);
     uint32_t usage = rd_u32(ci, OFF_BUF_USAGE);
+    uk_buf_size_put(h, (sz + 0xFFFull) & ~0xFFFull);
     UK_ENC_BEGIN();
     uk_venus_encode_vkCreateBuffer(&_enc, UK_H_DEVICE, h, sz, usage);
     UK_ENC_SUBMIT();
@@ -812,15 +1088,36 @@ static VkResult stub_vkCreateBuffer(VkDevice dev, const void *ci,
 static void stub_vkDestroyBuffer(VkDevice d, VkBuffer b, const void *a)
 { (void)d; (void)a; uk_dispatch_destroy_dev_handle(uk_venus_encode_vkDestroyBuffer, (uint64_t)b); }
 
-/* VkMemoryRequirements: alignment=256, size=rounded, memoryTypeBits=0x7 (all types) */
+/* VkMemoryRequirements for a buffer. Real Venus round-trip when possible (the
+ * fixed fabricated size is too small for large model buffers and makes the host
+ * reject bind); falls back to a conservative fabricated value. */
+/* Memory-type mask a generic storage/transfer buffer may use: every real memory
+ * type (ggml's find_memory_properties() then filters by required propertyFlags,
+ * so listing all real types is safe — device-local reqs pick the device-local
+ * types, host-visible reqs pick the host-visible ones). */
+static uint32_t uk_buffer_memory_type_bits(void)
+{
+    if (g_memprops_valid) {
+        uint32_t tc = *(uint32_t *)g_memprops;
+        if (tc && tc <= 32u)
+            return (tc >= 32u) ? 0xFFFFFFFFu : ((1u << tc) - 1u);
+    }
+    return 0x7u;
+}
+
 static void stub_vkGetBufferMemoryRequirements(VkDevice dev, VkBuffer buf, void *pReq)
 {
-    (void)dev; (void)buf;
+    (void)dev;
     if (!pReq) return;
     uint64_t *r = (uint64_t *)pReq;
-    r[0] = 1024u * 1024u * 64u; /* size (conservative 64 MiB) */
-    r[1] = 256u;                 /* alignment */
-    *((uint32_t *)(r + 2)) = 0x7u; /* memoryTypeBits */
+    /* Compute requirements from the tracked buffer size + real type mask rather
+     * than a Venus round-trip: the buffer may be only batched (not yet on the
+     * host) at query time, and a failed round-trip CS-errors / tears down the
+     * Venus context. ggml pads the size, so the exact alignment is not critical. */
+    uint64_t sz = uk_buf_size_find((uint64_t)buf);
+    r[0] = sz ? sz : (64ull * 1024ull * 1024ull);
+    r[1] = 256u;
+    *((uint32_t *)(r + 2)) = uk_buffer_memory_type_bits();
 }
 
 static void stub_vkGetBufferMemoryRequirements2(VkDevice dev, const void *info,
@@ -867,13 +1164,18 @@ static VkResult stub_vkCreateShaderModule(VkDevice dev, const void *ci,
     UK_ENC_BEGIN();
     uk_venus_encode_vkCreateShaderModule(&_enc, UK_H_DEVICE, h, code,
                                          (uint32_t)(code_size / 4u));
+    printf("VOGUE-DBG createShaderModule h=0x%llx codeSize=%llu encpos=%u ovf=%d bufsz=%u\n",
+           (unsigned long long)h, (unsigned long long)code_size,
+           _enc.pos, _enc.overflow, UK_DISPATCH_BUF_SIZE);
     UK_ENC_SUBMIT();
     *pShader = (VkShaderModule)h;
     return VK_SUCCESS;
 }
 
 static void stub_vkDestroyShaderModule(VkDevice d, VkShaderModule s, const void *a)
-{ (void)d; (void)a; uk_dispatch_destroy_dev_handle(uk_venus_encode_vkDestroyShaderModule, (uint64_t)s); }
+{ (void)d; (void)a;
+  printf("VOGUE-DBG destroyShaderModule h=0x%llx\n", (unsigned long long)(uint64_t)s);
+  uk_dispatch_destroy_dev_handle(uk_venus_encode_vkDestroyShaderModule, (uint64_t)s); }
 
 static VkResult stub_vkCreateDescriptorSetLayout(VkDevice dev, const void *ci,
                                                   const void *alloc,
@@ -1026,6 +1328,9 @@ static VkResult stub_vkCreateComputePipelines(VkDevice dev, uint64_t cache,
                                                  layout_h, shader_h,
                                                  entry ? entry : "main");
         UK_ENC_SUBMIT();
+        printf("VOGUE-DBG createComputePipeline h=0x%llx module=0x%llx layout=0x%llx\n",
+               (unsigned long long)h, (unsigned long long)shader_h,
+               (unsigned long long)layout_h);
         pPipes[i] = (VkPipeline)h;
         p += SIZE_CP_INFO;
     }
@@ -1305,6 +1610,61 @@ static void stub_vkDestroySemaphore(VkDevice d, VkSemaphore s, const void *a)
 {
     (void)d; (void)s; (void)a;
 }
+
+/* Timeline semaphore ops. ggml's async-upload event path
+ * (ggml_backend_vk_event_*) records vkCmdCopyBuffer into a transfer command
+ * buffer and submits it, then waits on a timeline semaphore. Our SUBMIT_3D
+ * queue submit is synchronous (fence-waited), so by the time these are called
+ * the GPU work has completed — the timeline has already reached its target. */
+static VkResult stub_vkWaitSemaphores(VkDevice dev, const void *pWaitInfo,
+                                      uint64_t timeout)
+{
+    (void)dev; (void)pWaitInfo; (void)timeout;
+    return VK_SUCCESS;
+}
+static VkResult stub_vkSignalSemaphore(VkDevice dev, const void *pSignalInfo)
+{
+    (void)dev; (void)pSignalInfo;
+    return VK_SUCCESS;
+}
+static VkResult stub_vkGetSemaphoreCounterValue(VkDevice dev, VkSemaphore sem,
+                                                uint64_t *pValue)
+{
+    (void)dev; (void)sem;
+    /* Report a large monotonically-satisfied value so any timeline wait the
+     * guest polls is already satisfied. */
+    if (pValue)
+        *pValue = ~0ull >> 1;
+    return VK_SUCCESS;
+}
+
+/* Command-buffer event/barrier ops used by ggml's async-upload path
+ * (resetEvent + copyBuffer + setEvent). Our queue submit is synchronous and
+ * the timeline wait is satisfied immediately, so GPU-side event signalling and
+ * the synchronization2 barriers are no-ops; the actual data movement is the
+ * vkCmdCopyBuffer that IS encoded. */
+static void stub_vkCmdSetEvent(VkCommandBuffer cb, VkEvent ev, uint32_t stageMask)
+{ (void)cb; (void)ev; (void)stageMask; }
+static void stub_vkCmdResetEvent(VkCommandBuffer cb, VkEvent ev, uint32_t stageMask)
+{ (void)cb; (void)ev; (void)stageMask; }
+static void stub_vkCmdWaitEvents(VkCommandBuffer cb, uint32_t evCount, const void *pEvents,
+                                 uint32_t srcStage, uint32_t dstStage,
+                                 uint32_t mbc, const void *mb, uint32_t bbc,
+                                 const void *bb, uint32_t ibc, const void *ib)
+{ (void)cb; (void)evCount; (void)pEvents; (void)srcStage; (void)dstStage;
+  (void)mbc; (void)mb; (void)bbc; (void)bb; (void)ibc; (void)ib; }
+static void stub_vkCmdPipelineBarrier2(VkCommandBuffer cb, const void *pDependencyInfo)
+{ (void)cb; (void)pDependencyInfo; }
+static void stub_vkCmdCopyBuffer2(VkCommandBuffer cb, const void *pCopyBufferInfo)
+{ (void)cb; (void)pCopyBufferInfo; }
+static VkResult stub_vkQueueSubmit2(VkQueue q, uint32_t count, const void *pSubmits,
+                                    VkFence fence)
+{ (void)q; (void)count; (void)pSubmits; (void)fence; return VK_SUCCESS; }
+/* Coherent host-visible memory: flush/invalidate are no-ops. */
+static VkResult stub_vkFlushMappedMemoryRanges(VkDevice d, uint32_t c, const void *r)
+{ (void)d; (void)c; (void)r; return VK_SUCCESS; }
+static VkResult stub_vkInvalidateMappedMemoryRanges(VkDevice d, uint32_t c, const void *r)
+{ (void)d; (void)c; (void)r; return VK_SUCCESS; }
 
 static VkResult stub_vkCreateQueryPool(VkDevice dev, const void *ci, const void *a,
                                         VkQueryPool *pPool)

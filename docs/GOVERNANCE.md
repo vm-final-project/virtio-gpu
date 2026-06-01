@@ -52,7 +52,11 @@ must not introduce a custom compute-remoting framework.
 
 | Directory | Owner role | Must not contain |
 |---|---|---|
-| `vm-final-project/` | Source, local tests, local eval generators, docs, latest evidence. Reproducibility manifests, experiment specs, env capture, hashing, validation, reproduce scripts, run archives. | Manifest-runner `exp-*` scripts, second manifest lock, generated run archives. VM source code, app/lib unit tests, VM-local eval/perf generator scripts.|
+| `vm-final-project/` (this repo) | Source, local tests, local eval generators, docs, latest evidence. | Manifest-runner `exp-*` scripts, second manifest lock, generated run archives. |
+| sibling `../manifest/` | Reproducibility owner: experiment specs, env capture, hashing, validation, reproduce scripts, run archives. | VM source code, app/lib unit tests, VM-local eval/perf generator scripts. |
+
+Reproducibility manifests live in the sibling `../manifest/` checkout; this repo
+references them and must not duplicate manifest-owned runner/lock files.
 
 ## Enforcement
 

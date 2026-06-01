@@ -26,7 +26,7 @@ HOST_GCC_LIB           ?=
 
 export LLAMA_ROOT VENUS_PROTOCOL_ROOT VULKAN_HEADERS_INCLUDE SPIRV_HEADERS_INCLUDE HOST_CXX_INCLUDE HOST_GCC_LIB
 
-.PHONY: help all test test-fast test-native test-qemu test-gpu tests artifact-smoke artifact-functional artifact-full artifact-paper artifact-quick artifact-check ggml-vk-dispatch verify native-tests vulkan-tests vk-drm-shim-check paper paper-check governance-check lib-readme-check naming-check image-size-check perf-check boot-time-check model-load-time-check llm-server-vk-check current-stage-check current-stage-refresh real-path-check app-perf app-perf-check eval eval-check claim-check kmscube-build glmark2-build app-port-check kmscube-run kmscube-check venus-check stage-check benchmark-check vulkan-check llama-check llama-vulkan-api-coverage llama-ggml-vk-dispatch llama-vulkan-check llama-upstream-cmake llama-upstream-cmake-vk llama-upstream-cpu-build llama-upstream-cpu-run llama-upstream-cpu-check llama-upstream-vk-build llama-upstream-vk-server-build llama-upstream-vk-run llama-upstream-vk-check llama-upstream-check env10-real-check multi-env-bench app-multi-env-bench llama-env-list llama-env-check llama-env-bench llama-env-server gen-libukvenus gen-libukvenus-plan gen-libukvenus-check clean
+.PHONY: help all test test-fast test-native test-qemu test-gpu tests artifact-smoke artifact-functional artifact-full artifact-paper artifact-quick artifact-check ggml-vk-dispatch verify native-tests vulkan-tests vk-drm-shim-check paper paper-check governance-check lib-readme-check naming-check image-size-check perf-check boot-time-check model-load-time-check llm-server-vk-check current-stage-check current-stage-refresh real-path-check app-perf app-perf-check eval eval-check claim-check kmscube-build glmark2-build app-port-check kmscube-run kmscube-check venus-check stage-check benchmark-check vulkan-check llama-check llama-vulkan-api-coverage llama-ggml-vk-dispatch llama-vulkan-check llama-upstream-cmake llama-upstream-cmake-vk llama-upstream-cpu-build llama-upstream-cpu-run llama-upstream-cpu-check llama-upstream-vk-build llama-upstream-vk-server-build llama-upstream-vk-run llama-upstream-vk-check llama-upstream-check env10-real-check multi-env-bench app-multi-env-bench llama-env-list llama-env-check llama-env-bench llama-env-server gen-libukvenus gen-libukvenus-plan gen-libukvenus-check depgraph depgraph-check clean
 
 help:
 	@printf '%s\n' \
@@ -307,6 +307,12 @@ app-perf:
 
 app-perf-check:
 	python3 scripts/app_perf_eval.py --check
+
+depgraph:
+	python3 scripts/gen_depgraph.py
+
+depgraph-check:
+	python3 scripts/gen_depgraph.py --check
 
 eval:
 	python3 scripts/eval_matrix.py --check

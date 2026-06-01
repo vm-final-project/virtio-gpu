@@ -8,6 +8,7 @@
 #include <uk/alloc.h>
 #include <uk/print.h>
 #include <uk/sglist.h>
+#include <uk/mutex.h>
 #include <uk/plat/time.h>
 #include <virtio/virtio_bus.h>
 #include <virtio/virtio_ids.h>
@@ -110,7 +111,21 @@ static void hdr_init(struct uk_virtio_gpu_dev *d, struct ukvgpu_ctrl_hdr *h,
 	}
 }
 
-static int cmd_submit(struct uk_virtio_gpu_dev *d, void *req, size_t req_len,
+/*
+ * Serialise all control-virtqueue traffic. The Linux virtio-gpu driver wraps
+ * every virtqueue_add_sgs()+kick in vgdev->ctrlq.qlock (see
+ * drivers/gpu/drm/virtio/virtgpu_vq.c). We have the same requirement: the
+ * guest-side Vulkan dispatch issues Venus SUBMIT_3D / blob-map / fence commands
+ * from ggml-vulkan's concurrent pipeline-compile worker threads, and a shared
+ * single control queue cannot be driven by two threads at once (enqueue cookie,
+ * notify, and the busy-poll dequeue all race). A sleeping uk_mutex is correct
+ * here because cmd_submit() polls (and the scheduler may switch threads) while
+ * waiting for the host response. Recursive so a future nested submit is safe.
+ */
+static struct uk_mutex g_ctrlq_lock =
+	UK_MUTEX_INITIALIZER_RECURSIVE(g_ctrlq_lock);
+
+static int cmd_submit_locked(struct uk_virtio_gpu_dev *d, void *req, size_t req_len,
 		      void *resp, size_t resp_len, uint32_t expect,
 		      uk_gpu_fence_id *fence)
 {
@@ -182,6 +197,19 @@ static int cmd_submit(struct uk_virtio_gpu_dev *d, void *req, size_t req_len,
 	if (fence && (rh->flags & UKVGPU_FLAG_FENCE) && rh->fence_id == *fence)
 		d->completed_fence = *fence;
 	return 0;
+}
+
+/* Lock wrapper around the control queue (mirrors Linux ctrlq.qlock). */
+static int cmd_submit(struct uk_virtio_gpu_dev *d, void *req, size_t req_len,
+		      void *resp, size_t resp_len, uint32_t expect,
+		      uk_gpu_fence_id *fence)
+{
+	int rc;
+
+	uk_mutex_lock(&g_ctrlq_lock);
+	rc = cmd_submit_locked(d, req, req_len, resp, resp_len, expect, fence);
+	uk_mutex_unlock(&g_ctrlq_lock);
+	return rc;
 }
 
 int uk_virtio_gpu_get_display_info(struct uk_virtio_gpu_dev *d)
@@ -897,6 +925,10 @@ int uk_virtio_gpu_gl_blob_map(struct uk_virtio_gpu_dev *d,
 	req.resource_id = blob->resource_id;
 	req.padding = 0;
 	req.offset = r->host_visible_offset;
+	printf("VOGUE-DBG map_blob res=%u off=0x%llx size=0x%llx hv_addr=%p hv_size=0x%llx\n",
+	       blob->resource_id, (unsigned long long)r->host_visible_offset,
+	       (unsigned long long)blob->size, d->host_visible.addr,
+	       (unsigned long long)d->host_visible.size);
 	memset(&resp, 0, sizeof(resp));
 	rc = cmd_submit(d, &req, sizeof(req), &resp, sizeof(resp),
 			UKVGPU_RESP_OK_MAP_INFO, NULL);

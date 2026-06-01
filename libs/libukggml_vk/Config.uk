@@ -5,6 +5,8 @@ config LIBUKGGML_VULKAN
 	select LIBUKVIRTIO_GPU
 	select LIBUKVIRTGPU_DRM
 	select LIBUKVK_ICD
+	select LIBUKLOCK
+	select LIBUKLOCK_MUTEX
 	help
 	  Minimal support layer for linking upstream llama.cpp ggml-vulkan.cpp into
 	  a Unikraft image. It provides the static Vulkan loader/dispatch entry

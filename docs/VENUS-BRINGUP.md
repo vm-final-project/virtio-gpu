@@ -1,0 +1,241 @@
+# Real virtio-gpu Venus bring-up status
+
+This document records the state of running VOGUE workloads over **real**
+QEMU `virtio-gpu-gl-pci,venus=true` against this evaluation host's GPU, and the
+precise remaining frontier for full guest-side GPU compute. It is the evidence
+trail for the governance rows `xport.qemu-vgpu`, `proto.venus-ring`,
+`host.vk.probe`, `host.bench.vk*`, `llm.bench.vk`, `llm.bench.vk.real`,
+`llm.server.vk` and `gfx.kmscube.frame`.
+
+## Evaluation host
+
+- GPUs: 4× NVIDIA Tesla V100-SXM2-16GB, proprietary driver 580.159.03,
+  Vulkan 1.4 (`vulkaninfo` reports all four + llvmpipe). Render nodes
+  `/dev/dri/renderD128..131` are `root:render 0660`; grant access with
+  `sudo chmod o+rw /dev/dri/renderD12[89] /dev/dri/renderD13[01]`.
+- EGL/GBM: works via the **NVIDIA GBM backend** (`nvidia-drm_gbm.so` +
+  `libnvidia-egl-gbm`, `15_nvidia_gbm.json`). Use the **GBM** EGL platform
+  (`EGL_PLATFORM_GBM_KHR`) — the Mesa device platform (`EGL_PLATFORM_DEVICE_EXT`)
+  fails with "failed to create dri2 screen". This is why QEMU
+  `-display egl-headless,gl=on` initialises on this NVIDIA-only host.
+- QEMU: the system `qemu-system-x86_64` is 8.2.2 and has **no** Venus. Use the
+  locally built **QEMU 11.0.1** at `../qemu-src/build/qemu-system-x86_64`
+  (`virtio-gpu-gl-pci` exposes `venus=`, `blob=`, `hostmem=`,
+  `drm_native_context=`). Probes auto-select it; or `export QEMU=...`.
+- virglrenderer: Venus-enabled 1.11.0 at
+  `/usr/local/lib/x86_64-linux-gnu/libvirglrenderer.so.1` (QEMU links this);
+  render-server `/usr/local/libexec/virgl_render_server`.
+
+## What works over real Venus (PASS)
+
+- `xport.qemu-vgpu` — the kmscube `vogue_qemu-x86_64` appliance boots under
+  QEMU 11 + `venus=true` and enumerates the real device:
+  `virtio_gpu capsets=3 virgl=1 blob=1 host_visible=1`, capset id=4 **venus**,
+  and prints `real_virtio_gpu=1`. (`scripts/venus_qemu_probe.py --mode 2d`.)
+- `proto.venus-ring` — the Venus ring registers and flushes against the real
+  device and a QMP screendump frame proof passes
+  (`scripts/venus_qemu_probe.py --mode venus-ring`).
+- `host.baseline.vk` — host-native `llama.cpp` Vulkan on the V100 (the same GPU
+  Venus targets): qwen3-0.6B `pp128≈2692 t/s`, `tg32≈222 t/s`
+  (`llama.cpp/build-vk/bin/llama-bench -ngl 99`, run with
+  `LD_LIBRARY_PATH=$PWD/build-vk/bin`).
+
+## llama.cpp Vulkan appliance: how far real Venus reaches
+
+`scripts/llama_vk_real_run.py` boots `vogue-llama-upstream-vk_qemu-x86_64` under
+real Venus (`-device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true`,
+`-display egl-headless,gl=on`, 9pfs model). Observed, end-to-end:
+
+1. Guest boots, mounts the GGUF over 9pfs.
+2. `ggml-vulkan` initialises through `libukggml_vulkan → libukvenus`, creates a
+   **real Venus context** on the host (`virgl_render_server: ... context 1
+   (ggml-vulkan-uk) with a valid instance`), and **enumerates a Venus device**
+   (`ggml_vulkan: 0 = ...`), registering the Vulkan backend.
+3. Model load **fails**: the device reports `0 MiB free`, so ggml-vulkan cannot
+   allocate the model; a subsequent `vkGetDeviceQueue` is rejected by the host
+   with a command-stream (CS) error during context teardown.
+
+Honest status: `blocked:venus-compute-dispatch-incomplete` (captured same-run in
+`results/llama/upstream_vk_latest.{json,log}` and `env10_real_latest.json`).
+
+### Important build/runtime fixes made
+
+- **Build**: upstream llama.cpp added `src/llama-kv-cache-dsa.cpp`; it was missing
+  from the appliance source lists, causing undefined-symbol link failures. Added
+  to `apps/app-llama-upstream-vk/Makefile.uk` and
+  `apps/app-llama-upstream/Makefile.uk`. Also wipe stale `llama.cpp/build-unikraft*`
+  cmake caches if they reference an old project path.
+- **Runtime crash**: the Venus device's `hostmem=512M` 64-bit PCI BAR must land
+  in the sub-4GB PCI hole, otherwise the guest faults in
+  `vpci_modern_pci_dev_reset` (`drivers/virtio/pci/virtio_pci.c`). Boot the VK
+  appliance with **`-m 3072`** (override via `VOGUE_VK_MEM`). Larger guest RAM
+  (e.g. `-m 6144`) pushes the BAR into a high window `libvirtio_pci` does not map.
+
+## Remaining frontier (why the compute rows are still blocked)
+
+The static dispatch in `libs/libukggml_vk/uk_vulkan_dispatch.c` **fabricates**
+all Vulkan *query* replies (physical-device properties/memory/queue families are
+hardcoded — note the placeholder name "VOGUE-Venus/NVIDIA RTX 4000 Ada" and the
+`0 MiB` heaps) and only encodes the *mutating* calls to Venus. Its header states
+plainly: "Not implemented (Venus ring-buffer reads required)". To make real GPU
+compute work the dispatch must become a real Venus ICD:
+
+1. **Reply-read path** — round-trip the queries through Venus and decode the
+   host's real replies for `vkEnumeratePhysicalDevices`,
+   `vkGetPhysicalDeviceProperties`, `vkGetPhysicalDeviceMemoryProperties`,
+   `vkGetPhysicalDeviceQueueFamilyProperties`, `vkCreateDevice`,
+   `vkGetBufferMemoryRequirements`, etc. This fixes the `0 MiB` heaps and the
+   `vkGetDeviceQueue` family/queue mismatch.
+2. **Host-visible memory** — wire `vkMapMemory` to a host-visible blob so the
+   guest can stage model weights up and read compute results back. (This is the
+   `blocked:host-visible-or-qemu-gate` lever already noted by
+   `scripts/venus_perf_eval.py`.)
+3. Only then do `host.vk.probe`, `host.bench.vk.run`, `host.bench.vk`,
+   `llm.bench.vk`, `llm.bench.vk.real` and `llm.server.vk` have the same-run PASS
+   evidence required to promote — never before.
+
+`gfx.kmscube.frame` is a separate display-side limitation: QEMU `egl-headless`
+returns `{"error":"no surface"}` on `screendump` of a virtio-gpu **GL** scanout,
+so the colour-band pixel proof cannot be captured through that display backend
+even though SUBMIT_3D CLEAR delivery is proven (`gfx.kmscube.submit` PASS).
+
+## Concrete implementation plan for the Venus reply-read ICD
+
+This is the sequenced, source-grounded plan to turn `libs/libukggml_vk/uk_vulkan_dispatch.c`
+from a fabricating dispatch into a real Venus ICD. References are to the checked-out
+trees (`../mesa`, `../virglrenderer`, `libs/libukvenus`).
+
+**Reply protocol** (authoritative: `mesa/src/virtio/vulkan/vn_ring.c:vn_ring_submit_command`
++ `vn_ring_set_reply_shmem_locked`; host writer
+`virglrenderer/src/venus/venus-protocol/vn_protocol_renderer_*.h:vn_encode_*_reply`):
+
+1. Allocate a host-visible **reply blob** (reuse `uk_virtio_gpu_gl_blob_create_with_ctx`
+   + `_blob_map` as the ring does in `libukvenus/venus_init.c`), attached to the **same**
+   Venus context the dispatch uses (`g_ctx` in the dispatch). The dispatch currently has
+   **no ring** — add `uk_venus_ring_create/register` on `g_ctx` during
+   `uk_ggml_vulkan_dispatch_init()`.
+2. Per query command needing a reply, write two commands into the ring circular buffer
+   (`uk_venus_ring_cmd_write`):
+   a. `vkSetReplyCommandStreamMESA` (cmd id 178, already in `uk/venus.h`) with
+      `VkCommandStreamDescriptionMESA{resourceId=reply_blob.resource_id, offset, size}` —
+      **encoder still to be written** in `venus_cs.c`.
+   b. the actual command (e.g. `vkEnumeratePhysicalDevices`).
+   Then `uk_venus_ring_cmd_flush` (stores tail + `vkNotifyRingMESA`) and
+   `uk_venus_ring_cmd_wait` (polls head==tail = seqno reached).
+3. Decode the reply from `reply_blob.mapped_addr`: `[uint32 VkCommandTypeEXT]` then the
+   reply args, e.g. for `vkEnumeratePhysicalDevices`:
+   `VkResult` + simple_pointer(count) + `array_size` + N×`VkPhysicalDevice`(uint64 id);
+   for `vkGetPhysicalDeviceMemoryProperties`:
+   `VkCommandTypeEXT` + simple_pointer + `VkPhysicalDeviceMemoryProperties` (520 bytes).
+
+**Stubs to convert to round-trips** (replace the fabricated bodies in the dispatch):
+`vkEnumeratePhysicalDevices` (capture the real host VkPhysicalDevice id),
+`vkGetPhysicalDeviceProperties[2]` (real name/limits — removes the "VOGUE-Venus/RTX 4000 Ada"
+placeholder → makes `host.vk.probe` honest), `vkGetPhysicalDeviceMemoryProperties[2]`
+(real heaps **and** the `VkPhysicalDeviceMemoryBudgetPropertiesEXT` `heapBudget` pNext — this
+is what ggml reads as "free"; zero today → "0 MiB free" → model load aborts),
+`vkGetPhysicalDeviceQueueFamilyProperties`, `vkGetPhysicalDeviceFeatures2`,
+`vkGetBufferMemoryRequirements`/`vkGetImageMemoryRequirements`.
+
+**Host-visible memory** for weight upload + result readback: `vkAllocateMemory` of a
+host-visible type must be backed by a mappable blob so `vkMapMemory` returns a guest
+pointer the host shares (the `blocked:host-visible-or-qemu-gate` lever). Mirror the ring's
+blob-map path; bind via the Venus `vkGetMemoryResourcePropertiesMESA` / blob export flow.
+
+**Milestones** (each independently verifiable by re-running `scripts/llama_vk_real_run.py`):
+- **M1 — DONE.** Reply round-trip implemented and proven: the guest reads the
+  real host device name (`Tesla V100-SXM2-16GB`) back over Venus
+  (`uk_venus_query_device_name`), ggml registers the real device, and
+  `host.vk.probe` is a real PASS. Critical detail: the host writes the reply
+  stream only for commands flagged `VK_COMMAND_GENERATE_REPLY_BIT_EXT (0x1)`;
+  reply transport is `vkSetReplyCommandStreamMESA` + the query in one SUBMIT_3D
+  execbuffer on the same Venus context (no ring needed). Also fixed the
+  "0 MiB free" model-load abort: the fabricated memory heap lacked
+  `VK_MEMORY_HEAP_DEVICE_LOCAL_BIT`, so ggml skipped it.
+- **M2 — model load now reaches GPU buffer allocation** (all 28 layers assign to
+  Vulkan0). Fixed "0 MiB free" (device-local heap needs
+  `VK_MEMORY_HEAP_DEVICE_LOCAL_BIT`). Implemented the host-visible memory path
+  (`uk_venus_encode_vkAllocateMemory_import`, host-visible blob backing in the
+  dispatch, additive with fallback). **Correct blob protocol learned from
+  virglrenderer `vkr_context_get_blob`:** for a Venus context you cannot create a
+  standalone host shmem blob for GPU use — the blob must reference a
+  VkDeviceMemory by `blob_id` = the memory's Venus object id (export direction:
+  `vkAllocateMemory` first, fence-sync, then `RESOURCE_CREATE_BLOB` with
+  `blob_id`=mem-id; `blob_id==0` only yields a plain non-GPU host shm).
+- **M2 current blocker:** `RESOURCE_CREATE_BLOB → OUT_OF_MEMORY (0x1200)` because
+  `vkr_context_get_object(blob_id)` finds no VkDeviceMemory — the host
+  `vkAllocateMemory` silently failed, because the **fabricated memory type index
+  does not map to a real host-visible+mappable memory type on the V100**. So M3
+  must first land the real `vkGetPhysicalDeviceMemoryProperties[2]` round-trip
+  (same M1 reply-read pattern; 520-byte reply: memoryTypeCount + array_size(32) +
+  32×{flags,heapIdx} + memoryHeapCount + array_size(16) + 16×{size,flags}) so
+  ggml selects a real host-visible type index and `vkAllocateMemory` succeeds on
+  the host. (The `vkGetDeviceQueue` CS error in the logs is context teardown
+  after the alloc failure, not the root cause.)
+- **M3 — real query round-trips landed.** `uk_venus_query_memory_properties`
+  reads the real V100 layout (11 memory types / 2 heaps) so ggml selects real
+  host-visible / device-local type indices; `uk_venus_query_buffer_requirements`
+  returns the host's real `VkMemoryRequirements` (the fabricated fixed 64 MiB was
+  too small and made the host reject bind). With these, the **host-visible
+  staging buffer now allocates** and model load advances to the **device-local
+  model weight buffer** (~390 MB). Generic helper `uk_venus_query_roundtrip`
+  drives all three queries. (Note: the native `venus_cs_test` link line needed
+  `venus_compute.c` added — `tests/Makefile`.)
+- **M3 device-creation root cause (found):** the device-local alloc failure and
+  the persistent `vkGetDeviceQueue resulted in CS error` both stem from
+  **`vkCreateDevice` not registering the host device object**. Two real bugs
+  fixed: (1) the dynamic object-id allocator started at `BASE+1`, **colliding**
+  with the fixed `UK_H_INSTANCE/PHYSDEV/DEVICE/QUEUE` ids — a duplicate object id
+  is fatal to the host context (`vkr_context_validate_object_id`); moved dynamic
+  ids to `BASE+0x100`. (2) `stub_vkCreateDevice` could submit `vkCreateDevice`
+  twice (checked + fallback) → duplicate `UK_H_DEVICE`; added a `g_device_created`
+  idempotency guard. After both fixes the duplicate is gone and `vkCreateDevice`
+  no longer CS-errors, **but it still does not register the device** (its
+  reply-bearing round-trip returns no reply, and the subsequent `vkGetDeviceQueue`
+  still can't look up `UK_H_DEVICE`). The remaining cause is the real host
+  `vkCreateDevice` failing/incomplete with the fabricated minimal create-info —
+  the fix is to encode ggml's **actual** `VkDeviceCreateInfo` (real queue family
+  from a real `vkGetPhysicalDeviceQueueFamilyProperties` round-trip + the feature
+  pNext chain it requests) instead of a fixed minimal one. Then GPU compute
+  dispatch + fence + readback → `llm.bench.vk`.
+- **M3 — DEVICE-QUEUE BREAKTHROUGH (real V100 GPU allocation).** The above
+  "vkCreateDevice doesn't register" diagnosis was wrong: reading the official
+  host code (`virglrenderer/src/venus/vkr_queue.c`) showed `vkCreateDevice`
+  actually succeeds (`ret=0`, device added to the object table), and the real
+  blocker is the **legacy `vkGetDeviceQueue`**: `vkr_dispatch_vkGetDeviceQueue`
+  **unconditionally `vkr_context_set_fatal`** — the Venus host MANDATES
+  `vkGetDeviceQueue2` with a `VkDeviceQueueTimelineInfoMESA` (non-zero `ringIdx`,
+  1..63) in pQueueInfo.pNext (`vkr_queue_assign_ring_idx`). Added
+  `uk_venus_encode_vkGetDeviceQueue2` (cmd 155, mirrors Mesa
+  `vn_encode_vkGetDeviceQueue2`); `stub_vkCreateDevice` now uses it (ringIdx=1).
+  Also: fixed the dynamic object-id allocator colliding with the fixed
+  `UK_H_*` ids (moved to `BASE+0x100`) and added a `g_device_created` idempotency
+  guard. Result: **no more context teardown — the 390 MB model weight buffer now
+  allocates on the real V100 over Venus and ALL tensors are placed on the GPU.**
+  The Venus memory-properties decode is byte-exact vs host `vulkaninfo`.
+- **M3 current blocker (final):** a `Vulkan_Host` pinned staging buffer then
+  returns null in ggml (`ggml_vk_host_malloc`), reached without a
+  `vkCreateBuffer`/`vkAllocateMemory` — a 0-size/host-budget path. Next: keep
+  device-local (VRAM) memory unmapped, back only true host-visible (type 8/9)
+  with a blob, and report a host-visible heap budget so the pinned host buffer
+  allocates. Then compute dispatch + fence + readback → `llm.bench.vk`.
+- **M4** throughput vs the host baseline → `host.bench.vk`, `llm.bench.vk.real`;
+  server → `llm.server.vk`.
+
+## Reproduce
+
+```sh
+export QEMU=../qemu-src/build/qemu-system-x86_64
+export LLAMA_ROOT=../llama.cpp VK_LIB=/usr/lib/x86_64-linux-gnu/libvulkan.so.1
+export VULKAN_HEADERS_INCLUDE=../Vulkan-Headers/include
+export SPIRV_HEADERS_INCLUDE=../SPIRV-Headers/include
+sudo chmod o+rw /dev/dri/renderD12[89] /dev/dri/renderD13[01]
+
+make kmscube-build
+python3 scripts/venus_qemu_probe.py --mode 2d            # PASS real_virtio_gpu=1
+python3 scripts/venus_qemu_probe.py --mode venus-ring     # PASS frame proof
+
+make llama-upstream-vk-build
+python3 scripts/llama_vk_real_run.py                      # real boot capture
+make eval-check                                           # 20/27 pass, 7 blocked
+```
