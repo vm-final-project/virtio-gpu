@@ -184,6 +184,7 @@ llama-upstream-cmake-vk-server:
 	    -DLLAMA_BUILD_EXAMPLES=OFF -DGGML_NATIVE=OFF -DGGML_OPENMP=OFF \
 	    -DLLAMA_BUILD_SERVER=ON -DGGML_VULKAN=ON \
 	    $(if $(VULKAN_HEADERS_INCLUDE),-DVulkan_INCLUDE_DIR=$(VULKAN_HEADERS_INCLUDE)) \
+	    -DVulkan_LIBRARY=$(VK_LIB) \
 	    >> $(CURDIR)/results/llama/upstream_cmake.log 2>&1
 	cd $(LLAMA_ROOT) && cmake --build build-unikraft-vk-server \
 	    --target ggml-base ggml-cpu ggml-vulkan llama llama-server-impl -j$(LLAMA_BUILD_JOBS) \

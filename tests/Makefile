@@ -8,7 +8,8 @@ CFLAGS ?= -D_POSIX_C_SOURCE=200112L -std=c11 -Wall -Wextra \
 	-I../libs/libukvirtgpu_drm/include \
 	-I../libs/libukvk_icd/include \
 	-I../libs/libukvenus/include \
-	-I../libs/libukggml_vk/include
+	-I../libs/libukggml_vk/include \
+	-Ishim
 
 # Default to the sibling venus-protocol checkout; system loader on the host.
 VK_INC ?= $(realpath ../../venus-protocol/include)

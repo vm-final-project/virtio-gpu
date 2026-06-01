@@ -1,21 +1,26 @@
 {
-  "generated_utc": "2026-05-28T17:05:38Z",
-  "evidence_id": "llama-vk-linux",
-  "llama_cpp_dir": "/home/jerrytsai/llama.cpp",
-  "llama_bench_present": false,
-  "ggml_vulkan_so_present": false,
-  "baseline_dir": "/Users/caichaowei/NTU/114_2/virtual-machine/final-project/vm-final-project/results/llama/vulkan-baselines",
-  "status": "pass",
-  "pp512_t_per_s": 213050.36,
-  "tg128_t_per_s": 2409.6,
-  "gpu_info": "NVIDIA RTX 4000 Ada Generation",
-  "model_filename": "/home/jerrytsai/vm-final-project/tmp/archive-llm-substrate/models/tiny-random-LlamaForCausalLM-Q2_K.gguf",
-  "all_envs": [
-    "cpu-1t",
-    "cpu-32t",
-    "cuda-gpu",
-    "vulkan-gpu"
-  ],
-  "claim_allowed": "Linux-host Vulkan/Venus baseline measured against the same upstream ggml-vulkan binary the Unikraft port uses.",
-  "claim_forbidden": "Unikraft-internal Vulkan compute claim \u2014 that gate is LLAMA-VK-RUN."
+ "generated_utc": "2026-06-01T07:44:30.426395Z",
+ "evidence_id": "llama-vk-linux",
+ "status": "pass",
+ "device": "Tesla V100-SXM2-16GB",
+ "gpu_info": "Tesla V100-SXM2-16GB",
+ "model_filename": "Qwen3-0.6B-Q4_K_M.gguf",
+ "n_gpu_layers": 99,
+ "pp512_t_per_s": 5173.04,
+ "tg128_t_per_s": 231.72,
+ "backend": "Vulkan (Mesa Venus ICD path / host driver)",
+ "llama_bench": "../llama.cpp/build-vk/bin/llama-bench",
+ "command": [
+  "../llama.cpp/build-vk/bin/llama-bench",
+  "-m",
+  "../models/qwen3-0.6b/Qwen3-0.6B-Q4_K_M.gguf",
+  "-ngl",
+  "99",
+  "-p",
+  "512",
+  "-n",
+  "128"
+ ],
+ "claim_allowed": "Linux-host Vulkan baseline measured against the same upstream ggml-vulkan binary and GGUF the Unikraft Venus port uses, on the evaluation host GPU.",
+ "claim_forbidden": "Unikraft-internal Vulkan compute claim \u2014 that gate is LLAMA-VK-RUN."
 }

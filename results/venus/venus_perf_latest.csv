@@ -1,8 +1,8 @@
 metric,value
-static_gate_latency_ms_mean,37.4663564
-static_gate_latency_ms_median,35.948552
-static_gate_latency_ms_min,30.817326
-static_gate_latency_ms_max,47.652801
-static_gate_latency_ms_p95,37.019414
+static_gate_latency_ms_mean,36.8375606
+static_gate_latency_ms_median,36.450827
+static_gate_latency_ms_min,33.385353
+static_gate_latency_ms_max,41.962687
+static_gate_latency_ms_p95,37.256458
 qemu_probe_status,pass
 acceleration_status,ready-for-venus-smoke

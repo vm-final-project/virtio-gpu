@@ -1,16 +1,16 @@
 {
   "format": "ppm-p6",
-  "width": 720,
-  "height": 400,
+  "width": 1280,
+  "height": 800,
   "maxval": 255,
-  "bytes": 864000,
-  "sha256": "41939f15c4ca8c3a9e733b141eb7daa28d527cb37897d746a0e376ee0414aa99",
-  "sample_unique_values": 2,
-  "variance_check": "pass",
-  "status": "pass",
+  "bytes": 3072000,
+  "sha256": "56407cbda8c895498929324e5efbf0ddb1d1cf82befdd69959b00a905dcc0c63",
+  "sample_unique_values": 1,
+  "variance_check": "fail",
+  "status": "blocked:flat-screendump",
   "source": "qmp-screendump",
   "marker": "uk-kmscube: frame_ready marker=qmp-screendump-hold",
   "run_log": "results/kmscube_vgpu_gl/latest/run.log",
   "screendump": "results/kmscube_vgpu_gl/latest/qmp-screendump.ppm",
-  "written_at": "2026-05-31T17:35:31Z"
+  "written_at": "2026-06-01T08:14:13Z"
 }

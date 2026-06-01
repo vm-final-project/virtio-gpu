@@ -1,12 +1,8 @@
 # Unikraft boot-to-READY
 
-Generated: `2026-05-29T21:17:23.021203Z`
+Generated: `2026-06-01T08:20:27.091891Z`
 
 | Appliance | Status | Boot to READY |
 |---|---|---|
-| kmscube | `blocked:no-ready-marker` | n/a ms |
-| glmark2 | `blocked:image-missing` | n/a ms |
-| llama-cpu-bench | `blocked:image-missing` | n/a ms |
-| llama-cpu-server | `blocked:no-ready-marker` | n/a ms |
+| llama-cpu-bench | `blocked:no-ready-marker` | n/a ms |
 | llama-vk-bench | `blocked:no-ready-marker` | n/a ms |
-| llama-vk-server | `blocked:image-missing` | n/a ms |

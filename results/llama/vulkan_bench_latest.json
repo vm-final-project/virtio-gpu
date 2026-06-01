@@ -1,48 +1,31 @@
 {
+  "schema": "llama/uk-vulkan-bench.v1",
+  "evidence_id": "uk-llama-vk-bench",
   "status": "pass",
-  "generated_utc": "2026-05-28T17:05:38Z",
-  "evidence_id": "llama-vk-bench",
+  "pass": true,
+  "generated_utc": "2026-06-01T07:45:21.332185Z",
+  "image": ".unikraft/build/vogue-llama-upstream-vk_qemu-x86_64",
+  "venus_device": "Tesla V100-SXM2-16GB",
+  "model": "Qwen3-0.6B-Q4_K_M.gguf",
+  "n_gpu_layers": 99,
   "rows": [
     {
-      "env_id": "cpu-1t",
-      "label": "Host CPU (1 thread)",
-      "backend": "ggml-cpu",
-      "gpu_info": null,
-      "pp512_t_per_s": 20590.36,
-      "tg128_t_per_s": 725.11
+      "env": "qemu-unikraft-vulkan",
+      "test": "pp512",
+      "t_s": 244.2
     },
     {
-      "env_id": "cpu-32t",
-      "label": "Host CPU (32 threads)",
-      "backend": "ggml-cpu",
-      "gpu_info": null,
-      "pp512_t_per_s": 66328.38,
-      "tg128_t_per_s": 3047.15
-    },
-    {
-      "env_id": "vulkan-gpu",
-      "label": "Host Vulkan (discrete GPU)",
-      "backend": "ggml-vulkan",
-      "gpu_info": "NVIDIA RTX 4000 Ada Generation",
-      "pp512_t_per_s": 213050.36,
-      "tg128_t_per_s": 2409.6
-    },
-    {
-      "env_id": "cuda-gpu",
-      "label": "Host CUDA (discrete GPU)",
-      "backend": "ggml-cuda",
-      "gpu_info": "NVIDIA RTX 4000 Ada Generation",
-      "pp512_t_per_s": 232752.06,
-      "tg128_t_per_s": 4472.76
+      "env": "qemu-unikraft-vulkan",
+      "test": "tg128",
+      "t_s": 3.3
     }
   ],
-  "headline": {
-    "vulkan_gpu_pp512": 213050.36,
-    "vulkan_gpu_tg128": 2409.6,
-    "speedup_vs_cpu_1t_pp512": 10.35,
-    "speedup_vs_cpu_1t_tg128": 3.32,
-    "ratio_vs_cuda_tg128": 0.54
+  "comparison": {
+    "host_linux_vulkan_pp512_t_per_s": 5173.04,
+    "host_linux_vulkan_tg128_t_per_s": 231.72,
+    "host_linux_vulkan_device": "Tesla V100-SXM2-16GB"
   },
-  "claim_allowed": "Apples-to-apples Vulkan throughput across same-host environments using the upstream ggml-vulkan binary the Unikraft port targets.",
-  "claim_forbidden": "Unikraft-internal Vulkan ICD compute claim \u2014 that is LLAMA-VK-UK."
+  "run_log": "results/llama/upstream_vk_latest.log",
+  "claim_allowed": "Apples-to-apples Vulkan throughput: same upstream ggml-vulkan + GGUF as host.baseline.vk, run inside Unikraft over the real virtio-gpu-gl Venus path; comparison rows quote the same-host Linux Vulkan baseline.",
+  "claim_forbidden": "Outright performance superiority; the Unikraft Venus path is expected to trail bare-metal."
 }

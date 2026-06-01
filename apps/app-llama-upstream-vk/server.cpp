@@ -21,25 +21,27 @@
 
 int llama_server(int argc, char ** argv);
 
-static int prepare_runtime(void)
-{
-    mkdir("/mnt", 0755);
-    mkdir("/mnt/model", 0755);
-    if (mount("model", "/mnt/model", "9pfs", 0, "") != 0) {
-        uk_printf("uk-llama-upstream-vk-server: FAIL 9pfs mount errno=%d\n", errno);
-        return 1;
-    }
-    if (uk_ggml_vulkan_dispatch_init() != 0) {
-        uk_puts("uk-llama-upstream-vk-server: FAIL dispatch_init\n");
-        return 1;
-    }
-    return 0;
-}
-
 static int llama_server_main(void)
 {
-    if (prepare_runtime() != 0)
+    /* Same ggml-vulkan env levers as the bench appliance: force the
+     * synchronous upload path and pure device-local model buffers so weights
+     * land on the real V100 over Venus instead of the bounded host-visible
+     * VirtIO-GPU window. (See bench.cpp for the rationale.) */
+    setenv("GGML_VK_DISABLE_ASYNC", "1", 1);
+    setenv("GGML_VK_DISABLE_HOST_VISIBLE_VIDMEM", "1", 1);
+
+    /* Prove model-loaded readiness over the REAL virtio-gpu-gl Venus path
+     * before signalling READY: load_model_vk() mounts the GGUF over 9pfs,
+     * initialises the Venus dispatch chain (libukggml_vk -> libukvenus
+     * SUBMIT_3D), and loads all layers with n_gpu_layers=99 onto the host GPU.
+     * This makes the READY line below an honest model-loaded-readiness signal,
+     * not just a dispatch-init marker. */
+    llama_model *probe = load_model_vk("/mnt/model/model.gguf",
+                                       "uk-llama-upstream-vk-server");
+    if (!probe) {
+        uk_puts("uk-llama-upstream-vk-server: FAIL model_load (Venus)\n");
         return 1;
+    }
 
     struct uk_ggml_vulkan_dispatch_info info;
     uk_ggml_vulkan_dispatch_get_info(&info);
@@ -50,6 +52,11 @@ static int llama_server_main(void)
               CONFIG_APP_LLAMA_UPSTREAM_VK_CTX,
               CONFIG_APP_LLAMA_UPSTREAM_VK_PROMPT_CACHE,
               info.hostmem_fixed);
+
+    /* Release the readiness-probe model; the upstream server below reloads it
+     * through its own model manager. (Frees the ~GPU buffers so the reload
+     * does not double-reserve V100 memory.) */
+    llama_model_free(probe);
 
     static char arg0[]       = "llama-server";
     static char model_f[]    = "-m";

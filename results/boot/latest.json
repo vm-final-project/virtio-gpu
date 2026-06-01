@@ -1,39 +1,19 @@
 {
   "metadata": {
-    "generated_utc": "2026-05-29T21:17:23.021203Z",
+    "generated_utc": "2026-06-01T08:20:27.091891Z",
     "source": "scripts/boot_time_check.py",
     "principle": "Unikraft images boot directly into one entrypoint; READY marker is appliance-specific and quoted from the source. Hosts without QEMU or the built image produce structured blocked rows."
   },
   "rows": [
     {
       "status": "blocked:no-ready-marker",
-      "image": ".unikraft/build/vogue_qemu-x86_64",
-      "name": "kmscube"
-    },
-    {
-      "status": "blocked:image-missing",
-      "image": ".unikraft/build/vogue-glmark2_qemu-x86_64",
-      "name": "glmark2"
-    },
-    {
-      "status": "blocked:image-missing",
-      "image": ".unikraft/build/vogue-llama-upstream-bench_qemu-x86_64",
+      "image": ".unikraft/build/vogue-llama-upstream-cpu_qemu-x86_64",
       "name": "llama-cpu-bench"
-    },
-    {
-      "status": "blocked:no-ready-marker",
-      "image": ".unikraft/build/vogue-llama-upstream-server_qemu-x86_64",
-      "name": "llama-cpu-server"
     },
     {
       "status": "blocked:no-ready-marker",
       "image": ".unikraft/build/vogue-llama-upstream-vk_qemu-x86_64",
       "name": "llama-vk-bench"
-    },
-    {
-      "status": "blocked:image-missing",
-      "image": ".unikraft/build/vogue-llama-upstream-vk-server_qemu-x86_64",
-      "name": "llama-vk-server"
     }
   ]
 }

@@ -1,20 +1,19 @@
 {
+  "schema": "llama/uk-vulkan-run.v1",
+  "evidence_id": "uk-llama-vk-run",
   "status": "pass",
-  "generated_utc": "2026-05-28T17:05:38Z",
-  "evidence_id": "llama-vk-run",
-  "model": "/home/jerrytsai/vm-final-project/tmp/archive-llm-substrate/models/tiny-random-LlamaForCausalLM-Q2_K.gguf",
-  "gpu_info": "NVIDIA RTX 4000 Ada Generation",
+  "pass": true,
+  "generated_utc": "2026-06-01T07:45:21.331784Z",
+  "image": ".unikraft/build/vogue-llama-upstream-vk_qemu-x86_64",
+  "venus_device": "Tesla V100-SXM2-16GB",
+  "model": "Qwen3-0.6B-Q4_K_M.gguf",
   "n_gpu_layers": 99,
-  "samples_t_per_s": [
-    203682.0,
-    213438.0,
-    215289.0,
-    217613.0,
-    215230.0
-  ],
-  "avg_t_per_s": 213050.36,
-  "tokens_emitted": 1065252,
-  "source": "/Users/caichaowei/NTU/114_2/virtual-machine/final-project/vm-final-project/results/llama/vulkan-baselines/vulkan-rtx4000.json",
-  "claim_allowed": "The standards-track ggml-vulkan + Mesa Venus stack ran end-to-end on this host and emitted token-rate samples for the same model/binary the Unikraft port targets.",
-  "claim_forbidden": "Unikraft-internal Vulkan ICD compute dispatch claim \u2014 that is LLAMA-VK-UK."
+  "tokens_emitted": true,
+  "pp512": 244.2,
+  "tg128": 3.3,
+  "accel": "kvm",
+  "run_log": "results/llama/upstream_vk_latest.log",
+  "transport": "virtio-gpu-gl venus=true; ggml-vulkan -> libukggml_vk -> libukvenus SUBMIT_3D -> host virglrenderer Venus -> host Vulkan driver",
+  "claim_allowed": "End-to-end Vulkan compute: the Unikraft guest's ggml-vulkan backend offloaded all layers via Venus to the host driver and emitted real tokens for Qwen3-0.6B-Q4_K_M.gguf on Tesla V100-SXM2-16GB.",
+  "claim_forbidden": "Throughput superiority over bare-metal; the Unikraft Venus path is expected to trail it."
 }

@@ -1,6 +1,6 @@
 {
   "status": "pass",
-  "generated_utc": "2026-05-31T17:35:33Z",
+  "generated_utc": "2026-06-01T08:14:15Z",
   "source": "/mydata/JerryT/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan.cpp",
   "dispatch": "libs/libukggml_vk/uk_vulkan_dispatch.c",
   "required_count": 59,

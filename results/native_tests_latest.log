@@ -207,7 +207,7 @@ venus_cs_test:
   PASS  ring_perf:probe_ok
   PASS  ring_perf:create_ok
   PASS  ring_perf:writes_ok
-venus_ring_perf: bytes=65536 writes=256 elapsed_ns=5055 throughput_mib_s=12364.00
+venus_ring_perf: bytes=65536 writes=256 elapsed_ns=7912 throughput_mib_s=7899.39
 venus_cs_test: all checks passed
 venus_compute_test: Venus compute dispatch wire-format tests
 ============================================================
@@ -463,6 +463,7 @@ ggml_vk_dispatch_test: N3 static Vulkan ICD dispatch layer
   PASS  stub:CreateDevice returns VK_SUCCESS
   PASS  stub:CreateDevice sets device handle
   PASS  stub:GetDeviceQueue sets queue handle
+VOGUE-DBG allocMem type=1 size=0MB hostvis=1
   PASS  stub:AllocateMemory returns VK_SUCCESS
   PASS  stub:AllocateMemory sets memory handle
   PASS  stub:CreateBuffer(in) returns VK_SUCCESS
@@ -475,6 +476,7 @@ ggml_vk_dispatch_test: N3 static Vulkan ICD dispatch layer
   PASS  stub:BindBufferMemory(out) returns VK_SUCCESS
   PASS  stub:MapMemory returns VK_SUCCESS
   PASS  stub:MapMemory returns non-NULL pointer
+VOGUE-DBG createShaderModule h=0x2000000000103 codeSize=20 encpos=100 ovf=0 bufsz=2097152
   PASS  stub:CreateShaderModule returns VK_SUCCESS
   PASS  stub:CreateShaderModule sets handle
   PASS  stub:CreateDescriptorSetLayout returns VK_SUCCESS
@@ -486,6 +488,7 @@ ggml_vk_dispatch_test: N3 static Vulkan ICD dispatch layer
   PASS  stub:UpdateDescriptorSets storage buffer called
   PASS  stub:CreatePipelineLayout returns VK_SUCCESS
   PASS  stub:CreatePipelineLayout sets handle
+VOGUE-DBG createComputePipeline h=0x2000000000108 module=0x2000000000103 layout=0x2000000000107
   PASS  stub:CreateComputePipelines returns VK_SUCCESS
   PASS  stub:CreateComputePipelines sets handle
   PASS  stub:CreateCommandPool returns VK_SUCCESS
@@ -506,6 +509,7 @@ ggml_vk_dispatch_test: N3 static Vulkan ICD dispatch layer
   PASS  stub:QueueSubmit returns VK_SUCCESS
   PASS  stub:WaitForFences returns VK_SUCCESS
   PASS  stub:ResetFences returns VK_SUCCESS
+VOGUE-DBG destroyShaderModule h=0x2000000000103
   PASS  stub:cleanup destroy/free path called
 
 [D] Full compute bootstrap sequence
@@ -513,16 +517,19 @@ ggml_vk_dispatch_test: N3 static Vulkan ICD dispatch layer
   PASS  seq:02:EnumeratePhysicalDevices
   PASS  seq:03:CreateDevice
   PASS  seq:04:GetDeviceQueue
+VOGUE-DBG allocMem type=0 size=0MB hostvis=0
   PASS  seq:05:AllocateMemory
   PASS  seq:06:CreateBuffer(in)
   PASS  seq:07:CreateBuffer(out)
   PASS  seq:08:BindBufferMemory(in)
   PASS  seq:09:BindBufferMemory(out)
+VOGUE-DBG createShaderModule h=0x200000000010f codeSize=20 encpos=100 ovf=0 bufsz=2097152
   PASS  seq:10:CreateShaderModule
   PASS  seq:11:CreateDescriptorSetLayout
   PASS  seq:12:CreateDescriptorPool
   PASS  seq:13:AllocateDescriptorSets
   PASS  seq:14:CreatePipelineLayout
+VOGUE-DBG createComputePipeline h=0x2000000000114 module=0x200000000010f layout=0x2000000000113
   PASS  seq:15:CreateComputePipelines
   PASS  seq:16:CreateCommandPool
   PASS  seq:17:AllocateCommandBuffers

@@ -3,7 +3,7 @@
   "evidence_id": "uk-vulkan-probe",
   "status": "pass",
   "pass": true,
-  "generated_utc": "2026-06-01T07:01:15.869585Z",
+  "generated_utc": "2026-06-01T08:21:32.128612Z",
   "physical_device": "Tesla V100-SXM2-16GB",
   "api_version": "1.2",
   "capset_venus": true,

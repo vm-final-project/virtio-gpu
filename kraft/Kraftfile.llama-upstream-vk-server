@@ -58,6 +58,13 @@ unikraft:
     CONFIG_LIBUKVK_ICD: 'y'
     CONFIG_LIBUKVENUS: 'y'
     CONFIG_LIBUKGGML_VULKAN: 'y'
+    # posix-socket provides the socket()/bind()/listen()/accept() API the
+    # upstream cpp-httplib server references so the image links. No TCP/IP
+    # stack is wired in (lwip is out of scope — see the llm.server.vk claim
+    # boundary), so the appliance boots to model-loaded READY over the real
+    # Venus path; an actual socket bind then fails cleanly. No HTTP-serving
+    # claim is made.
+    CONFIG_LIBPOSIX_SOCKET: 'y'
 
 targets:
   - qemu/x86_64

@@ -148,6 +148,72 @@ def _emit(status: str, *, log_tail: str = "", extra: dict | None = None,
     env10["schema"] = "llama/env10-real.v2"
     env10["evidence_id"] = "env10-real"
     _write("env10_real", env10)
+
+    # On a real PASS the same boot is also the evidence for the Unikraft-domain
+    # `host.bench.vk.run` (token emission) and `host.bench.vk` (throughput vs the
+    # host Linux Vulkan/Venus baseline) rows. These artifacts are intentionally
+    # NOT host-baseline shaped: evidence_id is uk-llama-vk-{run,bench}, there is
+    # no `source` field, and claim_forbidden does not carry "unikraft-internal"
+    # (see scripts/eval_matrix.py:_uk_runtime_status). Written only when the
+    # guest actually emitted pp512/tg128 on the GPU.
+    if passed and throughput:
+        pp512 = throughput.get("pp512")
+        tg128 = throughput.get("tg128")
+        baseline = {}
+        try:
+            bl = json.loads((RESULTS / "vulkan_linux_baseline_latest.json").read_text())
+            if bl.get("status") == "pass":
+                baseline = {
+                    "host_linux_vulkan_pp512_t_per_s": bl.get("pp512_t_per_s"),
+                    "host_linux_vulkan_tg128_t_per_s": bl.get("tg128_t_per_s"),
+                    "host_linux_vulkan_device": bl.get("device") or bl.get("gpu_info"),
+                }
+        except (OSError, json.JSONDecodeError):
+            pass
+        run_art = {
+            "schema": "llama/uk-vulkan-run.v1",
+            "evidence_id": "uk-llama-vk-run",
+            "status": "pass",
+            "pass": True,
+            "generated_utc": _now(),
+            "image": base["image"],
+            "venus_device": venus_device,
+            "model": throughput.get("model"),
+            "n_gpu_layers": throughput.get("n_gpu_layers", 99),
+            "tokens_emitted": throughput.get("tokens_emitted", True),
+            "pp512": pp512,
+            "tg128": tg128,
+            "accel": throughput.get("accel"),
+            "run_log": "results/llama/upstream_vk_latest.log",
+            "transport": "virtio-gpu-gl venus=true; ggml-vulkan -> libukggml_vk -> libukvenus SUBMIT_3D -> host virglrenderer Venus -> host Vulkan driver",
+            "claim_allowed": ("End-to-end Vulkan compute: the Unikraft guest's ggml-vulkan backend "
+                              "offloaded all layers via Venus to the host driver and emitted real "
+                              f"tokens for {throughput.get('model')} on {venus_device}."),
+            "claim_forbidden": "Throughput superiority over bare-metal; the Unikraft Venus path is expected to trail it.",
+        }
+        _write("vulkan_run", run_art)
+        bench_art = {
+            "schema": "llama/uk-vulkan-bench.v1",
+            "evidence_id": "uk-llama-vk-bench",
+            "status": "pass",
+            "pass": True,
+            "generated_utc": _now(),
+            "image": base["image"],
+            "venus_device": venus_device,
+            "model": throughput.get("model"),
+            "n_gpu_layers": throughput.get("n_gpu_layers", 99),
+            "rows": [
+                {"env": "qemu-unikraft-vulkan", "test": "pp512", "t_s": pp512},
+                {"env": "qemu-unikraft-vulkan", "test": "tg128", "t_s": tg128},
+            ],
+            "comparison": baseline,
+            "run_log": "results/llama/upstream_vk_latest.log",
+            "claim_allowed": ("Apples-to-apples Vulkan throughput: same upstream ggml-vulkan + GGUF as "
+                              "host.baseline.vk, run inside Unikraft over the real virtio-gpu-gl Venus "
+                              "path; comparison rows quote the same-host Linux Vulkan baseline."),
+            "claim_forbidden": "Outright performance superiority; the Unikraft Venus path is expected to trail bare-metal.",
+        }
+        _write("vulkan_bench", bench_art)
     print(f"llama-vk-real-run: {status}"
           + (f" venus_device={venus_device!r}" if venus_device else "")
           + (f" host_error={host_error!r}" if host_error else ""))

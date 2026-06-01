@@ -506,7 +506,7 @@ VOGUE-DBG map_blob res=6 off=0x7cbc000 size=0x101000 hv_addr=0xc0000000 hv_size=
 load_all_data: using async uploads for device Vulkan0, buffer type Vulkan0, backend Vulkan0
 ....................................................load_all_data: buffer type Vulkan_Host is not the default buffer type for device Vulkan0 for async uploads
 .
-uk-llama-upstream-vk: model_load path=/mnt/model/model.gguf use_mmap=0 huge_pages=0 elapsed_ms=6684.19
+uk-llama-upstream-vk: model_load path=/mnt/model/model.gguf use_mmap=0 huge_pages=0 elapsed_ms=5761.68
 llama_context: constructing llama_context
 llama_context: n_seq_max     = 1
 llama_context: n_ctx         = 768
@@ -580,7 +580,7 @@ sched_reserve:    Vulkan0 compute buffer size =   298.75 MiB
 sched_reserve: Vulkan_Host compute buffer size =     4.77 MiB
 sched_reserve: graph nodes  = 986
 sched_reserve: graph splits = 2
-sched_reserve: reserve took 134.41 ms, sched copies = 1
+sched_reserve: reserve took 158.57 ms, sched copies = 1
 VOGUE-DBG allocMem type=7 size=0MB hostvis=0
 VOGUE-DBG createShaderModule h=0x2000000000137 codeSize=67176 encpos=67256 ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x2000000000139 module=0x2000000000137 layout=0x2000000000138
@@ -1166,36 +1166,36 @@ uk-vgpu: cmd 0x207 resp 0x0 rc=-5 used=24 expect=0x1100
 uk-vgpu: cmd 0x207 resp 0x0 rc=-5 used=24 expect=0x1100
 uk-vgpu: cmd 0x207 resp 0x0 rc=-5 used=24 expect=0x1100
 uk-vgpu: cmd 0x207 resp 0x0 rc=-5 used=24 expect=0x1100
-[   11.243499] CRIT:  Unikraft Crash - Ijiraq (0.21.0~7351f8b-custom)
- [   11.248412] CRIT:      _      
- [   11.250875] CRIT:    cx xo    
- [   11.253359] CRIT:    (|O|)/V  
- [   11.255825] CRIT:             
- [   11.258281] CRIT:  Registers:
- [   11.260678] CRIT:   rip: 0008:0000000000331cc5
- [   11.264240] CRIT:   rsp: 0010:000000000000a5b0 eflags: 00010246 orig_rax: 0000000000000002
- [   11.270696] CRIT:   rax: 0000000011e31020 rbx: 000000000000133c rcx:0000000000000001
- [   11.276294] CRIT:   rdx: 0000000000000000 rsi: 0000000011dfc028 rdi:0000000000011070
- [   11.281918] CRIT:   rbp: 000000000000a740 r08: 0000000011e11a50 r09:0000000011dfc000
- [   11.287554] CRIT:   r10: ffffffffffffffff r11: 0000000000002b45 r12:0000000000000001
- [   11.293340] CRIT:   r13: 0000000000000100 r14: 0000000000000001 r15:0002000000000218
- [  virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule id=562949953421623 codeSize=67176 magic=0x7230203
-virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule ret=0
-virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule id=562949953421628 codeSize=13400 magic=0x7230203
-virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule ret=0
-virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule id=562949953421632 codeSize=12420 magic=0x7230203
-virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule ret=0
-virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule id=562949953421637 codeSize=26336 magic=0x7230203
-virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule ret=0
-virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule id=562949953421642 codeSize=26500 magic=0x7230203
-virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule ret=0
-virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule id=562949953421645 codeSize=5784 magic=0x7230203
-virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule ret=0
-virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule id=562949953421651 codeSize=73440 magic=0x7230203
-virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule ret=0
-virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule id=562949953421654 codeSize=12344 magic=0x7230203
-virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule ret=0
-virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule id=562949953421664 codeSize=5880 magic=0x7230203
-virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule ret=0
-virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule id=562949953421673 codeSize=3852 magic=0x7230203
-virgl_render_server[3970579]: vkr: VOGUE-DBG ShaderModule ret=0
+[   10.345609] CRIT:  Unikraft Crash - Ijiraq (0.21.0~7351f8b-custom)
+ [   10.350529] CRIT:      _      
+ [   10.352987] CRIT:    cx xo    
+ [   10.355477] CRIT:    (|O|)/V  
+ [   10.357939] CRIT:             
+ [   10.360398] CRIT:  Registers:
+ [   10.362789] CRIT:   rip: 0008:0000000000331cc5
+ [   10.366348] CRIT:   rsp: 0010:000000000000a5b0 eflags: 00010246 orig_rax: 0000000000000002
+ [   10.372901] CRIT:   rax: 0000000011e31020 rbx: 000000000000133c rcx:0000000000000001
+ [   10.379084] CRIT:   rdx: 0000000000000000 rsi: 0000000011dfc028 rdi:0000000000011070
+ [   10.385234] CRIT:   rbp: 000000000000a740 r08: 0000000011e11a50 r09:0000000011dfc000
+ [   10.391398] CRIT:   r10: ffffffffffffffff r11: 0000000000002b45 r12:0000000000000001
+ [   10.397725] CRIT:   r13: 0000000000000100 r14: 0000000000000001 r15:0002000000000218
+ [  virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule id=562949953421623 codeSize=67176 magic=0x7230203
+virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule ret=0
+virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule id=562949953421628 codeSize=13400 magic=0x7230203
+virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule ret=0
+virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule id=562949953421632 codeSize=12420 magic=0x7230203
+virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule ret=0
+virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule id=562949953421637 codeSize=26336 magic=0x7230203
+virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule ret=0
+virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule id=562949953421642 codeSize=26500 magic=0x7230203
+virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule ret=0
+virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule id=562949953421645 codeSize=5784 magic=0x7230203
+virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule ret=0
+virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule id=562949953421651 codeSize=73440 magic=0x7230203
+virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule ret=0
+virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule id=562949953421654 codeSize=12344 magic=0x7230203
+virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule ret=0
+virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule id=562949953421664 codeSize=5880 magic=0x7230203
+virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule ret=0
+virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule id=562949953421673 codeSize=3852 magic=0x7230203
+virgl_render_server[89751]: vkr: VOGUE-DBG ShaderModule ret=0

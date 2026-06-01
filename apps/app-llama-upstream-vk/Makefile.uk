@@ -27,6 +27,10 @@ COMPILER_DIR := $(shell clang -print-resource-dir)
 # Do NOT duplicate any source that libukggml_vulkan already compiles.
 
 # Include paths
+# compat/ provides Unikraft/musl build shims for upstream Linux-isms (e.g.
+# <linux/limits.h> in common/{arg,download}.cpp). Placed first so it wins.
+APPLLAMA_UPSTREAM_VK_CINCLUDES-y   += -I$(APPLLAMA_UPSTREAM_VK_BASE)/compat
+APPLLAMA_UPSTREAM_VK_CXXINCLUDES-y += -I$(APPLLAMA_UPSTREAM_VK_BASE)/compat
 APPLLAMA_UPSTREAM_VK_CINCLUDES-y   += -I$(GGML_INC) -I$(GGML_SRC) -I$(GGML_SRC)/ggml-cpu
 APPLLAMA_UPSTREAM_VK_CXXINCLUDES-y += -I$(LLAMA_ROOT)/include -I$(LLAMA_SRC) \
                                       -I$(LLAMA_SRC)/models \
@@ -54,6 +58,16 @@ APPLLAMA_UPSTREAM_VK_CXXFLAGS-y += -std=c++17 $(APPLLAMA_UPSTREAM_VK_COMMON_DEFS
                                     -DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1 \
                                     -isystem $(VULKAN_HEADERS_INCLUDE) \
                                     -Wno-unknown-pragmas -Wno-unused-function
+# Server mode pulls in the full upstream HTTP server. tools/server/server-http.h
+# uses std::unordered_map without including <unordered_map> directly (relies on a
+# transitive include that this libc++ does not provide), so force-include it.
+APPLLAMA_UPSTREAM_VK_CXXFLAGS-$(CONFIG_APP_LLAMA_UPSTREAM_VK_MODE_SERVER) += -include unordered_map
+# common/jinja/value.cpp does `#include "unicode.h"` wanting common/unicode.h
+# (common_parse_utf8_codepoint), but -I$(LLAMA_SRC) precedes -I$(LLAMA_COMMON)
+# so the unrelated src/unicode.h (tokenizer) wins. -iquote is searched for
+# quoted includes after the file's OWN directory but before -I dirs, so src/*
+# files still get their local src/unicode.h while common/jinja gets common's.
+APPLLAMA_UPSTREAM_VK_CXXFLAGS-$(CONFIG_APP_LLAMA_UPSTREAM_VK_MODE_SERVER) += -iquote $(LLAMA_COMMON)
 # --gc-sections belongs at the final image link (CONFIG_OPTIMIZE_DEADELIM in the
 # Kraftfiles), not in per-library LDFLAGS which feed the relocatable `ld -r` link
 # where binutils rejects it for lacking an entry-point root.
@@ -115,6 +129,12 @@ APPLLAMA_UPSTREAM_VK_SRCS-y += $(GGML_SRC)/ggml-backend-reg.cpp
 # tools/server/main.cpp already delegates to `int llama_server(int, char **)`;
 # the Unikraft app calls that function directly from server.cpp, so no Linux
 # launcher process is required. Keep local wrappers for basename collisions.
+# cpp-httplib is vendored split (httplib.h declares, httplib.cpp defines); the
+# upstream CMake build compiles httplib.cpp into a static lib. Compile it here
+# too, otherwise every httplib::Server/Client symbol is an undefined reference
+# at the final image link. Plus a posix_spawnp link shim (see compat-spawn.c).
+APPLLAMA_UPSTREAM_VK_SRCS-$(CONFIG_APP_LLAMA_UPSTREAM_VK_MODE_SERVER) += $(LLAMA_ROOT)/vendor/cpp-httplib/httplib.cpp
+APPLLAMA_UPSTREAM_VK_SRCS-$(CONFIG_APP_LLAMA_UPSTREAM_VK_MODE_SERVER) += $(APPLLAMA_UPSTREAM_VK_BASE)/compat-spawn.c
 APPLLAMA_UPSTREAM_VK_SRCS-$(CONFIG_APP_LLAMA_UPSTREAM_VK_MODE_SERVER) += $(APPLLAMA_UPSTREAM_VK_BASE)/upstream-server.cpp
 APPLLAMA_UPSTREAM_VK_SRCS-$(CONFIG_APP_LLAMA_UPSTREAM_VK_MODE_SERVER) += $(APPLLAMA_UPSTREAM_VK_BASE)/build-info.cpp
 APPLLAMA_UPSTREAM_VK_SRCS-$(CONFIG_APP_LLAMA_UPSTREAM_VK_MODE_SERVER) += $(filter-out $(LLAMA_COMMON)/unicode.cpp, $(wildcard $(LLAMA_COMMON)/*.cpp))

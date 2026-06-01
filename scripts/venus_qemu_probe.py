@@ -157,7 +157,11 @@ def probe_venus_ring(args, qemu, image) -> int:
     cmd = [qemu, "-machine", "accel=tcg", "-cpu", "max", "-m", "512M",
            "-display", "egl-headless,gl=on", "-serial", "stdio",
            "-qmp", f"unix:{qmp_path},server=on,wait=off",
-           "-device", "virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true",
+           # id=vgpu0 so the QMP screendump can target the virtio-gpu-gl console
+           # explicitly. QEMU also auto-adds a default VGA, which is console 0; a
+           # bare `screendump` would dump that VGA *text* console (grey-on-black)
+           # instead of the virgl-rendered colour band on the virtio-gpu-gl head.
+           "-device", "virtio-gpu-gl-pci,id=vgpu0,hostmem=512M,blob=true,venus=true",
            "-kernel", str(image),
            "-append", "venus_ring_test=1 frame_proof_hold=1"]
     started = time.time()
@@ -186,8 +190,16 @@ def probe_venus_ring(args, qemu, image) -> int:
                         s.connect(str(qmp_path))
                         _ = qmp_recv(s)
                         qmp_cmd(s, "qmp_capabilities")
+                        # Target the virtio-gpu-gl device head 0 (the virgl
+                        # scanout). A device-less screendump would capture the
+                        # default VGA console. Fall back to the default console
+                        # if the QEMU build does not accept the device argument.
                         qmp_result = qmp_cmd(s, "screendump",
-                                             {"filename": str(screendump)})
+                                             {"filename": str(screendump),
+                                              "device": "vgpu0", "head": 0})
+                        if qmp_result.get("error"):
+                            qmp_result = qmp_cmd(s, "screendump",
+                                                 {"filename": str(screendump)})
                     break
             elif proc.poll() is not None:
                 break

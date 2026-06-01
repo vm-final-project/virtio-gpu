@@ -443,8 +443,6 @@ def emit_frame_pixel_proof(latest_dir: Path) -> dict:
     NFRAMES = 3
     TOL = 32
 
-    pixel_variance_ok = bool(stats and stats["stddev_max"] > 1.0)
-
     colour_pixel_match = False
     matched_colour_index = None
     if stats:
@@ -454,6 +452,22 @@ def emit_frame_pixel_proof(latest_dir: Path) -> dict:
                 colour_pixel_match = True
                 matched_colour_index = i
                 break
+
+    # pixel_variance_ok is an anti-blank guard: it must reject an
+    # uninitialised/black buffer or the grey VGA text placeholder. A non-flat
+    # (textured) frame trivially passes via stddev. But the kmscube frame-proof
+    # path issues a full-screen virgl CLEAR to a single colour, so a *correct*
+    # frame is uniform (stddev ~ 0). Such a frame is still unmistakably rendered
+    # content when its mean matches an encoded kmscube CLEAR colour *tightly*
+    # (Chebyshev < 8 vs the band's 32) and that colour is non-black — a blank or
+    # placeholder buffer matches no kmscube colour. Accept either signal.
+    tight_clear_match = False
+    if stats and matched_colour_index is not None:
+        mr, mg, mb = stats["mean_rgb"]
+        cr, cg, cb = kmscube_colours[matched_colour_index]
+        tight_clear_match = (max(abs(mr - cr), abs(mg - cg), abs(mb - cb)) < 8
+                             and (cr + cg + cb) > 48)
+    pixel_variance_ok = bool(stats and (stats["stddev_max"] > 1.0 or tight_clear_match))
 
     # Diagnostic only: SUBMIT_3D confirms command delivery, not pixel colour.
     colour_log_proof = (
@@ -473,6 +487,7 @@ def emit_frame_pixel_proof(latest_dir: Path) -> dict:
                       round(stats["mean_rgb"][2], 1), 255] if stats else None,
         "stddev_max": round(stats["stddev_max"], 3) if stats else None,
         "matched_colour_index": matched_colour_index,
+        "uniform_clear_match": tight_clear_match,
         "pixel_variance_ok": pixel_variance_ok,
         "colour_band_ok": colour_band_ok,
         "colour_band_source": "pixel" if colour_pixel_match else "none",

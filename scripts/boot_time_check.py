@@ -30,44 +30,137 @@ ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / ".unikraft" / "build"
 OUT = ROOT / "results" / "boot"
 
+# Per-appliance boot configuration. Appliances are single-purpose and need the
+# devices/model their entrypoint expects, otherwise they never reach READY:
+#   gpu=True   -> attach virtio-gpu-gl-pci,venus=true,blob=true + egl-headless
+#                 (the kmscube/Vulkan scanout + Venus compute path)
+#   model=True -> stage the GGUF over virtio-9p (mount_tag=model) like the real
+#                 runtime scripts do; the llama entrypoints mount /mnt/model
+#   mem        -> guest RAM (vk needs the hostmem BAR to map in the <4G hole)
 APPLIANCES = [
-    {"name": "kmscube",          "image": "vogue_qemu-x86_64",                       "ready": re.compile(r"uk-kmscube: PASS")},
-    {"name": "glmark2",          "image": "vogue-glmark2_qemu-x86_64",               "ready": re.compile(r"uk-glmark2: PASS|status=pass")},
-    {"name": "llama-cpu-bench",  "image": "vogue-llama-upstream-bench_qemu-x86_64",  "ready": re.compile(r"uk-llama-upstream: PASS")},
-    {"name": "llama-cpu-server", "image": "vogue-llama-upstream-server_qemu-x86_64", "ready": re.compile(r"uk-llama-upstream-server: READY")},
-    {"name": "llama-vk-bench",   "image": "vogue-llama-upstream-vk_qemu-x86_64",     "ready": re.compile(r"uk-llama-upstream-vk: PASS")},
-    {"name": "llama-vk-server",  "image": "vogue-llama-upstream-vk-server_qemu-x86_64", "ready": re.compile(r"uk-llama-upstream-vk-server: READY")},
+    {"name": "kmscube",          "image": "vogue_qemu-x86_64",
+     "ready": re.compile(r"uk-kmscube: PASS"), "gpu": True, "mem": "512M"},
+    {"name": "glmark2",          "image": "vogue-glmark2_qemu-x86_64",
+     "ready": re.compile(r"uk-glmark2: PASS|status=pass"), "gpu": True, "mem": "512M"},
+    {"name": "llama-cpu-bench",  "image": "vogue-llama-upstream-cpu_qemu-x86_64",
+     "ready": re.compile(r"uk-llama-upstream: PASS"), "model": True, "mem": "2048"},
+    {"name": "llama-cpu-server", "image": "vogue-llama-upstream-server_qemu-x86_64",
+     "ready": re.compile(r"uk-llama-upstream-server: READY"), "model": True, "mem": "2048"},
+    {"name": "llama-vk-bench",   "image": "vogue-llama-upstream-vk_qemu-x86_64",
+     "ready": re.compile(r"uk-llama-upstream-vk: PASS"), "gpu": True, "model": True, "mem": "3072"},
+    {"name": "llama-vk-server",  "image": "vogue-llama-upstream-vk-server_qemu-x86_64",
+     "ready": re.compile(r"uk-llama-upstream-vk-server: READY"), "gpu": True, "model": True, "mem": "3072"},
 ]
 
+# vk model load on the V100 over Venus takes several seconds; give GPU/model
+# appliances a generous boot-to-READY budget while keeping CPU ones snappy.
 DEFAULT_TIMEOUT_S = 30.0
+GPU_TIMEOUT_S = 360.0
 
 
 def _qemu_bin() -> str | None:
-    return shutil.which(os.environ.get("QEMU", "qemu-system-x86_64"))
+    """Prefer a Venus-capable qemu (auto-selects the qemu-src build) so the GPU
+    appliances can reach the host GPU; fall back to $QEMU / PATH."""
+    explicit = os.environ.get("QEMU")
+    cands = []
+    if explicit:
+        cands.append(shutil.which(explicit) or explicit)
+    cands += [str(ROOT.parent / "qemu-src" / "build" / "qemu-system-x86_64"),
+              "/usr/local/bin/qemu-system-x86_64"]
+    path_bin = shutil.which("qemu-system-x86_64")
+    if path_bin:
+        cands.append(path_bin)
+    existing = [c for c in cands if c and Path(c).exists()]
+    for c in existing:
+        try:
+            out = subprocess.run([c, "-device", "virtio-gpu-gl-pci,help"],
+                                 text=True, stdout=subprocess.PIPE,
+                                 stderr=subprocess.STDOUT, timeout=10).stdout
+        except Exception:
+            continue
+        if "venus=" in out:
+            return c
+    return existing[0] if existing else None
 
 
-def _measure(image_path: Path, ready: re.Pattern[str], timeout_s: float) -> dict:
+def _model_file() -> Path | None:
+    import json as _json
+    for env in ("VOGUE_VK_MODEL", "VOGUE_CPU_MODEL"):
+        v = os.environ.get(env)
+        if v and Path(v).is_file():
+            return Path(v)
+    try:
+        cfg = _json.loads((ROOT / "config" / "llama_env_matrix.json").read_text())
+        cand = ROOT / cfg["model"]["default_path"]
+        if cand.is_file():
+            return cand
+    except Exception:
+        pass
+    for p in (ROOT.parent / "models").rglob("*.gguf"):
+        return p
+    return None
+
+
+def _grant_render_nodes() -> None:
+    nodes = [str(p) for p in Path("/dev/dri").glob("renderD*")]
+    if not nodes or all(os.access(n, os.R_OK | os.W_OK) for n in nodes):
+        return
+    if shutil.which("sudo"):
+        subprocess.run(["sudo", "-n", "chmod", "o+rw", *nodes],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def _measure(app: dict, timeout_s: float) -> dict:
+    image_path = BUILD / app["image"]
     qemu = _qemu_bin()
     if qemu is None:
         return {"status": "blocked:qemu-missing"}
     if not image_path.exists():
         return {"status": "blocked:image-missing", "image": str(image_path.relative_to(ROOT))}
 
-    cmd = [
-        qemu,
-        "-machine", "accel=tcg",
-        "-cpu", "max",
-        "-m", "256M",
-        "-kernel", str(image_path),
-        "-display", "none",
-        "-serial", "mon:stdio",
-        "-nographic",
-    ]
+    needs_gpu = bool(app.get("gpu"))
+    needs_model = bool(app.get("model"))
+    mem = app.get("mem", "256M")
+    # Use KVM whenever available: the bench appliances run a full pp512+tg128
+    # inference before their PASS marker, which is far too slow under TCG.
+    kvm = os.access("/dev/kvm", os.R_OK | os.W_OK)
+    accel, cpu = ("kvm", "host") if kvm else ("tcg", "max")
+
+    share = None
+    if needs_model:
+        model = _model_file()
+        if model is None:
+            return {"status": "blocked:model-missing", "image": str(image_path.relative_to(ROOT))}
+        import tempfile
+        share = tempfile.mkdtemp(prefix="vogue-boot-model-")
+        shutil.copy(model, Path(share) / "model.gguf")
+
+    if needs_gpu:
+        _grant_render_nodes()
+
+    cmd = [qemu, "-machine", f"accel={accel}", "-cpu", cpu, "-m", mem,
+           "-no-reboot", "-kernel", str(image_path)]
+    if needs_model:
+        cmd += ["-fsdev", f"local,id=myid,path={share},security_model=none",
+                "-device", "virtio-9p-pci,fsdev=myid,mount_tag=model"]
+    if needs_gpu:
+        cmd += ["-display", "egl-headless,gl=on", "-vga", "none",
+                "-device", "virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true",
+                "-append", "console=ttyS0"]
+    else:
+        cmd += ["-display", "none", "-nographic"]
+    cmd += ["-serial", "mon:stdio", "-monitor", "none"]
+
+    ready = app["ready"]
+    env = {**os.environ}
+    if needs_gpu:
+        env.setdefault("LD_LIBRARY_PATH", "/usr/local/lib/x86_64-linux-gnu")
+        env["VIRGL_DEBUG"] = env.get("VIRGL_DEBUG", "")
     started_at = time.perf_counter()
     proc = subprocess.Popen(
         cmd, stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        text=True, bufsize=1,
+        text=True, bufsize=1, cwd=ROOT, env=env,
     )
     ready_at: float | None = None
     deadline = started_at + timeout_s
@@ -86,6 +179,8 @@ def _measure(image_path: Path, ready: re.Pattern[str], timeout_s: float) -> dict
         except subprocess.TimeoutExpired:
             proc.kill()
             proc.wait()
+        if share:
+            shutil.rmtree(share, ignore_errors=True)
 
     if ready_at is None:
         return {"status": "blocked:no-ready-marker", "image": str(image_path.relative_to(ROOT))}
@@ -112,8 +207,10 @@ def main(argv: list[str] | None = None) -> int:
     for a in APPLIANCES:
         if args.appliance and a["name"] not in args.appliance:
             continue
-        path = BUILD / a["image"]
-        result = _measure(path, a["ready"], args.timeout)
+        # GPU/model appliances load a model on the V100 over Venus before READY,
+        # so they need a longer budget than the default CPU boot timeout.
+        per_to = GPU_TIMEOUT_S if (a.get("gpu") or a.get("model")) else args.timeout
+        result = _measure(a, per_to)
         result["name"] = a["name"]
         rows.append(result)
         ms = result.get("boot_to_ready_ms")
