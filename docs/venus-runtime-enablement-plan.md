@@ -1,5 +1,12 @@
 # Venus/Vulkan Runtime Enablement: Env, Problem, Root Cause, Fix & Test Plan
 
+2026-06-01 update: the runtime-enablement plan below is now historical. The
+current evaluation-host matrix is 27/27 PASS, including `xport.qemu-vgpu`,
+`gfx.kmscube.submit`, `gfx.kmscube.frame`, `llm.bench.vk`,
+`llm.bench.vk.real`, and `llm.server.vk`. Use `docs/VENUS-BRINGUP.md`,
+`plan-fix.md`, and `plan-optimize.md` for the current status, residual
+generated-summary cleanup, and performance work.
+
 Status date: 2026-05-30. This document is the doc-grounded plan for moving the
 blocked Venus/Vulkan-runtime evaluation rows from `blocked:*` to `pass`. Every
 claim below is grounded in official documentation (cited inline) and in

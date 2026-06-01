@@ -28,6 +28,11 @@ unikraft:
     CONFIG_APP_LLAMA_UPSTREAM_VK_MODE_SERVER: 'y'
     CONFIG_APP_LLAMA_UPSTREAM_VK_THREADS: '1'
     CONFIG_OPTIMIZE_DEADELIM: 'y'
+    # See Kraftfile.llama-upstream-vk: ggml-vulkan's async pipeline-compile
+    # workers + the compute-graph dispatch overflow the 64 KiB default thread
+    # stack; 512 KiB per thread is required for the Venus path to run reliably.
+    CONFIG_STACK_SIZE_PAGE_ORDER: '7'
+    CONFIG_AUXSTACK_SIZE_PAGE_ORDER: '7'
     CONFIG_LIBMUSL: 'y'
     CONFIG_LIBCXX: 'y'
     CONFIG_CXX_THREADS: 'y'

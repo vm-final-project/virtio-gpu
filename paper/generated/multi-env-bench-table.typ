@@ -14,9 +14,9 @@
     [QEMU-VM Linux CPU (4 vCPU)], [40,642], [1,381], [`pass`],
     [QEMU-VM Linux Vulkan (llvmpipe)], [55,298], [1,460], [`pass`],
     [QEMU-VM VirtIO-GPU Vulkan (Venus, Linux)], [120,954], [2,039], [`pass`],
-    [QEMU + Unikraft VirtIO-GPU Venus (llvmpipe, CPU Vulkan)], [—], [—], [`blocked:wrong-domain-or-stale`],
-    [QEMU + Unikraft VirtIO-GPU Venus (full ggml-vulkan, no patches, KVM)], [—], [—], [`blocked:n3-image-not-built`],
+    [QEMU + Unikraft VirtIO-GPU Venus (llvmpipe)], [—], [—], [`blocked:no-row-compatible-same-run-artifact`],
+    [QEMU + Unikraft VirtIO-GPU Venus (GPU, KVM)], [247], [3], [`pass`],
     [vk.ggml-dispatch Static Vulkan ICD dispatch (host)], [—], [—], [`pass`],
   )),
-  caption: [Multi-environment llama.cpp benchmark and reproduction context. Host Linux/QEMU rows are environment baselines only. ENV9/ENV10 (QEMU+Unikraft VirtIO-GPU Venus) remain blocked unless a row-compatible same-run QEMU/Venus artifact exists; no in-Unikraft Vulkan compute, pp512/tg128, or projected throughput is claimed in this artifact. ENV11 (vk.ggml-dispatch static dispatch, host-only) is a no-QEMU regression gate for libukggml\_vulkan: 164/164 checks PASS; pp512/tg128 are not applicable. All Unikraft runtime claims defer to the generated evidence matrix.]
+  caption: [Multi-environment llama.cpp benchmark and reproduction context. Host Linux/QEMU rows are environment baselines only. ENV9 (QEMU+Unikraft VirtIO-GPU Venus on llvmpipe) stays blocked until a row-compatible same-run llvmpipe artifact exists. ENV10 (QEMU+Unikraft VirtIO-GPU Venus on a real GPU) may claim pp512/tg128 only from same-run Unikraft Venus artifacts. ENV11 (vk.ggml-dispatch static dispatch, host-only) is a no-QEMU regression gate for libukggml\_vulkan: 164/164 checks PASS; pp512/tg128 are not applicable. All Unikraft runtime claims defer to the generated evidence matrix.]
 ) <tab:multienv>

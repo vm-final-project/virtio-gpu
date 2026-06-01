@@ -11,6 +11,10 @@
 |-----|--------|-------|
 | `vk.smoke` | `pass` | Host-side Vulkan API surface proof (alloc, map, fence) and Venus capset detection; vk.drm-shim (libukvirtgpu_drm) and vk.icd (Vulkan ICD) substrate implemented |
 
+Current stage: the smoke substrate passes as a Venus/Vulkan readiness gate.
+Rendering or compute throughput still requires a dedicated same-run QEMU/Venus
+payload artifact and is not implied by this smoke test.
+
 ## Porting boundary
 
 This port validates the vk.icd gate: headless Vulkan smoke test inside Unikraft proving Venus capset detection (id=4) via VirtIO-GPU controlq and documenting the path to the full Vulkan ICD.

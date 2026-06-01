@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-01T08:07:14.294531Z"
+    "generated_utc": "2026-06-01T12:21:36.083268Z"
   },
   "rows": [
     {
@@ -32,9 +32,9 @@
           "source": "virgl-submit-pass-marker",
           "run_log": "results/kmscube_vgpu_gl/latest/run.log",
           "pass_marker": "uk-kmscube: PASS kmscube_vgpu_gl frames=3 renderer=virgl submits_3d=3 evidence_id=virgl-clear-proof real_virtio_gpu=1 w=1280 h=800",
-          "written_at": "2026-06-01T08:07:14.290890Z",
+          "written_at": "2026-06-01T12:21:36.079668Z",
           "qmp_screendump_sha256": "56407cbda8c895498929324e5efbf0ddb1d1cf82befdd69959b00a905dcc0c63",
-          "qmp_screendump": ""
+          "qmp_screendump": "results/kmscube_vgpu_gl/latest/qmp-screendump.ppm"
         },
         "feasibility": {
           "status": "blocked:feasibility-not-yet-implemented",

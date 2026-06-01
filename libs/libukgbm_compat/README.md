@@ -5,6 +5,9 @@ VOGUE ports. It provides enough buffer metadata and test-pattern support for the
 current software-render/display evidence rows without importing Mesa GBM or
 Linux DRM buffer management.
 
+Current stage: GBM compatibility supports passing software and bounded frame
+proof rows. DMABUF export, modifiers, and full Mesa GBM remain non-claims.
+
 ## Configuring applications to use `libukgbm_compat`
 
 Enable `CONFIG_LIBUKGBM_COMPAT`; it selects `LIBUKDMA` for buffer backing.

@@ -14,6 +14,14 @@ unikraft:
     CONFIG_APP_LLAMA_UPSTREAM_VK_MODE_BENCH: 'y'
     CONFIG_APP_LLAMA_UPSTREAM_VK_THREADS: '1'
     CONFIG_OPTIMIZE_DEADELIM: 'y'
+    # ggml-vulkan compiles pipelines on hardware_concurrency() std::async worker
+    # threads that drive the Venus dispatch (vulkan.hpp -> stub -> uk_venus_encode
+    # with multi-KB SPIR-V/struct temporaries). Worker (and main) threads default
+    # to STACK_SIZE = 2^4 pages = 64 KiB, which the deep compute-graph dispatch
+    # chain overflows non-deterministically (corrupted callee-saved regs -> crash
+    # in stub_vkCreateDescriptorPool). Order 7 = 512 KiB per thread fixes it.
+    CONFIG_STACK_SIZE_PAGE_ORDER: '7'
+    CONFIG_AUXSTACK_SIZE_PAGE_ORDER: '7'
     CONFIG_LIBMUSL: 'y'
     CONFIG_LIBCXX: 'y'
     CONFIG_CXX_THREADS: 'y'

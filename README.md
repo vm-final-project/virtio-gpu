@@ -31,6 +31,24 @@ upstream llama.cpp bench/server
 A `PASS` row means the corresponding command reproduced locally. A `blocked:*`
 row (for example `blocked:unikraft-image-missing`, `blocked:image-missing`) is a documented blocker and is not acceleration or throughput evidence.
 
+**Current stage (2026-06-01 evidence).** On the evaluation host with QEMU 11.0.1
+`virtio-gpu-gl-pci,hostmem=...,blob=true,venus=true`, Venus-enabled
+virglrenderer, and an accessible NVIDIA render node, the full 27-row evaluation
+matrix is **27/27 PASS, 0 blocked** (`results/vogue_latest_evaluation_matrix.md`).
+The upstream llama.cpp Vulkan bench appliance runs end-to-end on the GPU through
+real Venus (`pp512=247.4 t/s`, `tg128=3.4 t/s` on a Tesla V100), the Vulkan
+server appliance boots directly into its single entrypoint and reaches
+model-loaded readiness, and `xport.qemu-vgpu`, `proto.venus-ring`,
+`gfx.kmscube.submit`, and `gfx.kmscube.frame` all have same-run PASS artifacts.
+
+`make current-stage-check` also passes: the real-path checker now treats a
+CPU-only latest `.unikraft/build/config` as not applicable when production
+graphics/Vulkan configs, compiled `virtio_gpu_real.o`, compile database, and
+QEMU Venus probe evidence all pass. See `plan-fix.md` for stale generated
+summary cleanup and future non-release gates. On hosts without the Venus stack,
+GPU/transport rows must still fall back to structured `blocked:*` statuses
+rather than being reported as passes.
+
 ## Repository structure
 
 | Path | Role |
@@ -69,10 +87,12 @@ the [Kraftfile target model](https://unikraft.org/docs/cli/reference/kraftfile/l
 
 | Task / problem | Current reason | Fix / verification plan |
 |---|---|---|
-| Build the Unikraft/QEMU appliances | KraftKit builds must select a platform/architecture target such as `qemu/x86_64`; this tree also expects the sibling Unikraft checkout and external roots declared in `config/external_paths.json`. | Run the project wrappers such as `make kmscube-build`; for direct diagnosis use `kraft build --target qemu/x86_64` with the matching Kraftfile, then capture `make kmscube-check` evidence. |
-| Enable QEMU/Venus transport | QEMU's accelerated virtio-gpu path needs the GL backend plus host blob memory and Venus enabled; otherwise `xport.qemu-vgpu` remains `blocked:probe-incomplete`. | Use a QEMU/virglrenderer stack that accepts `virtio-gpu-gl,hostmem=...,blob=true,venus=true`, then rerun `make venus-check` and `make eval-check`. |
-| Prove KMSCube submit/frame rows | Native virgl encoder tests are substrate evidence only; the current KMSCube appliance rows are `blocked:missing-pass-marker` and stale frame proofs are removed. | Rebuild and run KMSCube under the QEMU GL/Venus environment, require a same-run serial `PASS` marker plus pixel colour-band proof, then rerun `make kmscube-check && make eval-check`. |
-| Prove Vulkan/LLM runtime rows | Host Linux baseline artifacts are the wrong provenance domain for Unikraft runtime claims, so `host.vk.probe` and `host.bench.vk.*` stay `blocked:wrong-domain-artifact`. | Produce row-compatible Unikraft runtime JSON with the required `evidence_id`, source domain, and schema fields before any PASS promotion. |
+| Build the Unikraft/QEMU appliances | KraftKit builds must select a platform/architecture target such as `qemu/x86_64`; this tree also expects sibling checkouts and external roots from `config/external_paths.json`. | Run wrapper targets such as `make kmscube-build`, `make llama-upstream-vk-build`, or `make llama-upstream-vk-server-build`; use direct `kraft build --target qemu/x86_64` only for diagnosis. |
+| Current-stage real-path gate | Resolved: the latest `.unikraft/build/config` may belong to a CPU image, but that is now treated as not applicable when production graphics/Vulkan configs, real object files, and QEMU probes pass. | `make real-path-check && make current-stage-check` confirms the current stage. |
+| Enable QEMU/Venus transport | Requires QEMU GL, host blob memory, Venus enabled, and a readable render node. | **Resolved on the eval host:** `xport.qemu-vgpu` and `proto.venus-ring` PASS with `virtio-gpu-gl-pci,hostmem=...,blob=true,venus=true`. |
+| Prove KMSCube submit/frame rows | Native virgl encoder tests alone are substrate evidence; frame claims require a same-run GL scanout read-back. | **Resolved on the eval host:** the kmscube appliance emits virgl CLEAR submissions and `gfx.kmscube.frame` passes on a colour-band QMP screendump proof. |
+| Prove Vulkan/LLM runtime rows | Host Linux baseline JSON is the wrong provenance for Unikraft rows. | **Resolved on the eval host:** `scripts/llama_vk_real_run.py` and `scripts/llama_server_vk_capture.py` emit same-run Unikraft JSON, so the Vulkan probe/run/bench/server rows pass. |
+| Full HTTP server semantics | `llm.server.cpu` and `llm.server.vk` currently prove direct server entrypoint plus model-loaded readiness, not HTTP request/response service. | Add the lwIP/netdev path, expose a request gate, and only then report requests/s, TTFT, or server throughput. |
 | Build the paper | Typst is the release PDF tool; font warnings are acceptable only when the compile exits zero. | Run `make paper-check paper` and keep generated tables synchronized with `results/vogue_latest_evaluation_matrix.json`. |
 | Run performance gates | Software-render timings vary on shared hosts, so a single noisy sample can be misleading. | Run `make perf-check`; `scripts/app_perf_eval.py` uses best-of-N for smoke gating and persists median/all samples for reviewer analysis. |
 
@@ -242,12 +262,12 @@ Key rows:
 | `proto.real-driver`, `vk.readiness`, `proto.venus-enc`, `proto.venus-ring` | VirtIO-GPU ABI, Venus readiness, command encoding, and ring protocol gates. |
 | `vk.drm-shim`, `vk.smoke`, `gfx.vkmark` | DRM virtgpu shim and bounded Vulkan smoke/vkmark evidence. |
 | `vk.ggml-dispatch` | `libs/libukggml_vk` covers the required upstream ggml-vulkan API surface and passes host-native dispatch checks. |
-| `gfx.kmscube.submit`, `gfx.kmscube.frame` | Virgl submit/frame claims; current status is `blocked:missing-pass-marker` until same-run serial PASS plus pixel proof exists. |
-| `xport.qemu-vgpu` | QEMU GL/Venus transport; current status is `blocked:probe-incomplete` until the real backend probe is complete. |
-| `host.baseline.vk` | Host Linux/QEMU/Venus baseline only; useful environment evidence, not a Unikraft runtime claim. |
-| `host.vk.probe`, `host.bench.vk.run`, `host.bench.vk` | Current status is `blocked:wrong-domain-artifact` if a host-baseline JSON is offered for a Unikraft row. |
+| `gfx.kmscube.submit`, `gfx.kmscube.frame` | Virgl SUBMIT_3D delivery and pixel-correct frame. PASS on the eval host via a same-run colour-band screendump (host GL scanout read-back); `blocked:no-pixel-proof` where the display backend cannot read the GL scanout. |
+| `xport.qemu-vgpu` | QEMU GL/Venus transport. PASS where the real `virtio-gpu-gl` Venus device reaches the guest driver; otherwise a structured transport blocker is reported for the missing host/runtime prerequisite. |
+| `host.baseline.vk` | Same-host Linux/Vulkan llama.cpp baseline (the denominator for `host.bench.vk`); not a Unikraft runtime claim. |
+| `host.vk.probe`, `host.bench.vk.run`, `host.bench.vk` | Unikraft Vulkan probe/run/throughput. PASS from same-run guest JSON (`evidence_id=uk-llama-vk-*`, no host `source`); otherwise a structured blocker is emitted when only host-baseline or row-incompatible artifacts exist. |
 | `llm.bench.cpu`, `llm.server.cpu` | Upstream llama.cpp CPU single-app runtime/server evidence or structured blocker. |
-| `llm.bench.vk`, `llm.server.vk`, `llm.bench.vk.real` | Upstream llama.cpp Vulkan/Venus runtime evidence or structured blocker; no throughput claim while blocked. |
+| `llm.bench.vk`, `llm.server.vk`, `llm.bench.vk.real` | Upstream llama.cpp Vulkan/Venus runtime. PASS with same-run pp512/tg128 (bench) or model-loaded READY (server) on the GPU via Venus; structured blocker with no throughput claim otherwise. |
 
 Allowed in this revision:
 

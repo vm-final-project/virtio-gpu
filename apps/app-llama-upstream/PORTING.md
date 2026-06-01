@@ -15,6 +15,11 @@ or a native server-mode entrypoint. It is not a Linux VM that starts a shell or
 
 ## Stage 0 — Baselines
 
+Current stage: both CPU rows pass on the evaluation host. `llm.bench.cpu`
+reports `pp512=9.1`, `tg128=7.7` from a real GGUF over 9pfs, and
+`llm.server.cpu` proves direct single-entrypoint model-loaded readiness. HTTP
+request serving remains out of scope until the lwIP/netdev gate exists.
+
 Verify the same model + flags on Linux first so any Unikraft regression is
 attributable to the port, not to llama.cpp itself.
 

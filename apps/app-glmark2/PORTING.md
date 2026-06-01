@@ -13,6 +13,10 @@
 |-----|--------|-------|
 | `gfx.glmark2.sw` | `pass` | glmark2 scene-clear substrate initializes EGL/GLES2 and presents frames through VirtIO-GPU 2D/software scanout |
 
+Current stage: this app remains a software-substrate benchmark. The evaluation
+matrix passes this row; QEMU/Venus graphics acceleration and full glmark2 scene
+FPS are future gates, not claims made by this porting file.
+
 ## Porting boundary
 
 This is a bounded Unikraft application port of the `glmark2-es2` `scene-clear` workload. The adapter preserves the workload shape that matters for VOGUE evidence: initialize EGL/GLES2, clear the framebuffer for a fixed frame count, present every frame, and emit a glmark2-style score marker.

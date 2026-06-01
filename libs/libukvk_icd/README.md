@@ -5,6 +5,10 @@ for Unikraft. It sits above vk.drm-shim (`libukvirtgpu_drm`) and provides the IC
 bootstrap layer that Vulkan benchmark ports (`app-vkmark`) require to
 initialize a Venus/Vulkan context over VirtIO-GPU.
 
+Current stage: `vk.smoke`, `gfx.vkmark`, and llama.cpp Vulkan runtime rows pass
+their current substrate/runtime claims. Full vkmark scene FPS inside Unikraft is
+still a future QEMU/Venus rendering gate.
+
 Source lineage: Mesa `src/virtio/vulkan/vn_device.c` (Venus VkDevice init),
 `src/virtio/vulkan/vn_renderer_virtgpu.c` (ICD renderer).
 

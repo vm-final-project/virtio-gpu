@@ -1,9 +1,9 @@
 {
   "schema": "llama/env10-real.v2",
   "evidence_id": "env10-real",
-  "status": "blocked:venus-compute-dispatch-incomplete",
-  "pass": false,
-  "generated_utc": "2026-06-01T08:21:32.130304Z",
+  "status": "pass",
+  "pass": true,
+  "generated_utc": "2026-06-01T12:13:26.661974Z",
   "image": ".unikraft/build/vogue-llama-upstream-vk_qemu-x86_64",
   "host": "Linux-6.18.33-x86_64-with-glibc2.39",
   "venus_device": "Tesla V100-SXM2-16GB",
@@ -11,5 +11,21 @@
   "run_log": "results/llama/upstream_vk_latest.log",
   "claim_allowed": "Real boot of the upstream llama.cpp Vulkan appliance under QEMU virtio-gpu-gl venus=true; throughput only when status==pass.",
   "claim_forbidden": "Throughput/acceleration claim unless status==pass with same-run pp512/tg128.",
-  "frontier": "libukvk_icd reply-read ICD path incomplete: physical-device memory/queue properties are still fabricated and host-visible vkMapMemory readback is not wired, so model load cannot allocate/dispatch on the GPU."
+  "pp512": 247.4,
+  "tg128": 3.4,
+  "accel": "kvm",
+  "model": "Qwen3-0.6B-Q4_K_M.gguf",
+  "tokens_emitted": true,
+  "n_gpu_layers": 99,
+  "rows": [
+    {
+      "test": "pp512",
+      "t_s": 247.4
+    },
+    {
+      "test": "tg128",
+      "t_s": 3.4
+    }
+  ],
+  "attempts_used": 2
 }

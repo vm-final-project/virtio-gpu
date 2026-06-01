@@ -4,7 +4,7 @@ The VirtIO-GPU frontend (`libukvirtio_gpu`) is the lowest-level VOGUE component.
 
 == Device Discovery and Initialization
 
-On Unikraft, PCI device discovery uses the existing Unikraft PCI and virtio bus libraries. Legacy and transitional VirtIO devices can be reached through the current `libvirtio_pci` path; QEMU's modern VirtIO-GPU Venus devices present modern PCI IDs such as `0x1050`. This artifact carries a Unikraft `libvirtio_pci` patch for modern VirtIO-PCI discovery, but the generated matrix keeps `xport.qemu-vgpu` as `blocked:probe-incomplete` until the full current QEMU GL/Venus probe reaches the guest driver and records row-compatible evidence.
+On Unikraft, PCI device discovery uses the existing Unikraft PCI and virtio bus libraries. Legacy and transitional VirtIO devices can be reached through the current `libvirtio_pci` path; QEMU's modern VirtIO-GPU Venus devices present modern PCI IDs such as `0x1050`. This artifact carries a Unikraft `libvirtio_pci` patch for modern VirtIO-PCI discovery, and the current evaluation-host matrix records `xport.qemu-vgpu` as PASS after the QEMU GL/Venus probe reaches the guest driver with row-compatible evidence.
 
 When the transport accepts the device, the driver performs five initialization steps. First, it reads PCI BARs and maps the VirtIO common configuration structure through the Unikraft virtio API. Second, it negotiates features, accepting the virgl 3D mode, EDID display-info, resource-blob, context-init, blob-alignment, and host-visible-memory features only when offered by the device; each feature is enabled only when its preconditions are also met (e.g., `F_BLOB_ALIGNMENT` requires `F_RESOURCE_BLOB`, and `F_CONTEXT_INIT` requires `F_VIRGL`). Third, it allocates the control queue and cursor queue. Fourth, it sends a display-info query to learn the display resolution and scanout count. Finally, it optionally fetches EDID display data if the corresponding feature was negotiated.
 
@@ -51,7 +51,7 @@ The current driver implements the real control-queue commands needed by the virg
     [`RESOURCE_ASSIGN_UUID`], [implemented], [resource identity command for external sharing protocols],
     [`RESOURCE_MAP_BLOB`, `RESOURCE_UNMAP_BLOB`], [implemented], [host-visible mapping surface; Venus ring protocol passes native tests; frame proof still pending],
     [`F_BLOB_ALIGNMENT` (bit 5)], [implemented], [negotiated when host offers it; `blob_alignment` read from config space at offset 16; blob sizes aligned before `RESOURCE_CREATE_BLOB`; falls back to 4096 if value is zero or not a power-of-two],
-    [QEMU/Venus execution], [`blocked:probe-incomplete`], [modern PCI support is substrate work; current transport PASS requires a complete row-compatible QEMU GL/Venus probe artifact],
+    [QEMU/Venus execution], [`pass`], [evaluation-host transport PASS requires a complete row-compatible QEMU GL/Venus probe artifact],
   ),
   caption: [Current VirtIO-GPU 3D/Venus surface. Implemented transport commands are necessary but not sufficient for a Vulkan application claim.],
 ) <tab:venus-surface>

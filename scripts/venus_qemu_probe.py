@@ -97,6 +97,25 @@ def parse_ppm(path: pathlib.Path) -> dict:
     sample = pixels[:expected: max(1, expected // 4096)]
     unique = len(set(sample))
     nonzero = any(b != 0 for b in pixels[:expected])
+    # Central-patch mean (PPM is R,G,B) for colour-band detection.
+    pw, ph = min(256, width), min(256, height)
+    x0, y0 = (width - pw) // 2, (height - ph) // 2
+    rs = gs = bs = 0
+    cnt = 0
+    for yy in range(y0, y0 + ph, 4):
+        base = yy * width * 3
+        for xx in range(x0, x0 + pw, 4):
+            i = base + xx * 3
+            rs += pixels[i]; gs += pixels[i + 1]; bs += pixels[i + 2]; cnt += 1
+    mean = (rs / cnt, gs / cnt, bs / cnt) if cnt else (0, 0, 0)
+    # kmscube CLEAR colours (apps/app-kmscube/main.c) in RGB.
+    kmscube = [(51, 102, 204), (204, 51, 102), (102, 204, 51)]
+    colour_match = any(max(abs(mean[0] - c[0]), abs(mean[1] - c[1]),
+                           abs(mean[2] - c[2])) < 32 for c in kmscube)
+    # A correct full-screen virgl CLEAR is uniform (unique==1) yet is genuine
+    # rendered content, not a blank buffer, when its colour matches an encoded
+    # kmscube CLEAR colour. Accept either a textured frame or such a clear.
+    ok = nonzero and ((unique > 1) or colour_match)
     return {
         "format": "ppm-p6",
         "width": width,
@@ -105,7 +124,9 @@ def parse_ppm(path: pathlib.Path) -> dict:
         "bytes": expected,
         "sha256": hashlib.sha256(raw).hexdigest(),
         "sample_unique_values": unique,
-        "variance_check": "pass" if unique > 1 and nonzero else "fail",
+        "mean_rgb": [round(v, 1) for v in mean],
+        "colour_band_match": colour_match,
+        "variance_check": "pass" if ok else "fail",
     }
 
 def write_frame_proof(data: dict) -> pathlib.Path:

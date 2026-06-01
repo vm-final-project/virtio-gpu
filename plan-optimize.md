@@ -1,13 +1,21 @@
-# Performance optimization plan for `llm.server.vk`
+# Performance optimization plan for VOGUE
 
-`llm.server.vk` is VOGUE's single-purpose Vulkan/Venus llama.cpp server
-appliance (`apps/app-llama-upstream-vk/server.cpp` + `kraft/Kraftfile.llama-upstream-vk-server`).
-It runs upstream `llama.cpp` unmodified, routes Vulkan calls through
-`libukggml_vk` → `libukvenus` → `libukvirtgpu_drm` → `libukvirtio_gpu` and
-finally to QEMU `virtio-gpu-gl-pci,blob=true,venus=true`. Every claim below
-is gated by a verifiable host artifact and a public citation; the goal is to
-prove *each* change improves a measurable row in `results/perf/latest.json`
-(or its Venus/HTTP counterpart) rather than chase generic micro-benchmarks.
+This plan now targets the measured issues in the current VOGUE evidence set,
+not the older pre-Venus blocked state. `llm.bench.vk` and `llm.server.vk` run
+upstream `llama.cpp` unmodified through `libukggml_vk` → `libukvenus` →
+`libukvirtgpu_drm` → `libukvirtio_gpu` → QEMU
+`virtio-gpu-gl-pci,hostmem=...,blob=true,venus=true`. Every optimization below
+must improve a named artifact row rather than introduce an unmeasured claim.
+
+## Current performance findings
+
+| Finding | Evidence | Interpretation | Primary fix track |
+|---|---|---|---|
+| Vulkan prefill is strong but token generation is weak | `results/llama/upstream_vk_latest.json`: `pp512=247.4`, `tg128=3.4`; `results/llama/upstream_cpu_latest.json`: `pp512=9.1`, `tg128=7.7` | GPU/Venus helps prompt processing but per-token generation is dominated by dispatch, synchronization, small kernels, or readback overhead. | Batch Venus submissions, reduce fence/wait frequency, raise batch/ctx settings, and audit host-visible mapping. |
+| Model loading is still file-copy bound | `results/model-load/latest.json`: CPU/VK app and server model load times are ~5.6-7.5 s with `use_mmap=false`, `huge_pages=false`. | 9pfs/initramfs model delivery does not yet use mmap or huge pages; startup latency hides boot improvements. | Add mmap-capable model path or initramfs huge-page staging; measure with `make model-load-time-check`. |
+| Server readiness is proven, HTTP throughput is not | `results/llama/upstream_server_vk_latest.json`: `status=pass`, `slots=1`, `ctx_per_slot=512`, `prompt_cache=true`, `hostmem_fixed=false`; claim forbids HTTP serving semantics. | The server image can load the model over Venus, but no request path, TTFT, or aggregate throughput exists yet. | Add lwIP/netdev gate, then tune `--parallel`, `--ctx-size`, `--batch-size`, and prompt cache under request load. |
+| Software graphics rows pass but are noisy | `results/app_perf_latest.json`: best samples pass; fifth samples drop sharply (`kmscube` 224 fps, `glmark2` 100 fps). | Native fake-backend graphics are memory-copy and host-noise sensitive; best-of-N keeps the smoke gate stable but does not characterize steady-state variance. | Add median/p95 regression reporting and isolate memcpy/fence costs. |
+| Real-driver static gate cost is visible | `results/benchmarks/benchmark_summary_latest.md`: `VSTAT` mean 41.6 ms, p95 50.1 ms. | Static/readiness gate is not GPU runtime, but it exposes overhead worth tracking as protocol coverage grows. | Keep VSTAT as a trend metric and split encoder, ring, and controlq timings. |
 
 The plan is organised by which layer the optimisation modifies (Unikraft
 core, ggml/llama.cpp inference, Venus encoder, QEMU/host). Each entry
@@ -82,13 +90,24 @@ exposes the right device. Document, gate, and verify.
 
 ## Sequencing
 
-Phase 1 (already merged in the previous goal): L2.1, L3.1, L3.2, L3.3, L1.1.
+Phase 0 (current state): the evaluation matrix is 27/27 PASS on the evaluation
+host and `make current-stage-check` now passes after the real-path checker fix.
+Optimization results may be compared against the current release evidence, but
+hosts without the same QEMU/Venus/GPU stack must still treat those rows as
+host-conditional rather than universal claims.
+
+Phase 1 (already implemented): L1.1, L2.1, L3.1, L3.2, L3.3.
 
 Phase 2 (this goal proposes):
-1. **L1.4 + L1.2** — huge-page mmap loader + boot-time-check numbers.
-2. **L4.1 + L4.2** — pin QEMU device flags in `kraft/Kraftfile.llama-upstream-vk-server` and document the `--display egl-headless` flag in PORTING.md.
-3. **L2.2 + L2.3** — promote `--parallel` and `cache_prompt=true` into the appliance's startup parameters; baseline measurements with `llama-bench --parallel N`.
-4. **L3.4** — make the static dispatch read the host-blob mapping and assert `MAP_FIXED` is in use.
+1. **L3.1 + L3.4** — profile per-token Vulkan/Venus submissions and host-visible
+   mappings; target the `tg128=3.4` bottleneck first.
+2. **L2.2 + L2.3** — promote server `--parallel`, `--batch-size`,
+   `--ctx-size`, and prompt cache settings from static defaults into measured
+   request-load gates.
+3. **L1.4 + L1.2** — reduce the 5.6-7.5 s model-load path with mmap/huge-page
+   delivery and keep boot-time measurements separate from model loading.
+4. **Graphics substrate variance** — add median/p95 reporting for native
+   `kmscube`/`glmark2` and split memcpy, flush, and fence counters.
 
 Phase 3 (defer until phase 2 numbers exist): L1.3 (`COOP` scheduler trim), L1.5 (NUMA), L2.4 (speculative), L2.5 (Paged-KV), L4.3 (lwIP knobs).
 
@@ -100,9 +119,8 @@ Phase 3 (defer until phase 2 numbers exist): L1.3 (`COOP` scheduler trim), L1.5 
 make perf-check                 # existing — fps + pp512/tg128 regression
 make image-size-check           # existing — per-appliance byte counts
 make boot-time-check            # existing — boot-to-READY ms
-# Phase 2 additions:
-make model-load-time-check      # first-byte → model-loaded latency
-make llm-server-vk-check        # aggregate_t/s, per_request_t/s, TTFT
+make model-load-time-check      # existing — first-byte → model-loaded latency
+make llm-server-vk-check        # existing readiness gate; extend for HTTP/TTFT
 ```
 
 Each new gate emits `results/<gate>/latest.{json,md}` with the same

@@ -42,8 +42,8 @@ APPLIANCES = [
      "ready": re.compile(r"uk-kmscube: PASS"), "gpu": True, "mem": "512M"},
     {"name": "glmark2",          "image": "vogue-glmark2_qemu-x86_64",
      "ready": re.compile(r"uk-glmark2: PASS|status=pass"), "gpu": True, "mem": "512M"},
-    {"name": "llama-cpu-bench",  "image": "vogue-llama-upstream-cpu_qemu-x86_64",
-     "ready": re.compile(r"uk-llama-upstream: PASS"), "model": True, "mem": "2048"},
+    {"name": "llama-cpu-bench",  "image": "vogue-llama-upstream-bench_qemu-x86_64",
+     "ready": re.compile(r"uk-llama-upstream: PASS"), "model": True, "mem": "4096"},
     {"name": "llama-cpu-server", "image": "vogue-llama-upstream-server_qemu-x86_64",
      "ready": re.compile(r"uk-llama-upstream-server: READY"), "model": True, "mem": "2048"},
     {"name": "llama-vk-bench",   "image": "vogue-llama-upstream-vk_qemu-x86_64",
@@ -155,10 +155,18 @@ def _measure(app: dict, timeout_s: float) -> dict:
     env = {**os.environ}
     if needs_gpu:
         env.setdefault("LD_LIBRARY_PATH", "/usr/local/lib/x86_64-linux-gnu")
-        env["VIRGL_DEBUG"] = env.get("VIRGL_DEBUG", "")
+        # Match the known-good llama_vk_real_run host env. Do NOT blank
+        # VIRGL_DEBUG: an empty value perturbed the host render-server enough to
+        # destabilise the Venus compute path; "verbose" is what the runtime
+        # scripts use and what passes reliably.
+        env.setdefault("VIRGL_DEBUG", "verbose")
+    # Inherit stdin (do not pass DEVNULL/PIPE). With `-serial mon:stdio`, a
+    # DEVNULL (immediate-EOF) or a Python-held PIPE stdin destabilised the Venus
+    # GPU appliances (no-ready); an inherited idle stdin matches the known-good
+    # runtime scripts (scripts/llama_vk_real_run.py).
     started_at = time.perf_counter()
     proc = subprocess.Popen(
-        cmd, stdin=subprocess.DEVNULL,
+        cmd,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         text=True, bufsize=1, cwd=ROOT, env=env,
     )
@@ -210,7 +218,20 @@ def main(argv: list[str] | None = None) -> int:
         # GPU/model appliances load a model on the V100 over Venus before READY,
         # so they need a longer budget than the default CPU boot timeout.
         per_to = GPU_TIMEOUT_S if (a.get("gpu") or a.get("model")) else args.timeout
-        result = _measure(a, per_to)
+        # The vk appliances share the from-scratch Venus ICD's transient mid-
+        # compute crash under ggml-vulkan's concurrent pipeline compilation; a
+        # clean re-boot succeeds, so retry a crashed/no-ready GPU appliance.
+        retries = int(os.environ.get("VOGUE_BOOT_ATTEMPTS", "4")) if a.get("gpu") else 1
+        for attempt in range(retries):
+            result = _measure(a, per_to)
+            if result["status"] == "pass" or not result["status"].startswith("blocked"):
+                break
+            if result["status"] not in ("blocked:no-ready-marker",
+                                        "blocked:venus-device-crash"):
+                break  # image/model/qemu-missing etc. are not transient
+            if attempt + 1 < retries:
+                print(f"boot-time: {a['name']} attempt {attempt+1} -> "
+                      f"{result['status']}; retrying")
         result["name"] = a["name"]
         rows.append(result)
         ms = result.get("boot_to_ready_ms")

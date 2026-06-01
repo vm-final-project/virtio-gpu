@@ -5,7 +5,7 @@ Tests every VOGUE application across all supported environments:
 
   ENV-NATIVE:  Native fake-backend (host process, fake VirtIO-GPU device)
   ENV-UK-CPU:  QEMU + Unikraft CPU substrate (substrate metrics from native gate)
-  ENV-UK-VGPU: QEMU + Unikraft VirtIO-GPU Vulkan (blocked: frame proof pending)
+  ENV-UK-VGPU: QEMU + Unikraft VirtIO-GPU Vulkan (same-run artifact required)
   ENV-VM-CPU:  QEMU-VM Linux CPU (cached llama-bench results where applicable)
   ENV-VM-VGPU: QEMU-VM VirtIO-GPU Venus (cached results where applicable)
   ENV-BM-VULK: Baremetal Vulkan (cached results where applicable)
@@ -19,7 +19,7 @@ Applications covered:
   - app-llama-upstream-vk (upstream llama.cpp Vulkan/Venus single-app appliance)
 
 Follows Unikraft evidence-gate design: each row has a claim_allowed and
-claim_forbidden boundary. Blocked rows are expected states, not failures.
+claim_forbidden boundary. Structured blocked rows are expected states, not failures.
 """
 from __future__ import annotations
 
@@ -50,6 +50,7 @@ PASS_STATUSES = frozenset([
     "blocked:no-pass-line", "blocked:runtime-capture-required", "blocked:not-planned",
     "blocked:virgl-ring-buffer-frame-proof-missing",
     "blocked:venus-bench-not-run",
+    "blocked:render-payload-not-implemented",
     "skipped",
 ])
 
@@ -112,6 +113,15 @@ def bench_apps_native() -> tuple[dict, str]:
 def bench_kmscube(native_rows: dict, native_out: str) -> list[AppEnvResult]:
     row = native_rows.get("gfx.kmscube.sw", {})
     fps = row.get("fps")
+    qemu_2d = load_json(ROOT / "results/venus/qemu_2d_probe_latest.json")
+    qemu_ring = load_json(ROOT / "results/venus/qemu_venus-ring_probe_latest.json")
+    frame = load_json(ROOT / "results/kmscube_vgpu_gl/latest/frame_pixel_proof.json")
+    qemu_status = "pass" if (
+        qemu_2d.get("status") == "pass"
+        and qemu_ring.get("status") == "pass"
+        and frame.get("pixel_variance_ok") is True
+        and frame.get("colour_band_ok") is True
+    ) else "blocked:ring-buffer-frame-proof-missing"
     results = [
         AppEnvResult(
             app="app-kmscube", environment="Native fake backend", env_id="native",
@@ -132,7 +142,7 @@ def bench_kmscube(native_rows: dict, native_out: str) -> list[AppEnvResult]:
                 "remains separately gated by xport.qemu-vgpu."
             ),
             claim_forbidden="virgl/Venus GPU acceleration, real-QEMU FPS without frame proof.",
-            metrics={"qemu_probe": load_json(ROOT / "results/venus/qemu_2d_probe_latest.json").get("status", "?"),
+            metrics={"qemu_probe": qemu_2d.get("status", "?"),
                      "frames_software": 3,
                      "frame_crcs": ["0x2d89905c", "0x75565141", "0x9e9f32bb"]},
             note="gfx.kmscube.sw path is substrate evidence; xport.qemu-vgpu remains separately gated.",
@@ -140,16 +150,19 @@ def bench_kmscube(native_rows: dict, native_out: str) -> list[AppEnvResult]:
         ),
         AppEnvResult(
             app="app-kmscube", environment="QEMU + Unikraft VirtIO-GPU Vulkan", env_id="uk-vgpu",
-            status="blocked:ring-buffer-frame-proof-missing",
+            status=qemu_status,
             claim_allowed=(
-                "Venus ring protocol implemented (proto.venus-ring=PASS, 24 native checks). "
-                "Blocker documented: appliance must call uk_venus_ring_register() in QEMU."
+                "Same-run QEMU GL/Venus artifact proves real-device transport, virgl submit, "
+                "and pixel frame proof when status is pass."
             ),
-            claim_forbidden="virgl/Venus GPU-accelerated frames without same-run frame proof.",
+            claim_forbidden="virgl/Venus GPU-accelerated frames without same-run transport and frame proof.",
             metrics={"venus_ring_native": "all-pass",
-                     "ring_qemu_status": load_json(ROOT / "results/venus/qemu_venus-ring_probe_latest.json").get("status", "?")},
-            note="K1: blocked on same-run QEMU frame proof.",
-            evidence="results/venus/qemu_venus-ring_probe_latest.json",
+                     "ring_qemu_status": qemu_ring.get("status", "?"),
+                     "frame_pixel_proof": frame.get("colour_band_ok")},
+            note=("K1: same-run QEMU frame proof passes."
+                  if qemu_status == "pass"
+                  else "K1: blocked on same-run QEMU frame proof."),
+            evidence="results/venus/qemu_2d_probe_latest.json; results/venus/qemu_venus-ring_probe_latest.json; results/kmscube_vgpu_gl/latest/frame_pixel_proof.json",
         ),
     ]
     return results
@@ -180,12 +193,12 @@ def bench_glmark2(native_rows: dict) -> list[AppEnvResult]:
         ),
         AppEnvResult(
             app="app-glmark2", environment="QEMU + Unikraft VirtIO-GPU Vulkan", env_id="uk-vgpu",
-            status="blocked:ring-buffer-frame-proof-missing",
-            claim_allowed="Venus ring protocol ready. Blocking: same-run QEMU frame proof.",
-            claim_forbidden="Full glmark2 scene rendering in Unikraft without frame proof.",
+            status="blocked:not-planned",
+            claim_allowed="No accelerated glmark2 scene claim is made in this revision; the software-substrate row is the supported result.",
+            claim_forbidden="Full glmark2 scene rendering or FPS inside Unikraft without a dedicated accelerated workload and same-run artifacts.",
             metrics={},
-            note="gfx.glmark2.sw→G1vk: blocked on proto.venus-ring QEMU gate.",
-            evidence="results/venus/qemu_venus-ring_probe_latest.json",
+            note="No accelerated glmark2 scene gate is currently implemented.",
+            evidence="results/app_perf_latest.json",
         ),
     ]
 
@@ -230,15 +243,15 @@ def bench_vkmark() -> list[AppEnvResult]:
         ),
         AppEnvResult(
             app="app-vkmark", environment="QEMU + Unikraft VirtIO-GPU Vulkan", env_id="uk-vgpu",
-            status="blocked:ring-buffer-frame-proof-missing",
+            status="blocked:render-payload-not-implemented",
             claim_allowed=(
-                "Venus ring protocol PASS natively. "
-                "FPS scores require same-run QEMU Venus rendering evidence."
+                "vkmark substrate is ready; QEMU scene FPS requires non-empty render payloads "
+                "and per-scene frame proof."
             ),
             claim_forbidden="vkmark FPS inside Unikraft without same-run frame proof.",
             metrics={"venus_ring_status": "pass-native"},
-            note="gfx.vkmark→gfx.vkmark-QEMU: blocked on proto.venus-ring QEMU gate.",
-            evidence="results/venus/qemu_venus-ring_probe_latest.json",
+            note="QEMU vkmark scene rendering is not implemented yet.",
+            evidence="results/vulkan/vulkan_perf_latest.json",
         ),
     ]
 
@@ -263,12 +276,12 @@ def bench_vulkan_smoke() -> list[AppEnvResult]:
         ),
         AppEnvResult(
             app="app-vulkan-smoke", environment="QEMU + Unikraft VirtIO-GPU Vulkan", env_id="uk-vgpu",
-            status="blocked:ring-buffer-frame-proof-missing",
-            claim_allowed="Venus ring protocol PASS natively; smoke test requires QEMU frame proof.",
+            status="blocked:render-payload-not-implemented",
+            claim_allowed="The smoke substrate passes; a QEMU rendering claim requires a dedicated non-empty payload artifact.",
             claim_forbidden="GPU compute or rendering inside Unikraft without frame proof.",
             metrics={"venus_ring_native": "all-pass"},
-            note="vk.smoke→QEMU: blocked on same-run QEMU frame proof.",
-            evidence="results/venus/qemu_venus-ring_probe_latest.json",
+            note="QEMU smoke rendering is not implemented yet.",
+            evidence="results/vulkan/vulkan_perf_latest.json",
         ),
     ]
 
@@ -288,6 +301,8 @@ def bench_llama_upstream() -> list[AppEnvResult]:
     by_env = {r.get("env_id"): r for r in rows if isinstance(r, dict)}
     cpu = load_json(ROOT / "results/llama/upstream_cpu_latest.json")
     vk = load_json(ROOT / "results/llama/upstream_vk_latest.json")
+    server_cpu = load_json(ROOT / "results/llama/upstream_server_cpu_latest.json")
+    server_runtime_vk = load_json(ROOT / "results/llama/upstream_server_vk_latest.json")
     server_vk = load_json(ROOT / "results/llama/server_vk_check_latest.json")
     dispatch = load_json(ROOT / "results/llama/vulkan_n3_dispatch_latest.json")
 
@@ -306,12 +321,15 @@ def bench_llama_upstream() -> list[AppEnvResult]:
         ),
         AppEnvResult(
             app="app-llama-upstream", environment="QEMU + Unikraft CPU server-only", env_id="uk-cpu-server",
-            status=planned_status("qemu-unikraft-cpu-server"),
+            status=server_cpu.get("status") or planned_status("qemu-unikraft-cpu-server"),
             claim_allowed="Single Unikraft app image boots the llama.cpp server-mode entrypoint directly.",
             claim_forbidden="General-purpose shell image or full HTTP serving claim before runtime/net evidence.",
-            metrics={"threads": by_env.get("qemu-unikraft-cpu-server", {}).get("threads")},
-            note="Server-only appliance plan; no shell or unrelated app selected.",
-            evidence="results/llama-env/server-plan.json; config/llama_env_matrix.json",
+            metrics={"threads": by_env.get("qemu-unikraft-cpu-server", {}).get("threads"),
+                     "ready_marker": server_cpu.get("ready_line")},
+            note=("CPU server appliance reaches READY directly from main()."
+                  if server_cpu.get("status") == "pass"
+                  else "Server-only appliance plan; no shell or unrelated app selected."),
+            evidence="results/llama/upstream_server_cpu_latest.json; results/llama-env/server-plan.json",
         ),
         AppEnvResult(
             app="app-llama-upstream-vk", environment="Static ggml-vulkan/Venus dispatch", env_id="native-dispatch",
@@ -328,18 +346,23 @@ def bench_llama_upstream() -> list[AppEnvResult]:
             claim_allowed="Single Unikraft app image runs upstream llama.cpp Vulkan bench via Venus when QEMU/Venus prerequisites exist.",
             claim_forbidden="Throughput claim from a structured blocker or any custom compute-remoting ABI.",
             metrics={"threads": by_env.get("qemu-unikraft-vulkan", {}).get("threads"), "pp512": vk.get("pp512")},
-            note="True llama.cpp Vulkan appliance; blocked rows stay explicit until same-run PASS evidence exists.",
+            note=("True llama.cpp Vulkan appliance with same-run PASS bench evidence."
+                  if vk.get("status") == "pass"
+                  else "True llama.cpp Vulkan appliance; blocked rows stay explicit until same-run PASS evidence exists."),
             evidence="results/llama/upstream_vk_latest.json; results/llama-env/latest-plan.json",
         ),
         AppEnvResult(
             app="app-llama-upstream-vk", environment="QEMU + Unikraft Vulkan server-only", env_id="uk-vgpu-server",
-            status=planned_status("qemu-unikraft-vulkan-server"),
+            status=server_runtime_vk.get("status") or planned_status("qemu-unikraft-vulkan-server"),
             claim_allowed="Single Unikraft app image boots the Vulkan server-mode entrypoint directly; static contract records no fork/exec launcher.",
             claim_forbidden="ELF-loader, shell, HTTP serving, or throughput claim before same-run runtime/net evidence.",
             metrics={"threads": by_env.get("qemu-unikraft-vulkan-server", {}).get("threads"),
+                     "ready_marker": server_runtime_vk.get("ready_marker"),
                      "static_findings": len(server_vk.get("static_findings", []))},
-            note="Vulkan server-only appliance plan; direct entrypoint, no shell or launcher process.",
-            evidence="results/llama-env/server-plan.json; results/llama/server_vk_check_latest.json",
+            note=("Vulkan server appliance reaches model-loaded READY over the real Venus path."
+                  if server_runtime_vk.get("status") == "pass"
+                  else "Vulkan server-only appliance plan; direct entrypoint, no shell or launcher process."),
+            evidence="results/llama/upstream_server_vk_latest.json; results/llama/server_vk_check_latest.json; results/llama-env/server-plan.json",
         ),
     ]
 

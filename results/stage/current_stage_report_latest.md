@@ -17,10 +17,10 @@ Status: `pass`
 | `stk_out_of_scope` | `pass` | design/unikraft-virtio-gpu-spec-v1.md | STK porting is documented as out of scope (plan.md §0.5) |
 | `library_readmes` | `pass` | libs=11 missing=[] | Every local library has Unikraft-style README docs |
 | `paper_generated_tables` | `pass` | paper/generated/app-performance-table.typ; paper/generated/venus-stage-table.typ; paper/generated/current-stage-table.typ | Paper consumes generated benchmark/stage tables |
-| `paper_claim_boundaries` | `pass` | paper/sections/08-evaluation.typ; paper/sections/12-artifact-appendix.typ | Paper states current blocker and claim boundaries |
-| `readme_current_stage` | `pass` | README.md | README exposes current-stage/evaluation commands and blocker |
+| `paper_claim_boundaries` | `pass` | paper/sections/08-evaluation.typ; paper/sections/12-artifact-appendix.typ | Paper states current stage and claim boundaries |
+| `readme_current_stage` | `pass` | README.md | README exposes current-stage/evaluation commands and fix plan |
 | `governance_metadata` | `pass` | docs/GOVERNANCE.md; config/governance.json; ../manifest/manifests/vogue-main.yaml | Research-artifact governance metadata and manifest/VM ownership split are documented |
 
 ## Claim boundary
 
-Current supported rows pass; K1/xport.qemu-vgpu accelerated rows remain blocked and must not be promoted without same-run pass artifacts. Governance metadata links release claims to ../manifest specs and marks unlinked claims non-release; STK porting is out of scope (plan.md §0.5).
+Current supported rows pass on the evaluation host, including K1/xport.qemu-vgpu and llama.cpp Vulkan runtime rows. The same rows must not be promoted on other hosts without same-run pass artifacts. Governance metadata links release claims to ../manifest specs and marks unlinked claims non-release; STK porting is out of scope (plan.md §0.5).

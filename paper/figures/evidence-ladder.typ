@@ -36,8 +36,8 @@
     pnode((0,2), lbl([K1sw],[PASS], [kmscube source; swrender + VirtIO-GPU 2D scanout]), name: <k1sw>),
     pnode((0,3), lbl([G1sw],[PASS], [glmark2 app-source compat PASS]), name: <g1sw>),
     pnode((0,4), lbl([VABI],[PASS], [ABI/static: 3D · blob · UUID · map/unmap submit]),  name: <vabi>),
-    bnode((0,5), lbl([VQEMU],[blocked],[current probe incomplete · rerun QEMU GL/Venus]),    name: <vqemu>),
-    bnode((0,6), lbl([K1],  [blocked], [missing PASS marker · frame proof not current]),       name: <k1>),
+    pnode((0,5), lbl([VQEMU],[PASS],[QEMU GL/Venus probe reaches guest]),    name: <vqemu>),
+    pnode((0,6), lbl([K1],  [PASS], [same-run SUBMIT\_3D + pixel frame proof]),       name: <k1>),
 
     // ── Column 1: Vulkan / Venus path ──────────────────────────────────────
     pnode((1.6,2), lbl([G5],[PASS], [libukdrm\_virtgpu: 44-check DRM ioctl replay]),    name: <g5>),
@@ -46,13 +46,13 @@
     pnode((1.6,5), lbl([VENUS-ENC],[PASS], [PACKED wire fmt · array\_size · 3 cmds]),   name: <venc>),
     pnode((1.6,6), lbl([VENUS-RING],[PASS], [ring\_proto 24 · head/tail/status · wrap]), name: <vring>),
     pnode((1.6,7), lbl([VIRGL-ENC],[PASS], [Gallium virgl encoder · 47 checks PASS]),   name: <virglenc>),
-    bnode((1.6,8), lbl([K1 (same)],[blocked],[same blocked row: rerun QEMU frame proof]),      name: <k1b>),
+    pnode((1.6,8), lbl([K1 (same)],[PASS],[same-run QEMU frame proof]),      name: <k1b>),
 
     // ── Column 2: LLAMA compute chain ─────────────────────────────────────
     pnode((3.2,0), lbl([LLAMA0],[PASS], [GGUF parse · 70 chk · virtgpu path documented]),name: <l0>),
     pnode((3.2,1), lbl([LLAMA1],[PASS], [ggml CPU matmul · ~27 GFLOPS real backend]),    name: <l1>),
     snode((3.2,2), lbl([LLAMA2],[PASS-sub],[transformer fwd pass · ~16 GFLOPS · ~41k tok equiv]),name: <l2>),
-    bnode((3.2,4), lbl([LLAMA-GPU],[blocked],[ggml-vulkan over Mesa Venus · GPU tensor offload]),  name: <lgpu>),
+    pnode((3.2,4), lbl([LLAMA-GPU],[PASS],[ggml-vulkan over Mesa Venus · GPU tensor offload]),  name: <lgpu>),
 
     // ── Edges: column 0 ───────────────────────────────────────────────────
     edge(<n2d>,  <g0>,   "->"),
@@ -101,6 +101,6 @@
   )
   ],
   caption: [
-    Evidence dependency graph. *Green-tinted* rows are fully PASS; *warm-tinted* rows are pass-substrate; *near-white dashed* rows are BLOCKED. Arrows show prerequisite relationships: no row can be claimed until all upstream rows pass. The three columns represent independent evidence chains that converge at K1 (virgl frame proof): (left) the 2D display path built from N2D→K1sw, (centre) the Vulkan/Venus substrate built from G5/G6 through VENUS-RING and VIRGL-ENC, and (right) the LLAMA compute chain from LLAMA0–2. K1 is the shared blocked row for the first two chains: it requires a current same-run QEMU PASS marker and pixel-frame proof before promotion. Remaining blocked work also includes LLAMA GPU offload and broader accelerated benchmark coverage.
+    Evidence dependency graph. *Green-tinted* rows are fully PASS; *warm-tinted* rows are pass-substrate; *near-white dashed* rows are future scope. Arrows show prerequisite relationships: no row can be claimed until all upstream rows pass. The three columns represent independent evidence chains that converge at K1 (virgl frame proof): (left) the 2D display path built from N2D→K1sw, (centre) the Vulkan/Venus substrate built from G5/G6 through VENUS-RING and VIRGL-ENC, and (right) the LLAMA compute chain. On the evaluation host, K1 and LLAMA-GPU have same-run PASS artifacts; broader accelerated benchmark coverage remains future work.
   ],
 ) <fig:evidence-ladder>

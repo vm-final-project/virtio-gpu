@@ -4,6 +4,10 @@
 serializes the Vulkan compute commands required by the pinned ggml-vulkan path
 and submits them through VirtIO-GPU `SUBMIT_3D`.
 
+Current stage: Venus command encoding, ring protocol, QEMU transport, and
+llama.cpp Vulkan runtime rows pass on the evaluation host. HTTP serving and
+broader Vulkan benchmark rendering remain separate gates.
+
 ## Current state
 
 Implemented and tested command families include:

@@ -6,6 +6,9 @@ presentation through the VOGUE VirtIO-GPU 2D path. The current rendering backend
 is `libukswrender` software output; virgl/Venus acceleration remains separately
 gated.
 
+Current stage: EGL/GLES2 compatibility is sufficient for the passing software
+rows and bounded kmscube virgl frame proof. It is not a full Mesa EGL/GLES stack.
+
 ## Configuring applications to use `libukegl`
 
 Enable `CONFIG_LIBUKEGL` in the application `Kraftfile` or Kconfig. The library

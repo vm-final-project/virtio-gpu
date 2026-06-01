@@ -6,6 +6,10 @@ Venus guest driver (`src/virtio/vulkan/vn_renderer_virtgpu.c`) — into VirtIO-G
 protocol commands via `libukvirtio_gpu`. It is a thin translation layer: it does
 not reimplement VirtIO-GPU protocol logic.
 
+Current stage: `vk.drm-shim` passes as the virtgpu UAPI translation gate and
+supports the passing Vulkan/Venus substrate. It is not a full Linux DRM device
+node implementation.
+
 Source lineage: Linux 6.18 `include/uapi/drm/virtgpu_drm.h`, Mesa
 `src/virtio/vulkan/vn_renderer_virtgpu.c`.
 

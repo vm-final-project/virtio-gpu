@@ -5,6 +5,10 @@ application ports. It provides only the small metadata surface required by the
 current kmscube-style proof and does not emulate Linux `/dev/dri`, GEM, KMS
 ioctls, or file-descriptor ownership.
 
+Current stage: the compatibility facade supports passing kmscube/glmark2
+software-substrate rows. Full Linux DRM/KMS behavior remains outside this
+library; virtgpu ioctl translation belongs to `libukvirtgpu_drm`.
+
 ## Configuring applications to use `libukdrm_compat`
 
 Enable `CONFIG_LIBUKDRM_COMPAT`; the library selects `LIBUKVIRTIO_GPU` because

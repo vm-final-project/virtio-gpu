@@ -5,6 +5,10 @@ It allocates aligned memory, records a guest physical/I/O address value, creates
 single-entry scatter-gather descriptors, and exposes cache-sync hooks used by the
 VirtIO-GPU path.
 
+Current stage: DMA-backed display and Venus paths are covered by passing native
+and QEMU evidence rows. This library still does not by itself prove host-visible
+GPU memory performance or llama.cpp throughput.
+
 ## Configuring applications to use `libukdma`
 
 Enable `CONFIG_LIBUKDMA` in the application `Kraftfile` or Kconfig:

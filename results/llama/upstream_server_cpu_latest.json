@@ -4,7 +4,7 @@
   "status": "pass",
   "pass": true,
   "scaffold_booted": true,
-  "generated_utc": "2026-05-29T20:09:45.479823Z",
+  "generated_utc": "2026-06-01T12:17:34.645092Z",
   "ready_line": "uk-llama-upstream-server: READY model=/mnt/model/model.gguf threads=1 slots=1 prompt_cache=1 mode=single-app no_fork_exec=1",
   "accel": "kvm",
   "cpu": "host",

@@ -70,8 +70,8 @@
 
     gnode((0,7),
       lbl([Unikraft PCI / virtio],
-          [reused transport + modern VirtIO-PCI support; VQEMU blocked until current probe]),
-      fill: blk-fill, stroke: dashed, name: <transport>),
+          [reused transport + modern VirtIO-PCI support; VQEMU PASS on eval host]),
+      fill: pass-fill, stroke: solid, name: <transport>),
 
     // ── LLAMA side chain (column 1.75) ────────────────────────────────────
 
@@ -92,25 +92,25 @@
 
     snode((1.75,4),
       lbl([ggml-vulkan over Mesa Venus],
-          [future: SUBMIT\_3D tensor offload → GPU]),
-      fill: blk-fill, stroke: dashed, name: <ggml-vgpu>),
+          [SUBMIT\_3D tensor offload → GPU PASS; optimize tg128]),
+      fill: pass-fill, stroke: solid, name: <ggml-vgpu>),
 
     // ── QEMU host ─────────────────────────────────────────────────────────
 
     gnode((0,9),
       lbl([QEMU 11.0 virtio-gpu-gl-pci],
-          [current matrix: VQEMU blocked:probe-incomplete]),
-      fill: blk-fill, stroke: dashed, name: <qemu>),
+          [current matrix: VQEMU PASS on eval host]),
+      fill: pass-fill, stroke: solid, name: <qemu>),
 
     gnode((0,10),
       lbl([virglrenderer + Venus host backend],
-          [virgl 3D · Vulkan/Venus host backend; ring/frame proof blocked until same-run artifact]),
-      fill: blk-fill, stroke: dashed, name: <virgl-host>),
+          [virgl 3D · Vulkan/Venus host backend; ring/frame proof PASS]),
+      fill: pass-fill, stroke: solid, name: <virgl-host>),
 
     gnode((0,11),
       lbl([K1 accelerated frame proof],
-          [blocked:missing-pass-marker · requires same-run SUBMIT\_3D + pixel proof]),
-      fill: blk-fill, stroke: dashed, name: <k1>),
+          [PASS · same-run SUBMIT\_3D + pixel proof]),
+      fill: pass-fill, stroke: solid, name: <k1>),
 
     // ── Edges: graphics stack ─────────────────────────────────────────────
     edge(<apps>,      <shim>,      "->"),
@@ -148,6 +148,6 @@
   )
   ],
   caption: [
-    VOGUE software stack (current state). *Green-tinted* nodes are fully validated (solid border). *Near-white dashed* nodes are blocked or future work. Left column: 2D display path (fully PASS: N2D→K1sw→G1sw) and the Vulkan/Venus acceleration substrate (G5+G6+libukvenus+virgl\_encoder all PASS; K1 frame proof follows the current evidence matrix). Right column: LLAMA compute side-chain (LLAMA0–2 pass-substrate; ggml-vulkan static dispatch is implemented; QEMU runtime GPU inference is evidence-gated). Both paths share `libukvirtio_gpu` and the Unikraft PCI/virtio transport.
+    VOGUE software stack (current state). *Green-tinted* nodes are fully validated (solid border). *Near-white dashed* nodes are future scope. Left column: 2D display path (fully PASS: N2D→K1sw→G1sw) and the Vulkan/Venus acceleration substrate (G5+G6+libukvenus+virgl\_encoder all PASS; K1 frame proof follows the current evidence matrix). Right column: LLAMA compute side-chain, including real QEMU/Venus GPU inference on the evaluation host. Both paths share `libukvirtio_gpu` and the Unikraft PCI/virtio transport.
   ],
 ) <fig:vogue-arch>

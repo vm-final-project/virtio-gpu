@@ -16,10 +16,10 @@ API surface through `libukvenus` and VirtIO-GPU `SUBMIT_3D`.
   proc lookup, Vulkan-Hpp bootstrap, descriptor updates, copy/fill commands,
   pipeline setup, queue submit, fences, and cleanup through the fake VirtIO-GPU
   backend.
-- **Runtime:** the vk.ggml-dispatch image builds, but the local QEMU run is still
-  environment-blocked when `virtio-gpu-gl-pci,venus=true` cannot initialize an
-  EGL render node. Do not claim Unikraft GPU inference throughput without a
-  fresh `llm.bench.vk.run` PASS marker.
+- **Runtime:** `llm.bench.vk`, `llm.bench.vk.real`, and `llm.server.vk` pass on
+  the evaluation host with real QEMU/Venus artifacts. Current optimization work
+  targets token-generation throughput (`tg128=3.4`) and server request handling,
+  not basic runtime bring-up.
 
 ## Architecture
 

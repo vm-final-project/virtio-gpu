@@ -11,9 +11,13 @@
 
 | Row | Status | Claim |
 |-----|--------|-------|
-| `gfx.kmscube.sw` | `pass` when `make app-perf-check`/`make eval-check` pass | software-rendered cube frames flow through the Unikraft VirtIO-GPU 2D/display substrate |
-| `gfx.kmscube.submit` | `blocked:*` or `pass` from `make kmscube-check` | virgl submit proof only when QEMU and the real VirtIO-GPU path provide same-run evidence |
-| `gfx.kmscube.frame` | `blocked:*` or `pass` from `make kmscube-check` | frame proof only when QEMU screendump/pixel evidence is captured in the same run |
+| `gfx.kmscube.sw` | `pass` | software-rendered cube frames flow through the Unikraft VirtIO-GPU 2D/display substrate |
+| `gfx.kmscube.submit` | `pass` on the evaluation host | virgl submit proof with same-run QEMU and real VirtIO-GPU evidence |
+| `gfx.kmscube.frame` | `pass` on the evaluation host | colour-band frame proof from same-run QEMU screendump/pixel evidence |
+
+Current stage: all kmscube rows pass on the evaluation host. On hosts without
+QEMU GL/Venus scanout read-back, the QEMU rows must remain structured
+`blocked:*` rows and cannot be promoted from native software evidence alone.
 
 ## Porting boundary
 

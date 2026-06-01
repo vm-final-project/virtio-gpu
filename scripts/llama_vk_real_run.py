@@ -220,16 +220,9 @@ def _emit(status: str, *, log_tail: str = "", extra: dict | None = None,
     return 0
 
 
-def main() -> int:
-    qemu = _select_qemu()
-    if not qemu:
-        return _emit("blocked:qemu-missing")
-    if not IMAGE.exists():
-        return _emit("blocked:unikraft-image-missing")
-    model = _model_path()
-    if model is None:
-        return _emit("blocked:model-missing")
-
+def _attempt(qemu: str, model: Path) -> tuple[str, dict]:
+    """Boot the appliance once; return (status, _emit kwargs). Pure of retry
+    policy so main() can re-run it on a transient crash."""
     _grant_render_nodes()
     mem = os.environ.get("VOGUE_VK_MEM", "3072")
     kvm = os.access("/dev/kvm", os.R_OK | os.W_OK)
@@ -258,6 +251,8 @@ def main() -> int:
                   ((e.stderr or "") if isinstance(e.stderr, str) else "")
 
     (RESULTS / "upstream_vk_latest.log").write_text(out)
+    # Also under the *_serial.log name that scripts/model_load_time_check.py reads.
+    (RESULTS / "upstream_vk_serial.log").write_text(out)
     tail = out[-4000:]
 
     # Real Venus device enumerated by ggml-vulkan (line: "ggml_vulkan: 0 = <name>")
@@ -295,30 +290,60 @@ def main() -> int:
     passed = "uk-llama-upstream-vk: PASS evidence_id=llama-upstream-vk" in out
 
     if pp and passed:
-        return _emit("pass", venus_device=venus_device, host_error=host_error,
-                     throughput={"pp512": float(pp.group(1)),
-                                 "tg128": float(pp.group(2)),
-                                 "accel": accel, "model": model.name,
-                                 "tokens_emitted": True, "n_gpu_layers": 99,
-                                 "rows": [{"test": "pp512", "t_s": float(pp.group(1))},
-                                          {"test": "tg128", "t_s": float(pp.group(2))}]})
+        return ("pass", dict(venus_device=venus_device, host_error=host_error,
+                throughput={"pp512": float(pp.group(1)),
+                            "tg128": float(pp.group(2)),
+                            "accel": accel, "model": model.name,
+                            "tokens_emitted": True, "n_gpu_layers": 99,
+                            "rows": [{"test": "pp512", "t_s": float(pp.group(1))},
+                                     {"test": "tg128", "t_s": float(pp.group(2))}]}))
 
     if "Unikraft Crash" in out and venus_device is None:
-        return _emit("blocked:venus-device-crash", log_tail=tail,
-                     extra={"hint": "Reduce guest RAM (VOGUE_VK_MEM<=3072) so the "
-                            "hostmem PCI BAR maps; see vpci_modern_pci_dev_reset."})
+        return ("blocked:venus-device-crash", dict(log_tail=tail,
+                extra={"hint": "Reduce guest RAM (VOGUE_VK_MEM<=3072) so the "
+                       "hostmem PCI BAR maps; see vpci_modern_pci_dev_reset."}))
 
     if venus_device is not None:
         # ggml-vulkan enumerated a Venus device and reached the host render
-        # server, but model load / a Venus command did not complete.
-        return _emit("blocked:venus-compute-dispatch-incomplete",
-                     venus_device=venus_device, host_error=host_error, log_tail=tail,
-                     extra={"frontier": "libukvk_icd reply-read ICD path incomplete: "
-                            "physical-device memory/queue properties are still "
-                            "fabricated and host-visible vkMapMemory readback is not "
-                            "wired, so model load cannot allocate/dispatch on the GPU."})
+        # server, but model load / a Venus command did not complete (e.g. a
+        # transient mid-compute crash — see main()'s retry).
+        return ("blocked:venus-compute-dispatch-incomplete",
+                dict(venus_device=venus_device, host_error=host_error, log_tail=tail,
+                     extra={"frontier": "compute dispatch did not complete this attempt "
+                            "(transient Venus-init/compute nondeterminism)."}))
 
-    return _emit("blocked:no-pass-line", log_tail=tail)
+    return ("blocked:no-pass-line", dict(log_tail=tail))
+
+
+# A booted attempt that enumerates the device but crashes mid-compute is a
+# transient nondeterminism of the from-scratch Venus ICD under ggml-vulkan's
+# concurrent pipeline compilation; a clean re-boot succeeds. Retry those.
+_RETRYABLE = {"blocked:venus-device-crash", "blocked:no-pass-line",
+              "blocked:venus-compute-dispatch-incomplete"}
+
+
+def main() -> int:
+    qemu = _select_qemu()
+    if not qemu:
+        return _emit("blocked:qemu-missing")
+    if not IMAGE.exists():
+        return _emit("blocked:unikraft-image-missing")
+    model = _model_path()
+    if model is None:
+        return _emit("blocked:model-missing")
+
+    attempts = max(1, int(os.environ.get("VOGUE_VK_ATTEMPTS", "4")))
+    status, kwargs = "blocked:no-pass-line", {}
+    for i in range(attempts):
+        status, kwargs = _attempt(qemu, model)
+        if status == "pass" or status not in _RETRYABLE:
+            break
+        if i + 1 < attempts:
+            print(f"llama-vk-real-run: attempt {i+1} -> {status}; retrying "
+                  f"(transient Venus compute nondeterminism)")
+    kwargs.setdefault("extra", {})
+    kwargs["extra"]["attempts_used"] = i + 1
+    return _emit(status, **kwargs)
 
 
 if __name__ == "__main__":

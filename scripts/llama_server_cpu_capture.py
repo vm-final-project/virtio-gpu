@@ -98,6 +98,7 @@ def main() -> int:
             out = _dec(e.stdout) + _dec(e.stderr)
 
     (RESULTS / "upstream_server_cpu_latest.log").write_text(out)
+    (RESULTS / "upstream_server_cpu_serial.log").write_text(out)  # model_load_time_check reads *_serial.log
     m = re.search(r"uk-llama-upstream-server: READY ([^\n]+)", out)
     if not m:
         return _blocker("blocked:no-pass-line",

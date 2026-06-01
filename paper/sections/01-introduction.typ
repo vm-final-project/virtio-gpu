@@ -17,9 +17,9 @@ We argue that a unikernel can support practical graphics-capable workloads _with
 + A _standards-based VirtIO-GPU frontend_ that speaks the OASIS VirtIO-GPU protocol @virtio-spec directly through Unikraft's existing PCI, virtio, allocator, and synchronization libraries — no Linux DRM driver needed.
 + A _minimal EGL/GLES2/GBM/DRM shim_ that provides the API surface expected by application code without implementing the full Linux graphics stack.
 + A _software rasterizer_ that produces correct pixel output using a CPU path, enabling display pipeline validation independent of virglrenderer availability.
-+ A _stage-gated 3D/Venus interface_ that implements and tests the real control-queue ABI separately from the still-blocked host execution path.
++ A _stage-gated 3D/Venus interface_ that implements and tests the real control-queue ABI separately from the host execution path, so each layer can be validated independently before the end-to-end run.
 
-This thesis leads directly to a working display pipeline and a falsifiable upgrade path. The current stage is not “Vulkan acceleration works”; it is “the Unikraft-side protocol surface and evaluation gates are ready, the native Venus ring-buffer protocol passes, QEMU/Venus transport remains `blocked:probe-incomplete`, and K1 is blocked until a real appliance produces same-run submit and pixel-frame proof.”
+This thesis leads to a working display pipeline and a falsifiable, now-realised upgrade path. Each stage is evidence-gated: the Unikraft-side protocol surface and evaluation gates, the native Venus ring-buffer protocol, and — on a host with a Venus-capable QEMU and an accessible GPU — the real `virtio-gpu-gl` Venus transport (`xport.qemu-vgpu`), the K1 virgl `SUBMIT_3D` path with a same-run pixel-frame proof, and end-to-end upstream llama.cpp Vulkan inference on the GPU. On a host lacking that stack those rows report a structured `blocked:*` status instead of an unverified claim, so "Vulkan acceleration works" is asserted only where a same-run guest artifact proves it.
 
 == Contributions
 

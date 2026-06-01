@@ -5,6 +5,9 @@
 VOGUE device paths. It keeps short-lived command or data buffers reusable while
 leaving the actual DMA allocation and cache-sync semantics to `libukdma`.
 
+Current stage: buffer-pool behavior is supporting infrastructure for passing
+native and QEMU rows. It has no standalone acceleration or throughput claim.
+
 ## Configuring applications to use `libukbuf`
 
 Select the library in the application `Kraftfile` or Kconfig:

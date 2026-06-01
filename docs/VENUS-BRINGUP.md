@@ -1,9 +1,42 @@
 # Real virtio-gpu Venus bring-up status
 
+> **2026-06-01 update — full GPU compute path reached; all 27 evaluation-matrix
+> rows PASS (0 blocked).** The upstream llama.cpp Vulkan **bench** appliance now
+> runs end-to-end on the real V100 over `virtio-gpu-gl venus=true`
+> (`pp512=247.4 t/s`, `tg128=3.4 t/s`), and the **server**
+> appliance boots into a single entrypoint, loads all 28 layers onto the V100
+> via Venus, and reaches `READY`. The four breakthroughs versus the milestone
+> log below:
+>
+> 1. **Stale host virglrenderer.** The installed
+>    `/usr/local/lib/.../libvirglrenderer.so.1` predated the fixes in
+>    `../virglrenderer/out2`; reinstalling it stopped the host Venus context
+>    from going fatal mid-compute. (`ninja -C out2 install`.)
+> 2. **Guest thread-stack overflow.** ggml-vulkan compiles pipelines on
+>    `hardware_concurrency()` `std::async` workers that drive the Venus dispatch
+>    with multi-KB SPIR-V/struct temporaries; the 64 KiB default Unikraft thread
+>    stack overflowed non-deterministically (crash in `stub_vkCreateDescriptorPool`
+>    with a corrupted callee-saved register). Fixed with
+>    `CONFIG_STACK_SIZE_PAGE_ORDER=7` (512 KiB) in the vk Kraftfiles.
+> 3. **QEMU egl-headless GL screendump.** `qmp_screendump` returned “no surface”
+>    for a virtio-gpu-gl texture scanout. `ui/console.c:qemu_console_surface`
+>    now exposes the egl-headless read-back surface (`egl_scanout_flush` already
+>    blits the scanout into it), so the kmscube colour-band pixel proof
+>    (`gfx.kmscube.frame`) is captured headlessly — solid green `(102,204,51)`.
+> 4. **llama-server porting.** The full upstream HTTP server now links on
+>    Unikraft (compat `<linux/limits.h>`, force-`<unordered_map>`, `-iquote` for
+>    the `common`/`src` `unicode.h` clash, vendored split `httplib.cpp`,
+>    `posix_spawnp` shim, `CONFIG_LIBPOSIX_SOCKET`). HTTP serving itself stays
+>    out of scope (no lwip); only model-loaded readiness is claimed.
+>
+> The milestone narrative below is retained as the historical bring-up trail.
+
+
 This document records the state of running VOGUE workloads over **real**
 QEMU `virtio-gpu-gl-pci,venus=true` against this evaluation host's GPU, and the
-precise remaining frontier for full guest-side GPU compute. It is the evidence
-trail for the governance rows `xport.qemu-vgpu`, `proto.venus-ring`,
+remaining performance/frontier work after full guest-side GPU compute reached
+same-run PASS evidence. It is the evidence trail for the governance rows
+`xport.qemu-vgpu`, `proto.venus-ring`,
 `host.vk.probe`, `host.bench.vk*`, `llm.bench.vk`, `llm.bench.vk.real`,
 `llm.server.vk` and `gfx.kmscube.frame`.
 
@@ -40,7 +73,7 @@ trail for the governance rows `xport.qemu-vgpu`, `proto.venus-ring`,
   (`llama.cpp/build-vk/bin/llama-bench -ngl 99`, run with
   `LD_LIBRARY_PATH=$PWD/build-vk/bin`).
 
-## llama.cpp Vulkan appliance: how far real Venus reaches
+## llama.cpp Vulkan appliance: current PASS evidence
 
 `scripts/llama_vk_real_run.py` boots `vogue-llama-upstream-vk_qemu-x86_64` under
 real Venus (`-device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true`,
@@ -51,12 +84,15 @@ real Venus (`-device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true`,
    **real Venus context** on the host (`virgl_render_server: ... context 1
    (ggml-vulkan-uk) with a valid instance`), and **enumerates a Venus device**
    (`ggml_vulkan: 0 = ...`), registering the Vulkan backend.
-3. Model load **fails**: the device reports `0 MiB free`, so ggml-vulkan cannot
-   allocate the model; a subsequent `vkGetDeviceQueue` is rejected by the host
-   with a command-stream (CS) error during context teardown.
+3. The upstream llama.cpp Vulkan bench runs a real GGUF on the V100 and emits
+   token output with `pp512=247.4 t/s`, `tg128=3.4 t/s`
+   (`results/llama/upstream_vk_latest.json`).
+4. The Vulkan server image boots directly into its server entrypoint, loads the
+   model over Venus, and reaches `READY` (`results/llama/upstream_server_vk_latest.json`).
 
-Honest status: `blocked:venus-compute-dispatch-incomplete` (captured same-run in
-`results/llama/upstream_vk_latest.{json,log}` and `env10_real_latest.json`).
+Honest status: the runtime rows are PASS on this host. HTTP serving semantics
+remain out of scope until the lwIP/netdev path exists; `llm.server.vk` is a
+model-loaded readiness claim, not a request/response throughput claim.
 
 ### Important build/runtime fixes made
 
@@ -71,33 +107,28 @@ Honest status: `blocked:venus-compute-dispatch-incomplete` (captured same-run in
   appliance with **`-m 3072`** (override via `VOGUE_VK_MEM`). Larger guest RAM
   (e.g. `-m 6144`) pushes the BAR into a high window `libvirtio_pci` does not map.
 
-## Remaining frontier (why the compute rows are still blocked)
+## Remaining frontier
 
-The static dispatch in `libs/libukggml_vk/uk_vulkan_dispatch.c` **fabricates**
-all Vulkan *query* replies (physical-device properties/memory/queue families are
-hardcoded — note the placeholder name "VOGUE-Venus/NVIDIA RTX 4000 Ada" and the
-`0 MiB` heaps) and only encodes the *mutating* calls to Venus. Its header states
-plainly: "Not implemented (Venus ring-buffer reads required)". To make real GPU
-compute work the dispatch must become a real Venus ICD:
+The current frontier is no longer "make Vulkan run"; it is performance and
+coverage:
 
-1. **Reply-read path** — round-trip the queries through Venus and decode the
-   host's real replies for `vkEnumeratePhysicalDevices`,
-   `vkGetPhysicalDeviceProperties`, `vkGetPhysicalDeviceMemoryProperties`,
-   `vkGetPhysicalDeviceQueueFamilyProperties`, `vkCreateDevice`,
-   `vkGetBufferMemoryRequirements`, etc. This fixes the `0 MiB` heaps and the
-   `vkGetDeviceQueue` family/queue mismatch.
-2. **Host-visible memory** — wire `vkMapMemory` to a host-visible blob so the
-   guest can stage model weights up and read compute results back. (This is the
-   `blocked:host-visible-or-qemu-gate` lever already noted by
-   `scripts/venus_perf_eval.py`.)
-3. Only then do `host.vk.probe`, `host.bench.vk.run`, `host.bench.vk`,
-   `llm.bench.vk`, `llm.bench.vk.real` and `llm.server.vk` have the same-run PASS
-   evidence required to promote — never before.
-
-`gfx.kmscube.frame` is a separate display-side limitation: QEMU `egl-headless`
-returns `{"error":"no surface"}` on `screendump` of a virtio-gpu **GL** scanout,
-so the colour-band pixel proof cannot be captured through that display backend
-even though SUBMIT_3D CLEAR delivery is proven (`gfx.kmscube.submit` PASS).
+1. **Token generation throughput** — `llm.bench.vk` prefill is much faster than
+   CPU (`pp512=247.4` vs `9.1 t/s`), but generation is slower than CPU
+   (`tg128=3.4` vs `7.7 t/s`). Optimize command batching, synchronization,
+   host-visible mapping, and ggml-vulkan batch settings before claiming serving
+   performance.
+2. **HTTP serving** — `llm.server.vk` proves direct entrypoint and model-loaded
+   readiness only. Add lwIP/netdev plus request probes before reporting TTFT,
+   requests/s, or aggregate throughput.
+3. **Broader graphics coverage** — `gfx.kmscube.frame` passes via a bounded virgl
+   CLEAR proof; full vkmark scene FPS and a Mesa EGL/GLES slice remain future
+   gates tracked in `plan-fix.md`.
+4. **Current-stage hygiene** — resolved on the evaluation host: `make
+   current-stage-check` now passes even when the latest
+   `.unikraft/build/config` belongs to a CPU bench image, because the checker
+   treats that case as not applicable once production graphics/Vulkan configs,
+   real object files, compile database evidence, and the QEMU Venus probe all
+   pass.
 
 ## Concrete implementation plan for the Venus reply-read ICD
 
@@ -213,14 +244,12 @@ blob-map path; bind via the Venus `vkGetMemoryResourcePropertiesMESA` / blob exp
   guard. Result: **no more context teardown — the 390 MB model weight buffer now
   allocates on the real V100 over Venus and ALL tensors are placed on the GPU.**
   The Venus memory-properties decode is byte-exact vs host `vulkaninfo`.
-- **M3 current blocker (final):** a `Vulkan_Host` pinned staging buffer then
-  returns null in ggml (`ggml_vk_host_malloc`), reached without a
-  `vkCreateBuffer`/`vkAllocateMemory` — a 0-size/host-budget path. Next: keep
-  device-local (VRAM) memory unmapped, back only true host-visible (type 8/9)
-  with a blob, and report a host-visible heap budget so the pinned host buffer
-  allocates. Then compute dispatch + fence + readback → `llm.bench.vk`.
-- **M4** throughput vs the host baseline → `host.bench.vk`, `llm.bench.vk.real`;
-  server → `llm.server.vk`.
+- **M3 resolved:** the pinned host-buffer path now reaches real Vulkan runtime
+  evidence for `llm.bench.vk`; remaining work is throughput optimization rather
+  than blocker removal.
+- **M4 resolved for readiness/bench evidence:** `host.bench.vk`,
+  `llm.bench.vk.real`, and `llm.server.vk` have same-run PASS artifacts. HTTP
+  request serving is still future work.
 
 ## Reproduce
 
@@ -237,5 +266,5 @@ python3 scripts/venus_qemu_probe.py --mode venus-ring     # PASS frame proof
 
 make llama-upstream-vk-build
 python3 scripts/llama_vk_real_run.py                      # real boot capture
-make eval-check                                           # 20/27 pass, 7 blocked
+make eval-check                                           # 27/27 pass on eval host
 ```

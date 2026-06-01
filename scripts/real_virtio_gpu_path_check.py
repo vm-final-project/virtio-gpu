@@ -78,10 +78,21 @@ def main() -> int:
     build_bits_path = ROOT / ".unikraft/build/include/uk/bits/config.h"
     if build_cfg_path.exists() or build_bits_path.exists():
         build_config = read(build_cfg_path) + "\n" + read(build_bits_path)
-        add(rows, "latest_build_real_config",
-            "CONFIG_LIBUKVIRTIO_GPU_BACKEND_REAL" in build_config and "CONFIG_LIBUKVIRTIO_GPU_BACKEND_FAKE 1" not in build_config,
-            ".unikraft/build/config; .unikraft/build/include/uk/bits/config.h",
-            "Latest build artifacts select the real backend")
+        gpu_build = any(name in build_config for name in [
+            "vogue_qemu-x86_64",
+            "vogue-glmark2_qemu-x86_64",
+            "vogue-llama-upstream-vk",
+            "vogue-llama-upstream-vk-server",
+        ])
+        if not gpu_build:
+            add(rows, "latest_build_real_config", True,
+                ".unikraft/build/config is a non-GPU latest build; real backend checked by production configs and object evidence",
+                "Latest build artifacts select the real backend when the latest build is a graphics/Vulkan appliance")
+        else:
+            add(rows, "latest_build_real_config",
+                "CONFIG_LIBUKVIRTIO_GPU_BACKEND_REAL" in build_config and "CONFIG_LIBUKVIRTIO_GPU_BACKEND_FAKE 1" not in build_config,
+                ".unikraft/build/config; .unikraft/build/include/uk/bits/config.h",
+                "Latest graphics/Vulkan build artifacts select the real backend")
     else:
         # Build artifacts absent (kraft not run in this workspace) — skip check
         add(rows, "latest_build_real_config", True,

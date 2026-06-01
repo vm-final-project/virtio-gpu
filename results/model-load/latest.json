@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-05-29T21:17:23.079737Z",
+    "generated_utc": "2026-06-01T12:19:21.186032Z",
     "source": "scripts/model_load_time_check.py",
     "principle": "plan-optimize.md L1.4 \u2014 huge-page mmap loader gate; use_mmap=False until lib-9pfs grows mmap support."
   },
@@ -8,22 +8,38 @@
     {
       "name": "llm.bench.cpu",
       "log": "results/llama/upstream_cpu_serial.log",
-      "status": "blocked:no-log"
+      "status": "pass",
+      "use_mmap": false,
+      "huge_pages": false,
+      "elapsed_ms": 7172.04,
+      "model_path": "/mnt/model/model.gguf"
     },
     {
       "name": "llm.server.cpu",
       "log": "results/llama/upstream_server_cpu_serial.log",
-      "status": "blocked:no-log"
+      "status": "pass",
+      "use_mmap": false,
+      "huge_pages": false,
+      "elapsed_ms": 6738.19,
+      "model_path": "/mnt/model/model.gguf"
     },
     {
       "name": "llm.bench.vk",
       "log": "results/llama/upstream_vk_serial.log",
-      "status": "blocked:no-log"
+      "status": "pass",
+      "use_mmap": false,
+      "huge_pages": false,
+      "elapsed_ms": 7482.66,
+      "model_path": "/mnt/model/model.gguf"
     },
     {
       "name": "llm.server.vk",
       "log": "results/llama/upstream_server_vk_serial.log",
-      "status": "blocked:no-log"
+      "status": "pass",
+      "use_mmap": false,
+      "huge_pages": false,
+      "elapsed_ms": 5602.48,
+      "model_path": "/mnt/model/model.gguf"
     }
   ]
 }

@@ -16,6 +16,12 @@ upstream ggml-vulkan.cpp + generated SPIR-V (*.comp.cpp)
 
 ## Upstream provenance
 
+Current stage: the Vulkan bench and server rows pass on the evaluation host.
+`llm.bench.vk` reports `pp512=247.4`, `tg128=3.4` through real Venus on a Tesla
+V100, and `llm.server.vk` reaches model-loaded readiness with
+`prompt_cache=true`. This file still forbids HTTP serving or request-throughput
+claims until the lwIP/netdev path is implemented and measured.
+
 - Repository: <https://github.com/ggml-org/llama.cpp> (same as `app-llama-upstream`).
 - Vulkan backend file: `ggml/src/ggml-vulkan/ggml-vulkan.cpp`.
 - SPIR-V shaders: built once on the host with the upstream Vulkan toolchain;

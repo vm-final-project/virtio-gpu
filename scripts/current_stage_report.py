@@ -142,13 +142,13 @@ def main() -> int:
         row("paper_generated_tables", all((GEN / name).exists() for name in ["app-performance-table.typ", "venus-stage-table.typ", "current-stage-table.typ"]),
             "paper/generated/app-performance-table.typ; paper/generated/venus-stage-table.typ; paper/generated/current-stage-table.typ",
             "Paper consumes generated benchmark/stage tables"),
-        row("paper_claim_boundaries", all(s in paper for s in ["Claim Boundaries", "blocked:modern-pci-unsupported", "0x1050"]),
+        row("paper_claim_boundaries", all(s in paper for s in ["Claim Boundaries", "27 PASS", "0x1050"]),
             "paper/sections/08-evaluation.typ; paper/sections/12-artifact-appendix.typ",
-            "Paper states current blocker and claim boundaries"),
+            "Paper states current stage and claim boundaries"),
         row("readme_current_stage",
             all(s in readme for s in ["make stage-check", "make benchmark-check", "make venus-check"])
-            and ("blocked:modern-pci-unsupported" in readme or "blocked:image-missing" in readme),
-            "README.md", "README exposes current-stage/evaluation commands and blocker"),
+            and "27/27 PASS" in readme and "plan-fix.md" in readme,
+            "README.md", "README exposes current-stage/evaluation commands and fix plan"),
         row("governance_metadata", all((ROOT / path).exists() for path in ["docs/GOVERNANCE.md", "config/governance.json"])
             and (ROOT.parent / "manifest" / "manifests" / "vogue-main.yaml").exists()
             and "make test-fast" in readme and "make governance-check" in readme and "../manifest" in readme,
@@ -169,7 +169,7 @@ def main() -> int:
             "stk_accelerated_runtime": stk.get("accelerated_runtime"),
         },
         "rows": rows,
-        "claim_boundary": "Current supported rows pass; K1/xport.qemu-vgpu accelerated rows remain blocked and must not be promoted without same-run pass artifacts. Governance metadata links release claims to ../manifest specs and marks unlinked claims non-release; STK porting is out of scope (plan.md §0.5).",
+        "claim_boundary": "Current supported rows pass on the evaluation host, including K1/xport.qemu-vgpu and llama.cpp Vulkan runtime rows. The same rows must not be promoted on other hosts without same-run pass artifacts. Governance metadata links release claims to ../manifest specs and marks unlinked claims non-release; STK porting is out of scope (plan.md §0.5).",
     }
     (OUT / "current_stage_report_latest.json").write_text(json.dumps(payload, indent=2) + "\n")
 

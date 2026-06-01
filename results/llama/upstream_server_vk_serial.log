@@ -506,19 +506,19 @@ VOGUE-DBG map_blob res=6 off=0x7cbc000 size=0x101000 hv_addr=0xc0000000 hv_size=
 load_all_data: using async uploads for device Vulkan0, buffer type Vulkan0, backend Vulkan0
 ....................................................load_all_data: buffer type Vulkan_Host is not the default buffer type for device Vulkan0 for async uploads
 .
-uk-llama-upstream-vk-server: model_load path=/mnt/model/model.gguf use_mmap=0 huge_pages=0 elapsed_ms=7025.06
+uk-llama-upstream-vk-server: model_load path=/mnt/model/model.gguf use_mmap=0 huge_pages=0 elapsed_ms=5602.48
 uk-llama-upstream-vk-server: READY model=/mnt/model/model.gguf threads=1 backend=vulkan slots=1 ctx_per_slot=512 prompt_cache=1 hostmem_fixed=0 mode=single-app no_fork_exec=1
-[    7.980938] CRIT:  Unikraft Crash - Ijiraq (0.21.0~7351f8b-custom)
- [    7.986203] CRIT:      _      
- [    7.988906] CRIT:    cx xo    
- [    7.991479] CRIT:    (|O|)/V  
- [    7.994054] CRIT:             
- [    7.996627] CRIT:  Registers:
- [    7.999123] CRIT:   rip: 0008:0000000000000000
- [    8.002831] CRIT:   rsp: 0010:ffffffffffff7ac0 eflags: 00010282 orig_rax: 0000000000000000
- [    8.009672] CRIT:   rax: 00000000007762ae rbx: 0000000000000000 rcx:0000000000000000
- [    8.016121] CRIT:   rdx: 8080808080808080 rsi: 000000000000003d rdi:00000000007762a7
- [    8.022539] CRIT:   rbp: 0000000000000000 r08: 5400524f4c4f435f r09:abffadb0b3b0bca0
- [    8.028954] CRIT:   r10: 02ff010003000000 r11: 00000000bffcf4f0 r12:000000000000ea48
- [    8.035359] CRIT:   r13: 0000000000000000 r14: 000000000000a488 r15:0000000000000010
- 
+[    6.309341] CRIT:  Unikraft Crash - Ijiraq (0.21.0~7351f8b-custom)
+ [    6.314632] CRIT:      _      
+ [    6.317113] CRIT:    cx xo    
+ [    6.319601] CRIT:    (|O|)/V  
+ [    6.322079] CRIT:             
+ [    6.324564] CRIT:  Registers:
+ [    6.326974] CRIT:   rip: 0008:0000000000000000
+ [    6.330575] CRIT:   rsp: 0010:ffffffffffff7ac0 eflags: 00010282 orig_rax: 0000000000000000
+ [    6.337188] CRIT:   rax: 00000000007762ae rbx: 0000000000000000 rcx:0000000000000000
+ [    6.343374] CRIT:   rdx: 8080808080808080 rsi: 000000000000003d rdi:00000000007762a7
+ [    6.349562] CRIT:   rbp: 0000000000000000 r08: 5400524f4c4f435f r09:abffadb0b3b0bca0
+ [    6.355753] CRIT:   r10: 02ff010003000000 r11: 00000000bffcf4f0 r12:000000000000ea48
+ [    6.361968] CRIT:   r13: 0000000000000000 r14: 000000000000a488 r15:0000000000000010
+ [

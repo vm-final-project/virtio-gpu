@@ -1,7 +1,7 @@
 # VOGUE stage audit
 
 Status: `pass`
-Stage: `blocked:probe-incomplete`
+Stage: `pass`
 
 ## Required artifacts
 
@@ -12,9 +12,9 @@ Stage: `blocked:probe-incomplete`
 
 ## Key statuses
 
-- QEMU Venus probe: `blocked:probe-incomplete`
+- QEMU Venus probe: `pass`
 - Venus perf gate: `pass`
-- Acceleration status: `blocked:host-visible-or-qemu-gate`
+- Acceleration status: `ready-for-venus-smoke`
 
 ## Claim boundary
 Native/static/design/paper gates pass. Real QEMU Venus acceleration remains blocked unless qemu_probe_status is pass.

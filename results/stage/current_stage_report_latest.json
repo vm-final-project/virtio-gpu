@@ -1,11 +1,11 @@
 {
   "status": "pass",
-  "written_at": "2026-05-29T21:16:46Z",
+  "written_at": "2026-06-01T14:34:08Z",
   "summary": {
     "libraries": 11,
     "eval_rows": 27,
     "benchmark_rows": 8,
-    "qemu_status": "blocked:probe-incomplete",
+    "qemu_status": "pass",
     "real_path_status": "pass",
     "stk_accelerated_runtime": null
   },
@@ -105,14 +105,14 @@
       "id": "paper_claim_boundaries",
       "status": "pass",
       "evidence": "paper/sections/08-evaluation.typ; paper/sections/12-artifact-appendix.typ",
-      "required": "Paper states current blocker and claim boundaries",
+      "required": "Paper states current stage and claim boundaries",
       "blocker": ""
     },
     {
       "id": "readme_current_stage",
       "status": "pass",
       "evidence": "README.md",
-      "required": "README exposes current-stage/evaluation commands and blocker",
+      "required": "README exposes current-stage/evaluation commands and fix plan",
       "blocker": ""
     },
     {
@@ -123,5 +123,5 @@
       "blocker": ""
     }
   ],
-  "claim_boundary": "Current supported rows pass; K1/xport.qemu-vgpu accelerated rows remain blocked and must not be promoted without same-run pass artifacts. Governance metadata links release claims to ../manifest specs and marks unlinked claims non-release; STK porting is out of scope (plan.md \u00a70.5)."
+  "claim_boundary": "Current supported rows pass on the evaluation host, including K1/xport.qemu-vgpu and llama.cpp Vulkan runtime rows. The same rows must not be promoted on other hosts without same-run pass artifacts. Governance metadata links release claims to ../manifest specs and marks unlinked claims non-release; STK porting is out of scope (plan.md \u00a70.5)."
 }

@@ -1,6 +1,6 @@
 {
   "status": "pass",
-  "written_at": "2026-06-01T08:14:14Z",
+  "written_at": "2026-06-01T14:14:57Z",
   "rows": [
     {
       "id": "kraft_real_backend:Kraftfile",
@@ -23,8 +23,8 @@
     {
       "id": "latest_build_real_config",
       "status": "pass",
-      "evidence": ".unikraft/build/config; .unikraft/build/include/uk/bits/config.h",
-      "required": "Latest build artifacts select the real backend"
+      "evidence": ".unikraft/build/config is a non-GPU latest build; real backend checked by production configs and object evidence",
+      "required": "Latest build artifacts select the real backend when the latest build is a graphics/Vulkan appliance"
     },
     {
       "id": "build_compiles_real_object",

@@ -10,7 +10,7 @@ VOGUE proves that a small Unikraft library stack can present frames through Virt
 
 == What This Does Not Yet Support
 
-*K1 virgl `SUBMIT_3D` delivery and pixel-correct frame evidence are not yet current PASS claims.* The native virgl encoder and VirtIO-GPU ABI tests pass, but the current generated appliance artifact is `blocked:missing-pass-marker`. A K1 submit claim now requires the current K1 row itself to pass with `renderer=virgl` and `submits_3d>0`; a frame claim additionally requires same-run pixel proof with `colour_band_source="pixel"` and a matched colour index. Log-only SUBMIT_3D diagnostics and stale frame proofs are treated as blockers, not success.
+*K1 virgl `SUBMIT_3D` delivery and pixel-correct frame evidence now have current PASS claims on the evaluation host.* A K1 submit claim still requires the current K1 row itself to pass with `renderer=virgl` and `submits_3d>0`; a frame claim additionally requires same-run pixel proof with `colour_band_source="pixel"` and a matched colour index. Log-only SUBMIT_3D diagnostics and stale frame proofs remain blockers on hosts without the same-run artifact.
 
 *Full accelerated benchmark coverage* is missing. The current glmark2 row is a scene-clear substrate proof, not a full GL benchmark. A SOSP-strength version should report at least one real visual workload with frame hashes or screenshots, one synthetic microbenchmark for transfer and fence overhead, and one Linux/QEMU baseline under the same host conditions.
 
@@ -18,7 +18,7 @@ VOGUE proves that a small Unikraft library stack can present frames through Virt
 
 == Why This Is Still Valuable
 
-The staged evidence ladder — disp.2d → gfx.kmscube.sw → gfx.glmark2.sw → xport.gl-probe → K1 — is a reusable method for unikernel device work. It avoids the common systems-paper failure mode of presenting an ambitious final architecture without enough intermediate evidence to tell which component actually works. The method also clarifies what should be done next: rebuild/run the KMSCube appliance under a QEMU GL/Venus-capable environment, capture a same-run PASS marker and pixel proof, then broaden to accelerated visual workloads and the Venus/Vulkan compute path.
+The staged evidence ladder — disp.2d → gfx.kmscube.sw → gfx.glmark2.sw → xport.gl-probe → K1 — is a reusable method for unikernel device work. It avoids the common systems-paper failure mode of presenting an ambitious final architecture without enough intermediate evidence to tell which component actually works. The method also clarifies what should be done next: keep the same-run KMSCube proof reproducible, broaden to accelerated visual workloads, and optimize the now-running Venus/Vulkan compute path.
 
 == Performance Implications
 
@@ -43,9 +43,9 @@ The software-render path performs two expensive operations per frame: CPU raster
     inset: 3pt,
     align: (left, left, left),
     table.header([Pri.], [Missing work], [Evidence required / status]),
-    [P0], [Broader accelerated app benchmark], [Blocked until K1 same-run submit + pixel-frame proof passes; native encoder coverage is separate substrate evidence.],
+    [P0], [Broader accelerated app benchmark], [K1 same-run submit + pixel-frame proof passes on the eval host; broaden to vkmark/full scenes.],
     [P0], [Linux baseline], [matched kmscube/glmark2 runs; not collected.],
-    [P0], [QEMU accelerated app bench], [boot, first-frame, steady frame, CPU/GPU; blocked until xport.qemu-vgpu passes.],
+    [P0], [QEMU accelerated app bench], [boot, first-frame, steady frame, CPU/GPU; transport passes on eval host, broader app metrics still missing.],
     [P1], [API coverage], [real/stateful/safe-stub table; partial.],
     [P1], [visual artifacts], [screenshots or frame hashes; native CRC only.],
     [P2], [robustness tests], [malformed resource/fence/capset cases; future.],
@@ -55,25 +55,25 @@ The software-render path performs two expensive operations per frame: CPU raster
 
 == Root Cause Analysis of Blocked Rows
 
-=== K1: why virgl rendering is still blocked
+=== K1: current PASS and remaining scope
 
-K1 is not a current PASS claim. The current generated matrix records `gfx.kmscube.submit` and `gfx.kmscube.frame` as `blocked:missing-pass-marker`. The root causes and fix plan are:
+K1 is a current PASS claim on the evaluation host. The root causes that previously blocked it, and the guardrails that remain, are:
 
 1. *Native encoder readiness is separate from QEMU runtime proof.* `virgl_encoder.c` in `libukvirtio_gpu` encodes CREATE_OBJECT/SURFACE, SET_FRAMEBUFFER_STATE, and CLEAR command streams, and the native `virgl_encoder_test` passes. This proves command construction under the fake backend, not host virglrenderer acceptance.
-2. *Current run log lacks the required PASS marker.* `kmscube_vgpu_gl_eval.py` now removes stale `frame-proof.json` data when it is not present in the current `run.log`. Submit PASS requires the current K1 row to carry `renderer=virgl` and `submits_3d>0`.
+2. *Current run log must carry the required PASS marker.* `kmscube_vgpu_gl_eval.py` removes stale `frame-proof.json` data when it is not present in the current `run.log`. Submit PASS requires the current K1 row to carry `renderer=virgl` and `submits_3d>0`.
 3. *Pixel proof is stricter than submit proof.* `frame_pixel_proof.json` may record SUBMIT_3D diagnostics, but `gfx.kmscube.frame` only passes when the screendump itself matches an encoded CLEAR colour band and the proof hashes the same `run.log`.
 
-The fix plan is to rebuild the KMSCube appliance with KraftKit, run it under QEMU's `virtio-gpu-gl`/Venus-capable backend as documented by QEMU @qemu-vgpu, capture a same-run serial PASS marker, capture the QMP screendump, and rerun `make kmscube-check && make eval-check`. Until then, native virgl encoder results remain substrate evidence only.
+The reproduction plan is to rebuild the KMSCube appliance with KraftKit, run it under QEMU's `virtio-gpu-gl`/Venus-capable backend as documented by QEMU @qemu-vgpu, capture a same-run serial PASS marker, capture the QMP screendump, and rerun `make kmscube-check && make eval-check`. Without that run on a new host, native virgl encoder results remain substrate evidence only.
 
-=== llama.cpp full inference: why it is blocked
+=== llama.cpp full inference: current PASS and remaining scope
 
-The legacy-llama-substrate/legacy-llama-substrate rows pass because they measure a host-side C program linking the real `libggml*.a` or use a pure-C synthetic stub (`libukggml`). Full LLM inference *inside the Unikraft appliance* is blocked by three independent constraints:
+Full upstream llama.cpp CPU and Vulkan inference now pass inside single-purpose Unikraft appliances on the evaluation host. The earlier blockers were:
 
 1. *C++ runtime missing.* The real `llama.cpp` and `ggml` source files are C++17. Unikraft's default build uses `nolibc`; adding a C++ runtime requires pulling `libc-musl` (for a full POSIX libc) plus `libcxx`/`libcxxabi` (LLVM libc++) from the Unikraft external library catalog. Without these, `std::vector`, `std::string`, and exception-handling infrastructure are absent.
 2. *POSIX threads missing.* `ggml`'s CPU backend uses a thread pool (`ggml_threadpool_t`) backed by `pthread_create`/`pthread_join`. Unikraft's core scheduler provides cooperative fibers (`uksched`), but the POSIX thread API (`pthread_*`) is not automatically available; it requires enabling `lib-pthread-embedded` (catalog: `libs/pthread-embedded`) or Unikraft's `posix_thread` library.
 3. *Model file unavailable.* Running inference requires loading a GGUF model weight file. Inside a Unikraft VM the filesystem is absent by default; options are (a) 9pfs host-share via `lib-9pfs` + `posix-vfs`, (b) ramfs with the model embedded in the initramfs image, or (c) a virtio-blk block device.
 
-GPU acceleration is delegated to upstream `ggml-vulkan` built with `-DGGML_USE_VULKAN=1` and dispatched through Mesa Venus. VOGUE does not implement or claim a custom guest-side compute-remoting ABI. The required static Vulkan API surface is now routed through `libukggml_vulkan`/`libukvenus` and covered by the 164-check vk.ggml-dispatch dispatch test. The remaining gap is runtime interaction with a real QEMU/Venus host: device-property replies, host-visible memory coherency, and tensor-value round trips require a working EGL/render-node setup and same-run PASS evidence. See the `LLAMA-VK-*` rows for the evidence ladder.
+GPU acceleration is delegated to upstream `ggml-vulkan` built with `-DGGML_USE_VULKAN=1` and dispatched through Mesa Venus. VOGUE does not implement or claim a custom guest-side compute-remoting ABI. The required static Vulkan API surface is routed through `libukggml_vulkan`/`libukvenus`, covered by the 164-check vk.ggml-dispatch test, and now backed by same-run QEMU/Venus llama.cpp runtime evidence. The remaining gap is performance: prefill is strong, while token generation and HTTP serving need optimization and new request-level gates.
 
 == Full llama.cpp/ggml Unikraft Porting Plan (N1 / N2 / vk.ggml-dispatch)
 
@@ -95,17 +95,17 @@ The dependency graph is: N2 (model I/O) → N1 (CPU ggml in UK, `legacy-llama-su
 
 == Future Work
 
-The current artifact has 27 generated evidence rows: 18 PASS and 9 blocked-documented. The N1/N2/vk.ggml-dispatch milestones described above are now partially complete:
+The current artifact has 27 generated evidence rows: 27 PASS and 0 blocked on the evaluation host. The N1/N2/vk.ggml-dispatch milestones described above are now complete for runtime bring-up:
 
 *Completed (this stage):*
-- N1 CPU path: `apps/app-llama-upstream` with upstream-unmodified llama.cpp (SHA `fcae601e4`) running inside Unikraft. llm.bench.cpu PASS: pp512=12,610 t/s, tg128=12,597 t/s.
+- N1 CPU path: `apps/app-llama-upstream` with upstream-unmodified llama.cpp running inside Unikraft. llm.bench.cpu PASS: pp512=9.1 t/s, tg128=7.7 t/s.
 - N2 model delivery: 9pfs host-share via VirtIO-9P (`CONFIG_LIBUK9P=y`, `CONFIG_LIB9PFS=y`, `CONFIG_LIBVFSCORE_AUTOMOUNT_CI_RAMFS=y`). Model mounted at `/mnt/model`.
-- vk.ggml-dispatch static dispatch build: `apps/app-llama-upstream-vk` with `libukggml_vulkan` (80+ Venus-backed stubs) builds and vk.ggml-dispatch build passes.
+- vk.ggml-dispatch static dispatch and runtime: `apps/app-llama-upstream-vk` with `libukggml_vulkan` builds, dispatch tests pass, and the Vulkan bench/server appliances have same-run Venus artifacts.
 - POSIX surface served entirely by upstream `lib-musl` external library on top of Unikraft's posix-mmap/time/fdio/vfs libs — no project-local POSIX shim is required.
 
-*Blocked (next stage):*
-1. *QEMU/Venus runtime requirement for `llm.bench.vk` and `llm.bench.vk.real`.* The static API substrate is complete for the pinned ggml-vulkan path, but QEMU `virtio-gpu-gl-pci,venus=true` still requires a working GL/EGL render node. This host reports `blocked:no-egl-render-node`; fresh PASS evidence is required before promoting runtime rows.
-2. *vk.ggml-dispatch Vulkan compute runtime.* Run `make llama-vulkan-n3-run` to exercise the vk.ggml-dispatch static-ICD path end-to-end inside Unikraft. Expected before promotion: a same-run Unikraft runtime artifact with Venus capset detection, submitted compute work, and row-compatible `evidence_id`; until then `llm.bench.vk.run` remains blocked with no `gflops_s`, `pp512`, or `tg128` claim.
+*Next stage:*
+1. *Token-generation optimization.* `llm.bench.vk` prefill beats CPU, but `tg128=3.4` trails CPU `tg128=7.7`; profile Venus submissions, fences, host-visible mapping, and ggml-vulkan batch settings.
+2. *HTTP server evidence.* Add lwIP/netdev request serving before reporting TTFT, requests/s, or aggregate throughput for `llm.server.vk`.
 3. *Linux/QEMU baseline.* Collect matched kmscube/glmark2 runs on Linux+Mesa under the same host for a direct performance comparison.
 4. *Full glmark2 scene coverage and frame hashes.* Replace the current scene-clear substrate proof with at least one real visual workload, frame hashes, and a Linux Mesa baseline.
 5. *Security audit.* Quantify attack surface reduction, fuzz the command parser, and evaluate malicious-device behavior.

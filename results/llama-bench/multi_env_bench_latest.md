@@ -11,6 +11,6 @@
 | ENV6 | QEMU-VM Linux CPU (4 vCPU) | 40,642 | 1,381 | pass |
 | ENV7 | QEMU-VM Linux Vulkan (llvmpipe) | 55,298 | 1,460 | pass |
 | ENV8 | QEMU-VM VirtIO-GPU Vulkan (Venus, Linux) | 120,954 | 2,039 | pass |
-| ENV9 | QEMU + Unikraft VirtIO-GPU Venus (llvmpipe, CPU Vulkan) | — | — | blocked:wrong-domain-or-stale |
-| ENV10 | QEMU + Unikraft VirtIO-GPU Venus (full ggml-vulkan, no patches, KVM) | — | — | blocked:n3-image-not-built |
+| ENV9 | QEMU + Unikraft VirtIO-GPU Venus (llvmpipe) | — | — | blocked:no-row-compatible-same-run-artifact |
+| ENV10 | QEMU + Unikraft VirtIO-GPU Venus (GPU, KVM) | 247 | 3 | pass |
 | ENV11 | vk.ggml-dispatch Static Vulkan ICD dispatch (host) | — | — | pass |

@@ -17,6 +17,8 @@ RESULT = ROOT / "results" / "llama-bench" / "multi_env_bench_latest.json"
 MD = ROOT / "results" / "llama-bench" / "multi_env_bench_latest.md"
 TYP = ROOT / "paper" / "generated" / "multi-env-bench-table.typ"
 DISPATCH = ROOT / "results" / "llama" / "vulkan_n3_dispatch_latest.json"
+UPSTREAM_VK = ROOT / "results" / "llama" / "upstream_vk_latest.json"
+ENV10_REAL = ROOT / "results" / "llama" / "env10_real_latest.json"
 
 ORDER = [
     "baremetal_cpu_1t",
@@ -28,7 +30,7 @@ ORDER = [
     "qemu_vm_linux_cpu",
     "qemu_vm_linux_vulkan",
     "qemu_vm_virtio_gpu",
-    "qemu_unikraft_cpu",
+    "qemu_unikraft_virtio_gpu_llvmpipe",
     "qemu_unikraft_virtio_gpu",
     "n3_static_dispatch",
 ]
@@ -53,33 +55,62 @@ def typ_escape(text: str) -> str:
     return str(text).replace("_", r"\_")
 
 
+def metric(payload: dict, key: str):
+    value = payload.get(key)
+    if value is not None:
+        return value
+    for row in payload.get("rows", []) if isinstance(payload.get("rows"), list) else []:
+        if row.get("test") == key:
+            return row.get("t_s")
+    return None
+
+
 def normalize(data: dict) -> dict:
     envs = data.setdefault("environments", {})
     dispatch = load(DISPATCH)
+    upstream_vk = load(UPSTREAM_VK)
+    env10_real = load(ENV10_REAL)
     passed = int(dispatch.get("checks_passed") or 0)
     total = int(dispatch.get("checks_total") or (passed + int(dispatch.get("checks_failed") or 0)) or passed)
+    envs.pop("qemu_unikraft_cpu", None)
 
-    # Historical/prototype Unikraft Venus rows are not runtime PASS claims in the
-    # current matrix. Keep them as reproduction targets unless row-compatible
-    # same-run artifacts exist.
-    if "qemu_unikraft_cpu" in envs:
-        row = envs["qemu_unikraft_cpu"]
-        row.update({
-            "status": "blocked:wrong-domain-or-stale",
-            "pp512": None,
-            "tg128": None,
-            "gflops_s": None,
-            "claim_allowed": "No Unikraft Vulkan runtime claim; current matrix requires row-compatible same-run QEMU/Venus evidence.",
-            "claim_forbidden": "pp512/tg128, GFLOP/s, or GPU/Vulkan throughput for Unikraft.",
-            "note": "Reproduction target only; stale/prototype data is not promoted.",
-        })
-    if "qemu_unikraft_virtio_gpu" in envs:
-        row = envs["qemu_unikraft_virtio_gpu"]
-        row.setdefault("pp512", None)
-        row.setdefault("tg128", None)
-        if not str(row.get("status", "")).startswith("pass"):
-            row["claim_allowed"] = "Blocked reproduction target; no Unikraft Vulkan throughput claim."
-            row["claim_forbidden"] = "Projected or host-domain throughput."
+    env9 = envs.get("qemu_unikraft_virtio_gpu_llvmpipe", {})
+    envs["qemu_unikraft_virtio_gpu_llvmpipe"] = {
+        **env9,
+        "label": "QEMU + Unikraft VirtIO-GPU Venus (llvmpipe)",
+        "status": "blocked:no-row-compatible-same-run-artifact",
+        "pp512": None,
+        "tg128": None,
+        "gflops_s": None,
+        "claim_allowed": "No current ENV9 claim is made: the table requires a same-run Unikraft+Venus artifact captured against the llvmpipe software-Vulkan target.",
+        "claim_forbidden": "Reusing GPU-backed ENV10 throughput or any host-domain baseline as an ENV9 llvmpipe claim.",
+        "note": "Current same-run Unikraft Vulkan artifacts target a real Venus GPU path, not the llvmpipe row.",
+    }
+
+    env10 = envs.get("qemu_unikraft_virtio_gpu", {})
+    env10_status = env10_real.get("status") or upstream_vk.get("status") or env10.get("status") or "blocked:no-row-compatible-same-run-artifact"
+    envs["qemu_unikraft_virtio_gpu"] = {
+        **env10,
+        "label": "QEMU + Unikraft VirtIO-GPU Venus (GPU, KVM)",
+        "status": env10_status,
+        "pp512": metric(env10_real, "pp512") or metric(upstream_vk, "pp512"),
+        "tg128": metric(env10_real, "tg128") or metric(upstream_vk, "tg128"),
+        "claim_allowed": env10_real.get("claim_allowed")
+        or upstream_vk.get("claim_allowed")
+        or "Same-run Unikraft Vulkan throughput claim over the real virtio-gpu-gl Venus path when status==pass.",
+        "claim_forbidden": env10_real.get("claim_forbidden")
+        or upstream_vk.get("claim_forbidden")
+        or "Throughput claim without row-compatible same-run PASS evidence.",
+        "note": (
+            f"Same-run real Venus artifact: pp512={metric(env10_real, 'pp512') or metric(upstream_vk, 'pp512')} "
+            f"tg128={metric(env10_real, 'tg128') or metric(upstream_vk, 'tg128')}."
+            if str(env10_status).startswith("pass")
+            else "Current row requires a same-run Unikraft Venus artifact."
+        ),
+        "image": env10_real.get("image") or upstream_vk.get("image"),
+        "run_log": env10_real.get("run_log") or upstream_vk.get("run_log"),
+        "venus_device": env10_real.get("venus_device") or upstream_vk.get("venus_device"),
+    }
     prior_n3 = envs.get("n3_static_dispatch", {})
     envs["n3_static_dispatch"] = {
         **prior_n3,
@@ -97,6 +128,14 @@ def normalize(data: dict) -> dict:
         n3_cfg = bench_config.setdefault("n3_dispatch", {})
         if isinstance(n3_cfg, dict):
             n3_cfg["expected_checks"] = total
+    statuses = [str(envs.get(key, {}).get("status", "missing")) for key in ORDER]
+    data["summary"] = {
+        "envs": len(ORDER),
+        "pass_classified": sum(1 for status in statuses if status.startswith("pass")),
+        "blocked": sum(1 for status in statuses if status.startswith("blocked:")),
+        "skipped": sum(1 for status in statuses if status == "skipped"),
+        "fail": sum(1 for status in statuses if not status.startswith("pass") and not status.startswith("blocked:") and status != "skipped"),
+    }
     data["written_at"] = datetime.now(timezone.utc).isoformat()
     data["status"] = "pass"
     return data
@@ -133,7 +172,7 @@ def write_outputs(data: dict) -> None:
         "    table.header([*Environment*], [*pp512 t/s*], [*tg128 t/s*], [*Status*]),",
         *table_rows,
         "  )),",
-        "  caption: [Multi-environment llama.cpp benchmark and reproduction context. Host Linux/QEMU rows are environment baselines only. ENV9/ENV10 (QEMU+Unikraft VirtIO-GPU Venus) remain blocked unless a row-compatible same-run QEMU/Venus artifact exists; no in-Unikraft Vulkan compute, pp512/tg128, or projected throughput is claimed in this artifact. ENV11 (vk.ggml-dispatch static dispatch, host-only) is a no-QEMU regression gate for libukggml\\_vulkan: "
+        "  caption: [Multi-environment llama.cpp benchmark and reproduction context. Host Linux/QEMU rows are environment baselines only. ENV9 (QEMU+Unikraft VirtIO-GPU Venus on llvmpipe) stays blocked until a row-compatible same-run llvmpipe artifact exists. ENV10 (QEMU+Unikraft VirtIO-GPU Venus on a real GPU) may claim pp512/tg128 only from same-run Unikraft Venus artifacts. ENV11 (vk.ggml-dispatch static dispatch, host-only) is a no-QEMU regression gate for libukggml\\_vulkan: "
         + f"{passed}/{total} checks PASS; pp512/tg128 are not applicable. All Unikraft runtime claims defer to the generated evidence matrix.]",
         ") <tab:multienv>",
         "",

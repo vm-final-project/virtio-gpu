@@ -1,17 +1,17 @@
 {
   "status": "pass",
-  "stage": "blocked:probe-incomplete",
-  "written_at": "2026-05-29T21:16:30Z",
+  "stage": "pass",
+  "written_at": "2026-06-01T12:24:02Z",
   "runs": [
     {
       "cmd": "make -C tests proto-abi",
       "returncode": 0,
-      "stdout_tail": "make[2]: Entering directory '/mydata/JerryT/vm-final-project/tests'\nmake[3]: 'build/virtio_gpu_proto_abi_test' is up to date.\nvirtio_gpu_proto_abi_test passed ctrl_hdr=24 display_info=408 edid=1056\nmake[2]: Leaving directory '/mydata/JerryT/vm-final-project/tests'\n"
+      "stdout_tail": "make[1]: Entering directory '/mydata/JerryT/virtio-gpu/tests'\nmake[2]: 'build/virtio_gpu_proto_abi_test' is up to date.\nvirtio_gpu_proto_abi_test passed ctrl_hdr=24 display_info=408 edid=1056\nmake[1]: Leaving directory '/mydata/JerryT/virtio-gpu/tests'\n"
     },
     {
       "cmd": "python3 scripts/check_venus_vulkan_docs.py",
       "returncode": 0,
-      "stdout_tail": "INFO: some upstream source repos absent (informational, not blocking):\n  missing source: /mydata/JerryT/linux-version/linux-6.18/include/uapi/linux/virtio_gpu.h\n  missing source: /mydata/JerryT/linux-version/linux-6.18/include/uapi/drm/virtgpu_drm.h\n  missing source: /mydata/JerryT/qemu-version/qemu-11.0/docs/system/devices/virtio/virtio-gpu.rst\n  missing source: /mydata/JerryT/mesa/docs/drivers/venus.rst\n  missing source: /mydata/JerryT/mesa/src/virtio/vulkan/vn_renderer_virtgpu.c\nPASS: Venus/Vulkan documentation gate\n"
+      "stdout_tail": "INFO: some upstream source repos absent (informational, not blocking):\n  missing source: /mydata/JerryT/linux-version/linux-6.18/include/uapi/linux/virtio_gpu.h\n  missing source: /mydata/JerryT/linux-version/linux-6.18/include/uapi/drm/virtgpu_drm.h\n  missing source: /mydata/JerryT/qemu-version/qemu-11.0/docs/system/devices/virtio/virtio-gpu.rst\nPASS: Venus/Vulkan documentation gate\n"
     },
     {
       "cmd": "python3 scripts/real_driver_static_check.py",
@@ -31,7 +31,7 @@
     {
       "cmd": "python3 scripts/venus_perf_eval.py --repetitions 5 --allow-blocked",
       "returncode": 0,
-      "stdout_tail": "venus_perf_eval: pass acceleration=blocked:host-visible-or-qemu-gate qemu=blocked:probe-incomplete\n"
+      "stdout_tail": "venus_perf_eval: pass acceleration=ready-for-venus-smoke qemu=pass\n"
     }
   ],
   "documents": {
@@ -40,37 +40,37 @@
     "README.md": true,
     "paper/sections/08-evaluation.typ": true
   },
-  "qemu_probe_status": "blocked:probe-incomplete",
+  "qemu_probe_status": "pass",
   "venus_perf_status": "pass",
-  "venus_acceleration_status": "blocked:host-visible-or-qemu-gate",
+  "venus_acceleration_status": "ready-for-venus-smoke",
   "eval_rows": [
     "disp.2d:pass",
     "proto.api-contract:pass",
     "gfx.kmscube.sw:pass",
     "gfx.glmark2.sw:pass",
     "xport.gl-probe:pass",
-    "gfx.kmscube.submit:blocked:missing-pass-marker",
-    "gfx.kmscube.frame:blocked:missing-pass-marker",
+    "gfx.kmscube.submit:pass",
+    "gfx.kmscube.frame:pass",
     "vk.drm-shim:pass",
     "proto.real-driver:pass",
-    "xport.qemu-vgpu:blocked:probe-incomplete",
+    "xport.qemu-vgpu:pass",
     "vk.readiness:pass",
     "proto.venus-enc:pass",
     "proto.venus-ring:pass",
     "vk.smoke:pass",
     "gfx.vkmark:pass",
     "host.baseline.vk:pass",
-    "host.vk.probe:blocked:wrong-domain-artifact",
+    "host.vk.probe:pass",
     "bld.host.vk:pass",
-    "host.bench.vk.run:blocked:wrong-domain-artifact",
-    "host.bench.vk:blocked:wrong-domain-artifact",
+    "host.bench.vk.run:pass",
+    "host.bench.vk:pass",
     "vk.ggml-dispatch:pass",
     "llm.bench.cpu:pass",
     "llm.server.cpu:pass",
-    "llm.bench.vk:blocked:no-pass-line",
-    "llm.server.vk:blocked:not-run",
+    "llm.bench.vk:pass",
+    "llm.server.vk:pass",
     "bld.uk.vk:pass",
-    "llm.bench.vk.real:blocked:egl-not-initialized"
+    "llm.bench.vk.real:pass"
   ],
   "claim_boundary": "Native/static/design/paper gates pass. Real QEMU Venus acceleration remains blocked unless qemu_probe_status is pass."
 }

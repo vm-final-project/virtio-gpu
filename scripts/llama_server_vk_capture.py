@@ -130,16 +130,7 @@ def _emit(status: str, *, extra: dict | None = None, ready: dict | None = None) 
     return 0
 
 
-def main() -> int:
-    qemu = _select_qemu()
-    if not qemu:
-        return _emit("blocked:qemu-missing")
-    if not IMAGE.exists():
-        return _emit("blocked:unikraft-image-missing")
-    model = _model_path()
-    if model is None:
-        return _emit("blocked:model-missing")
-
+def _attempt(qemu: str, model: Path) -> tuple[str, dict]:
     _grant_render_nodes()
     mem = os.environ.get("VOGUE_VK_MEM", "3072")
     kvm = os.access("/dev/kvm", os.R_OK | os.W_OK)
@@ -207,7 +198,7 @@ def main() -> int:
                 except subprocess.TimeoutExpired:
                     proc.kill()
         except OSError as e:
-            return _emit("blocked:qemu-spawn-failed", extra={"error": str(e)})
+            return ("blocked:qemu-spawn-failed", dict(extra={"error": str(e)}))
 
     out = "".join(out_lines)
     SERIAL_LOG.parent.mkdir(parents=True, exist_ok=True)
@@ -218,18 +209,45 @@ def main() -> int:
     venus_device = dev.group(1).strip() if dev else (
         "Tesla V100-SXM2-16GB" if "Tesla V100" in out else None)
     if m:
-        return _emit("pass", ready={
+        return ("pass", dict(ready={
             "slots": int(m.group("slots")),
             "ctx_per_slot": int(m.group("ctx")),
             "prompt_cache": bool(int(m.group("pc"))),
             "hostmem_fixed": bool(int(m.group("hf"))),
             "venus_device": venus_device,
             "ready_marker": m.group(0).strip(),
-        })
+        }))
     if "Unikraft Crash" in out:
-        return _emit("blocked:venus-device-crash",
-                     extra={"log_tail": out[-3000:]})
-    return _emit("blocked:no-ready-line", extra={"log_tail": out[-3000:]})
+        return ("blocked:venus-device-crash", dict(extra={"log_tail": out[-3000:]}))
+    return ("blocked:no-ready-line", dict(extra={"log_tail": out[-3000:]}))
+
+
+# Model load over Venus shares the from-scratch ICD's transient crash mode; a
+# clean re-boot succeeds, so retry a crashed/no-ready attempt.
+_RETRYABLE = {"blocked:venus-device-crash", "blocked:no-ready-line"}
+
+
+def main() -> int:
+    qemu = _select_qemu()
+    if not qemu:
+        return _emit("blocked:qemu-missing")
+    if not IMAGE.exists():
+        return _emit("blocked:unikraft-image-missing")
+    model = _model_path()
+    if model is None:
+        return _emit("blocked:model-missing")
+
+    attempts = max(1, int(os.environ.get("VOGUE_VK_ATTEMPTS", "4")))
+    status, kwargs = "blocked:no-ready-line", {}
+    for i in range(attempts):
+        status, kwargs = _attempt(qemu, model)
+        if status == "pass" or status not in _RETRYABLE:
+            break
+        if i + 1 < attempts:
+            print(f"llama-server-vk-capture: attempt {i+1} -> {status}; retrying")
+    kwargs.setdefault("extra", {})
+    kwargs["extra"]["attempts_used"] = i + 1
+    return _emit(status, **kwargs)
 
 
 if __name__ == "__main__":

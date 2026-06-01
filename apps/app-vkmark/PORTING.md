@@ -13,6 +13,10 @@
 |-----|--------|-------|
 | `gfx.vkmark` | `pass` | vkmark Unikraft port uses libukvk_icd (vk.icd) over libukvirtgpu_drm (vk.drm-shim); ICD init and Venus context creation PASS; 10 scenes documented with host llvmpipe/NVIDIA baselines |
 
+Current stage: the substrate row passes, but Unikraft-internal vkmark scene FPS
+is still not claimed. The next gate is a QEMU/Venus run with non-empty render
+payloads, same-run frame proof, and per-scene FPS artifacts.
+
 ## Porting boundary
 
 This port provides build substrate proof and Venus detection — the dependency surface compiles against Unikraft shims, VirtIO-GPU capset enumeration works at boot, 10 benchmark scenes are documented as evaluation targets, and host-side llvmpipe/NVIDIA measurements provide comparison baselines.

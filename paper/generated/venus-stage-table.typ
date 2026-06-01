@@ -6,8 +6,8 @@
     align: (left, left, left, left),
     table.header([*Row*], [*Gate*], [*Status*], [*Allowed conclusion*]),
     [`VSTAT`], [real-driver static gate], [`pass`], [controlq implementation present; not GPU performance],
-    [`xport.qemu-vgpu`], [QEMU Venus probe], [`blocked:probe-incomplete`], [acceleration claim only if pass],
-    [`vk.readiness`], [Venus perf artifact], [`blocked:host-visible-or-qemu-gate`], [blocked rows are readiness evidence only],
+    [`xport.qemu-vgpu`], [QEMU Venus probe], [`pass`], [acceleration claim only if pass],
+    [`vk.readiness`], [Venus perf artifact], [`ready-for-venus-smoke`], [blocked rows are readiness evidence only],
   )),
   caption: [Generated Venus/readiness gates. Blocked rows are explicit non-claims for acceleration.]
 ) <tab:venus-stage>

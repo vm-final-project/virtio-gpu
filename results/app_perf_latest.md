@@ -1,13 +1,13 @@
 # VOGUE Application Performance
 
-Generated: `2026-06-01T08:14:07.536589Z`
+Generated: `2026-06-01T14:24:53.388922Z`
 
 > Scope: native software/substrate benchmark on fake VirtIO-GPU backend; not a virgl/GPU result.
 
 | Row | App | Frames | Resolution | Avg frame (ms) | FPS | MiB/s copied | Transfers | Flushes | Fences |
 |-----|-----|--------|------------|----------------|-----|--------------|-----------|---------|--------|
-| `gfx.kmscube.sw` | kmscube | 60 | 640x480 | 2.205 | 453.55 | 531.50 | 60 | 60 | 120 |
-| `gfx.glmark2.sw` | glmark2 scene clear | 120 | 1280x800 | 5.550 | 180.17 | 703.80 | 120 | 120 | 240 |
+| `gfx.kmscube.sw` | kmscube | 60 | 640x480 | 2.189 | 456.89 | 535.42 | 60 | 60 | 120 |
+| `gfx.glmark2.sw` | glmark2 scene clear | 120 | 1280x800 | 5.732 | 174.46 | 681.47 | 120 | 120 | 240 |
 
 ## Claim boundaries
 

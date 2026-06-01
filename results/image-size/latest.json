@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-01T08:15:02.161473Z",
+    "generated_utc": "2026-06-01T11:58:25.617998Z",
     "source": "scripts/image_size_check.py",
     "principle": "Unikraft single-purpose images carry only the linked-in source per Kconfig mode (see paper \u00a77)."
   },
@@ -17,19 +17,17 @@
       "name": "glmark2",
       "row": "gfx.glmark2.sw",
       "image": ".unikraft/build/vogue-glmark2_qemu-x86_64",
-      "size_bytes": null,
-      "size_human": "n/a",
-      "status": "blocked:image-missing",
-      "blocker": "image not built locally; run the corresponding make target before image-size-check"
+      "size_bytes": 1089776,
+      "size_human": "1.04 MiB",
+      "status": "pass"
     },
     {
       "name": "llama-cpu-bench",
       "row": "llm.bench.cpu",
       "image": ".unikraft/build/vogue-llama-upstream-bench_qemu-x86_64",
-      "size_bytes": null,
-      "size_human": "n/a",
-      "status": "blocked:image-missing",
-      "blocker": "image not built locally; run the corresponding make target before image-size-check"
+      "size_bytes": 3495640,
+      "size_human": "3.33 MiB",
+      "status": "pass"
     },
     {
       "name": "llama-cpu-server",
