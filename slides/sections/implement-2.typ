@@ -8,14 +8,18 @@
 == Graphics applications we run
 
 #table(
-  columns: (auto, auto, 1fr),
-  [App], [Role], [What it shows works],
+  columns: (auto, auto, auto, auto, 1fr),
+  [App], [Role], [Local LOC], [Shim surface], [What it shows works],
   table.hline(),
-  [kmscube], [main demo], [draws a real 3D frame on the GPU, checked pixel-by-pixel],
-  [glmark2], [benchmark], [an OpenGL benchmark draws through our shim],
-  [vkmark], [Vulkan demo], [a Vulkan benchmark starts and loads its scenes],
+  [kmscube], [main demo], [593], [3 ABI shims], [draws a real 3D frame on the GPU, checked pixel-by-pixel],
+  [glmark2], [benchmark], [155], [3 ABI shims], [an OpenGL benchmark draws through our shim],
+  [vkmark], [Vulkan demo], [62], [2 Vulkan shims], [a Vulkan benchmark starts and loads its scenes],
   table.hline(),
 )
+
+#pause
+
+  - LOC counts here are the #bred[VOGUE-owned entry/glue code], not the vendored upstream app bodies
 
 #pause
 
@@ -24,6 +28,25 @@
 #pause
 
   - we never blur the line: a #red[software-drawn] pixel is not GPU acceleration
+
+== Claim boundary by app
+
+#table(
+  columns: (auto, auto, 1fr),
+  [App], [GPU acceleration], [Current status],
+  table.hline(),
+  [llama.cpp-vk], [yes], [real Vulkan compute on the host GPU via Venus],
+  [vkmark], [partial], [Venus substrate passes, but scene rendering is not claimed],
+  [vulkan-smoke], [partial], [Venus capset detection passes; it serves as a readiness gate],
+  [kmscube], [no], [software rendering; the virgl probe exists, but the final GPU claim stays gated],
+  [glmark2], [no], [software rendering only],
+  table.hline(),
+)
+
+#pause
+
+  - this is the #bred[honest-progress view]: substrate readiness, software rendering,
+    and true GPU execution are kept separate
 
 == llama.cpp: four ready-to-run appliances
 
