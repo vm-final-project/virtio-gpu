@@ -9,21 +9,22 @@
   theme: "sky",
   footer: [Group 8],
   config-info(
-    title: [VM Final Project: Group 8],
-    subtitle: [VOGUE: VirtiO-Gpu on Unikraft Environment],
+    title: [VOGUE: VirtIO-GPU on Unikraft],
+    subtitle: [Current-stage implementation and evaluation],
     author: "",
     date: datetime.today(),
-    institution: "Support GPU Acceleration in Unikraft",
+    institution: "Graphics and llama.cpp inside Unikraft",
   ),
 )
 
 #title-slide()
-// #title-slide(title: [ ])
+#outline-slide()
 
 #include "sections/motivation.typ"
 #include "sections/background.typ"
 #include "sections/design.typ"
 #include "sections/implement.typ"
+#include "sections/evaluation.typ"
 #include "sections/future-work.typ"
 #include "sections/conclusion.typ"
 
@@ -31,6 +32,5 @@
   title: [The End!],
   body: [Thank you!],
 )
-
 
 

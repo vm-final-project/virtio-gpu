@@ -32,7 +32,7 @@ bin/
 .DS_Store
 .Trash-*/
 lost+found/
-lib/
+# lib/
 
 # macOS
 .DS_Store

@@ -62,7 +62,7 @@ export LLAMA_ROOT VENUS_PROTOCOL_ROOT VULKAN_HEADERS_INCLUDE SPIRV_HEADERS_INCLU
         llama-upstream-server-build llama-upstream-server-run \
         llama-upstream-vk-build llama-upstream-vk-run llama-upstream-vk-check \
         llama-upstream-vk-server-build llama-upstream-check env10-real-check \
-        multi-env-bench app-multi-env-bench \
+        multi-env-bench app-multi-env-bench linux-guest-vk-baseline \
         llama-env-list llama-env-check llama-env-bench llama-env-server \
         governance-check lib-readme-check app-port-check naming-check claim-check \
         eval eval-check current-stage-check current-stage-refresh \
@@ -404,6 +404,13 @@ llama-env-server:
 
 multi-env-bench:
 	python3 scripts/multi_env_bench.py --skip-vm
+
+# Para-virtualised reference: stock Linux guest kernel in QEMU over the SAME
+# virtio-gpu-gl Venus path + upstream ggml-vulkan binary/GGUF as the Unikraft
+# port. Isolates unikernel-vs-Linux from virtualised-vs-bare-metal. Blocked
+# (still passing) on hosts without the guest kernel/KVM/GPU/model.
+linux-guest-vk-baseline:
+	python3 scripts/linux_guest_vulkan_baseline.py
 
 app-multi-env-bench:
 	python3 scripts/app_multi_env_bench.py

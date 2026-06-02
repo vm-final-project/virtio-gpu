@@ -1,229 +1,333 @@
-# Performance optimization plan for VOGUE
+# VOGUE next-stage optimization plan
 
-This plan now targets the measured issues in the current VOGUE evidence set,
-not the older pre-Venus blocked state. `llm.bench.vk` and `llm.server.vk` run
-upstream `llama.cpp` unmodified through `libukggml_vk` → `libukvenus` →
-`libukvirtgpu_drm` → `libukvirtio_gpu` → QEMU
-`virtio-gpu-gl-pci,hostmem=...,blob=true,venus=true`. Every optimization below
-must improve a named artifact row rather than introduce an unmeasured claim.
+This file is the single authoritative optimization plan for VOGUE on branch
+`dev-jerry`. It merges the valid parts of the former `plan-optimize.md` and
+`plan-optimize-patch.md` into one evidence-first document.
 
-## Current performance findings
+## Scope, branch, and requirements
 
-| Finding | Evidence | Interpretation | Primary fix track |
-|---|---|---|---|
-| Vulkan token generation was underperforming because decode work was dispatched too granularly | Before the fix, `results/llama/upstream_vk.json` recorded `pp512=247.4`, `tg128=3.4`; after enabling `UK_GGML_VK_DISPATCH_BATCH=1` and wiring llama.cpp batch controls into the appliance, the three same-host post-change runs in `results/llama/post_opt_runs/` measure `pp512={2208.6, 2230.5, 2232.1}` and `tg128={135.7, 139.9, 160.2}`. | The bottleneck was submission granularity and batching, not raw GPU availability: tiny per-token Venus submissions kept decode throughput far below the host's usable envelope. | Keep batched Venus submission enabled, keep `n_batch`/`n_ubatch` explicit in artifacts, and treat remaining work as server/request-path and model-load optimization rather than basic decode throughput rescue. |
-| Model loading is still file-copy bound | `results/model-load/report.json`: CPU/VK app and server model load times are ~5.6-7.5 s with `use_mmap=false`, `huge_pages=false`. | 9pfs/initramfs model delivery does not yet use mmap or huge pages; startup latency hides boot improvements. | Add mmap-capable model path or initramfs huge-page staging; measure with `make model-load-time-check`. |
-| Server now serves HTTP and its decode rate is near the in-guest bench | `results/llama/upstream_server_vk.json` (`slots=4`, `ctx_per_slot=512`, FA off) + `results/llama/server_vk_throughput.json`: same-run **decode 140.6 tok/s mean (154 max)**, prefill 866 tok/s, TTFT ~1.2 s. | The lwIP/netdev path landed, so `--parallel`, `--ctx-size`, prompt cache, and FA are now measured under real HTTP load. Server decode is **88 % of the in-guest Vulkan bench (`tg128=160`)** — the request path adds only ~12 % over the tight bench loop. The remaining gap to bare-metal native is the Venus transport tax, not server inefficiency. | Keep `--parallel 4` (concurrent-client capability) and `--flash-attn off` on the V100; the next aggregate-throughput win needs guest SMP (see Phase 3) so concurrent slots decode in overlapping CPU time. |
-| Software graphics rows pass but are noisy | `results/app_perf.json`: best samples pass; fifth samples drop sharply (`kmscube` 224 fps, `glmark2` 100 fps). | Native fake-backend graphics are memory-copy and host-noise sensitive; best-of-N keeps the smoke gate stable but does not characterize steady-state variance. | Add median/p95 regression reporting and isolate memcpy/fence costs. |
-| Real-driver static gate cost is visible | `results/benchmarks/benchmark_summary.md`: `VSTAT` mean 41.6 ms, p95 50.1 ms. | Static/readiness gate is not GPU runtime, but it exposes overhead worth tracking as protocol coverage grows. | Keep VSTAT as a trend metric and split encoder, ring, and controlq timings. |
+- Current VOGUE branch: `dev-jerry`
+- Pinned sibling Unikraft evidence: `../unikraft` branch `stable`, commit `7351f8b`
+- This plan must use current repo artifacts as the source of truth for this branch.
+- This plan must use official documentation or upstream source files for capability
+  claims.
+- Any direction without same-branch proof must be labeled **Candidate only** or
+  **Not yet validated on this branch**.
+- Non-official / non-upstream references are intentionally excluded as
+  optimization proof.
 
-### Native-baseline comparison (same V100, same GGUF, same upstream binary)
+## Measured baseline
 
-The reference is host-native Vulkan llama.cpp on the evaluation V100
-(`results/llama/vulkan_linux_baseline.json`). "Native QEMU-Linux-Vulkan level"
-is interpreted as the throughput the same workload reaches through the GPU; the
-para-virtualised Venus path (guest → `virtio-gpu-gl` → host virglrenderer →
-driver) pays a transport tax that bare-metal does not, so the realistic ceiling
-for any guest (Unikraft *or* Linux) over Venus is below bare-metal.
+The current branch is already out of the old bring-up stage. The baseline for
+next-stage work is the current passing repo state, not the historical blocked
+state.
 
-| Metric | Native host Vulkan (bare metal) | VOGUE Unikraft + Venus | Unikraft ÷ native |
-|---|---|---|---|
-| `pp512` (prefill) | 5586.9 t/s | bench 2232.1 t/s · server 865.7 t/s | 40 % (bench) |
-| `tg128` (decode) | 239.2 t/s | bench 160.2 t/s · **server 140.6 t/s** | 67 % (bench) · **59 % (server)** |
+### Current branch evidence bundle
 
-Reading: the Unikraft **server decode rate (140.6 t/s) is 88 % of the in-guest
-Vulkan bench** and **59 % of bare-metal native**. Since the bench itself only
-reaches 67 % of bare-metal through Venus, the server is essentially at the
-Venus-path ceiling — the missing ~⅓ versus bare-metal is the transport tax
-(addressed structurally by L3.1/L3.4 batching, already shipped), not a server or
-scheduling defect. Aggregate (multi-client) throughput is currently capped by
-the single guest vCPU; lifting it is the SMP item in Phase 3.
+Primary local evidence files:
 
-The plan is organised by which layer the optimisation modifies (Unikraft
-core, ggml/llama.cpp inference, Venus encoder, QEMU/host). Each entry
-records:
+- `results/llama/server_vk_throughput.json`
+- `results/model-load/latest.json`
+- `results/model-load/latest.md`
+- `scripts/run_llama_upstream_vk_server.sh`
+- `kraft/Kraftfile.llama-upstream-vk-server`
+- `apps/app-llama-upstream-vk/common.h`
+- `apps/app-llama-upstream-vk/server.cpp`
+- `results/llama/upstream_vk.json`
+- `results/llama/vulkan_linux_baseline.json`
 
-1. **Lever** — what we change.
-2. **Unikraft pattern** — the explicit design tenet we lean on.
-3. **Why it helps `llm.server.vk`** — concrete causal chain.
-4. **Authoritative evidence** — the public reference that says this works.
-5. **In-repo verification** — the gate (existing or new) that demonstrates the win.
+### Current measured numbers
 
----
+From `results/llama/server_vk_throughput.json`:
 
-## Layer 1 — Unikraft core specialisation
+- `generated_utc=2026-06-02T10:45:55.097638Z`
+- `concurrency=1`
+- `decode_tps_mean=140.6`
+- `decode_tps_max=154.38`
+- `prompt_tps_mean=865.66`
+- `requests_per_s=0.412`
+- `ttft_s=1.2376`
+- device `Tesla V100-SXM2-16GB`
 
-The Unikraft paper documents the win pattern: removing every component that
-doesn't serve the workload, then specialising what remains.
+From `results/model-load/latest.json` and `results/model-load/latest.md`:
 
-| # | Lever | Unikraft pattern | Why it helps `llm.server.vk` | Authoritative evidence | In-repo verification |
-|---|---|---|---|---|---|
-| L1.1 | **Compile-time mode split + `--gc-sections`** (already shipped) | "Size-based specialisation by removing unnecessary components to achieve minimal images" ([Unikraft EuroSys 2021]). | Server image carries `server.cpp` only — `bench.cpp` is not even a translation unit; the linker drops every symbol unreachable from the server entrypoint. | EuroSys 2021 paper §4 reports specialised images of ~1 MB for nginx/Redis ([arxiv 2104.12721, p. 1]). | `make image-size-check` + the `bld.uk.vk` evidence row. |
-| L1.2 | **Static page-table baked into the image** | "Unikraft provides a method for improving boot speed by including an already initialised page-table structure in the binary" ([Unikraft docs/architecture]). | Server appliance boots into a single process; the static PT removes ~ms of paging setup before the first `llama_decode` call. | EuroSys 2021 §6.2 — Hello-World boots in 1.04 ms on KVM, 31 µs on Xen ([arxiv 2104.12721, §6]). | `make boot-time-check` (already wired, currently `blocked:image-missing` on macOS review hosts; numbers come from the Linux runner). |
-| L1.3 | **Drop the cooperative scheduler when no threads beyond ggml's pool exist** | uksched API explicitly separates "creation" from "scheduling"; the unused half is configurable out ([uksched PR #564]). | Server's hot loop uses ggml's own thread pool over `lib-pthread-embedded`. We don't need preemptive ticks; setting `CONFIG_LIBUKSCHED_COOP` keeps the timer interrupt rate low → less context-switch noise during long decodes. | Unikraft `lib-pthread-embedded` docs note pthread integration is the activation point for cooperative scheduling ([lib-pthread-embedded README]). | New `boot-time-check` row "context-switches/s" recorded from `qemu -d in_asm` or `kvm_stat` (add as P1 item below). |
-| L1.4 | **Huge-page mapping for the model file via 9pfs/initramfs** | Unikraft's filesystem driver classes (initrd vs external volume) are picked at compile time per appliance ([Unikraft filesystem docs]). | llama.cpp's mmap loader benefits dramatically from `MAP_HUGETLB`; a 377 GB DeepSeek model loaded **10× faster** when the upstream PR landed. We replicate the win at our 1–8 GB working-set size. | `llama.cpp` issue [#12444 — "allow mmap to take advantage of hugepage feature which has 10x speedup"]. | New `model-load-time-check` gate — first-byte to "model loaded" latency. |
-| L1.5 | **NUMA-aware tensor placement** when the host has > 1 socket | The same paper argues for specialisation per *environment*: "best system component for a given application, environmental constraints" ([Unikraft EuroSys 2021]). | Cross-NUMA llama.cpp on Neoverse N2 ships **up to 55 %** faster tg128 once tensors migrate to the local node. Even one-socket guests benefit from disabling prefetch + `mlock` to avoid initial-touch faults. | [SemiEngineering — "Scaling llama.cpp on Neoverse N2"]. | New `llama-numa-check` row in `results/llama/`; defaults to `blocked:single-socket` on dev hosts. |
+- `llm.bench.vk elapsed_ms=4691.79`
+- `llm.server.vk elapsed_ms=6442.77`
+- `use_mmap=false`
+- `huge_pages=false`
 
----
+From `results/llama/upstream_vk.json`:
 
-## Layer 2 — Inference (ggml + llama.cpp)
+- in-guest Vulkan bench `pp512=2232.1`
+- in-guest Vulkan bench `tg128=160.2`
 
-Same source tree as the `llama.cpp` upstream; we ship the build flags and
-runtime knobs so the upstream-unmodified contract holds.
+From `results/llama/vulkan_linux_baseline.json`:
 
-| # | Lever | Unikraft pattern | Why it helps `llm.server.vk` | Authoritative evidence | In-repo verification |
-|---|---|---|---|---|---|
-| L2.1 | **Hot/cold compile-flag split** (already shipped) | "Composable, performance-oriented APIs" with per-file specialisation ([Unikraft docs/architecture]). | ggml CPU helper kernels (vec/ops/quants/repack), x86 quant unpackers and the llama-graph executor compile at `-O3 -funroll-loops -fno-math-errno -fno-trapping-math`; entry-points stay `-Os`. The hot path dominates pp512/tg128. | `apps/app-llama-upstream/Makefile.uk` defines `APPLLAMA_UPSTREAM_HOT_FLAGS` per the `<FILE>_FLAGS-y` convention. Effect documented by upstream — "tuning llama.cpp" guides recommend exactly this set ([Apple Silicon tuning guide]). | `make perf-check` — `llm.bench.cpu pp512` / `tg128`. |
-| L2.2 | **Continuous batching + parallel slots** for the HTTP path (shipped) | "Specialised images of ~1 MB for nginx/Redis" — server image is tiny; we can afford a `--parallel` slot count well above 1 ([Unikraft EuroSys 2021]). | Shipped: `CONFIG_APP_LLAMA_UPSTREAM_VK_PARALLEL=4` (READY reports `slots=4`); `server.cpp` scales `--ctx-size` to `PARALLEL*CTX` so each slot keeps its full window. Discussion #18308 confirms `-np 4` is the sweet spot (beyond 4 is CPU-sampling-bound) and `-b 2048 -ub 512` the baseline — exactly our settings. On the current **single guest vCPU**, concurrent slots cannot overlap CPU work, so aggregate scaling awaits SMP (Phase 3); single-stream decode already reaches 140.6 t/s. | [Promptsicle — batching], [llama.cpp Discussion #18308] (server ≈ 56 % of batched-bench due to CPU sampling). | `make llm-server-vk-throughput-check` → `results/llama/server_vk_throughput.json` (decode/prefill tok/s, TTFT, requests/s). |
-| L2.3 | **Prefix / prompt cache** (`cache_prompt=true`) | One-image-one-purpose lets us reserve a known slice of RAM for cache ([Unikraft EuroSys 2021]). | Repeating system prompts re-use KV cache, skipping prefill on subsequent requests. llama.cpp's tutorial measures the hot-swap path "calculates prefix similarity, hot-swaps the cached prefix into GPU context". | [llama.cpp — "Mastering Host-Memory Prompt Caching" tutorial], [llama.cpp #8947]. | New row: time-to-first-token (TTFT) with and without `cache_prompt`. |
-| L2.4 | **Speculative decoding (draft model)** | Two single-purpose images side-by-side beats one bloated image — exactly Unikraft's lean-images thesis ([Unikraft EuroSys 2021]). | Upstream documents draft + main pair; CARD / OmniDraft papers report ≥ 2× wall-clock for tg128 under matched-vocab conditions. | [llama.cpp `docs/speculative.md`], [arXiv 2508.04462 — CARD], [arXiv 2507.02659 — OmniDraft]. | Defer until L2.2 baseline exists; gate as `blocked:no-draft-model` until a draft GGUF is dropped into `/mnt/model/draft.gguf`. |
-| L2.5 | **PagedAttention-style KV pagination** | Reference architecture for "treating GPU memory the way an OS treats RAM" ([vLLM blog]). | The current llama.cpp Vulkan path uses one contiguous KV slab per slot. As we scale parallel slots (L2.2) memory fragmentation kills throughput; the vLLM paper documents the fix. | [vLLM blog — "Inside vLLM: Anatomy of a High-Throughput LLM Inference System"]. | Tracking row; promote to "in scope" only after L2.2 lands. |
+- host Vulkan baseline `pp512_t_per_s=5586.91`
+- host Vulkan baseline `tg128_t_per_s=239.16`
 
----
+From `scripts/run_llama_upstream_vk_server.sh`:
 
-## Layer 3 — Vulkan / Venus dispatch
+- the canonical QEMU command currently has **no `-smp`**, so the server path is
+  still running with a single guest vCPU.
 
-This is where VOGUE adds value beyond stock llama.cpp: we own the static
-dispatch layer and the Venus encoder, so the wire-format wins are ours to
-ship.
+From `kraft/Kraftfile.llama-upstream-vk-server` and
+`apps/app-llama-upstream-vk/server.cpp`:
 
-| # | Lever | Unikraft pattern | Why it helps `llm.server.vk` | Authoritative evidence | In-repo verification |
-|---|---|---|---|---|---|
-| L3.1 | **Batched SUBMIT_3D inside a command buffer** (already shipped, env-gated) | "Caches certain results and batches commands when feasible" is what Mesa's own Venus driver does ([Mesa Venus docs]). | Each `vkCmd*` previously generated one Venus SUBMIT_3D; batching collapses N stubs to one transport call per `vkEndCommandBuffer`. For ggml-vulkan a single graph step encodes ~50–80 vkCmd ops → ≥ 10× fewer host crossings. | Mesa documents Venus' own batching strategy; the Venus Vulkan extension write-up explains command serialisation cost ([Collabora — "A look at Vulkan extensions in Venus"]). | `libukggml_vk/uk_vulkan_dispatch.c` — `UK_GGML_VK_DISPATCH_BATCH=1`; native `ggml_vk_dispatch_test` keeps the per-call counter via the default-off path. |
-| L3.2 | **Coalesce TRANSFER_TO_HOST_2D + RESOURCE_FLUSH fences** (already shipped) | Same Mesa rule (cache + batch); VirtIO-GPU spec guarantees in-order command completion. | The 2D scanout path (used by `gfx.kmscube.sw` and any "render preview" the server later adds) cuts one fence per frame. | `libs/libukvirtio_gpu/virtio_gpu_real.c::uk_virtio_gpu_transfer_and_flush_2d` + test 200–204 in `tests/virtio_gpu_full_api_test.c`. | `make native-tests` — assertion `fence_waits == baseline + 1`. |
-| L3.3 | **Venus encoder fast-path for scalars** (already shipped) | "Performance-oriented APIs" — inlining the scalar encoder keeps the hot loop a single `__builtin_memcpy`. | Every Vulkan call serialises uint32/uint64 fields; replacing the generic `encode_bytes` indirection cuts per-byte overhead in the encoder hot path. | `libs/libukvenus/venus_cs.c` — `uk_venus_encode_uint32/uint64/size`. | Native `venus_cs_test`, `ggml_vk_dispatch_test`. |
-| L3.4 | **Map hostmem blob via `MAP_FIXED`** | Unikraft owns the guest's address space — picking a fixed window is trivial in a single-process unikernel. | The recently-merged QEMU patch (`virglrenderer 1.3 + map_fixed`) "has a great impact on performance" ([Vulkan Support gist]) and removes the legacy `mmap` fallback. | [virgl/QEMU virtio-gpu docs] note: "supporting mapping hostmem blobs with map_fixed has a great impact on performance". | New: `make venus-check` records whether the guest used the fixed-window path; surface as `xport.qemu-vgpu.hostmem_map`. |
-| L3.5 | **Flash attention forced OFF on the V100 Vulkan path** (shipped, decided) | Single-purpose image means we pick the right Vulkan code path at Kconfig/argv time. | Decided: the V100 (Volta) has **no `GL_NV_cooperative_matrix2`**, so Vulkan flash attention is unsupported and, when forced, *regresses* Vulkan throughput ~50 % ([Issue #9572], [#13008]). `server.cpp` therefore passes `--flash-attn off` instead of trusting the `auto` default. | [llama.cpp Issue #9572], [Issue #13008 — V100 FA], [PR #11284]. | `server.cpp` argv carries `--flash-attn off`; the decode rate (140.6 t/s) is measured with FA off. Revisit only on a coopmat2-capable GPU (Ampere+). |
+- the server is configured for `--parallel 4`
+- `ctx-size` is scaled to `parallel * per-slot ctx`
+- the Vulkan server forces `--no-mmap`
+- the Vulkan server forces `--flash-attn off`
+- the readiness marker records `threads=1`
 
----
+From `apps/app-llama-upstream-vk/common.h`:
 
-## Layer 4 — QEMU / host transport
+- model loading explicitly keeps `use_mmap=false`
+- the comment states current `9pfs` does not support mmap in this path
+- `huge_pages=0` is still recorded in the loader path
 
-We don't ship QEMU, but the appliance only achieves its claim when the host
-exposes the right device. Document, gate, and verify.
+Repository status gate:
 
-| # | Lever | Unikraft pattern | Why it helps `llm.server.vk` | Authoritative evidence | In-repo verification |
-|---|---|---|---|---|---|
-| L4.1 | **`virtio-gpu-gl,hostmem=8G,blob=true,venus=true`** | The kraft/Kraftfile model lets us pin device flags per appliance — no shared default that another image could change. | The blob window is where ggml's KV cache lives. 256M is enough for tiny models, 8G is the documented upper bound for serious model weights. | [QEMU docs — virtio-gpu]. | `scripts/venus_qemu_probe.py` (existing) — extend with `hostmem_bytes` assertion. |
-| L4.2 | **`-display egl-headless,gl=on` for server (no Wayland/X11)** | Unikraft images have no display surface — server only needs the compute path. | Removing the windowed display path collapses the EGL render-node failure modes that currently produce `blocked:no-egl-render-node`. | [QEMU virtio-gpu docs — "egl-headless"]. | Existing `llm.bench.vk.real` blocker row. |
-| L4.3 | **lwIP netdev HTTP path** (shipped) + TCP knobs (future) | Unikraft lwIP is picked + configured per image — no global default ([Unikraft Performance docs]). | Shipped: `virtio-net → libuknetdev → lwIP` (DHCP) carries the upstream `llama_server()` listener; the HTTP path is no longer a blocker. The lwIP wiki TCP-window knobs (`TCP_WND`, `TCP_SND_BUF`) remain a future tuning lever for sustained large-payload transfers, but the small JSON request/response traffic here is GPU/CPU-bound, not TCP-window-bound. | [lwIP wiki — "Maximising throughput"], [lwIP wiki — "Tuning TCP"]. | `make llm-server-vk-check` (`http=pass`) + `make llm-server-vk-throughput-check`. |
+- `make current-stage-check` currently reports `current_stage_report: pass checks=16 eval_rows=27 benchmark_rows=8`
 
----
+## Already shipped background
 
-## Sequencing
+These are not the main next-stage targets anymore; they are already part of the
+current baseline and should stay documented as shipped background:
 
-Phase 0 (current state): the evaluation matrix is 27/27 PASS on the evaluation
-host and `make current-stage-check` now passes after the real-path checker fix.
-Optimization results may be compared against the current release evidence, but
-hosts without the same QEMU/Venus/GPU stack must still treat those rows as
-host-conditional rather than universal claims.
+1. **Already shipped — Venus batching and dispatch cleanup.** The current branch
+   already moved far beyond the old `tg128=3.4` state. The in-guest Vulkan bench
+   is now `tg128=160.2`, so the main decode rescue step has already landed.
+2. **Already shipped — real HTTP serving over `virtio-net -> libuknetdev -> lwIP`.**
+   The server path is no longer a blocker; it serves HTTP and has same-run
+   throughput evidence in `results/llama/server_vk_throughput.json`.
+3. **Already shipped — continuous batching / parallel slots at the application layer.**
+   The appliance already carries `--parallel 4`, batch sizing, prompt cache, and
+   the server-specific `ctx-size` scaling.
+4. **Already shipped — `--flash-attn off` on the V100 Vulkan path.** This is a
+   branch decision already encoded in `apps/app-llama-upstream-vk/server.cpp`.
 
-Phase 1 (implemented): L1.1, L2.1, L3.1, L3.2, L3.3.
+## Merge decisions from the patch
 
-Phase 2 (implemented):
-1. **L3.1 + L2.2 decode-batching** — the low-throughput root cause was overly
-   granular Venus submission. `UK_GGML_VK_DISPATCH_BATCH=1` is enabled in both
-   Vulkan appliances; same-host `tg128` improved from `3.4` to ~160.
-2. **L4.3 + L2.2 + L2.3 + L3.5 request path** — the lwIP/netdev HTTP path
-   landed; the server runs with `--parallel 4`, `--ctx-size = PARALLEL*CTX`,
-   prompt cache, and `--flash-attn off` (V100). Measured: **decode 140.6 t/s
-   (88 % of the in-guest bench, 59 % of bare-metal native)**, prefill 866 t/s,
-   via `make llm-server-vk-throughput-check`.
+| Patch direction | Status in merged plan | Why |
+|---|---|---|
+| SMP / multi-vCPU | **Not yet validated on this branch** and promoted to P0 | The current run script has no `-smp`, the server evidence is `concurrency=1`, and the readiness marker shows `threads=1`. This is the clearest remaining aggregate-throughput gap. |
+| `--threads`, `--threads-batch`, `--threads-http` | **Not yet validated on this branch** and folded into P0 | The upstream server officially exposes these knobs, and they are more direct than guessing scheduler changes first. |
+| model loading / paging policy | **Not yet validated on this branch** and promoted to P1 | Current code and artifacts prove `use_mmap=false` / `huge_pages=false`; the next optimization target is the model-load path, not generic Linux swap tuning. |
+| `GGML_NATIVE`, `GGML_LTO`, target CPU flags | **Candidate only** | Upstream `ggml/CMakeLists.txt` confirms cross-compilation disables the native default, so this is real, but it is not yet benchmarked on this branch. |
+| `mimalloc` | **Candidate only** | Unikraft performance docs and the mimalloc benchmarking write-up make it reasonable to test, but this branch has no measured win yet. |
+| VirtioFS + DAX | **Candidate only** | The sibling Unikraft tree proves there is VirtioFS code and IOMEM support, but VOGUE has not yet switched the llama appliance to a validated VirtioFS path, and DAX is not branch-proven here. |
+| preemptive scheduler | **Do not present as available** | The pinned local evidence confirms `lib/ukschedcoop/Config.uk`; this branch should not assume a tested preemptive scheduler path exists. |
+| direct `uknetdev` bypass of the socket path | **Candidate only, low priority** | The current HTTP server already works over lwIP, and current throughput evidence does not show networking as the first bottleneck. |
+| speculative decoding | **Candidate only** | Upstream supports it, but this branch has no draft-model artifact or server benchmark proving a win yet. |
 
-Phase 3 (next levers, in priority order):
-1. **Guest SMP for aggregate throughput** — the single biggest remaining win.
-   The appliance runs on one vCPU, so the four parallel slots cannot overlap
-   their CPU (sampling/HTTP) work; with `-smp N` + Unikraft `LIBUKLCPU` and a
-   matching `--threads`, continuous batching should lift aggregate (multi-client)
-   tokens/s well above single-stream. Gate: extend the throughput check with a
-   `concurrency>1` aggregate row once SMP boots.
-2. **L1.4 + L1.2** — reduce the ~5-7 s model-load path with mmap/huge-page
-   delivery (note: 9pfs does not support file mmap today, hence `--no-mmap`; an
-   initramfs huge-page staging path is the route).
-3. Deferred: L1.3 (`COOP` trim), L1.5 (NUMA), L2.4 (speculative), L2.5
-   (Paged-KV), L4.3 lwIP TCP-window knobs, graphics-substrate variance reporting.
+## Prioritized next-stage plan
 
----
+### P0. Guest SMP and thread split
 
-## Verification gates (already wired + to add)
+**Status:** **Not yet validated on this branch**
 
-```sh
-make perf-check                 # existing — fps + pp512/tg128 regression
-make image-size-check           # existing — per-appliance byte counts
-make boot-time-check            # existing — boot-to-READY ms
-make model-load-time-check      # existing — first-byte → model-loaded latency
-make llm-server-vk-check        # readiness + same-run HTTP probe (http=pass)
-make llm-server-vk-throughput-check  # measured decode/prefill tok/s, TTFT, requests/s
-```
+**Why this is first:**
 
-Each new gate emits `results/<gate>/report.{json,md}` with the same
-"current vs baseline vs threshold" shape that `perf-check` already uses, so
-the structured-blocker pattern remains intact for reviewers running on hosts
-without the corresponding artifacts.
+- `scripts/run_llama_upstream_vk_server.sh` has no `-smp`
+- current throughput evidence is only `concurrency=1`
+- the READY line records `threads=1`
+- the current server already carries `--parallel 4`, so the remaining obvious
+  gap is that multiple slots still cannot overlap guest-side CPU work on a
+  single vCPU
 
----
+**Requirements for this step:**
 
-## References
+1. Add explicit `-smp N` to the canonical server run path.
+2. Verify the required local CPU support remains coherent with the pinned
+   Unikraft files:
+   - `../unikraft/lib/uklcpu/Config.uk`
+   - `../unikraft/lib/ukpcpuvar/Config.uk`
+   - `../unikraft/lib/ukschedcoop/Config.uk`
+3. Tune application-level knobs from the official upstream server interface:
+   - `--threads`
+   - `--threads-batch`
+   - `--threads-http`
+4. Re-run the bounded throughput check with `concurrency > 1` and compare
+   aggregate decode/request throughput against the current baseline.
 
-- **Unikraft (EuroSys 2021)** — Kuenzer et al. *Unikraft: Fast, Specialised Unikernels the Easy Way*. EuroSys '21 Best Paper.
-  PDF: <https://dl.acm.org/doi/pdf/10.1145/3447786.3456248>
-  arXiv: <https://arxiv.org/pdf/2104.12721>
-- **Unikraft Architecture / Performance docs** — <https://unikraft.org/docs/concepts/architecture/> · <https://unikraft.org/docs/concepts/performance>
-- **Unikraft Filesystem docs** — <https://unikraft.org/docs/cli/filesystem>
-- **Unikraft `lib/uksched` PR #564** — <https://github.com/unikraft/unikraft/pull/564>
-- **Unikraft `lib-pthread-embedded` README** — <https://github.com/unikraft/lib-pthread-embedded/blob/staging/README.md>
-- **llama.cpp server README** — <https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md>
-- **llama.cpp Discussion #18308 — optimal parallel parameters** — <https://github.com/ggml-org/llama.cpp/discussions/18308>
-- **llama.cpp Issue #12444 — huge-page mmap, 10× speedup** — <https://github.com/ggml-org/llama.cpp/issues/12444>
-- **llama.cpp Discussion #20574 — host-memory prompt caching** — <https://github.com/ggml-org/llama.cpp/discussions/20574>
-- **llama.cpp `docs/speculative.md`** — <https://github.com/ggml-org/llama.cpp/blob/master/docs/speculative.md>
-- **llama.cpp Issue #9572 — Vulkan flash attention regression (~50%)** — <https://github.com/ggml-org/llama.cpp/issues/9572>
-- **llama.cpp Issue #13008 — Does the V100 support flash attention?** — <https://github.com/ggml-org/llama.cpp/issues/13008>
-- **llama.cpp PR #11284 — coopmat2 fix** — <https://github.com/ggml-org/llama.cpp/pull/11284>
-- **llama.cpp Flash Attention DeepWiki** — <https://deepwiki.com/ggml-org/llama.cpp/8.2-flash-attention-and-optimizations>
-- **Promptsicle — Boosting llama-server with batch settings** — <https://promptsicle.com/tips/boosting-llama-server-performance-with-batch-settings/>
-- **Apple Silicon llama-server tuning** — <https://medium.com/@michael.hannecke/tuning-llama-server-on-apple-silicon-9b3e778ab100>
-- **SemiEngineering — Cross-NUMA llama.cpp on Neoverse N2** — <https://semiengineering.com/scaling-llama-cpp-on-neoverse-n2-solving-cross-numa-performance-issues/>
-- **vLLM blog — Anatomy of a High-Throughput LLM Inference System** — <https://blog.vllm.ai/2025/09/05/anatomy-of-vllm.html>
-- **arXiv 2508.04462 — CARD speculative decoding** — <https://arxiv.org/pdf/2508.04462>
-- **arXiv 2507.02659 — OmniDraft on-device speculative decoding** — <https://arxiv.org/pdf/2507.02659>
-- **Mesa Venus driver docs** — <https://docs.mesa3d.org/drivers/venus.html>
-- **Collabora — A look at Vulkan extensions in Venus** — <https://www.collabora.com/news-and-blog/blog/2022/10/19/a-look-at-vulkan-extensions-in-venus/>
-- **QEMU virtio-gpu docs** — <https://www.qemu.org/docs/master/system/devices/virtio/virtio-gpu.html>
-- **QEMU with VirtIO GPU Vulkan Support (recipe, includes `map_fixed` note)** — <https://gist.github.com/peppergrayxyz/fdc9042760273d137dddd3e97034385f>
-- **lwIP wiki — Maximising throughput** — <https://lwip.fandom.com/wiki/Maximizing_throughput>
-- **lwIP wiki — Tuning TCP** — <https://lwip.fandom.com/wiki/Tuning_TCP>
-- **lwIP nongnu — `TCP_WND` / `TCP_SND_BUF` defines** — <https://www.nongnu.org/lwip/2_0_x/group__lwip__opts__tcp.html>
-- **Unikraft eurosys21-artifacts (reproducibility)** — <https://github.com/unikraft/eurosys21-artifacts>
+**Success gate:**
 
----
+- same-run throughput beats the current baseline without regressing correctness:
+  `decode_tps_mean=140.6`, `prompt_tps_mean=865.66`, `ttft_s=1.2376`
+- the new artifact must prove a real multi-vCPU server run, not just a config-only
+  change
 
-## What the existing implementation already demonstrates
+### P1. Model-load path replacement
 
-The Phase-1 changes that landed in the previous goal correspond to entries
-L1.1, L2.1, L3.1, L3.2 and L3.3 above. Their concrete proof artifacts:
+**Status:** **Not yet validated on this branch**
 
-- `apps/app-llama-upstream{,vk}/Makefile.uk` — hot/cold flag split, per-file
-  HOT overrides via `<FILE>_FLAGS-y`.
-- `libs/libukvirtio_gpu/virtio_gpu_real.c::uk_virtio_gpu_transfer_and_flush_2d`
-  + `tests/virtio_gpu_full_api_test.c` assertions 200–204 — fence count cut by one.
-- `libs/libukvenus/venus_cs.c::uk_venus_encode_uint32/uint64/size` — scalar
-  fast path; native `venus_cs_test` and `ggml_vk_dispatch_test` confirm
-  wire-format equivalence (160/160 PASS).
-- `libs/libukggml_vk/uk_vulkan_dispatch.c` — `UK_GGML_VK_DISPATCH_BATCH=1`
-  collapses recorded command-buffer ops into one Venus submission;
-  default-off so the per-call native dispatch test still counts as before.
+**Why this is second:**
 
-Phase-2 server request-path changes (this goal):
+- the current model-load path is explicitly constrained by `use_mmap=false`
+- current measured load time is still large: `llm.server.vk elapsed_ms=6442.77`
+  and `llm.bench.vk elapsed_ms=4691.79`
+- current comments in `apps/app-llama-upstream-vk/common.h` explain that the
+  active `9pfs` path cannot use mmap here
 
-- `kraft/Kraftfile.llama-upstream-vk-server` — `CONFIG_APP_LLAMA_UPSTREAM_VK_PARALLEL=4`
-  (continuous-batching slots).
-- `apps/app-llama-upstream-vk/server.cpp` — `--ctx-size = PARALLEL*CTX` (each
-  slot keeps its window) and `--flash-attn off` (V100 has no coopmat2).
-- `scripts/llama_server_vk_capture.py` + `scripts/llm_server_vk_throughput_check.py`
-  + `make llm-server-vk-throughput-check` — measured decode/prefill tok/s, TTFT,
-  requests/s in `results/llama/server_vk_throughput.json` (decode 140.6 t/s).
+**Requirements for this step:**
 
-Each subsequent layer entry above has a paper, PR, or blog with measured
-numbers attached, so any reviewer can audit the *claim* and the
-*reproducibility path* independently of the host running `make verify`.
+1. Keep the problem framing exact: this is a **model delivery / mmap-capable file
+   path** problem, not a Linux swap/`mlock` tuning problem.
+2. Evaluate a path that can replace the current `9pfs` limitation.
+3. Keep VirtioFS as a candidate transport only after a branch-local integration
+   path exists.
+4. If VirtioFS is explored, pin evidence to the local Unikraft files:
+   - `../unikraft/lib/ukfs-virtiofs/Config.uk`
+   - `../unikraft/lib/ukfs-virtiofs/virtiofs.c`
+5. Do **not** write VirtioFS DAX as a requirement until VOGUE has a working,
+   measured appliance path using it.
+
+**Success gate:**
+
+- reduce model-load latency versus the current baseline
+- update `results/model-load/latest.json` and `results/model-load/latest.md`
+- prove the new path with branch-local artifacts rather than documentation alone
+
+### P2. Build-target tuning
+
+**Status:** **Candidate only**
+
+**Why it stays in scope:**
+
+- upstream `ggml/CMakeLists.txt` explicitly sets `GGML_NATIVE_DEFAULT` to OFF
+  under cross-compilation and exposes `GGML_NATIVE` and `GGML_LTO`
+- VOGUE is built in a cross-build-like environment, so relying on upstream
+  native defaults is unsafe
+
+**Requirements for this step:**
+
+1. Audit the current build against upstream `ggml/CMakeLists.txt`.
+2. Make target CPU flags explicit instead of assuming `-march=native` is correct.
+3. Benchmark before keeping any new flag set in the default plan.
+
+**Success gate:**
+
+- new build settings produce a measurable gain on this branch
+- no portability regression is introduced for the evaluation host path
+
+### P3. mimalloc evaluation
+
+**Status:** **Candidate only**
+
+**Why it is not P0/P1:**
+
+- Unikraft's performance documentation notes that their measurements use Mimalloc,
+  so allocator choice is relevant.
+- The Unikraft mimalloc benchmarking write-up also shows multithreading/TLS work,
+  which means this should follow, not precede, the SMP baseline cleanup.
+- This branch does not yet have a measured allocator comparison for the llama
+  server path.
+
+**Requirements for this step:**
+
+1. Benchmark allocator changes only after the SMP/server baseline is stable.
+2. Compare load time, throughput, and stability against the default allocator.
+3. Treat any gain as branch-specific until VOGUE artifacts prove it.
+
+**Success gate:**
+
+- measured win on this branch
+- no regression in server stability or SMP behavior
+
+### P4. Speculative decoding
+
+**Status:** **Candidate only**
+
+**Why it is later:**
+
+- upstream officially supports speculative decoding in `docs/speculative.md`
+- the current branch has no draft-model artifact, no server-side benchmark, and
+  no measured VOGUE result showing it helps this workload
+- it is a larger functional change than SMP, thread tuning, or model-load path
+  cleanup
+
+**Requirements for this step:**
+
+1. Do not activate this track until a draft-model or supported self-speculative
+   setup is prepared for VOGUE.
+2. Benchmark through the server path, not only through synthetic microbenchmarks.
+3. Keep it out of the default optimization claim set until branch-local numbers exist.
+
+**Success gate:**
+
+- measured server-side speedup on this branch
+- no correctness or stability regression
+
+## Explicit de-prioritizations
+
+### Preemptive scheduler
+
+**Not yet validated on this branch**. The pinned local capability evidence is the
+cooperative scheduler file `../unikraft/lib/ukschedcoop/Config.uk`. This plan
+must not assume a tested preemptive scheduler implementation exists for VOGUE.
+
+### VirtioFS DAX as a hard requirement
+
+**Not yet validated on this branch**. The official virtio-fs project explains the
+purpose and status of VirtioFS, and the pinned Unikraft sibling tree shows
+VirtioFS code plus IOMEM support. That is enough to justify investigation, but
+not enough to claim a working VOGUE DAX path today.
+
+### Direct `uknetdev` optimization ahead of SMP/model-load work
+
+**Candidate only**. The current socket/lwIP path already serves HTTP successfully,
+so this is not the first optimization target unless a future artifact proves a
+network bottleneck.
+
+## Verification gates
+
+Required repo checks for this plan and for future updates built from it:
+
+- `make current-stage-check`
+- `make llm-server-vk-throughput-check`
+- `make model-load-time-check`
+
+When the next optimization step lands, the new artifact must beat the exact
+baseline it claims to improve. Do not replace a baseline statement with a new
+claim unless the new artifact is checked in and points to the same scope.
+
+## Official documentation
+
+Official / upstream documentation and source files used to justify the merged
+plan:
+
+- llama.cpp server options: `tools/server/README.md`
+  - upstream path in sibling repo: `../llama.cpp/tools/server/README.md`
+  - upstream URL: `https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md`
+- llama.cpp speculative decoding: `docs/speculative.md`
+  - upstream path in sibling repo: `../llama.cpp/docs/speculative.md`
+  - upstream URL: `https://github.com/ggml-org/llama.cpp/blob/master/docs/speculative.md`
+- ggml build defaults: `ggml/CMakeLists.txt`
+  - upstream path in sibling repo: `../llama.cpp/ggml/CMakeLists.txt`
+  - upstream URL: `https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/CMakeLists.txt`
+- Unikraft performance documentation:
+  - `https://unikraft.org/docs/concepts/performance`
+- Unikraft architecture documentation:
+  - `https://unikraft.org/docs/internals/architecture`
+- Unikraft mimalloc benchmarking write-up:
+  - `https://unikraft.org/blog/2024-08-22-unikraft-gsoc-benchmarking-mimalloc`
+- QEMU virtio-gpu documentation:
+  - `https://www.qemu.org/docs/master/system/devices/virtio/virtio-gpu.html`
+- virtio-fs official site:
+  - `https://virtio-fs.gitlab.io/`
+- Pinned local Unikraft capability files used for branch-local support checks:
+  - `../unikraft/lib/uklcpu/Config.uk`
+  - `../unikraft/lib/ukpcpuvar/Config.uk`
+  - `../unikraft/lib/ukschedcoop/Config.uk`
+  - `../unikraft/lib/ukfs-virtiofs/Config.uk`
+  - `../unikraft/lib/ukfs-virtiofs/virtiofs.c`
+
+## Stop condition for the next optimization round
+
+The next edit that claims an optimization win must satisfy all of the following:
+
+1. the changed item is marked with the correct status label
+2. the updated claim cites a new branch-local artifact
+3. the new artifact beats the exact baseline it replaces
+4. the branch still passes the required verification gates

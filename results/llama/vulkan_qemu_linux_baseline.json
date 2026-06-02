@@ -1,0 +1,19 @@
+{
+  "schema": "llama/vulkan-qemu-linux-baseline.v1",
+  "evidence_id": "llama-vk-qemu-linux",
+  "generated_utc": "2026-06-02T11:17:42.530332Z",
+  "status": "pass",
+  "pass": true,
+  "host": "Linux-6.18.33-x86_64-with-glibc2.39",
+  "guest_kernel": "/boot/vmlinuz-6.18.33",
+  "backend": "Vulkan via Mesa Venus guest ICD (virtio_icd) over QEMU virtio-gpu-gl venus=true; stock Linux guest kernel",
+  "transport": "Linux guest DRM virtio-gpu -> QEMU virtio-gpu-gl venus=true -> host virglrenderer Venus",
+  "claim_allowed": "Para-virtualised Vulkan baseline: stock Linux guest kernel in QEMU over the same virtio-gpu-gl Venus path and the same upstream ggml-vulkan binary/GGUF as the Unikraft port. Isolates unikernel-vs-Linux from virtualised-vs-bare-metal.",
+  "claim_forbidden": "Bare-metal-native comparison (that is vulkan_linux_baseline.json) or cross-host claim.",
+  "pp512_t_per_s": 4948.17,
+  "tg128_t_per_s": 323.64,
+  "device": "Virtio-GPU Venus (Tesla V100-SXM2-16GB)",
+  "llama_bench": "/mydata/JerryT/llama.cpp/build-vk/bin/llama-bench",
+  "model_filename": "Qwen3-0.6B-Q4_K_M.gguf",
+  "n_gpu_layers": 99
+}

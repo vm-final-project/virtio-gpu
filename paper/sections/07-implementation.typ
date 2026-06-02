@@ -77,6 +77,37 @@ The current code should be read as five layers of evidence. First, the 2D/softwa
 
 A key correctness requirement is that upstream `llama.cpp` and `ggml` sources run inside Unikraft *without patches*. Two application ports implement this:
 
+More broadly, the application layer follows the taxonomy in
+`docs/ARCHITECTURE.md`: each workload keeps its upstream application semantics,
+while VOGUE contributes only the bounded adapter, build glue, and the smallest
+guest-side compatibility surface needed to reach the VirtIO-GPU / Venus seam.
+The current application set is summarized in @tab:app-taxonomy. The LoC counts
+below are the current tracked adapter/application-directory totals (entrypoints,
+small glue files, `Config.uk`, `Makefile.uk`, `exportsyms.uk`), excluding
+sibling upstream repositories such as `../llama.cpp`.
+
+#figure(
+  table(
+    columns: (auto, auto, auto, 1.6fr),
+    inset: 4pt,
+    align: (left, left, right, left),
+    table.header([Application], [Upstream repo], [Local LoC], [VOGUE delta / bounded difference]),
+    [`app-kmscube`], [`kmscube`], [617], [Vendor a small upstream subset plus `uk_glue.c`; replace Linux DRM/GBM/EGL launch plumbing with one Unikraft entrypoint and bounded compatibility hooks. The port proves software-render and frame/submission evidence without importing Mesa or Linux DRM/KMS.],
+    [`app-glmark2`], [`glmark2`], [185], [Keep only the scene-clear workload shape from the upstream benchmark; omit the larger C++ scene suite, asset loaders, and host window-system backends. The result is a deterministic substrate benchmark, not a full upstream benchmark rebuild.],
+    [`app-vkmark`], [`vkmark`], [86], [Use a tiny substrate harness instead of reproducing the upstream meson build and full scene runtime. The port proves ICD/bootstrap and Venus-capset readiness and documents the 10 target scenes plus host baselines, but does not yet claim in-guest scene FPS.],
+    [`app-llama-upstream`], [`llama.cpp`], [473], [Compile upstream `ggml`/`llama.cpp` CPU sources unmodified into bench-only or server-only images; add only single-purpose entrypoints, 9pfs/ramfs model-loading glue, and one-line include shims for architecture-specific files. No shell and no `fork()`/`exec()`.],
+    [`app-llama-upstream-vk`], [`llama.cpp`], [668], [Extend the CPU port with `GGML_USE_VULKAN=1`, static Vulkan dispatch through `libukggml_vk`, and the Venus chain `libukvk_icd` → `libukvenus` → `libukvirtgpu_drm` → `libukvirtio_gpu`. Server mode calls upstream `llama_server()` directly over lwIP rather than launching a second process.],
+  ),
+  caption: [Current application adapters. LoC counts are exact for the tracked application directories in this revision and exclude sibling upstream repositories.]
+) <tab:app-taxonomy>
+
+This table makes the implementation boundary concrete. VOGUE is not a fresh set
+of applications with graphics-inspired names; it is a collection of small
+adapters around existing upstream projects. The engineering work lies in the
+guest-side compatibility and transport libraries (`libukegl`,
+`libukvirtgpu_drm`, `libukvk_icd`, `libukvenus`, `libukggml_vk`) rather than in
+forking application logic into project-local substitutes.
+
 `apps/app-llama-upstream/` provides the CPU path. It compiles the upstream ggml
 CPU backend, backend registry, and llama.cpp `src/*.cpp` sources directly into
 the Unikraft image — no prebuilt archives, no project-local fork of the

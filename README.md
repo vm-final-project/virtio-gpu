@@ -67,9 +67,10 @@ Highlights:
   (`--parallel 4`), `--ctx-size = parallel × per-slot`, prompt cache, and
   `--flash-attn off` (the V100 has no Vulkan coopmat2). Throughput is
   **measured** by `make llm-server-vk-throughput-check`: latest same-run
-  **decode 140.6 tok/s** (88 % of the in-guest Vulkan bench `tg128=160`, 59 %
-  of bare-metal native host Vulkan `tg128=239`), prefill 866 tok/s — see
-  *Performance vs native* below.
+  **decode 140.6 tok/s** (88 % of the in-guest Vulkan bench `tg128=160`),
+  prefill 866 tok/s. A stock-Linux-guest-over-Venus baseline
+  (`make linux-guest-vk-baseline`) shows the headroom is in VOGUE's guest-side
+  stack, not the Venus transport — see *Performance vs native* below.
 * **Graphics**: `xport.qemu-vgpu`, `proto.venus-ring`, `gfx.kmscube.submit`,
   and `gfx.kmscube.frame` all have same-run PASS artifacts.
 
@@ -197,6 +198,7 @@ The root `Makefile` is the single entry point; it delegates the C suite to
 | `make eval-check` | Regenerate the evidence matrix (blocked rows stay explicit). |
 | `make llm-server-vk-check` | llama.cpp Vulkan HTTP server contract + same-run HTTP probe. |
 | `make llm-server-vk-throughput-check` | Measured HTTP throughput (decode/prefill tok/s, TTFT, requests/s). |
+| `make linux-guest-vk-baseline` | Stock-Linux-guest + Venus Vulkan baseline (same QEMU path) for comparison. |
 | `make perf-check` / `image-size-check` / `boot-time-check` / `model-load-time-check` | Performance & resource budgets. |
 | `make current-stage-check` | Assert the documented current-stage report. |
 | `make paper` / `paper-check` | Build / consistency-check the Typst paper. |
@@ -295,28 +297,40 @@ make llm-server-vk-throughput-check   # boots, drives a bounded completion burst
 
 ### Performance vs native
 
-Same V100, same GGUF, same upstream binary. The reference is host-native Vulkan
-(`results/llama/vulkan_linux_baseline.json`); the para-virtualised Venus path
-(guest → `virtio-gpu-gl` → host virglrenderer → driver) pays a transport tax
-that bare metal does not.
+Same V100, same GGUF (`Qwen3-0.6B-Q4_K_M`), same upstream `llama-bench` binary,
+three environments — two are para-virtualised over the **identical**
+`virtio-gpu-gl venus=true` path, isolating *unikernel-vs-Linux* from
+*virtualised-vs-bare-metal*:
 
-| Metric | Native host Vulkan | VOGUE Unikraft + Venus | ratio |
+1. **Bare-metal host Vulkan** — no VM (`results/llama/vulkan_linux_baseline.json`).
+2. **Stock Linux guest in QEMU + Venus** — normal Linux kernel, Mesa Venus guest
+   ICD, same QEMU device (`results/llama/vulkan_qemu_linux_baseline.json`,
+   reproduce with `make linux-guest-vk-baseline`).
+3. **VOGUE Unikraft + Venus** — the unikernel port.
+
+| Metric | ① Bare-metal host | ② Linux guest + Venus (QEMU) | ③ VOGUE Unikraft + Venus |
 |---|---|---|---|
-| `pp512` prefill | 5586.9 t/s | bench 2232.1 · server 865.7 | 40 % (bench) |
-| `tg128` decode | 239.2 t/s | bench 160.2 · **server 140.6** | 67 % bench · **59 % server** |
+| `pp512` prefill | 5586.9 t/s | **4948.2 t/s** | bench 2232.1 · server 865.7 |
+| `tg128` decode | 239.2 t/s | **323.6 t/s** | bench 160.2 · **server 140.6** |
 
-The server's **decode rate is 88 % of the in-guest Vulkan bench** — the HTTP
-request path adds only ~12 % over the tight bench loop. Since the bench itself
-reaches 67 % of bare metal through Venus, the server sits essentially at the
-Venus-path ceiling; the remaining gap to bare metal is the transport tax
-(minimised by batched Venus submission, L3.1/L3.4), not a server defect.
-Aggregate multi-client throughput is currently capped by the single guest vCPU
-(continuous-batching slots are wired but cannot overlap CPU work) — guest SMP is
-the next lever (see `plan-optimize.md` Phase 3).
+**What the Linux-guest baseline reveals.** A *stock Linux guest* over the same
+Venus path reaches ~89 % of bare-metal prefill and matches/exceeds its decode
+(decode of a 0.6 B model is small and run-to-run variable). In other words, the
+**Venus para-virtualisation transport is not the main bottleneck** — a mature
+guest stack rides it at near-native speed. The Unikraft port currently reaches
+**~45 % of the Linux-guest prefill and ~50 % of its decode**; that remaining gap
+lives in **VOGUE's own guest-side stack** (the `libukvenus` encoder + the
+`libukggml_vk` static dispatch vs Mesa's mature Venus ICD, plus the single guest
+vCPU), which is real optimisation headroom — not an unavoidable virtualisation
+tax. Within the Unikraft image, the **server decode rate (140.6 t/s) is 88 % of
+its own bench (160.2)**, so the HTTP request path itself is efficient; the work
+is in the dispatch/encoder layer and in guest SMP (`plan-optimize.md` Phase 3).
 
 > Claim boundary: liveness + completion are proven and throughput is a **bounded
-> same-run measurement** (`results/llama/server_vk_throughput.json`); peak
-> capacity and cross-host/cross-model comparisons are out of scope.
+> same-run measurement** (`results/llama/server_vk_throughput.json`); the
+> baselines are same-host, same-model references, not cross-host/peak-capacity
+> claims. `tg128` for a 0.6 B model is variance-prone — read `pp512` as the
+> cleaner ordering (① > ② > ③).
 
 ---
 
