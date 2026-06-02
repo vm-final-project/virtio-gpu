@@ -324,8 +324,10 @@ def _attempt(qemu: str, model: Path) -> tuple[str, dict]:
 
     with tempfile.TemporaryDirectory(prefix="vogue-vk-srv-") as share:
         shutil.copy(model, Path(share) / "model.gguf")
+        smp = os.environ.get("VOGUE_SRV_SMP", "4")
         cmd = [
             qemu, "-machine", f"accel={accel}", "-cpu", cpu, "-m", mem,
+            "-smp", smp,
             "-no-reboot", "-kernel", str(IMAGE),
             "-fsdev", f"local,id=myid,path={share},security_model=none",
             "-device", "virtio-9p-pci,fsdev=myid,mount_tag=model",

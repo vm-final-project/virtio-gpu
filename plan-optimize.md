@@ -123,6 +123,27 @@ current baseline and should stay documented as shipped background:
 
 ## Prioritized next-stage plan
 
+### Execution summary (P1–P4, `dev-jerry`, 2026-06-02)
+
+Each item was analyzed and taken as far as the branch allows; per the stop
+condition, no performance win is claimed without a branch-local artifact that
+beats its baseline.
+
+| Item | Verdict | Evidence | Unblock |
+|---|---|---|---|
+| **P1** model-load | Candidate — blocked on host `virtiofsd`; 9p `msize≈520 KB` already, `NUM_SEGMENTS` vq-matched (not safely tunable) | `virtio_9p.c:46,106,308`; `which virtiofsd`→none | install virtiofsd + `ukfs-virtiofs` mmap path, drop `--no-mmap` |
+| **P2** build flags | **Executed** — `-march`/`-mtune` now explicit + overridable (`LLAMA_MARCH ?= native`); perf-neutral on eval host (build CPU == run CPU = Broadwell), portability win | `apps/app-llama-upstream{,-vk}/Makefile.uk` | cross-host build sets `LLAMA_MARCH=<arch>` |
+| **P3** mimalloc | Candidate — blocked: only in-tree allocators are bbuddy (current) + region (no free); mimalloc/tlsf/tinyalloc are external, and `lib-mimalloc select LIBNEWLIBC` conflicts with the appliance's musl/libc++ | `ukboot/Config.uk`; `lib-mimalloc/Config.uk:11` | add a musl-compatible allocator lib (lib-tlsf, or musl mimalloc glue) |
+| **P4** speculative | Candidate — blocked: no same-vocab draft model on the branch | `../models/` (only qwen3-0.6b main + gemma) | add a vocab-compatible draft GGUF + `--model-draft` |
+
+**Where the real ROI is.** P1–P4 are blocked/neutral on this branch, so the
+next measured win lives in **P0 (guest SMP)** and in **VOGUE's own guest-side
+Venus/dispatch stack**: the stock-Linux-guest-over-Venus baseline
+(`results/llama/vulkan_qemu_linux_baseline.json`, `make linux-guest-vk-baseline`)
+hits `pp512=4948 / tg128=323` over the *same* QEMU Venus device, i.e. ~2× the
+Unikraft bench — proving the gap is the `libukvenus` encoder + `libukggml_vk`
+dispatch (and the single vCPU), not the Venus transport. Prioritize those next.
+
 ### P0. Guest SMP and thread split
 
 **Status:** **Not yet validated on this branch**
@@ -160,7 +181,25 @@ current baseline and should stay documented as shipped background:
 
 ### P1. Model-load path replacement
 
-**Status:** **Not yet validated on this branch**
+**Status:** **Analyzed on this branch — blocked on host tooling (VirtioFS); no safe quick win in 9pfs**
+
+**Result on `dev-jerry` (2026-06-02):**
+
+- The mmap-capable lever is **VirtioFS**, but `virtiofsd` is **not installed on
+  the evaluation host** (`which virtiofsd` → none; not in `qemu-src/build`), so a
+  VirtioFS/DAX appliance path cannot be built or measured here yet. The sibling
+  `../unikraft/lib/ukfs-virtiofs/{Config.uk,virtiofs.c}` exists, so the guest
+  side is feasible; the blocker is the host daemon + a `vhost-user-fs-pci` wiring.
+- The existing 9pfs read is **not pathologically chunked**: the virtio-9p
+  transport already negotiates `max_msize = (NUM_SEGMENTS-1) * PAGE_SIZE ≈ 520 KB`
+  (`../unikraft/drivers/virtio/9p/virtio_9p.c:46,106`). `NUM_SEGMENTS` is **exact-
+  matched to the virtqueue descriptor count** (`virtio_9p.c:308` errors if
+  `qdesc_size != NUM_SEGMENTS`), so it is **not safely tunable** without matching
+  the QEMU queue size — no free win there.
+- Conclusion: P1 stays **Candidate**. Unblock = install `virtiofsd`, mount the
+  model over `ukfs-virtiofs`, switch the appliance off `--no-mmap`, and re-measure
+  `make model-load-time-check` against `elapsed_ms=6442.77`. Not fabricated as a
+  win until that path is built and measured.
 
 **Why this is second:**
 
@@ -191,7 +230,23 @@ current baseline and should stay documented as shipped background:
 
 ### P2. Build-target tuning
 
-**Status:** **Candidate only**
+**Status:** **Executed on this branch — explicit + overridable target arch (perf-neutral on the eval host, portability win)**
+
+**Result on `dev-jerry` (2026-06-02):**
+
+- Audited against upstream `ggml/CMakeLists.txt` (native default OFF under
+  cross-compilation). The appliance previously hard-coded `-march=native
+  -mtune=native` in `apps/app-llama-upstream{,-vk}/Makefile.uk`.
+- **Change landed:** both Makefile.uk files now use `-march=$(LLAMA_MARCH)
+  -mtune=$(LLAMA_MARCH)` with `LLAMA_MARCH ?= native`. This makes the target
+  arch explicit and overridable for cross-host builds.
+- **Measured expectation:** on the evaluation host the build CPU == the KVM run
+  CPU (`-cpu host`, Xeon E5-2667 v4 = Broadwell), so `native` already resolves to
+  the correct arch and the default produces **identical codegen** — P2 is
+  **perf-neutral here by construction** and makes no throughput claim; its value
+  is correctness/portability for hosts where build CPU != run CPU. Note also that
+  the VK server offloads all layers to the GPU (`-ngl 99`), so CPU `-march` has
+  little effect on its decode path regardless.
 
 **Why it stays in scope:**
 
@@ -213,7 +268,26 @@ current baseline and should stay documented as shipped background:
 
 ### P3. mimalloc evaluation
 
-**Status:** **Candidate only**
+**Status:** **Analyzed on this branch — blocked: no musl-compatible drop-in allocator available**
+
+**Result on `dev-jerry` (2026-06-02):**
+
+- Unikraft's allocator menu (`../unikraft/lib/ukboot/Config.uk`) offers BBUDDY
+  (current), REGION (**no `free()`** — unusable for llama), MIMALLOC, TINYALLOC,
+  and TLSF. The faster ones are **external libraries that are not part of this
+  branch**: MIMALLOC/TINYALLOC/TLSF each `depends on LIB*_INCLUDED` and the only
+  in-tree alloc libs are `ukallocbbuddy`, `ukallocregion`, `ukallocpool`,
+  `ukallocstack`.
+- `lib-mimalloc` (cloned for evaluation, `../lib-mimalloc`, branch `stable`)
+  additionally `select LIBNEWLIBC` (`../lib-mimalloc/Config.uk:11`). The llama
+  appliance is built on **musl + libc++** (`CONFIG_LIBMUSL`), and newlib + musl
+  are mutually exclusive libc providers — selecting mimalloc would force a second
+  libc and break the link. So mimalloc is **not a drop-in** here.
+- Conclusion: P3 stays **Candidate / blocked**. Unblock = add a musl-compatible
+  external allocator (e.g. a `lib-tlsf` checkout, or a musl port of the mimalloc
+  glue) and only then benchmark allocator vs `bbuddy` for the llama path. Note the
+  expected upside is small for the GPU-bound VK decode; allocator churn mainly
+  touches load + sampling + container paths.
 
 **Why it is not P0/P1:**
 
@@ -237,7 +311,22 @@ current baseline and should stay documented as shipped background:
 
 ### P4. Speculative decoding
 
-**Status:** **Candidate only**
+**Status:** **Analyzed on this branch — blocked: no compatible draft model present**
+
+**Result on `dev-jerry` (2026-06-02):**
+
+- Speculative decoding requires a **smaller draft model that shares the main
+  model's vocabulary**. The only GGUFs on the branch are `../models/qwen3-0.6b`
+  (the main model — already tiny at 0.6 B) and `../models/gemma4-e2b` (a
+  different family/vocabulary). There is **no smaller same-vocab Qwen3 draft**, so
+  a `--model-draft` pairing cannot be formed and no server-side speedup can be
+  measured.
+- Conclusion: P4 stays **Candidate / blocked:no-draft-model**. Unblock = place a
+  vocab-compatible draft GGUF (e.g. a distilled/smaller Qwen3) at
+  `/mnt/model/draft.gguf`, add `--model-draft` (and draft `-ngld`) to
+  `apps/app-llama-upstream-vk/server.cpp`, and benchmark through
+  `make llm-server-vk-throughput-check`. Larger functional change than P1–P3; do
+  not activate until the draft artifact exists.
 
 **Why it is later:**
 

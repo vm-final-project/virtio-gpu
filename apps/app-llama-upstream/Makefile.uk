@@ -34,9 +34,15 @@ APPLLAMA_UPSTREAM_CXXINCLUDES-y += -I$(LLAMA_ROOT)/include -I$(LLAMA_SRC) \
 #
 # `-fno-asynchronous-unwind-tables` and `-fno-unwind-tables` are C-only so the
 # C++ exception-table chain through libc++/libunwind stays intact.
+# P2 (plan-optimize.md): target CPU arch is explicit + overridable. Upstream
+# ggml disables its native default under cross-compilation, so the appliance must
+# state its target. Default `native` is correct on the evaluation host because
+# the build host == the KVM run host (`-cpu host`, Broadwell); override
+# LLAMA_MARCH=<arch> for cross-host builds where build != run CPU.
+LLAMA_MARCH ?= native
 APPLLAMA_UPSTREAM_COMMON_DEFS := -DGGML_VERSION=\"0.12.0\" -DGGML_COMMIT=\"fcae601e4\" \
                                   -D_GNU_SOURCE -DGGML_NO_NATIVE=1 -DGGML_USE_CPU=1 \
-                                  -march=native -mtune=native \
+                                  -march=$(LLAMA_MARCH) -mtune=$(LLAMA_MARCH) \
                                   -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
                                   -isystem $(COMPILER_DIR)/include
 APPLLAMA_UPSTREAM_COLD_FLAGS    := -Os -ffunction-sections -fdata-sections

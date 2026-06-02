@@ -41,10 +41,14 @@ APPLLAMA_UPSTREAM_VK_CXXINCLUDES-y += -I$(LLAMA_ROOT)/include -I$(LLAMA_SRC) \
                                       -I$(APPLLAMA_UPSTREAM_VK_BASE)/../../libs/libukggml_vk/include
 
 # See apps/app-llama-upstream/Makefile.uk for the COLD / HOT flag rationale.
+# P2 (plan-optimize.md): explicit + overridable target CPU arch (see the CPU
+# appliance Makefile.uk). Default `native` is correct here because build host ==
+# KVM run host (Broadwell); override LLAMA_MARCH for cross-host builds.
+LLAMA_MARCH ?= native
 APPLLAMA_UPSTREAM_VK_COMMON_DEFS := -DGGML_VERSION=\"0.12.0\" -DGGML_COMMIT=\"fcae601e4\" \
                                      -D_GNU_SOURCE -DGGML_NO_NATIVE=1 -DGGML_USE_CPU=1 \
                                      -DGGML_USE_VULKAN=1 \
-                                     -march=native -mtune=native \
+                                     -march=$(LLAMA_MARCH) -mtune=$(LLAMA_MARCH) \
                                      -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
                                      -isystem $(COMPILER_DIR)/include
 APPLLAMA_UPSTREAM_VK_COLD_FLAGS   := -Os -ffunction-sections -fdata-sections

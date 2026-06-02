@@ -31,6 +31,12 @@ unikraft:
     CONFIG_APP_LLAMA_UPSTREAM_VK: 'y'
     CONFIG_APP_LLAMA_UPSTREAM_VK_ROOTFS_9PFS: 'y'
     CONFIG_APP_LLAMA_UPSTREAM_VK_MODE_SERVER: 'y'
+    # P0 (plan-optimize.md): guest SMP so the 4 continuous-batching slots can
+    # overlap their CPU work (sampling/HTTP) across multiple vCPUs instead of
+    # serialising on one. UKPLAT_CPU_MAXCOUNT>1 auto-selects HAVE_SMP + APIC/ACPI.
+    # Boot with QEMU -smp 4; the server runs with --threads 4.
+    CONFIG_UKPLAT_CPU_MAXCOUNT: '4'
+    CONFIG_APP_LLAMA_UPSTREAM_VK_THREADS: '4'
     # Continuous batching: 4 server slots so concurrent HTTP requests decode in
     # one batched forward pass (plan-optimize.md L2.2; llama.cpp Discussion
     # #18308). server.cpp scales --ctx-size to PARALLEL*CTX so each slot keeps
