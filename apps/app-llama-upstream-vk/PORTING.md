@@ -17,10 +17,15 @@ upstream ggml-vulkan.cpp + generated SPIR-V (*.comp.cpp)
 ## Upstream provenance
 
 Current stage: the Vulkan bench and server rows pass on the evaluation host.
-`llm.bench.vk` reports `pp512=247.4`, `tg128=3.4` through real Venus on a Tesla
-V100, and `llm.server.vk` reaches model-loaded readiness with
-`prompt_cache=true`. This file still forbids HTTP serving or request-throughput
-claims until the lwIP/netdev path is implemented and measured.
+After enabling batched Venus submission in `libukggml_vk` and wiring explicit
+llama.cpp batch controls into the appliance, `llm.bench.vk` now reports
+`pp512=2232.1`, `tg128=160.2` on the latest same-run artifact, with three
+post-change runs under `results/llama/post_opt_runs/` showing a `tg128` median
+of `139.9` on a Tesla V100. `llm.server.vk` reaches model-loaded readiness with
+`prompt_cache=true`, `batch_size=2048`, `ubatch_size=512`, and
+`dispatch_batch_enabled=true`. This file still forbids HTTP serving or
+request-throughput claims until the lwIP/netdev path is implemented and
+measured.
 
 - Repository: <https://github.com/ggml-org/llama.cpp> (same as `app-llama-upstream`).
 - Vulkan backend file: `ggml/src/ggml-vulkan/ggml-vulkan.cpp`.

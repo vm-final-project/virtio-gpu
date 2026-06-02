@@ -6,12 +6,12 @@
     align: (left, left, right, right),
     table.header([*Row*], [*Path*], [*Frame cost*], [*Sync/copy*]),
     [`gfx.kmscube.sw`], [kmscube
-640x480x60], [2.189 ms
-456.9 FPS], [535.4 MiB/s
+640x480x60], [2.131 ms
+469.3 FPS], [549.9 MiB/s
 T/F/Fn 60/60/120],
     [`gfx.glmark2.sw`], [glmark2 scene clear
-1280x800x120], [5.732 ms
-174.5 FPS], [681.5 MiB/s
+1280x800x120], [5.324 ms
+187.8 FPS], [733.7 MiB/s
 T/F/Fn 120/120/240],
   )),
   caption: [Generated native application-substrate performance. Fake VirtIO-GPU/software path only; not QEMU or GPU acceleration.]

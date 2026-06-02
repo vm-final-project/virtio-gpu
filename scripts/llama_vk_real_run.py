@@ -286,17 +286,31 @@ def _attempt(qemu: str, model: Path) -> tuple[str, dict]:
     herr = re.search(r"(vkr:.*(?:CS error|failed)[^\n]*|failed to dispatch context op[^\n]*)", out)
     host_error = herr.group(1).strip() if herr else None
 
+    cfg = re.search(
+        r"uk-llama-upstream-vk:\s*config\s+threads=(\d+)\s+n_ctx=(\d+)\s+"
+        r"n_batch=(\d+)\s+n_ubatch=(\d+)\s+batch_enabled=(\d+)\s+hostmem_fixed=(\d+)",
+        out)
     pp = re.search(r"uk-llama-upstream-vk:\s*pp512=([0-9.]+)\s+tg128=([0-9.]+)", out)
     passed = "uk-llama-upstream-vk: PASS evidence_id=llama-upstream-vk" in out
 
     if pp and passed:
+        throughput = {"pp512": float(pp.group(1)),
+                      "tg128": float(pp.group(2)),
+                      "accel": accel, "model": model.name,
+                      "tokens_emitted": True, "n_gpu_layers": 99,
+                      "rows": [{"test": "pp512", "t_s": float(pp.group(1))},
+                               {"test": "tg128", "t_s": float(pp.group(2))}]}
+        if cfg:
+            throughput.update({
+                "threads": int(cfg.group(1)),
+                "n_ctx": int(cfg.group(2)),
+                "n_batch": int(cfg.group(3)),
+                "n_ubatch": int(cfg.group(4)),
+                "dispatch_batch_enabled": bool(int(cfg.group(5))),
+                "hostmem_fixed": bool(int(cfg.group(6))),
+            })
         return ("pass", dict(venus_device=venus_device, host_error=host_error,
-                throughput={"pp512": float(pp.group(1)),
-                            "tg128": float(pp.group(2)),
-                            "accel": accel, "model": model.name,
-                            "tokens_emitted": True, "n_gpu_layers": 99,
-                            "rows": [{"test": "pp512", "t_s": float(pp.group(1))},
-                                     {"test": "tg128", "t_s": float(pp.group(2))}]}))
+                throughput=throughput))
 
     if "Unikraft Crash" in out and venus_device is None:
         return ("blocked:venus-device-crash", dict(log_tail=tail,

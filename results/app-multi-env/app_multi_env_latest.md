@@ -1,6 +1,6 @@
 # VOGUE App Multi-Environment Benchmark
 
-Generated: 2026-06-01T14:24:53Z
+Generated: 2026-06-01T20:53:40Z
 
 All blocked rows are documented expected states, not failures.
 
@@ -8,7 +8,7 @@ All blocked rows are documented expected states, not failures.
 
 | Environment | Status | Key Metrics | Note |
 |-------------|--------|-------------|------|
-| Native fake backend | `pass` | fps=456.89; avg_frame_ms=2.189; transfers=60; fences=120; fi | gfx.kmscube.sw: 60 frames @ 456.9 FPS (640x480, BGRA) |
+| Native fake backend | `pass` | fps=469.28; avg_frame_ms=2.131; transfers=60; fences=120; fi | gfx.kmscube.sw: 60 frames @ 469.3 FPS (640x480, BGRA) |
 | QEMU + Unikraft CPU (2D path) | `pass-substrate:cpu` | qemu_probe=pass; frames_software=3; frame_crcs=['0x2d89905c' | gfx.kmscube.sw path is substrate evidence; xport.qemu-vgpu r |
 | QEMU + Unikraft VirtIO-GPU Vulkan | `pass` | venus_ring_native=all-pass; ring_qemu_status=pass; frame_pix | K1: same-run QEMU frame proof passes. |
 
@@ -16,8 +16,8 @@ All blocked rows are documented expected states, not failures.
 
 | Environment | Status | Key Metrics | Note |
 |-------------|--------|-------------|------|
-| Native fake backend | `pass` | fps=174.46; avg_frame_ms=5.732; frames=120; fences=240 | gfx.glmark2.sw: 120 frames @ 174.5 FPS (1280x800) |
-| QEMU + Unikraft CPU (2D path) | `pass-substrate:cpu` | substrate_fps_native=174.46; qemu_probe=pass | gfx.glmark2.sw path: substrate FPS measured natively; QEMU 2 |
+| Native fake backend | `pass` | fps=187.82; avg_frame_ms=5.324; frames=120; fences=240 | gfx.glmark2.sw: 120 frames @ 187.8 FPS (1280x800) |
+| QEMU + Unikraft CPU (2D path) | `pass-substrate:cpu` | substrate_fps_native=187.82; qemu_probe=pass | gfx.glmark2.sw path: substrate FPS measured natively; QEMU 2 |
 | QEMU + Unikraft VirtIO-GPU Vulkan | `blocked:not-planned` |  | No accelerated glmark2 scene gate is currently implemented. |
 
 ## app-vkmark
@@ -48,6 +48,6 @@ All blocked rows are documented expected states, not failures.
 | Environment | Status | Key Metrics | Note |
 |-------------|--------|-------------|------|
 | Static ggml-vulkan/Venus dispatch | `pass` | checks_passed=164; checks_total=164 | Minimal local support layer for upstream ggml-vulkan, not a  |
-| QEMU + Unikraft Vulkan bench-only | `pass` | threads=1; pp512=247.4 | True llama.cpp Vulkan appliance with same-run PASS bench evi |
+| QEMU + Unikraft Vulkan bench-only | `pass` | threads=1; pp512=2232.1 | True llama.cpp Vulkan appliance with same-run PASS bench evi |
 | QEMU + Unikraft Vulkan server-only | `pass` | ready_marker=uk-llama-upstream-vk-server: READY model=/mnt/m | Vulkan server appliance reaches model-loaded READY over the  |
 

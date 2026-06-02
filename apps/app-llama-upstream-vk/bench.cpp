@@ -32,6 +32,7 @@ int main(void)
      * side via Venus) and is filled through a small bounded host-visible staging
      * buffer + vkCmdCopyBuffer, exactly as on a real BAR-limited discrete GPU. */
     setenv("GGML_VK_DISABLE_HOST_VISIBLE_VIDMEM", "1", 1);
+    setenv("UK_GGML_VK_DISPATCH_BATCH", "1", 1);
 
     const char *model_path = "/mnt/model/model.gguf";
     llama_model *model = load_model_vk(model_path, "uk-llama-upstream-vk");
@@ -41,6 +42,7 @@ int main(void)
     llama_context_params cparams = llama_context_default_params();
     cparams.n_ctx = 512 + 128;
     cparams.n_batch = 512;
+    cparams.n_ubatch = 512;
     cparams.n_threads = CONFIG_APP_LLAMA_UPSTREAM_VK_THREADS;
     cparams.n_threads_batch = CONFIG_APP_LLAMA_UPSTREAM_VK_THREADS;
 
@@ -75,6 +77,15 @@ int main(void)
     double tg_ms = (now_sec() - t0) * 1000.0;
     double tg128 = (n_tg / tg_ms) * 1000.0;
 
+    struct uk_ggml_vulkan_dispatch_info info;
+    uk_ggml_vulkan_dispatch_get_info(&info);
+    uk_printf("uk-llama-upstream-vk: config threads=%d n_ctx=%d n_batch=%d n_ubatch=%d batch_enabled=%d hostmem_fixed=%d\n",
+              CONFIG_APP_LLAMA_UPSTREAM_VK_THREADS,
+              cparams.n_ctx,
+              cparams.n_batch,
+              cparams.n_ubatch,
+              info.batch_enabled,
+              info.hostmem_fixed);
     uk_printf("uk-llama-upstream-vk: pp512=%.1f tg128=%.1f\n", pp512, tg128);
     uk_puts("uk-llama-upstream-vk: PASS evidence_id=llama-upstream-vk\n");
 

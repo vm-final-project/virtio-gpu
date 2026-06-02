@@ -3,7 +3,8 @@
 > **2026-06-01 update — full GPU compute path reached; all 27 evaluation-matrix
 > rows PASS (0 blocked).** The upstream llama.cpp Vulkan **bench** appliance now
 > runs end-to-end on the real V100 over `virtio-gpu-gl venus=true`
-> (`pp512=247.4 t/s`, `tg128=3.4 t/s`), and the **server**
+> (`pp512=2232.1 t/s`, `tg128=160.2 t/s` on the latest same-run artifact; three
+> post-change runs record `tg128` median `139.9`), and the **server**
 > appliance boots into a single entrypoint, loads all 28 layers onto the V100
 > via Venus, and reaches `READY`. The four breakthroughs versus the milestone
 > log below:
@@ -85,7 +86,9 @@ real Venus (`-device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true`,
    (ggml-vulkan-uk) with a valid instance`), and **enumerates a Venus device**
    (`ggml_vulkan: 0 = ...`), registering the Vulkan backend.
 3. The upstream llama.cpp Vulkan bench runs a real GGUF on the V100 and emits
-   token output with `pp512=247.4 t/s`, `tg128=3.4 t/s`
+   token output with `pp512=2232.1 t/s`, `tg128=160.2 t/s` on the latest
+   artifact after enabling batched Venus submission; the three post-change runs
+   in `results/llama/post_opt_runs/` report `tg128={135.7, 139.9, 160.2}`.
    (`results/llama/upstream_vk_latest.json`).
 4. The Vulkan server image boots directly into its server entrypoint, loads the
    model over Venus, and reaches `READY` (`results/llama/upstream_server_vk_latest.json`).
@@ -112,11 +115,12 @@ model-loaded readiness claim, not a request/response throughput claim.
 The current frontier is no longer "make Vulkan run"; it is performance and
 coverage:
 
-1. **Token generation throughput** — `llm.bench.vk` prefill is much faster than
-   CPU (`pp512=247.4` vs `9.1 t/s`), but generation is slower than CPU
-   (`tg128=3.4` vs `7.7 t/s`). Optimize command batching, synchronization,
-   host-visible mapping, and ggml-vulkan batch settings before claiming serving
-   performance.
+1. **Request-level throughput and model-load efficiency** — the decode-path
+   rescue is done: enabling batched Venus submission fixes the earlier
+   `tg128=3.4` bottleneck and lifts the latest same-run artifact to
+   `pp512=2232.1`, `tg128=160.2`. The remaining performance frontier is now the
+   server/request path plus the still-unoptimized `use_mmap=false`,
+   `huge_pages=false` model-load path.
 2. **HTTP serving** — `llm.server.vk` proves direct entrypoint and model-loaded
    readiness only. Add lwIP/netdev plus request probes before reporting TTFT,
    requests/s, or aggregate throughput.

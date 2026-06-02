@@ -12,7 +12,6 @@ unikraft:
     CONFIG_APP_LLAMA_UPSTREAM_VK: 'y'
     CONFIG_APP_LLAMA_UPSTREAM_VK_ROOTFS_9PFS: 'y'
     CONFIG_APP_LLAMA_UPSTREAM_VK_MODE_BENCH: 'y'
-    CONFIG_APP_LLAMA_UPSTREAM_VK_THREADS: '1'
     CONFIG_OPTIMIZE_DEADELIM: 'y'
     # ggml-vulkan compiles pipelines on hardware_concurrency() std::async worker
     # threads that drive the Venus dispatch (vulkan.hpp -> stub -> uk_venus_encode

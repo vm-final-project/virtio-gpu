@@ -11,9 +11,9 @@ must improve a named artifact row rather than introduce an unmeasured claim.
 
 | Finding | Evidence | Interpretation | Primary fix track |
 |---|---|---|---|
-| Vulkan prefill is strong but token generation is weak | `results/llama/upstream_vk_latest.json`: `pp512=247.4`, `tg128=3.4`; `results/llama/upstream_cpu_latest.json`: `pp512=9.1`, `tg128=7.7` | GPU/Venus helps prompt processing but per-token generation is dominated by dispatch, synchronization, small kernels, or readback overhead. | Batch Venus submissions, reduce fence/wait frequency, raise batch/ctx settings, and audit host-visible mapping. |
+| Vulkan token generation was underperforming because decode work was dispatched too granularly | Before the fix, `results/llama/upstream_vk_latest.json` recorded `pp512=247.4`, `tg128=3.4`; after enabling `UK_GGML_VK_DISPATCH_BATCH=1` and wiring llama.cpp batch controls into the appliance, the three same-host post-change runs in `results/llama/post_opt_runs/` measure `pp512={2208.6, 2230.5, 2232.1}` and `tg128={135.7, 139.9, 160.2}`. | The bottleneck was submission granularity and batching, not raw GPU availability: tiny per-token Venus submissions kept decode throughput far below the host's usable envelope. | Keep batched Venus submission enabled, keep `n_batch`/`n_ubatch` explicit in artifacts, and treat remaining work as server/request-path and model-load optimization rather than basic decode throughput rescue. |
 | Model loading is still file-copy bound | `results/model-load/latest.json`: CPU/VK app and server model load times are ~5.6-7.5 s with `use_mmap=false`, `huge_pages=false`. | 9pfs/initramfs model delivery does not yet use mmap or huge pages; startup latency hides boot improvements. | Add mmap-capable model path or initramfs huge-page staging; measure with `make model-load-time-check`. |
-| Server readiness is proven, HTTP throughput is not | `results/llama/upstream_server_vk_latest.json`: `status=pass`, `slots=1`, `ctx_per_slot=512`, `prompt_cache=true`, `hostmem_fixed=false`; claim forbids HTTP serving semantics. | The server image can load the model over Venus, but no request path, TTFT, or aggregate throughput exists yet. | Add lwIP/netdev gate, then tune `--parallel`, `--ctx-size`, `--batch-size`, and prompt cache under request load. |
+| Server readiness is proven with explicit batching, HTTP throughput is still not | `results/llama/upstream_server_vk_latest.json`: `status=pass`, `slots=1`, `ctx_per_slot=512`, `batch_size=2048`, `ubatch_size=512`, `prompt_cache=true`, `dispatch_batch_enabled=true`, `hostmem_fixed=false`; claim still forbids HTTP serving semantics. | The server image now exposes the right llama.cpp batching knobs at boot and reaches model-loaded READY over Venus, but there is still no lwIP-backed request path, TTFT, or aggregate throughput artifact. | Add lwIP/netdev gate, then tune `--parallel`, `--ctx-size`, `--batch-size`, and prompt cache under request load. |
 | Software graphics rows pass but are noisy | `results/app_perf_latest.json`: best samples pass; fifth samples drop sharply (`kmscube` 224 fps, `glmark2` 100 fps). | Native fake-backend graphics are memory-copy and host-noise sensitive; best-of-N keeps the smoke gate stable but does not characterize steady-state variance. | Add median/p95 regression reporting and isolate memcpy/fence costs. |
 | Real-driver static gate cost is visible | `results/benchmarks/benchmark_summary_latest.md`: `VSTAT` mean 41.6 ms, p95 50.1 ms. | Static/readiness gate is not GPU runtime, but it exposes overhead worth tracking as protocol coverage grows. | Keep VSTAT as a trend metric and split encoder, ring, and controlq timings. |
 
@@ -99,13 +99,17 @@ host-conditional rather than universal claims.
 Phase 1 (already implemented): L1.1, L2.1, L3.1, L3.2, L3.3.
 
 Phase 2 (this goal proposes):
-1. **L3.1 + L3.4** — profile per-token Vulkan/Venus submissions and host-visible
-   mappings; target the `tg128=3.4` bottleneck first.
-2. **L2.2 + L2.3** — promote server `--parallel`, `--batch-size`,
-   `--ctx-size`, and prompt cache settings from static defaults into measured
-   request-load gates.
-3. **L1.4 + L1.2** — reduce the 5.6-7.5 s model-load path with mmap/huge-page
-   delivery and keep boot-time measurements separate from model loading.
+1. **Completed on 2026-06-01: L3.1 + L2.2 subset** — the low-throughput root
+   cause was overly granular Venus submission. The project now enables
+   `UK_GGML_VK_DISPATCH_BATCH=1` in both the Vulkan bench and server
+   appliances, records the effective batch settings in the JSON artifacts, and
+   improves same-host `tg128` from `3.4` to a three-run median of `139.9`.
+2. **Next: L2.2 + L2.3 request-load phase** — promote server `--parallel`,
+   `--ctx-size`, and prompt-cache settings from static READY-line evidence into
+   measured request-load gates once lwIP/netdev exists.
+3. **Next: L1.4 + L1.2** — reduce the remaining 4.7-7.1 s model-load path with
+   mmap/huge-page delivery and keep boot-time measurements separate from model
+   loading.
 4. **Graphics substrate variance** — add median/p95 reporting for native
    `kmscube`/`glmark2` and split memcpy, flush, and fence counters.
 

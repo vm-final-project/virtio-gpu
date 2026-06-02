@@ -1,6 +1,6 @@
 {
   "status": "pass",
-  "written_at": "2026-06-01T14:24:53Z",
+  "written_at": "2026-06-01T20:53:40Z",
   "total": 17,
   "pass": 17,
   "blocked": 3,
@@ -14,14 +14,14 @@
       "claim_allowed": "Native software-render FPS via fake VirtIO-GPU: display pipeline correctness.",
       "claim_forbidden": "Real QEMU FPS, virgl/GPU acceleration, or full OpenGL coverage.",
       "metrics": {
-        "fps": 456.89,
-        "avg_frame_ms": 2.189,
+        "fps": 469.28,
+        "avg_frame_ms": 2.131,
         "transfers": 60,
         "fences": 120,
         "first_crc": "0xe86f103d",
         "last_crc": "0x49862651"
       },
-      "note": "gfx.kmscube.sw: 60 frames @ 456.9 FPS (640x480, BGRA)",
+      "note": "gfx.kmscube.sw: 60 frames @ 469.3 FPS (640x480, BGRA)",
       "evidence": "results/app_perf_latest.json"
     },
     {
@@ -66,12 +66,12 @@
       "claim_allowed": "Native scene-clear FPS via fake VirtIO-GPU: display substrate correctness.",
       "claim_forbidden": "Full glmark2 score, QEMU perf, or GPU acceleration.",
       "metrics": {
-        "fps": 174.46,
-        "avg_frame_ms": 5.732,
+        "fps": 187.82,
+        "avg_frame_ms": 5.324,
         "frames": 120,
         "fences": 240
       },
-      "note": "gfx.glmark2.sw: 120 frames @ 174.5 FPS (1280x800)",
+      "note": "gfx.glmark2.sw: 120 frames @ 187.8 FPS (1280x800)",
       "evidence": "results/app_perf_latest.json"
     },
     {
@@ -82,7 +82,7 @@
       "claim_allowed": "EGL scene-clear substrate runs in Unikraft via VirtIO-GPU 2D (software path).",
       "claim_forbidden": "Full GL scene coverage, QEMU FPS measurement, or GPU acceleration.",
       "metrics": {
-        "substrate_fps_native": 174.46,
+        "substrate_fps_native": 187.82,
         "qemu_probe": "pass"
       },
       "note": "gfx.glmark2.sw path: substrate FPS measured natively; QEMU 2D probe passes.",
@@ -263,7 +263,7 @@
       "claim_forbidden": "Throughput claim from a structured blocker or any custom compute-remoting ABI.",
       "metrics": {
         "threads": 1,
-        "pp512": 247.4
+        "pp512": 2232.1
       },
       "note": "True llama.cpp Vulkan appliance with same-run PASS bench evidence.",
       "evidence": "results/llama/upstream_vk_latest.json; results/llama-env/latest-plan.json"
@@ -277,7 +277,7 @@
       "claim_forbidden": "ELF-loader, shell, HTTP serving, or throughput claim before same-run runtime/net evidence.",
       "metrics": {
         "threads": null,
-        "ready_marker": "uk-llama-upstream-vk-server: READY model=/mnt/model/model.gguf threads=1 backend=vulkan slots=1 ctx_per_slot=512 prompt_cache=1 hostmem_fixed=0",
+        "ready_marker": "uk-llama-upstream-vk-server: READY model=/mnt/model/model.gguf threads=1 backend=vulkan slots=1 ctx_per_slot=512 batch_size=2048 ubatch_size=512 prompt_cache=1 batch_enabled=1 hostmem_fixed=0",
         "static_findings": 0
       },
       "note": "Vulkan server appliance reaches model-loaded READY over the real Venus path.",

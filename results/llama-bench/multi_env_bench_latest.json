@@ -82,8 +82,8 @@
       "measurement_method": "Unikraft boot failed or output not parsed: kernel not found: /Users/caichaowei/NTU/114_2/virtual-machine/final-project/vm-final-project/.unikraft/build/vogue-llama-vk_qemu-x86_64",
       "n_pass": 0,
       "n_runs": 5,
-      "note": "Same-run real Venus artifact: pp512=247.4 tg128=3.4.",
-      "pp512": 247.4,
+      "note": "Same-run real Venus artifact: pp512=2232.1 tg128=160.2.",
+      "pp512": 2232.1,
       "pp512_llama38b": null,
       "real_timer": 1,
       "row_id": "LLAMA-VK-GPU-BENCH",
@@ -98,7 +98,7 @@
       },
       "status": "pass",
       "substrate": "ggml-vulkan-compute",
-      "tg128": 3.4,
+      "tg128": 160.2,
       "tg128_llama38b": null,
       "venus": 1,
       "venus_device": "Tesla V100-SXM2-16GB"
@@ -194,5 +194,5 @@
     "pass_classified": 7,
     "skipped": 4
   },
-  "written_at": "2026-06-01T14:28:30.185711+00:00"
+  "written_at": "2026-06-01T20:53:40.507364+00:00"
 }

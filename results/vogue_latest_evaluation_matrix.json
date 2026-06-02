@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-01T14:16:19.704658Z",
+    "generated_utc": "2026-06-01T20:58:38.859263Z",
     "source": "scripts/eval_matrix.py",
     "paper": "paper/main.typ"
   },
@@ -33,7 +33,7 @@
       "workload": "kmscube compatibility + native app-performance path",
       "status": "pass",
       "required_evidence": "kmscube compatibility, 2D render pipeline pass, and generated app-performance row",
-      "evidence": "results/app_perf_latest.json; avg_frame_ms=2.185; fps=457.58; transfers=60; flushes=60; fences=120",
+      "evidence": "results/app_perf_latest.json; avg_frame_ms=2.131; fps=469.28; transfers=60; flushes=60; fences=120",
       "claim_allowed": "Upstream kmscube source can be supported through VOGUE shims and software-rendered scanout; native software-path frame cost is measured.",
       "claim_forbidden": "K1 virgl rendering, hardware acceleration, full Mesa compatibility, or QEMU performance.",
       "next_step": "Implement non-software virgl/Venus render payloads for K1."
@@ -44,7 +44,7 @@
       "workload": "EGL scene-clear native app-performance path",
       "status": "pass",
       "required_evidence": "generated scene-clear app-performance row",
-      "evidence": "results/app_perf_latest.json; avg_frame_ms=5.352; fps=186.86; transfers=120; flushes=120; fences=240",
+      "evidence": "results/app_perf_latest.json; avg_frame_ms=5.324; fps=187.82; transfers=120; flushes=120; fences=240",
       "claim_allowed": "The scene-clear subset exercises EGL-style clear/present costs through the same substrate and reports native frame cost.",
       "claim_forbidden": "Full glmark2 suite score, QEMU performance, or GPU acceleration.",
       "next_step": "Collect same-run QEMU and full-scene logs after K1 exists."
@@ -263,9 +263,9 @@
       "claim": "Upstream llama.cpp Vulkan bench-only appliance on Unikraft via Venus SUBMIT_3D",
       "workload": "apps/app-llama-upstream-vk/bench.cpp: upstream llama.cpp Vulkan via libukggml_vulkan \u2192 libukvenus SUBMIT_3D \u2192 QEMU virtio-gpu-gl-pci,venus=true",
       "status": "pass",
-      "required_evidence": "pp512=247.4 t/s; evidence: results/llama/upstream_vk_latest.json",
+      "required_evidence": "pp512=2232.1 t/s; evidence: results/llama/upstream_vk_latest.json",
       "evidence": "results/llama/upstream_vk_latest.json",
-      "claim_allowed": "Upstream llama.cpp Vulkan path routes ggml compute through Venus on Unikraft without upstream source modifications. pp512=247.4 t/s.",
+      "claim_allowed": "Upstream llama.cpp Vulkan path routes ggml compute through Venus on Unikraft without upstream source modifications. pp512=2232.1 t/s.",
       "claim_forbidden": "Any claim without same-run PASS artifacts.",
       "next_step": "Complete llm.bench.vk.real Venus runtime path to unblock real device queries."
     },
@@ -296,9 +296,9 @@
       "claim": "Upstream llama.cpp full Vulkan path via real virtio-gpu-gl Venus backend (W4)",
       "workload": "apps/app-llama-upstream-vk: upstream llama.cpp ggml-vulkan dispatches through Venus SUBMIT_3D to QEMU virtio-gpu-gl-pci,venus=true; real GPU compute executed",
       "status": "pass",
-      "required_evidence": "pp512=247.4 t/s via real Venus backend; evidence: results/llama/env10_real_latest.json",
+      "required_evidence": "pp512=2232.1 t/s via real Venus backend; evidence: results/llama/env10_real_latest.json",
       "evidence": "results/llama/env10_real_latest.json",
-      "claim_allowed": "ENV10 PASS: upstream llama.cpp ggml-vulkan runs on Unikraft via real Venus. pp512=247.4 t/s.",
+      "claim_allowed": "ENV10 PASS: upstream llama.cpp ggml-vulkan runs on Unikraft via real Venus. pp512=2232.1 t/s.",
       "claim_forbidden": "Any throughput claim without same-run PASS artifacts or ENV10 host GPU disclosure.",
       "next_step": "Requires EGL headless display for QEMU virtio-gpu-gl-pci. Set DISPLAY or use EGL render node. Run: make llama-upstream-vk-run"
     }

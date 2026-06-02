@@ -15,6 +15,12 @@
 #ifndef CONFIG_APP_LLAMA_UPSTREAM_VK_PROMPT_CACHE
 #define CONFIG_APP_LLAMA_UPSTREAM_VK_PROMPT_CACHE 1
 #endif
+#ifndef CONFIG_APP_LLAMA_UPSTREAM_VK_BATCH
+#define CONFIG_APP_LLAMA_UPSTREAM_VK_BATCH 2048
+#endif
+#ifndef CONFIG_APP_LLAMA_UPSTREAM_VK_UBATCH
+#define CONFIG_APP_LLAMA_UPSTREAM_VK_UBATCH 512
+#endif
 
 #define UK_LLAMA_STR_(x) #x
 #define UK_LLAMA_STR(x)  UK_LLAMA_STR_(x)
@@ -29,6 +35,7 @@ static int llama_server_main(void)
      * VirtIO-GPU window. (See bench.cpp for the rationale.) */
     setenv("GGML_VK_DISABLE_ASYNC", "1", 1);
     setenv("GGML_VK_DISABLE_HOST_VISIBLE_VIDMEM", "1", 1);
+    setenv("UK_GGML_VK_DISPATCH_BATCH", "1", 1);
 
     /* Prove model-loaded readiness over the REAL virtio-gpu-gl Venus path
      * before signalling READY: load_model_vk() mounts the GGUF over 9pfs,
@@ -46,11 +53,15 @@ static int llama_server_main(void)
     struct uk_ggml_vulkan_dispatch_info info;
     uk_ggml_vulkan_dispatch_get_info(&info);
     uk_printf("uk-llama-upstream-vk-server: READY model=/mnt/model/model.gguf threads=%d backend=vulkan "
-              "slots=%d ctx_per_slot=%d prompt_cache=%d hostmem_fixed=%d mode=single-app no_fork_exec=1\n",
+              "slots=%d ctx_per_slot=%d batch_size=%d ubatch_size=%d prompt_cache=%d "
+              "batch_enabled=%d hostmem_fixed=%d mode=single-app no_fork_exec=1\n",
               CONFIG_APP_LLAMA_UPSTREAM_VK_THREADS,
               CONFIG_APP_LLAMA_UPSTREAM_VK_PARALLEL,
               CONFIG_APP_LLAMA_UPSTREAM_VK_CTX,
+              CONFIG_APP_LLAMA_UPSTREAM_VK_BATCH,
+              CONFIG_APP_LLAMA_UPSTREAM_VK_UBATCH,
               CONFIG_APP_LLAMA_UPSTREAM_VK_PROMPT_CACHE,
+              info.batch_enabled,
               info.hostmem_fixed);
 
     /* Release the readiness-probe model; the upstream server below reloads it
@@ -67,6 +78,10 @@ static int llama_server_main(void)
     static char port[]       = "8080";
     static char ctx_f[]      = "--ctx-size";
     static char ctx[]        = UK_LLAMA_STR(CONFIG_APP_LLAMA_UPSTREAM_VK_CTX);
+    static char batch_f[]    = "--batch-size";
+    static char batch[]      = UK_LLAMA_STR(CONFIG_APP_LLAMA_UPSTREAM_VK_BATCH);
+    static char ubatch_f[]   = "--ubatch-size";
+    static char ubatch[]     = UK_LLAMA_STR(CONFIG_APP_LLAMA_UPSTREAM_VK_UBATCH);
     static char parallel_f[] = "--parallel";
     static char parallel[]   = UK_LLAMA_STR(CONFIG_APP_LLAMA_UPSTREAM_VK_PARALLEL);
     static char threads_f[]  = "--threads";
@@ -76,11 +91,13 @@ static int llama_server_main(void)
 #if CONFIG_APP_LLAMA_UPSTREAM_VK_PROMPT_CACHE
     static char cache[]      = "--cache-prompt";
     char *argv[] = {arg0, model_f, model, host_f, host, port_f, port,
-                    ctx_f, ctx, parallel_f, parallel, threads_f, threads,
+                    ctx_f, ctx, batch_f, batch, ubatch_f, ubatch,
+                    parallel_f, parallel, threads_f, threads,
                     ngl_f, ngl, cache};
 #else
     char *argv[] = {arg0, model_f, model, host_f, host, port_f, port,
-                    ctx_f, ctx, parallel_f, parallel, threads_f, threads,
+                    ctx_f, ctx, batch_f, batch, ubatch_f, ubatch,
+                    parallel_f, parallel, threads_f, threads,
                     ngl_f, ngl};
 #endif
 

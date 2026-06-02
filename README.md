@@ -36,10 +36,15 @@ row (for example `blocked:unikraft-image-missing`, `blocked:image-missing`) is a
 virglrenderer, and an accessible NVIDIA render node, the full 27-row evaluation
 matrix is **27/27 PASS, 0 blocked** (`results/vogue_latest_evaluation_matrix.md`).
 The upstream llama.cpp Vulkan bench appliance runs end-to-end on the GPU through
-real Venus (`pp512=247.4 t/s`, `tg128=3.4 t/s` on a Tesla V100), the Vulkan
-server appliance boots directly into its single entrypoint and reaches
-model-loaded readiness, and `xport.qemu-vgpu`, `proto.venus-ring`,
-`gfx.kmscube.submit`, and `gfx.kmscube.frame` all have same-run PASS artifacts.
+real Venus and, after enabling batched Venus submission plus explicit
+llama.cpp batch controls, the latest same-run artifact records
+`pp512=2232.1 t/s`, `tg128=160.2 t/s` on a Tesla V100. Three post-change runs
+under `results/llama/post_opt_runs/` report `tg128={135.7, 139.9, 160.2}`
+(median `139.9`). The Vulkan server appliance boots directly into its single
+entrypoint, reaches model-loaded readiness with
+`batch_size=2048`, `ubatch_size=512`, and `dispatch_batch_enabled=true`, and
+`xport.qemu-vgpu`, `proto.venus-ring`, `gfx.kmscube.submit`, and
+`gfx.kmscube.frame` all have same-run PASS artifacts.
 
 `make current-stage-check` also passes: the real-path checker now treats a
 CPU-only latest `.unikraft/build/config` as not applicable when production
@@ -93,7 +98,7 @@ the [Kraftfile target model](https://unikraft.org/docs/cli/reference/kraftfile/l
 | Prove KMSCube submit/frame rows | Native virgl encoder tests alone are substrate evidence; frame claims require a same-run GL scanout read-back. | **Resolved on the eval host:** the kmscube appliance emits virgl CLEAR submissions and `gfx.kmscube.frame` passes on a colour-band QMP screendump proof. |
 | Prove Vulkan/LLM runtime rows | Host Linux baseline JSON is the wrong provenance for Unikraft rows. | **Resolved on the eval host:** `scripts/llama_vk_real_run.py` and `scripts/llama_server_vk_capture.py` emit same-run Unikraft JSON, so the Vulkan probe/run/bench/server rows pass. |
 | Full HTTP server semantics | `llm.server.cpu` and `llm.server.vk` currently prove direct server entrypoint plus model-loaded readiness, not HTTP request/response service. | Add the lwIP/netdev path, expose a request gate, and only then report requests/s, TTFT, or server throughput. |
-| Build the paper | Typst is the release PDF tool; font warnings are acceptable only when the compile exits zero. | Run `make paper-check paper` and keep generated tables synchronized with `results/vogue_latest_evaluation_matrix.json`. |
+| Build the paper | The system snap `typst` is broken on this host because of the snap home-directory namespace setup. | Use the checked-in standalone Typst CLI at `.tools/typst/typst-x86_64-unknown-linux-musl/typst`: `TYPST=.tools/typst/typst-x86_64-unknown-linux-musl/typst make paper`; font warnings are acceptable if compile exits zero. |
 | Run performance gates | Software-render timings vary on shared hosts, so a single noisy sample can be misleading. | Run `make perf-check`; `scripts/app_perf_eval.py` uses best-of-N for smoke gating and persists median/all samples for reviewer analysis. |
 
 
@@ -175,8 +180,9 @@ this tree and a verification gate:
 | Hot/cold compile-flag split | `apps/app-llama-upstream*/Makefile.uk` `<FILE>_FLAGS-y` | `make perf-check` |
 | SIMD swrender inner loops | `libs/libukswrender/swrender.c` | `make perf-check` |
 | Coalesced VirtIO-GPU 2D fence | `libs/libukvirtio_gpu/virtio_gpu_real.c` + `tests/virtio_gpu_test.c` 200–204 | `make native-tests` |
-| Batched SUBMIT_3D (env-gated) | `libs/libukggml_vk/uk_vulkan_dispatch.c` `UK_GGML_VK_DISPATCH_BATCH=1` | `tests/ggml_vk_dispatch_test.c` info-getter assertions |
+| Batched SUBMIT_3D (enabled in the Vulkan appliances) | `libs/libukggml_vk/uk_vulkan_dispatch.c` `UK_GGML_VK_DISPATCH_BATCH=1` | `tests/ggml_vk_dispatch_test.c` info-getter assertions + `results/llama/post_opt_runs/` |
 | Venus encoder scalar fast path | `libs/libukvenus/venus_cs.c` | `tests/venus_cs_test`, `tests/ggml_vk_dispatch_test` |
+| Explicit Vulkan batch/ubatch wiring | `apps/app-llama-upstream-vk/{bench.cpp,server.cpp}` + `Config.uk` `*_BATCH` / `*_UBATCH` | `make llm-server-vk-check` + `results/llama/upstream_vk_latest.json` |
 | Continuous batching / prompt cache | `apps/app-llama-upstream{,vk}/server.cpp` + `Config.uk` `*_PARALLEL` / `*_PROMPT_CACHE` | `make llm-server-vk-check` |
 | Model-load latency record (L1.4) | `apps/app-llama-upstream{,vk}/common.h` | `make model-load-time-check` |
 | QEMU `hostmem=…,blob=true,venus=true` + `egl-headless` | `kraft/Kraftfile.llama-upstream-vk-server` + `scripts/run_llama_upstream_vk_server.sh` | `make llm-server-vk-check` |

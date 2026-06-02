@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-01T08:13:42.706830Z",
+    "generated_utc": "2026-06-01T20:53:35.218275Z",
     "source": "scripts/llm_server_vk_check.py",
     "principle": "plan-optimize.md Phase-2 verification gate"
   },
@@ -9,6 +9,9 @@
   "runtime_log": "results/llama/upstream_server_vk_serial.log",
   "slots": 1,
   "ctx_per_slot": 512,
+  "batch_size": 2048,
+  "ubatch_size": 512,
   "prompt_cache": true,
+  "dispatch_batch_enabled": true,
   "hostmem_fixed": false
 }

@@ -43,8 +43,11 @@ HOSTMEM_RE = re.compile(r"hostmem=(\S+).*blob=true.*venus=true")
 RUNSH_FLAGS = ("egl-headless", "blob=true", "venus=true", "hostmem=")
 VK_SERVER_FLAGS = (
     "CONFIG_APP_LLAMA_UPSTREAM_VK_PARALLEL",
+    "CONFIG_APP_LLAMA_UPSTREAM_VK_BATCH",
+    "CONFIG_APP_LLAMA_UPSTREAM_VK_UBATCH",
     "CONFIG_APP_LLAMA_UPSTREAM_VK_PROMPT_CACHE",
     "uk_ggml_vulkan_dispatch_get_info",
+    "UK_GGML_VK_DISPATCH_BATCH",
     "llama_server(",
     "--host",
     "0.0.0.0",
@@ -62,7 +65,9 @@ CPU_SERVER_FLAGS = (
 FORBIDDEN_PROCESS_CALLS = ("fork(", "execv(", "execve(", "posix_spawn(", "system(", "popen(")
 READY_LINE_RE = re.compile(
     r"uk-llama-upstream-vk-server: READY .* slots=(?P<slots>\d+) "
-    r"ctx_per_slot=(?P<ctx>\d+) prompt_cache=(?P<pc>\d) "
+    r"ctx_per_slot=(?P<ctx>\d+) batch_size=(?P<batch>\d+) "
+    r"ubatch_size=(?P<ubatch>\d+) prompt_cache=(?P<pc>\d) "
+    r"batch_enabled=(?P<be>\d) "
     r"hostmem_fixed=(?P<hf>\d)"
 )
 
@@ -99,6 +104,10 @@ def _check_static() -> dict:
             findings.append(f"single-app/cpu: server.cpp missing {flag}")
     if "APP_LLAMA_UPSTREAM_VK_PARALLEL" not in vk_config:
         findings.append("L2.2: Vulkan Config.uk missing APP_LLAMA_UPSTREAM_VK_PARALLEL")
+    if "APP_LLAMA_UPSTREAM_VK_BATCH" not in vk_config:
+        findings.append("L2.2: Vulkan Config.uk missing APP_LLAMA_UPSTREAM_VK_BATCH")
+    if "APP_LLAMA_UPSTREAM_VK_UBATCH" not in vk_config:
+        findings.append("L2.2: Vulkan Config.uk missing APP_LLAMA_UPSTREAM_VK_UBATCH")
     if "APP_LLAMA_UPSTREAM_PARALLEL" not in cpu_config:
         findings.append("L2.2: CPU Config.uk missing APP_LLAMA_UPSTREAM_PARALLEL")
 
@@ -135,7 +144,10 @@ def _check_runtime() -> dict:
         "runtime_log":    str(SERIAL_LOG.relative_to(ROOT)),
         "slots":          int(m.group("slots")),
         "ctx_per_slot":   int(m.group("ctx")),
+        "batch_size":     int(m.group("batch")),
+        "ubatch_size":    int(m.group("ubatch")),
         "prompt_cache":   bool(int(m.group("pc"))),
+        "dispatch_batch_enabled": bool(int(m.group("be"))),
         "hostmem_fixed":  bool(int(m.group("hf"))),
     }
 

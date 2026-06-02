@@ -26,7 +26,8 @@ unikraft:
     CONFIG_APP_LLAMA_UPSTREAM_VK: 'y'
     CONFIG_APP_LLAMA_UPSTREAM_VK_ROOTFS_9PFS: 'y'
     CONFIG_APP_LLAMA_UPSTREAM_VK_MODE_SERVER: 'y'
-    CONFIG_APP_LLAMA_UPSTREAM_VK_THREADS: '1'
+    CONFIG_APP_LLAMA_UPSTREAM_VK_BATCH: '2048'
+    CONFIG_APP_LLAMA_UPSTREAM_VK_UBATCH: '512'
     CONFIG_OPTIMIZE_DEADELIM: 'y'
     # See Kraftfile.llama-upstream-vk: ggml-vulkan's async pipeline-compile
     # workers + the compute-graph dispatch overflow the 64 KiB default thread

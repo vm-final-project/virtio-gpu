@@ -104,8 +104,8 @@ The current artifact has 27 generated evidence rows: 27 PASS and 0 blocked on th
 - POSIX surface served entirely by upstream `lib-musl` external library on top of Unikraft's posix-mmap/time/fdio/vfs libs — no project-local POSIX shim is required.
 
 *Next stage:*
-1. *Token-generation optimization.* `llm.bench.vk` prefill beats CPU, but `tg128=3.4` trails CPU `tg128=7.7`; profile Venus submissions, fences, host-visible mapping, and ggml-vulkan batch settings.
-2. *HTTP server evidence.* Add lwIP/netdev request serving before reporting TTFT, requests/s, or aggregate throughput for `llm.server.vk`.
+1. *HTTP server evidence.* `llm.server.vk` now reaches READY with `batch_size=2048`, `ubatch_size=512`, and prompt caching enabled, but there is still no lwIP/netdev-backed request path. Add request serving before reporting TTFT, requests/s, or aggregate server throughput.
+2. *Model-load optimization.* `model-load-time-check` still records `use_mmap=false`, `huge_pages=false`; the remaining 4.7-7.1 s model-load path should be reduced before claiming startup wins for larger models.
 3. *Linux/QEMU baseline.* Collect matched kmscube/glmark2 runs on Linux+Mesa under the same host for a direct performance comparison.
 4. *Full glmark2 scene coverage and frame hashes.* Replace the current scene-clear substrate proof with at least one real visual workload, frame hashes, and a Linux Mesa baseline.
 5. *Security audit.* Quantify attack surface reduction, fuzz the command parser, and evaluate malicious-device behavior.
