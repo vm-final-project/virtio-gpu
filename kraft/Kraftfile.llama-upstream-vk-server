@@ -31,6 +31,11 @@ unikraft:
     CONFIG_APP_LLAMA_UPSTREAM_VK: 'y'
     CONFIG_APP_LLAMA_UPSTREAM_VK_ROOTFS_9PFS: 'y'
     CONFIG_APP_LLAMA_UPSTREAM_VK_MODE_SERVER: 'y'
+    # Continuous batching: 4 server slots so concurrent HTTP requests decode in
+    # one batched forward pass (plan-optimize.md L2.2; llama.cpp Discussion
+    # #18308). server.cpp scales --ctx-size to PARALLEL*CTX so each slot keeps
+    # its full per-slot window.
+    CONFIG_APP_LLAMA_UPSTREAM_VK_PARALLEL: '4'
     CONFIG_APP_LLAMA_UPSTREAM_VK_BATCH: '2048'
     CONFIG_APP_LLAMA_UPSTREAM_VK_UBATCH: '512'
     CONFIG_OPTIMIZE_DEADELIM: 'y'

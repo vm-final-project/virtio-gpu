@@ -1,13 +1,13 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-02T08:59:50.908124Z",
+    "generated_utc": "2026-06-02T10:51:01.565389Z",
     "source": "scripts/llm_server_vk_check.py",
     "principle": "plan-optimize.md Phase-2 verification gate"
   },
   "static_findings": [],
   "runtime_status": "pass",
   "runtime_log": "results/llama/upstream_server_vk_serial.log",
-  "slots": 1,
+  "slots": 4,
   "ctx_per_slot": 512,
   "batch_size": 2048,
   "ubatch_size": 512,
@@ -19,5 +19,5 @@
   "http_models_status": 200,
   "http_completion_status": 200,
   "http_completion_content": "8888888888888888",
-  "http_endpoint": "http://127.0.0.1:37099"
+  "http_endpoint": "http://127.0.0.1:50107"
 }

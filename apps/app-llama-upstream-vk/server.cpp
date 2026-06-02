@@ -77,7 +77,12 @@ static int llama_server_main(void)
     static char port_f[]     = "--port";
     static char port[]       = "8080";
     static char ctx_f[]      = "--ctx-size";
-    static char ctx[]        = UK_LLAMA_STR(CONFIG_APP_LLAMA_UPSTREAM_VK_CTX);
+    /* CONFIG_..._CTX is the per-slot window (see Config.uk). llama-server's
+     * --ctx-size is the TOTAL KV budget split across --parallel slots, so the
+     * total must be PARALLEL*CTX for each slot to get the configured window. */
+    static char ctx[16];
+    snprintf(ctx, sizeof(ctx), "%d",
+             CONFIG_APP_LLAMA_UPSTREAM_VK_PARALLEL * CONFIG_APP_LLAMA_UPSTREAM_VK_CTX);
     static char batch_f[]    = "--batch-size";
     static char batch[]      = UK_LLAMA_STR(CONFIG_APP_LLAMA_UPSTREAM_VK_BATCH);
     static char ubatch_f[]   = "--ubatch-size";
@@ -92,17 +97,22 @@ static int llama_server_main(void)
      * the guest (mmap returns "Bad address"); force the read()-based loader, the
      * same path the readiness probe above used with use_mmap=0. */
     static char nommap[]     = "--no-mmap";
+    /* Flash attention is forced OFF: the V100 (Volta) Vulkan path has no
+     * coopmat2, so FA either falls back or regresses Vulkan throughput ~50%
+     * (llama.cpp issue #9572). Deterministic off beats the AUTO default. */
+    static char fa_f[]       = "--flash-attn";
+    static char fa[]         = "off";
 #if CONFIG_APP_LLAMA_UPSTREAM_VK_PROMPT_CACHE
     static char cache[]      = "--cache-prompt";
     char *argv[] = {arg0, model_f, model, host_f, host, port_f, port,
                     ctx_f, ctx, batch_f, batch, ubatch_f, ubatch,
                     parallel_f, parallel, threads_f, threads,
-                    ngl_f, ngl, nommap, cache};
+                    ngl_f, ngl, nommap, fa_f, fa, cache};
 #else
     char *argv[] = {arg0, model_f, model, host_f, host, port_f, port,
                     ctx_f, ctx, batch_f, batch, ubatch_f, ubatch,
                     parallel_f, parallel, threads_f, threads,
-                    ngl_f, ngl, nommap};
+                    ngl_f, ngl, nommap, fa_f, fa};
 #endif
 
     return llama_server((int)(sizeof(argv) / sizeof(argv[0])), argv);

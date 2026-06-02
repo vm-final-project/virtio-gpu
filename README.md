@@ -63,10 +63,13 @@ Highlights:
   upstream `llama_server()` listener on `0.0.0.0:8080`. A same-run host probe
   records `GET /health → 200`, `GET /v1/models → 200`, and `POST /completion →
   200` over the real V100/Venus path (`make llm-server-vk-check` →
-  `runtime=pass http=pass`). Throughput is **measured** by
-  `make llm-server-vk-throughput-check` (latest same-run burst: **2.61 req/s,
-  83.51 tokens/s, TTFT 0.34 s** on the V100); only bounded same-run numbers are
-  claimed, not peak capacity.
+  `runtime=pass http=pass`). It is tuned with continuous-batching slots
+  (`--parallel 4`), `--ctx-size = parallel × per-slot`, prompt cache, and
+  `--flash-attn off` (the V100 has no Vulkan coopmat2). Throughput is
+  **measured** by `make llm-server-vk-throughput-check`: latest same-run
+  **decode 140.6 tok/s** (88 % of the in-guest Vulkan bench `tg128=160`, 59 %
+  of bare-metal native host Vulkan `tg128=239`), prefill 866 tok/s — see
+  *Performance vs native* below.
 * **Graphics**: `xport.qemu-vgpu`, `proto.venus-ring`, `gfx.kmscube.submit`,
   and `gfx.kmscube.frame` all have same-run PASS artifacts.
 
@@ -193,7 +196,7 @@ The root `Makefile` is the single entry point; it delegates the C suite to
 | `make app-port-check` / `lib-readme-check` | Validate every `PORTING.md` / `README.md`. |
 | `make eval-check` | Regenerate the evidence matrix (blocked rows stay explicit). |
 | `make llm-server-vk-check` | llama.cpp Vulkan HTTP server contract + same-run HTTP probe. |
-| `make llm-server-vk-throughput-check` | Measured HTTP throughput (requests/s, tokens/s, TTFT). |
+| `make llm-server-vk-throughput-check` | Measured HTTP throughput (decode/prefill tok/s, TTFT, requests/s). |
 | `make perf-check` / `image-size-check` / `boot-time-check` / `model-load-time-check` | Performance & resource budgets. |
 | `make current-stage-check` | Assert the documented current-stage report. |
 | `make paper` / `paper-check` | Build / consistency-check the Typst paper. |
@@ -286,12 +289,34 @@ curl -X POST http://127.0.0.1:18080/completion \
 
 ```sh
 make llm-server-vk-throughput-check   # boots, drives a bounded completion burst
-# -> results/llama/server_vk_throughput.json  (requests/s, tokens/s, TTFT)
+# -> results/llama/server_vk_throughput.json
+#    (decode tok/s, prefill tok/s, end-to-end tok/s, TTFT, requests/s)
 ```
 
-> Claim boundary: liveness + completion are proven; throughput is a **bounded
-> same-run measurement** (`results/llama/server_vk_throughput.json`), not a
-> peak-capacity or cross-host/cross-model claim.
+### Performance vs native
+
+Same V100, same GGUF, same upstream binary. The reference is host-native Vulkan
+(`results/llama/vulkan_linux_baseline.json`); the para-virtualised Venus path
+(guest → `virtio-gpu-gl` → host virglrenderer → driver) pays a transport tax
+that bare metal does not.
+
+| Metric | Native host Vulkan | VOGUE Unikraft + Venus | ratio |
+|---|---|---|---|
+| `pp512` prefill | 5586.9 t/s | bench 2232.1 · server 865.7 | 40 % (bench) |
+| `tg128` decode | 239.2 t/s | bench 160.2 · **server 140.6** | 67 % bench · **59 % server** |
+
+The server's **decode rate is 88 % of the in-guest Vulkan bench** — the HTTP
+request path adds only ~12 % over the tight bench loop. Since the bench itself
+reaches 67 % of bare metal through Venus, the server sits essentially at the
+Venus-path ceiling; the remaining gap to bare metal is the transport tax
+(minimised by batched Venus submission, L3.1/L3.4), not a server defect.
+Aggregate multi-client throughput is currently capped by the single guest vCPU
+(continuous-batching slots are wired but cannot overlap CPU work) — guest SMP is
+the next lever (see `plan-optimize.md` Phase 3).
+
+> Claim boundary: liveness + completion are proven and throughput is a **bounded
+> same-run measurement** (`results/llama/server_vk_throughput.json`); peak
+> capacity and cross-host/cross-model comparisons are out of scope.
 
 ---
 

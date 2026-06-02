@@ -231,11 +231,18 @@ def _probe_http(hostport: int, deadline: float) -> dict:
 
 
 def _throughput_burst(base: str, reqs: int) -> dict:
-    n_predict = int(os.environ.get("VOGUE_SRV_THROUGHPUT_NPREDICT", "32"))
+    n_predict = int(os.environ.get("VOGUE_SRV_THROUGHPUT_NPREDICT", "128"))
+    # Concurrency exercises the server's parallel slots (continuous batching).
+    # Default 1 (single-stream) because the appliance runs on a single vCPU,
+    # where that is the honest throughput number comparable to the native
+    # tg128 baseline; raise VOGUE_SRV_CONCURRENCY once the guest gains SMP so
+    # the parallel slots can decode in genuinely overlapping CPU time.
+    concurrency = int(os.environ.get("VOGUE_SRV_CONCURRENCY", "1"))
     prompt = "Write one concise sentence about unikernels."
-    out: dict = {"requests": reqs, "n_predict": n_predict, "ok": 0, "failed": 0,
-                 "total_tokens": 0}
-    # Time-to-first-token via a streaming request.
+    out: dict = {"requests": reqs, "concurrency": concurrency,
+                 "n_predict": n_predict, "ok": 0, "failed": 0, "total_tokens": 0}
+
+    # Time-to-first-token via a single streaming request (idle server).
     ttft = None
     try:
         data = json.dumps({"prompt": prompt, "n_predict": n_predict,
@@ -250,31 +257,60 @@ def _throughput_burst(base: str, reqs: int) -> dict:
     except Exception:  # noqa: BLE001
         pass
     out["ttft_s"] = ttft
-    # Sequential latency / throughput.
-    t_start = time.time()
-    latencies: list[float] = []
-    for _ in range(reqs):
+
+    # Concurrent completion burst: fire `reqs` requests across `concurrency`
+    # workers and measure aggregate throughput over the whole wall-clock window.
+    from concurrent.futures import ThreadPoolExecutor
+
+    def _one(_i: int) -> tuple[bool, float, int, float, float]:
         t = time.time()
         code, body = _http_post(base + "/completion",
                                 {"prompt": prompt, "n_predict": n_predict,
                                  "temperature": 0.0, "cache_prompt": False},
-                                timeout=120.0)
+                                timeout=180.0)
         dt = time.time() - t
         if code == 200:
-            out["ok"] += 1
-            latencies.append(dt)
             try:
-                out["total_tokens"] += int(json.loads(body).get("tokens_predicted") or 0)
+                j = json.loads(body)
+                tim = j.get("timings") or {}
+                # predicted_per_second = pure decode rate (excludes prefill);
+                # this is the apples-to-apples comparison to bench tg128.
+                return (True, dt, int(j.get("tokens_predicted") or 0),
+                        float(tim.get("predicted_per_second") or 0.0),
+                        float(tim.get("prompt_per_second") or 0.0))
             except (json.JSONDecodeError, AttributeError, TypeError):
-                pass
-        else:
-            out["failed"] += 1
+                return True, dt, 0, 0.0, 0.0
+        return False, dt, 0, 0.0, 0.0
+
+    latencies: list[float] = []
+    decode_rates: list[float] = []
+    prompt_rates: list[float] = []
+    t_start = time.time()
+    with ThreadPoolExecutor(max_workers=concurrency) as pool:
+        for ok, dt, toks, dec, pp in pool.map(_one, range(reqs)):
+            if ok:
+                out["ok"] += 1
+                latencies.append(dt)
+                out["total_tokens"] += toks
+                if dec > 0:
+                    decode_rates.append(dec)
+                if pp > 0:
+                    prompt_rates.append(pp)
+            else:
+                out["failed"] += 1
     wall = time.time() - t_start
     out["wall_s"] = round(wall, 3)
     if out["ok"] and wall > 0:
         out["requests_per_s"] = round(out["ok"] / wall, 3)
         out["tokens_per_s"] = round(out["total_tokens"] / wall, 2)
         out["mean_latency_s"] = round(sum(latencies) / len(latencies), 3)
+    if decode_rates:
+        # Server-reported decode rate (tok/s, prefill excluded) — comparable to
+        # the bench tg128 and the native vulkan_linux_baseline.
+        out["decode_tps_mean"] = round(sum(decode_rates) / len(decode_rates), 2)
+        out["decode_tps_max"] = round(max(decode_rates), 2)
+    if prompt_rates:
+        out["prompt_tps_mean"] = round(sum(prompt_rates) / len(prompt_rates), 2)
     return out
 
 

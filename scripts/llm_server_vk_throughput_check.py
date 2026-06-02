@@ -57,12 +57,16 @@ def main(argv: list[str] | None = None) -> int:
             "transport": server.get("transport"),
             "venus_device": server.get("venus_device"),
             "requests": tput.get("requests"),
+            "concurrency": tput.get("concurrency"),
             "n_predict": tput.get("n_predict"),
             "ok": tput.get("ok"),
             "failed": tput.get("failed"),
             "wall_s": tput.get("wall_s"),
             "requests_per_s": tput.get("requests_per_s"),
             "tokens_per_s": tput.get("tokens_per_s"),
+            "decode_tps_mean": tput.get("decode_tps_mean"),
+            "decode_tps_max": tput.get("decode_tps_max"),
+            "prompt_tps_mean": tput.get("prompt_tps_mean"),
             "mean_latency_s": tput.get("mean_latency_s"),
             "ttft_s": tput.get("ttft_s"),
             "claim_allowed": ("Measured same-run HTTP throughput for the Vulkan llama.cpp "
@@ -89,10 +93,13 @@ def main(argv: list[str] | None = None) -> int:
           "", f"status = `{payload['status']}`"]
     if payload["status"] == "pass":
         md += ["",
-               f"- requests: {payload['ok']}/{payload['requests']} ok in {payload['wall_s']}s",
-               f"- requests/s: **{payload['requests_per_s']}**",
-               f"- tokens/s: **{payload['tokens_per_s']}**",
-               f"- mean latency: {payload['mean_latency_s']}s",
+               f"- requests: {payload['ok']}/{payload['requests']} ok "
+               f"(concurrency {payload.get('concurrency')}) in {payload['wall_s']}s",
+               f"- decode rate (prefill excluded): **{payload.get('decode_tps_mean')}** tok/s "
+               f"mean, {payload.get('decode_tps_max')} tok/s max",
+               f"- prompt/prefill rate: {payload.get('prompt_tps_mean')} tok/s",
+               f"- end-to-end tokens/s (incl. prefill): {payload['tokens_per_s']}",
+               f"- requests/s: {payload['requests_per_s']}",
                f"- time-to-first-token: {payload['ttft_s']}s",
                f"- device: {payload.get('venus_device')}"]
     (OUT / "server_vk_throughput.md").write_text("\n".join(md) + "\n")
