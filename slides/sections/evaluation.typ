@@ -5,30 +5,29 @@
 
 = Evaluation
 
-== Current-stage evidence
+== What we can demonstrate today
 
-  - host: QEMU 11 + Venus + Tesla V100
-  - eval matrix: #bred[27 / 27 PASS], 0 blocked
-  - native suite: #bred[164 / 164] checks (no QEMU/GPU)
+On a real GPU host (QEMU + Venus + Tesla V100), every capability below was
+#bred[reproduced live in the same run] — no numbers carried over from before.
 
 #pause
 
 #table(
   columns: (auto, 1fr),
-  [Row], [Signal],
+  [Capability], [Result],
   table.hline(),
-  [`kmscube.frame`], [virgl submit + pixel proof],
-  [`glmark2.sw`], [`fps = 186.4`],
-  [`vkmark`], [ICD + 10 scenes (substrate)],
-  [`llm.bench.vk`], [`tg128 = 160.2`],
-  [`llm.server.vk`], [real HTTP + throughput],
+  [2D display (kmscube)], [draws and flips real frames],
+  [OpenGL benchmark (glmark2)], [renders at 186 fps (software path)],
+  [Vulkan benchmark (vkmark)], [starts and loads 10 scenes],
+  [llama.cpp on the GPU], [generates text over Vulkan],
+  [llama.cpp HTTP server], [answers real web requests],
   table.hline(),
 )
 
 #pause
 
-  - #red[Insight]: every row names its *allowed* and *forbidden* claim —
-    the evidence gate is itself an engineering tool
+  - #red[Insight]: a result only counts when it reproduces #bred[in that run];
+    this rule is what stops a weak demo from being sold as a strong one
 
 == Footprint and boot: the unikernel payoff
 
@@ -38,19 +37,17 @@
   [
     #table(
       columns: (auto, auto, auto),
-      [Image], [Size], [Boot],
+      [Image], [Size], [Boot time],
       table.hline(),
-      [VOGUE 2D], [#bred[292 KB]], [#bred[10--11 ms]],
-      [VOGUE virgl], [336 KB], [251 ms],
-      [Linux + initramfs], [10.5 MB], [857 ms],
+      [VOGUE graphics], [#bred[292 KB]], [#bred[~10 ms]],
+      [VOGUE GPU probe], [336 KB], [~250 ms],
+      [Linux VM (reference)], [10.5 MB], [~857 ms],
       table.hline(),
     )
   ],
   [
     - #bred[~35×] smaller image
-    - #bred[~80×] faster boot
-    - cost of carrying the
-      graphics substrate is tiny
+    - #bred[~80×] faster to boot
   ],
 )
 
@@ -58,10 +55,10 @@
 
 #v(0.3em)
 
-  - #red[Insight]: "no Linux DRM/KMS/Mesa in the guest" is not just clean —
-    it is the source of the size and startup win
+  - #red[Insight]: leaving Linux's graphics stack (DRM / KMS / Mesa) *out of the
+    guest* is not just tidy — it is #bred[why] the image is tiny and boots instantly
 
-== llama.cpp speed: where is the gap?
+== llama.cpp speed: where does the time go?
 
 #grid(
   columns: (1.5fr, 1fr),
@@ -69,18 +66,20 @@
   [
     #table(
       columns: (auto, auto, auto),
-      [Env (same V100, same model)], [pp512], [tg128],
+      [Same GPU, same model], [prefill], [generate],
       table.hline(),
-      [Bare metal], [5587], [239],
-      [Linux guest + Venus], [4948], [324],
-      [VOGUE Unikraft], [2232], [160],
+      [Bare metal (no VM)], [5587], [239],
+      [Linux VM over Venus], [4948], [324],
+      [VOGUE unikernel], [2232], [160],
       table.hline(),
     )
+
+    #text(size: 0.8em)[(tokens / second)]
   ],
   [
-    - server decode `140.6` =
-      #bred[88%] of its own bench
-    - so the HTTP path is fine
+    - same GPU path for all three
+    - so we can isolate
+      *unikernel vs Linux*
   ],
 )
 
@@ -91,8 +90,8 @@
 #textbox(
   [#bred[Key insight]
 
-  A stock Linux guest rides the *same* Venus transport at \~89% of bare metal.
-  So Venus is #red[not] the bottleneck — the remaining gap is VOGUE's own
-  guest-side stack (`libukvenus` + `libukggml_vk` vs Mesa's mature ICD, single vCPU).
-  That is #bred[optimisation headroom], not an unavoidable virtualisation tax.],
+  A normal Linux VM reaches \~89% of bare-metal over the *same* GPU bridge — so
+  the bridge (Venus) is #red[not] the bottleneck. Our remaining gap is VOGUE's own
+  young guest-side driver vs Linux's mature one, plus using only one guest CPU.
+  That is #bred[room to optimise], not an unavoidable cost of virtualisation.],
 )

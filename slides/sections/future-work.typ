@@ -5,60 +5,60 @@
 
 = Future work
 
-== The work shifted: from "does it run?" to "how fast?"
+== The question changed: from "does it run?" to "how fast?"
 
 #textbox(
   [*Graphics side*
 
-  - matched Linux + Mesa baselines
-  - full `glmark2` scenes + frame hashes
-  - broaden `vkmark` to real fps],
+  - compare fairly against Linux + Mesa
+  - run full `glmark2` scenes, not just one
+  - get real frame rates from `vkmark`],
   [*LLM side*
 
-  - close the Linux-guest gap
-  - server throughput (TTFT, req/s)
-  - faster model loading],
+  - close the gap to the Linux VM
+  - measure the server under load
+  - load the model faster],
 )
 
 #pause
 
 #v(0.3em)
 
-  - #red[Insight]: the gap we measured is #bred[in the guest stack], so the
-    roadmap targets the dispatch/encoder layer and guest SMP — not Venus
+  - #red[Insight]: we showed the slowdown lives in #bred[our own guest driver],
+    so the work targets that layer and the single-CPU limit — not the GPU bridge
 
-== Prioritized roadmap
+== What we will do next, and why
 
 #table(
   columns: (auto, 1fr, 1fr),
-  [Pri.], [Next step], [Why it matters],
+  [Priority], [Next step], [Why it matters],
   table.hline(),
-  [P0], [guest SMP + thread split], [single vCPU caps decode today],
-  [P0], [HTTP throughput evidence], [serves now; needs req/s + TTFT],
-  [P1], [replace `use_mmap=false`], [cut the 4.7--7.1 s model load],
-  [P1], [matched Linux baselines], [turn ratios into fair claims],
-  [P2], [security / fuzz parser], [quantify attack-surface win],
+  [P0], [use more than one guest CPU], [one CPU caps generation speed today],
+  [P0], [measure the server under load], [it answers requests; we lack the numbers],
+  [P1], [memory-map the model file], [today it is copied first → slow start (~5 s)],
+  [P1], [run matched Linux baselines], [turns our ratios into fair comparisons],
+  [P2], [security: fuzz the device parser], [put a number on the attack-surface win],
   table.hline(),
 )
 
 #pause
 
-  - each step keeps the #bred[same evidence discipline]: a number only counts
-    when a same-run artifact backs it
+  - every step keeps the #bred[same rule]: a number is only reported once it has
+    been reproduced in a real run
 
 == Upstreaming and long-term direction
 
-- upstream the reusable guest-side fixes (PCI ID, Venus encoder, ring protocol)
-- make the artifact easier for others to reproduce
-- push from #red[bounded demos] toward broader accelerated Vulkan on Unikraft
+- give our reusable guest-side fixes back to the upstream projects
+- make the whole artifact easy for others to rebuild and reproduce
+- grow from #red[small, bounded demos] to broader GPU graphics on Unikraft
 
 #pause
 
 #v(0.4em)
 
 #textbox(
-  [#bred[Long-term thesis]
+  [#bred[The bigger idea]
 
-  The staged evidence ladder is reusable: it is a *method* for extending any
-  unikernel into graphics- and GPU-adjacent domains without overclaiming.],
+  Our step-by-step evidence ladder is reusable: it is a *method* for bringing any
+  unikernel into graphics and GPU territory without overclaiming along the way.],
 )

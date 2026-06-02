@@ -5,86 +5,84 @@
 
 = Implementation II Application
 
-== Graphics application ports
+== Graphics applications we run
 
 #table(
   columns: (auto, auto, 1fr),
-  [App], [Status], [What it proves],
+  [App], [Role], [What it shows works],
   table.hline(),
-  [`kmscube`], [canonical], [real virgl submit + pixel frame proof],
-  [`glmark2`], [benchmark], [EGL/GLES2 scene-clear substrate],
-  [`vkmark`], [experimental], [Vulkan ICD init + 10 scenes, not fps],
-  [`vulkan-smoke`], [demo], [minimal Vulkan substrate (`vk.smoke`)],
+  [kmscube], [main demo], [draws a real 3D frame on the GPU, checked pixel-by-pixel],
+  [glmark2], [benchmark], [an OpenGL benchmark draws through our shim],
+  [vkmark], [Vulkan demo], [a Vulkan benchmark starts and loads its scenes],
   table.hline(),
 )
 
 #pause
 
-  - app logic stays #bred[upstream]; shims absorb the platform mismatch
+  - the application code is #bred[unchanged]; our shim absorbs the platform difference
 
 #pause
 
-  - proof types stay separated: #red[software pixels] $!=$ GPU acceleration
+  - we never blur the line: a #red[software-drawn] pixel is not GPU acceleration
 
-== llama.cpp: four single-purpose appliances
+== llama.cpp: four ready-to-run appliances
 
 #grid(
   columns: (1fr, 1fr),
   gutter: 0.8em,
   [
     #textbox(
-      [*What we ported* (unmodified)
+      [*What we run* (upstream, unchanged)
 
-      - CPU bench / server
-      - Vulkan bench
-      - Vulkan HTTP server],
+      - CPU: benchmark + server
+      - GPU (Vulkan): benchmark
+      - GPU (Vulkan): HTTP server],
     )
   ],
   [
     #table(
-      columns: (auto, auto, 1fr),
-      [Path], [LoC], [Local delta],
+      columns: (auto, auto),
+      [Path], [Generation speed],
       table.hline(),
-      [`CPU`], [473], [entrypoints + model glue],
-      [`VK`], [668], [dispatch + Venus + server],
+      [CPU], [7.7 tokens/s],
+      [GPU benchmark], [160.2 tokens/s],
+      [GPU server], [140.6 tokens/s],
       table.hline(),
     )
   ],
-)
-
-#pause
-
-#table(
-  columns: (auto, auto, auto),
-  [Mode], [Status], [Key number (V100 / Venus)],
-  table.hline(),
-  [CPU bench], [PASS], [`tg128 = 7.7`],
-  [Vulkan bench], [PASS], [`tg128 = 160.2`],
-  [Vulkan server], [PASS], [`decode = 140.6`],
-  table.hline(),
-)
-
-== Insight: upstream stays upstream
-
-#textbox(
-  [*VOGUE writes the glue*
-
-  - 6 one-line `#include` shims
-  - one image, one purpose:
-    only `bench.cpp` #red[*or*] `server.cpp`
-  - `--gc-sections` drops the rest],
-  [*Upstream stays intact*
-
-  - no GGUF/ggml/llama fork
-  - `llama.cpp` sources unpatched
-  - engineering lives in the
-    guest-side #bred[libraries], not in
-    forked application logic],
 )
 
 #pause
 
 #v(0.4em)
 
-  - #bred[HTTP server is live]: in-guest `virtio-net -> libuknetdev -> lwIP` (DHCP)
-  - same-run probe: `GET /health`, `/v1/models`, `POST /completion` all `200`
+  - moving to the GPU is a #bred[~20×] speed-up over the CPU-only path
+  - the HTTP server keeps #bred[88%] of the raw benchmark speed — the web layer is cheap
+
+== Insight: we add glue, not a fork
+
+#textbox(
+  [*What VOGUE writes*
+
+  - a few one-line bridge files
+  - one image does one job:
+    a benchmark image #red[or] a
+    server image, never both
+  - the linker drops every
+    line of unused code],
+  [*What stays untouched*
+
+  - we do *not* reimplement the
+    model or inference engine
+  - upstream `llama.cpp` runs as-is
+  - the real work is in the thin
+    guest-side #bred[driver libraries],
+    not in rewriting the app],
+)
+
+#pause
+
+#v(0.4em)
+
+  - the GPU server even answers real web traffic: a client can ask for the
+    model list and get a #bred[completion] back, end-to-end inside the unikernel

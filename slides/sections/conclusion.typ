@@ -7,52 +7,55 @@
 
 == Core insight: graphics is not all-or-nothing
 
-Unikernel graphics is #red[not] a monolithic "port all of Linux" problem.
-It decomposes into four #bred[separable planes]:
+Supporting graphics in a unikernel is #red[not] one giant "port all of Linux"
+job. It splits into four #bred[independent layers] we can build and prove one at a time:
 
 #pause
 
 #table(
   columns: (auto, 1fr),
-  [Plane], [What it owns],
+  [Layer], [Its job],
   table.hline(),
-  [Device], [speak VirtIO-GPU correctly],
-  [API], [keep upstream source compatible],
-  [Rendering], [software pixels #sym.arrow.r virgl / Venus],
-  [Transport], [test real 3D/blob without faking acceleration],
+  [Device], [talk to the virtual GPU correctly],
+  [Application], [let unchanged apps still compile and run],
+  [Rendering], [start with the CPU, then hand work to the GPU],
+  [Transport], [carry real GPU commands — without pretending that *is* acceleration],
   table.hline(),
 )
 
 #pause
 
-  - this is what lets us produce #bred[honest evidence before] a full GPU renderer exists
+  - splitting it this way lets us show #bred[honest progress] before a full GPU
+    renderer is even finished
 
 == Takeaways
 
 #item-by-item[
-  - #bred[graphics + `llama.cpp` run inside Unikraft] over real Venus / V100
-  - #bred[dependency collapse]: same host contract, a much thinner guest stack
-  - smaller, faster image — *because* we kept Linux DRM/Mesa out of the guest
-  - evidence discipline is part of the contribution, not just caution
+  - #bred[graphics and `llama.cpp` really run inside Unikraft] on a real GPU
+  - we reach the same GPU as Linux, through a #bred[far smaller] guest stack
+  - that smaller stack is *why* the image is tiny and boots in milliseconds
+  - reporting only what we can reproduce is part of the contribution, not just caution
 ]
 
 #pause
 
 #v(0.3em)
 
-  - what is left is #red[breadth and performance], no longer first transport proof
+  - what is left is #red[breadth and speed] — the hard "can it work at all?" part is done
 
 == One slide to remember
 
 #textbox(
-  [#bred[Takeaway]
+  [#bred[What we built]
 
-  transport proof #sym.arrow.r usable workloads, with every claim bounded by a same-run artifact],
-  [#red[Constraint]
+  a proven path from "the GPU command channel works" to "real apps run on it" —
+  with every claim backed by a live run],
+  [#red[What we kept]
 
-  keep the unikernel boundary thin and the claim discipline strict],
+  a thin guest, no Linux graphics stack inside it, and strict honesty about
+  what each result means],
 )
 
 #pause
 
-#focus-slide[A thin, evidence-gated guest stack can reach the real GPU — \ without becoming Linux.]
+#focus-slide[A thin, honest guest stack can reach the real GPU — \ without becoming Linux.]
