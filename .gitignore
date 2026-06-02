@@ -81,3 +81,6 @@ CMakeFiles/
 /results/app-perf/
 /results/perf/
 /results/llama-env/
+
+# VSCode
+.vscode/
