@@ -66,7 +66,7 @@ export LLAMA_ROOT VENUS_PROTOCOL_ROOT VULKAN_HEADERS_INCLUDE SPIRV_HEADERS_INCLU
         llama-env-list llama-env-check llama-env-bench llama-env-server \
         governance-check lib-readme-check app-port-check naming-check claim-check \
         eval eval-check current-stage-check current-stage-refresh \
-        app-perf-check perf-check image-size-check boot-time-check model-load-time-check llm-server-vk-check \
+        app-perf-check perf-check image-size-check boot-time-check model-load-time-check llm-server-vk-check llm-server-vk-throughput-check \
         depgraph depgraph-check gen-libukvenus gen-libukvenus-plan gen-libukvenus-check \
         paper paper-check clean
 
@@ -476,6 +476,12 @@ model-load-time-check:
 # same-run HTTP probe (/health, /v1/models, /completion) recorded by the capture.
 llm-server-vk-check:
 	python3 scripts/llm_server_vk_check.py --check
+
+# llm-server-vk-throughput-check: boot the server and drive a bounded burst of
+# HTTP completions, recording measured requests/s, tokens/s, and TTFT. Blocked
+# (and still passing) on hosts without QEMU/GPU/model.
+llm-server-vk-throughput-check:
+	python3 scripts/llm_server_vk_throughput_check.py --check
 
 # ============================================================================
 # Generators & dependency graph

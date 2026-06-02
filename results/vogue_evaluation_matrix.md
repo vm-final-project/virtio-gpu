@@ -1,6 +1,6 @@
 # VOGUE Evaluation Matrix
 
-Generated: `2026-06-02T08:40:14.588835Z`
+Generated: `2026-06-02T09:00:03.008448Z`
 
 | Row | Claim | Status | Evidence | Allowed | Forbidden |
 |-----|-------|--------|----------|---------|-----------|

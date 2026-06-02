@@ -219,7 +219,63 @@ def _probe_http(hostport: int, deadline: float) -> dict:
         proof["completion_tokens_predicted"] = cj.get("tokens_predicted")
     except (json.JSONDecodeError, AttributeError):
         proof["completion_body"] = (cbody or "").strip()[:512]
+
+    # Optional bounded throughput burst (llm-server-vk-throughput-check). Drives
+    # a fixed number of sequential completions against the same model and records
+    # measured requests/s, tokens/s, and time-to-first-token. Off by default so
+    # the liveness probe stays fast; never promoted to a headline claim.
+    reqs = int(os.environ.get("VOGUE_SRV_THROUGHPUT_REQS", "0"))
+    if reqs > 0 and proof.get("completion_status") == 200:
+        proof["throughput"] = _throughput_burst(base, reqs)
     return proof
+
+
+def _throughput_burst(base: str, reqs: int) -> dict:
+    n_predict = int(os.environ.get("VOGUE_SRV_THROUGHPUT_NPREDICT", "32"))
+    prompt = "Write one concise sentence about unikernels."
+    out: dict = {"requests": reqs, "n_predict": n_predict, "ok": 0, "failed": 0,
+                 "total_tokens": 0}
+    # Time-to-first-token via a streaming request.
+    ttft = None
+    try:
+        data = json.dumps({"prompt": prompt, "n_predict": n_predict,
+                           "temperature": 0.0, "cache_prompt": False,
+                           "stream": True}).encode()
+        req = urllib.request.Request(base + "/completion", data=data,
+                                     headers={"Content-Type": "application/json"})
+        t0 = time.time()
+        with urllib.request.urlopen(req, timeout=120.0) as r:
+            if r.readline():
+                ttft = round(time.time() - t0, 4)
+    except Exception:  # noqa: BLE001
+        pass
+    out["ttft_s"] = ttft
+    # Sequential latency / throughput.
+    t_start = time.time()
+    latencies: list[float] = []
+    for _ in range(reqs):
+        t = time.time()
+        code, body = _http_post(base + "/completion",
+                                {"prompt": prompt, "n_predict": n_predict,
+                                 "temperature": 0.0, "cache_prompt": False},
+                                timeout=120.0)
+        dt = time.time() - t
+        if code == 200:
+            out["ok"] += 1
+            latencies.append(dt)
+            try:
+                out["total_tokens"] += int(json.loads(body).get("tokens_predicted") or 0)
+            except (json.JSONDecodeError, AttributeError, TypeError):
+                pass
+        else:
+            out["failed"] += 1
+    wall = time.time() - t_start
+    out["wall_s"] = round(wall, 3)
+    if out["ok"] and wall > 0:
+        out["requests_per_s"] = round(out["ok"] / wall, 3)
+        out["tokens_per_s"] = round(out["total_tokens"] / wall, 2)
+        out["mean_latency_s"] = round(sum(latencies) / len(latencies), 3)
+    return out
 
 
 def _attempt(qemu: str, model: Path) -> tuple[str, dict]:

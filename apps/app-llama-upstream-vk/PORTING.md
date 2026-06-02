@@ -29,9 +29,10 @@ hands control to the upstream `llama_server()` listener
 (`--host 0.0.0.0 --port 8080 --no-mmap`). A same-run host probe records
 `/health → 200`, `/v1/models → 200`, and one bounded `/completion → 200`
 (`results/llama/upstream_server_vk.json`; `make llm-server-vk-check` →
-`http=pass`). This file still forbids **aggregate** HTTP throughput /
-requests-per-second / TTFT claims until a dedicated throughput gate is added and
-measured.
+`http=pass`). Throughput is **measured** by `make llm-server-vk-throughput-check`
+(`results/llama/server_vk_throughput.json`: requests/s, tokens/s, TTFT) as a
+bounded same-run burst; this file still forbids peak-capacity or
+cross-host/cross-model throughput claims.
 
 - Repository: <https://github.com/ggml-org/llama.cpp> (same as `app-llama-upstream`).
 - Vulkan backend file: `ggml/src/ggml-vulkan/ggml-vulkan.cpp`.

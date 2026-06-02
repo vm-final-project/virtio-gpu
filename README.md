@@ -63,7 +63,10 @@ Highlights:
   upstream `llama_server()` listener on `0.0.0.0:8080`. A same-run host probe
   records `GET /health → 200`, `GET /v1/models → 200`, and `POST /completion →
   200` over the real V100/Venus path (`make llm-server-vk-check` →
-  `runtime=pass http=pass`). Aggregate throughput / TTFT are **not** claimed.
+  `runtime=pass http=pass`). Throughput is **measured** by
+  `make llm-server-vk-throughput-check` (latest same-run burst: **2.61 req/s,
+  83.51 tokens/s, TTFT 0.34 s** on the V100); only bounded same-run numbers are
+  claimed, not peak capacity.
 * **Graphics**: `xport.qemu-vgpu`, `proto.venus-ring`, `gfx.kmscube.submit`,
   and `gfx.kmscube.frame` all have same-run PASS artifacts.
 
@@ -190,6 +193,7 @@ The root `Makefile` is the single entry point; it delegates the C suite to
 | `make app-port-check` / `lib-readme-check` | Validate every `PORTING.md` / `README.md`. |
 | `make eval-check` | Regenerate the evidence matrix (blocked rows stay explicit). |
 | `make llm-server-vk-check` | llama.cpp Vulkan HTTP server contract + same-run HTTP probe. |
+| `make llm-server-vk-throughput-check` | Measured HTTP throughput (requests/s, tokens/s, TTFT). |
 | `make perf-check` / `image-size-check` / `boot-time-check` / `model-load-time-check` | Performance & resource budgets. |
 | `make current-stage-check` | Assert the documented current-stage report. |
 | `make paper` / `paper-check` | Build / consistency-check the Typst paper. |
@@ -278,9 +282,16 @@ curl -X POST http://127.0.0.1:18080/completion \
 (QEMU user-mode networking assigns that lease via DHCP). Override `IMAGE`,
 `MODEL_DIR`, `HOSTMEM`, `MEM`, or `ACCEL` as needed.
 
-> Claim boundary: this proves HTTP **liveness + one bounded completion** over
-> the real V100/Venus path. Aggregate requests/s, TTFT, and slot-utilisation are
-> out of scope until a throughput gate lands (see `plan-fix.md`).
+### 3. Measure throughput (optional)
+
+```sh
+make llm-server-vk-throughput-check   # boots, drives a bounded completion burst
+# -> results/llama/server_vk_throughput.json  (requests/s, tokens/s, TTFT)
+```
+
+> Claim boundary: liveness + completion are proven; throughput is a **bounded
+> same-run measurement** (`results/llama/server_vk_throughput.json`), not a
+> peak-capacity or cross-host/cross-model claim.
 
 ---
 
@@ -296,9 +307,10 @@ numbers:
 * Do **not** claim Unikraft llama.cpp token/s or GPU throughput without same-run
   PASS artifacts; do **not** use host-Linux baseline JSON as Unikraft runtime
   evidence; do **not** reintroduce a custom GGUF/ggml/llama runtime under `libs/`.
-* The HTTP server claim is bounded to **liveness + one bounded completion**
-  (`/health`, `/v1/models`, `/completion`); aggregate requests/s, TTFT, and
-  slot-utilisation are explicitly out of scope until a throughput gate lands.
+* The HTTP server claim is bounded to **liveness + completion** (`/health`,
+  `/v1/models`, `/completion`) plus a **bounded same-run throughput
+  measurement** (`make llm-server-vk-throughput-check`); peak-capacity and
+  cross-host/cross-model comparisons remain out of scope.
 * After touching `libs/`, `apps/`, or claims, run
   `make governance-check lib-readme-check app-port-check` and keep the README
   status columns in sync with `config/governance.json`.
