@@ -1,1 +1,0 @@
-Refresh paper/ to current-stage SOSP-level quality: rewrite stale sections, add explicit dependency-collapse analysis from docs/ARCHITECTURE.md and depgraph artifacts, audit citations/refs, rebuild and verify the paper, then update README last to match the final paper/project state.
