@@ -1,5 +1,6 @@
 # 
 .env
+.omx
 
 # Python
 __pycache__/
