@@ -14,7 +14,7 @@ Firecracker demonstrates that microVMs can provide fast startup and strong isola
 
 VirtIO-GPU is the device target. The protocol is specified by OASIS @virtio-spec and implemented by QEMU @qemu-vgpu. VirGL translates guest Gallium-style command streams to host OpenGL @virglrenderer. Venus provides a Vulkan-over-VirtIO path, and rutabaga/gfxstream supports ChromeOS/Android graphics virtualization @venus @rutabaga. The vhost-user-gpu mechanism externalizes the GPU backend for process isolation @vhost-user-gpu.
 
-These systems primarily define host/device mechanisms or full guest-stack integration. VOGUE's contribution is guest-side: a small Unikraft library stack that can speak the device protocol and host selected graphics applications without Linux DRM or Mesa. K1 remains future work because host support alone is insufficient; the guest must still produce valid virgl command streams.
+These systems primarily define host/device mechanisms or full guest-stack integration. VOGUE's contribution is guest-side: a small Unikraft library stack that can speak the device protocol and host selected graphics applications without Linux DRM or Mesa. The current artifact advances beyond transport-only bring-up by showing same-run guest Vulkan execution for upstream _llama.cpp_, while still leaving broader graphics compatibility and richer scene coverage outside its scope.
 
 == Minimal Graphics Stacks
 

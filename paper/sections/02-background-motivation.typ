@@ -35,10 +35,21 @@ _glmark2-es2_ @glmark2 is an OpenGL ES 2.0 benchmark suite with multiple scenes 
 
 == Why Not Linux DRM?
 
-One might ask: why not simply port the Linux DRM/KMS stack to Unikraft? The answer has three parts:
+One might ask why VOGUE does not simply port Linux DRM/KMS and Mesa. The answer
+has three parts.
 
-*Size*. The Linux DRM subsystem spans over 800,000 lines of C across more than 2,000 files. Even the minimal GBM + EGL + Mesa subset required to run _kmscube_ is on the order of 2 million lines of code with complex build systems, LLVM dependencies, and runtime shader compilation infrastructure.
+*Dependency width.* Linux DRM/KMS and Mesa are not a single library but a
+stack of subsystems, driver interfaces, buffer managers, and shader/runtime
+tooling. Pulling that tower into the guest would dominate the dependency graph
+of a project whose value proposition is specialization.
 
-*Architecture mismatch*. Linux DRM assumes kernel-mode driver components, GPU device files, file descriptor passing, and ioctl-based control interfaces. None of these exist in a standard Unikraft build.
+*Architectural mismatch.* Linux assumes device files, ioctl-rich kernel/user
+boundaries, and a guest environment organized around full driver subsystems.
+Unikraft instead expects explicit library dependencies and a tightly scoped
+single-address-space runtime.
 
-*Minimality violation*. Importing DRM/Mesa would destroy the image size and boot-time properties that motivate unikernels in the first place. The goal of VOGUE is to show that the full graphics stack can be substituted by a narrow, application-specific shim.
+*Evaluation integrity.* Porting a large guest stack would blur the line between
+what VOGUE contributes and what Linux/Mesa already provide. A narrower
+guest-side substrate makes the architectural tradeoff legible: reviewers can
+see exactly which layers were reimplemented, which were stubbed, and which were
+deliberately left outside the guest.

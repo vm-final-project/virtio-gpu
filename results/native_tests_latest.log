@@ -207,7 +207,7 @@ venus_cs_test:
   PASS  ring_perf:probe_ok
   PASS  ring_perf:create_ok
   PASS  ring_perf:writes_ok
-venus_ring_perf: bytes=65536 writes=256 elapsed_ns=10750 throughput_mib_s=5813.95
+venus_ring_perf: bytes=65536 writes=256 elapsed_ns=5728 throughput_mib_s=10911.31
 venus_cs_test: all checks passed
 venus_compute_test: Venus compute dispatch wire-format tests
 ============================================================

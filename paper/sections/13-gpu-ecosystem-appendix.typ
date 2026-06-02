@@ -88,7 +88,7 @@ Production LLM serving stacks such as vLLM, SGLang, and TensorRT-LLM implement a
     [Mesa / GBM / EGL / GLES], [Reference guest graphics stack], [Replaced by VOGUE shims; virgl encoder is the remaining gap],
     [VFIO passthrough], [Physical GPU passthrough], [Out of scope; incompatible with unikernel minimality],
     [Confidential GPU], [TEE-protected GPU compute], [Out of scope; adversarial to VirtIO shared-memory model],
-    [llama.cpp / GGML], [CPU-capable LLM inference], [PASS: upstream-unmodified (SHA `fcae601e4`) running inside Unikraft via `apps/app-llama-upstream`; pp512=12,610 t/s, tg128=12,597 t/s (llm.bench.cpu). Vulkan path (`apps/app-llama-upstream-vk`) builds; runtime blocked locally when no EGL render node is available.],
+    [llama.cpp / GGML], [CPU-capable LLM inference], [PASS: upstream-unmodified llama.cpp runs inside Unikraft via `apps/app-llama-upstream`; current CPU artifact records `pp512=9.1`, `tg128=7.7`. The Vulkan path is also PASS on the evaluation host, with latest same-run `pp512=2232.1`, `tg128=160.2` and READY-line server evidence.],
     [GGML-VirtGPU], [VirtIO-GPU ML compute offload], [Target extension; `libukdma`/`libukvirtio_gpu` replaces Linux DRM dependency; vk.ggml-dispatch static-ICD dispatch layer (`libukggml_vulkan`, 80+ stubs) builds and passes native tests],
     [virglrenderer Vulkan/Venus], [Host-side ML/compute dispatch], [Host dependency; guest transport is already present in `libukvirtio_gpu`],
     [vAccel], [Multi-accelerator abstraction], [Related work; potential higher-level API over `libukvirtio_gpu` transport],

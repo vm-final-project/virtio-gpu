@@ -6,38 +6,31 @@ The VOGUE artifact contains the Unikraft VirtIO-GPU library stack, application p
 
 == Artifact Claims
 
-Generated performance and stage artifacts are written to the results directory and included in the paper through generated tables. The QEMU/Kraft and QEMU/Venus gates write structured blocker files when the local external toolchain or transport blocks a run, and those blockers never count as K1 or Venus acceleration success.
+Generated performance and stage artifacts are written to `results/` and pulled
+into the paper through generated tables. The central rule is unchanged across
+all tiers: if the host, build, or runtime environment cannot support a claim,
+the artifact records a structured blocker instead of promoting a weaker result.
 
 #figure(
   text(size: 8pt, table(
     columns: (auto, auto, auto),
     inset: 4pt,
     align: (left, left, left),
-    table.header([Paper Claim / Evidence Row], [Artifact Component], [Validation]),
-    [disp.2d: 2D pipeline], [native 2D render test], [native-tests PASS log],
-    [proto.api-contract: API conformance], [VirtIO-GPU full API test], [native-tests PASS log],
-    [Real-driver wire ABI], [`make -C tests proto-abi`], [native ABI PASS log against `virtio_gpu_proto.h`],
-    [gfx.kmscube.sw: kmscube sw render], [app perf script + kmscube port], [app-perf-check generated row],
-    [gfx.glmark2.sw: glmark2 scene-clear], [app perf script + glmark2 port], [app-perf-check generated row],
-    [proto.real-driver: real-driver ABI], [`proto-abi` + static real-driver checks], [`make venus-check`; PASS = protocol surface, not rendering],
-    [xport.qemu-vgpu: QEMU Venus transport], [QEMU probe script], [Current matrix: PASS on evaluation host; QEMU GL/Venus setup is required before transport PASS on any new host],
-    [vk.readiness: benchmark design], [benchmark summary script], [`make benchmark-check`; PASS = evaluation design exists],
-    [proto.venus-enc: wire format], [`venus_cs_test` / `venus_compute_test`], [100+ Venus-encoder native checks pass],
-    [proto.venus-ring: ring protocol], [`libukvenus` ring tests in `venus_cs_test`], [ring\_proto + ring\_perf checks pass],
-    [vk.drm-shim: DRM virtgpu ioctl shim], [`virtgpu_drm_ioctl_test`], [native test PASS],
-    [vk.icd: Vulkan ICD bootstrap], [`vk_icd_bootstrap_test`], [native test PASS],
-    [legacy-llama-substrate: GGUF model view], [`ukmodel_test`], [native test PASS],
-    [legacy-llama-substrate: ggml substrate], [`ggml_uk_test`], [native test PASS],
-    [legacy-llama-substrate: llama adapter], [`ukllama_test`], [native test PASS],
-    [legacy-llama-substrate: staged C++ probe], [`scripts/llama_vulkan_eval.py cmd_cpp()`], [Current matrix: `blocked:cpp-runtime-not-proven`; rerun before claiming PASS],
-    [legacy-llama-substrate: unikernel Venus runtime], [`scripts/llama_vulkan_eval.py cmd_uk()`], [Current matrix: `blocked:vulkan-uk-not-yet-run`; static/API rows remain separate PASS evidence],
-    [bld.uk.vk], [`scripts/llama_vulkan_eval.py cmd_n3_build()`], [vk.ggml-dispatch static-ICD image builds; `n3_build_passed.json`],
-    [llm.bench.cpu: pp512], [`scripts/llama_vulkan_eval.py cmd_upstream_cpu()`], [PASS; current CPU artifact passes; Vulkan rows remain separate],
-    [llm.bench.vk], [`scripts/llama_vulkan_eval.py cmd_upstream_vk()`], [BLOCKED until rerun evidence; required API covered; runtime needs EGL render node],
-    [llm.bench.vk.real: upstream+real Venus], [derived from llm.bench.vk], [BLOCKED locally: no EGL render node for QEMU Venus],
-    [gfx.kmscube.submit/gfx.kmscube.frame], [`app-kmscube` virgl path + frame proof], [Current matrix: PASS on evaluation host; stale frame proofs are removed and native virgl encoder tests remain separate substrate evidence],
+    table.header([Paper claim / row family], [Artifact component], [Validation source]),
+    [2D display pipeline], [native 2D render test], [`make native-tests` PASS log],
+    [VirtIO-GPU wire ABI], [`make -C tests proto-abi`], [struct/offset/feature checks against `virtio_gpu_proto.h`],
+    [Software graphics rows], [application perf scripts + `app-kmscube` / `app-glmark2`], [`make app-perf-check`],
+    [VirtIO-GPU real-driver readiness], [real backend static/readiness checks], [`make venus-check`],
+    [Venus wire-format + ring protocol], [`venus_cs_test`, registry checks, ring-protocol tests], [`make native-tests`, `make venus-check`],
+    [vk.drm-shim / vk.icd substrate], [`virtgpu_drm_ioctl_test`, `vk_icd_bootstrap_test`], [`make native-tests`],
+    [Static ggml-Vulkan dispatch], [`ggml_vk_dispatch_test`, API coverage scripts], [`make llama-vulkan-api-coverage`, `make llama-ggml-vk-dispatch`],
+    [QEMU/Venus transport], [QEMU probe + runtime artifacts], [`make venus-check`, evaluation matrix rows],
+    [Upstream llama.cpp CPU appliance], [`results/llama/upstream_cpu_latest.json`], [`make llama-upstream-cpu-check`],
+    [Upstream llama.cpp Vulkan appliance], [`results/llama/upstream_vk_latest.json`, `results/llama/post_opt_runs/`], [`make llama-upstream-vk-check` + same-run runtime logs],
+    [Upstream llama.cpp Vulkan server readiness], [`results/llama/upstream_server_vk_latest.json`], [`make llm-server-vk-check`],
+    [Current-stage consistency], [`results/stage/current_stage_report_latest.json`], [`make current-stage-check`],
   )),
-  caption: [Artifact claim map from the current generated evidence matrix: 27 evidence rows, 27 PASS and 0 blocked on the evaluation host. New hosts must still produce same-run artifacts before promoting QEMU/Venus acceleration or upstream Vulkan runtime rows.]
+  caption: [Current artifact claim map. The evaluation host records 27 PASS rows, but new hosts must still generate the corresponding same-run artifacts before promoting transport or runtime claims.]
 )
 
 == External Dependency Inventory
@@ -168,14 +161,14 @@ The native test suite is organized into five focused groups. Reviewers can repro
     table.header([Target], [Test group], [Evidence rows]),
     [`make test-core`], [VirtIO-GPU core, DMA, shims], [proto.real-driver, gfx.kmscube.sw, disp.2d],
     [`make test-venus`], [VirtIO-GPU 3D, Venus encoder, virgl], [vk.drm-shim, vk.icd, proto.venus-enc, proto.venus-ring],
-    [`make test-llm`], [LLM/ggml substrate], [legacy-llama-substrate, legacy-llama-substrate, legacy-llama-substrate],
+    [`make test-llm`], [LLM/ggml substrate], [llm.bench.cpu, llm.bench.vk, vk.ggml-dispatch],
     [`make test-n3`], [vk.ggml-dispatch static Vulkan dispatch (164 checks)], [vk.ggml-dispatch],
     [`make proto-abi`], [VirtIO wire-ABI struct/offset/feature], [proto.real-driver],
   )),
   caption: [Native test group targets. All run on the host without QEMU, Unikraft, or a GPU. See `tests/README.md` for expected pass strings and evidence mapping.]
 ) <tab:testgroups>
 
-Expected developer test output includes all 13 host-native substrate tests plus the ABI guard:
+Expected developer test output includes all host-native substrate tests plus the ABI guard:
 
 #figure(
   raw(block: true,
@@ -192,10 +185,10 @@ virgl_encoder_test: all checks passed
 ukmodel_test: all checks passed
 ggml_uk_test: all checks passed
 ukllama_test: all checks passed
-ggml_vk_dispatch_test: all checks PASS  [160 passed, 0 failed]
+ggml_vk_dispatch_test: all checks PASS  [164 passed, 0 failed]
 make -C tests proto-abi
 virtio_gpu_proto_abi_test passed ctrl_hdr=24 display_info=408 edid=1056"),
-  caption: [Expected `make native-tests` output. All 13 tests plus the ABI guard pass without QEMU, a GPU, or prebuilt ggml libraries.]
+  caption: [Expected `make native-tests` output. All listed native tests plus the ABI guard pass without QEMU, a GPU, or prebuilt ggml libraries.]
 )
 
 Expected application substrate output:
@@ -232,15 +225,21 @@ If the external Kraft/Unikraft appliance build or QEMU/Venus probe fails, the ta
 
 We target *Artifacts Available* and *Artifacts Evaluated -- Functional* for the bounded PASS claims in the current generated matrix. The current artifact has 27 evidence rows: 27 PASS and 0 blocked on the evaluation host, including xport.qemu-vgpu, gfx.kmscube.submit/gfx.kmscube.frame, host.vk.probe, host.bench.vk.run, host.bench.vk, llm.bench.vk, llm.server.vk, and llm.bench.vk.real. The artifact still requires fresh row-compatible same-run artifacts before promoting those rows on any different host.
 
-=== Next-Stage Reproduction Notes
+=== Reproduction Notes for the Vulkan Path
 
-The pinned upstream `ggml-vulkan.cpp` API surface is covered by the static dispatch table and checked by `make llama-vulkan-api-coverage`. The runtime blocker for `llm.bench.vk`, `llm.bench.vk.real`, and `llm.bench.vk.run` is host QEMU/Venus setup: QEMU `virtio-gpu-gl-pci,venus=true` requires virglrenderer to initialize through a GL/EGL-capable display backend. In this sandbox the run reports `blocked:no-egl-render-node`.
+The pinned upstream `ggml-vulkan.cpp` API surface is covered by the static
+dispatch table and checked by `make llama-vulkan-api-coverage`. Reproducing the
+runtime path additionally requires a Venus-capable QEMU stack plus a readable
+render node. On the evaluation host, those requirements are satisfied and the
+same-run artifacts are already present; on a different host, the same commands
+either regenerate PASS artifacts or emit structured blockers.
 
 #figure(
   raw(lang: "bash", block: true,
-"make llama-vulkan-api-coverage   # required API surface: pass
-make llama-ggml-vk-dispatch     # native static-dispatch substrate: pass
-make llama-vulkan-n3-run          # pass or structured blocked:no-egl-render-node
-make llama-upstream-vk-run        # pass or structured blocked evidence"),
-  caption: [Verification commands for the ggml-vulkan/Venus path. Runtime claims require same-run PASS evidence; blocked rows remain non-claims.]
+"make llama-vulkan-api-coverage   # required API surface
+make llama-ggml-vk-dispatch      # native static-dispatch substrate
+make llama-upstream-vk-build     # build the Vulkan appliance
+make llama-upstream-vk-run       # runtime PASS or structured blocker
+make llm-server-vk-check         # Vulkan server readiness contract"),
+  caption: [Verification commands for the ggml-Vulkan/Venus path. Runtime claims require same-run PASS evidence; blocked rows remain non-claims.]
 )

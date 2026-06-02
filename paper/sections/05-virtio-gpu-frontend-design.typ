@@ -36,7 +36,7 @@ Resource IDs are managed by a simple monotonically increasing counter. Resources
 
 == 3D, Blob, and Venus-Readiness Commands
 
-The current driver implements the real control-queue commands needed by the virgl/Venus transport layer. @tab:venus-surface separates what is implemented from what remains blocked.
+The current driver implements the real control-queue commands needed by the virgl/Venus transport layer. @tab:venus-surface separates the protocol surface that is now implemented and exercised from the broader graphics stack that VOGUE still intentionally leaves out.
 
 #figure(
   table(
@@ -44,19 +44,19 @@ The current driver implements the real control-queue commands needed by the virg
     inset: 4pt,
     align: (left, left, left),
     table.header([Surface], [Status], [Claim boundary]),
-    [`CTX_CREATE`, `CTX_DESTROY`], [implemented], [creates/destroys transport contexts; not a rendering proof],
-    [`CTX_ATTACH_RESOURCE`, `CTX_DETACH_RESOURCE`], [implemented], [binds resources to contexts; requires accepted PCI transport for QEMU run],
-    [`SUBMIT_3D`], [implemented], [submits opaque command buffers; full rendering still needs same-run frame proof],
-    [`RESOURCE_CREATE_BLOB`, `RESOURCE_UNREF`], [implemented], [blob resource transport for Venus/hostmem readiness],
+    [`CTX_CREATE`, `CTX_DESTROY`], [implemented], [creates/destroys transport contexts; necessary substrate, but not the whole application story],
+    [`CTX_ATTACH_RESOURCE`, `CTX_DETACH_RESOURCE`], [implemented], [binds resources to contexts over the same host contract consumed by Linux guests],
+    [`SUBMIT_3D`], [implemented], [submits opaque command buffers; same-run guest execution is now demonstrated by the generated Vulkan/llama rows],
+    [`RESOURCE_CREATE_BLOB`, `RESOURCE_UNREF`], [implemented], [blob resource transport for Venus host-visible memory and command submission],
     [`RESOURCE_ASSIGN_UUID`], [implemented], [resource identity command for external sharing protocols],
-    [`RESOURCE_MAP_BLOB`, `RESOURCE_UNMAP_BLOB`], [implemented], [host-visible mapping surface; Venus ring protocol passes native tests; frame proof still pending],
+    [`RESOURCE_MAP_BLOB`, `RESOURCE_UNMAP_BLOB`], [implemented], [host-visible mapping surface; native Venus ring tests and QEMU guest runtime both exercise this path],
     [`F_BLOB_ALIGNMENT` (bit 5)], [implemented], [negotiated when host offers it; `blob_alignment` read from config space at offset 16; blob sizes aligned before `RESOURCE_CREATE_BLOB`; falls back to 4096 if value is zero or not a power-of-two],
-    [QEMU/Venus execution], [`pass`], [evaluation-host transport PASS requires a complete row-compatible QEMU GL/Venus probe artifact],
+    [QEMU/Venus execution], [`pass`], [evaluation-host transport and upstream _llama.cpp_ Vulkan runtime both pass with same-run artifacts],
   ),
   caption: [Current VirtIO-GPU 3D/Venus surface. Implemented transport commands are necessary but not sufficient for a Vulkan application claim.],
 ) <tab:venus-surface>
 
-This separation is central to the paper's methodology. The implementation may legitimately pass ABI and static-readiness gates while the system-level QEMU/Venus row remains blocked. A future acceleration pass requires a real appliance to invoke the implemented ring protocol and submit a valid guest command stream that produces same-run frame evidence.
+This separation is central to the paper's methodology. ABI-readiness, native ring tests, and QEMU runtime evidence answer different questions. VOGUE now reaches same-run guest Vulkan execution for the reported _llama.cpp_ rows, but it still distinguishes that result from broader claims such as general-purpose Vulkan application compatibility or full virgl scene coverage.
 
 == Scanout and Display Configuration
 
@@ -66,7 +66,7 @@ For the 2D path, every frame ends with a resource flush covering the full surfac
 
 == Capsets and Feature Discovery
 
-When 3D mode is negotiated, VOGUE performs capability discovery by querying capset metadata and retrieving capset payloads. Capset discovery is an availability signal for virgl/Venus host support; it is not itself a rendering result. The evaluator therefore reports capset/ABI readiness separately from K1 accelerated rendering.
+When 3D mode is negotiated, VOGUE performs capability discovery by querying capset metadata and retrieving capset payloads. Capset discovery is an availability signal for virgl/Venus host support; it is not itself a rendering result. The evaluator therefore reports capset/ABI readiness separately from guest-runtime execution and application throughput.
 
 == Fence Synchronization
 

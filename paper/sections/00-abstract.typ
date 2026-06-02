@@ -1,25 +1,29 @@
 = Abstract
 
-Unikernels promise small, fast virtual machines, but graphics and accelerator
-workloads usually depend on Linux DRM/KMS, Mesa, and large driver stacks. VOGUE
-asks how far a Unikraft guest can go with a bounded VirtIO-GPU frontend instead
-of importing those stacks. It contributes a compact VirtIO-GPU library, DRM/GBM/EGL
-compatibility shims for application ports, a Venus command/ring substrate, and a
-static Vulkan dispatch layer for llama.cpp/ggml's `ggml-vulkan` backend.
+Unikernels deliver small images and fast boot, but graphics and GPU-backed
+applications typically rely on the Linux DRM/KMS stack, Mesa, and large guest
+driver dependencies. VOGUE asks how much of that stack a Unikraft guest must
+actually import to run bounded graphics workloads and upstream `llama.cpp`
+through VirtIO-GPU. Our answer is a narrow graphics substrate: a guest-side
+VirtIO-GPU frontend, a minimal DRM/GBM/EGL compatibility layer, a software
+raster path for correctness, a Mesa-compatible Venus encoder and ring protocol,
+and a static Vulkan dispatch layer that lets upstream `ggml-vulkan.cpp` run
+without a guest `libvulkan.so`.
 
-The artifact is evidence-gated. On a host with the Venus stack — a Venus-capable
-QEMU (`virtio-gpu-gl-pci,venus=true`), a Venus-enabled virglrenderer, and an
-accessible GPU render node — its generated 27-row matrix is 27/27 PASS;
-without that stack the GPU/transport rows fall back to structured `blocked:*`
-status rather than faking a result. Host-native tests validate protocol ABI, 2D
-paths, Venus encoding/ring behavior, Vulkan ICD bootstrap, and llama/ggml
-substrates. Application rows cover bounded kmscube, glmark2, vkmark, and
-llama.cpp case studies. For `ggml-vulkan`, VOGUE covers the required upstream
-Vulkan API surface, passes a 164-check static-dispatch regression, and — once
-the historical modern-PCI transport blocker is cleared — runs the upstream
-llama.cpp Vulkan bench appliance end-to-end on a real GPU over `virtio-gpu-gl`
-Venus (`pp512≈245 t/s`, `tg128≈3.1 t/s` on a Tesla V100), with the Vulkan server
-appliance loading all model layers onto the GPU and reaching model-loaded
-readiness. We report implementation coverage and substrate correctness
-separately from GPU-throughput claims, and every throughput number is backed by
-a same-run guest artifact.
+The paper's central systems claim is a dependency collapse: Linux reaches the
+host renderer through a large DRM/Mesa tower, while VOGUE reaches the same
+VirtIO-GPU/Venus protocol seam through a small chain of Unikraft libraries and
+explicit compatibility boundaries. We validate that claim with an
+evidence-gated methodology. On the evaluation host, the generated matrix is
+27/27 PASS. Host-native tests validate protocol ABI, 2D resource sequencing,
+Venus encoding and ring behavior, Vulkan ICD bootstrap, and static ggml-Vulkan
+dispatch. At runtime, the project demonstrates same-run QEMU/Venus transport,
+virgl submit/frame proof for `kmscube`, and upstream `llama.cpp` Vulkan
+execution on a Tesla V100. After enabling batched Venus submission and explicit
+llama.cpp batch controls, the latest same-run Vulkan appliance reports
+`pp512=2232.1 t/s` and `tg128=160.2 t/s`, while the Vulkan server appliance
+loads the model over Venus and reaches model-loaded readiness with batching
+enabled. VOGUE therefore shows that a unikernel can host a useful graphics and
+Vulkan substrate without importing Linux DRM/KMS or Mesa wholesale, while still
+keeping unsupported claims explicit as structured blockers rather than implied
+success.

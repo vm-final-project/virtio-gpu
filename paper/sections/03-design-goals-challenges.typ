@@ -19,7 +19,7 @@ We have five design goals to guide our implementation and evaluation:
 
 - Full Linux DRM/KMS ioctl compatibility.
 - A full Mesa or shader-compiler port.
-- A complete Mesa/Venus Vulkan guest-driver port, Wayland/X11, multi-window compositing, or multi-GPU scheduling. VOGUE documents and tests the VirtIO-GPU blob/controlq substrate needed by Venus, but does not claim Vulkan application execution.
+- A complete Mesa/Venus guest stack, Wayland/X11, multi-window compositing, or multi-GPU scheduling. VOGUE does claim current same-run Vulkan execution for the upstream _llama.cpp_ path on the evaluation host, but it does not claim general Linux-guest equivalence, a full window-system stack, or broad graphics-application coverage beyond the rows reported in the generated matrix.
 - Vendor-native GPU drivers, SR-IOV passthrough, or confidential GPU isolation.
 - Claiming graphics acceleration before a real virgl/Venus command stream renders frames with verified virtio-gpu acceleration.
 
@@ -68,6 +68,6 @@ We met six challenges in building VOGUE:
 
 *C4 — DMA memory model.* VirtIO-GPU resources are host-private. The guest must copy software-rendered pixels into DMA-backed memory and explicitly transfer them to the host. This copy is acceptable for a correctness substrate but becomes the central bottleneck for interactive workloads.
 
-*C5 — Minimality versus compatibility.* Too narrow a shim fails to run real programs; too broad a shim recreates Mesa and DRM. VOGUE chooses the smallest API subset that supports concrete application rows, then names unsupported behavior as future work.
+*C5 — Minimality versus compatibility.* Too narrow a shim fails to run real programs; too broad a shim recreates Mesa and DRM. VOGUE chooses the smallest API subset that supports concrete application rows, then names unsupported behavior explicitly instead of silently growing the guest stack.
 
-*C6 — Evaluation integrity.* A high-level systems paper must make negative space visible: missing baselines, missing virgl/Venus command streams, QEMU transport blockers, and missing full-benchmark runs must appear as blocked rows rather than disappearing from the evaluation.
+*C6 — Evaluation integrity.* A high-level systems paper must make negative space visible: missing baselines, unimplemented render payloads, host-specific portability gaps, and incomplete application coverage must appear as structured rows rather than disappearing from the evaluation.

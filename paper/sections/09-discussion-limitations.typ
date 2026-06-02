@@ -12,7 +12,10 @@ VOGUE proves that a small Unikraft library stack can present frames through Virt
 
 *K1 virgl `SUBMIT_3D` delivery and pixel-correct frame evidence now have current PASS claims on the evaluation host.* A K1 submit claim still requires the current K1 row itself to pass with `renderer=virgl` and `submits_3d>0`; a frame claim additionally requires same-run pixel proof with `colour_band_source="pixel"` and a matched colour index. Log-only SUBMIT_3D diagnostics and stale frame proofs remain blockers on hosts without the same-run artifact.
 
-*Full accelerated benchmark coverage* is missing. The current glmark2 row is a scene-clear substrate proof, not a full GL benchmark. A SOSP-strength version should report at least one real visual workload with frame hashes or screenshots, one synthetic microbenchmark for transfer and fence overhead, and one Linux/QEMU baseline under the same host conditions.
+*Full accelerated benchmark coverage* is still missing. The current glmark2 row
+is a scene-clear substrate proof, not a full GL benchmark. A submission-ready
+version should add at least one richer visual workload, transfer/fence
+microbenchmarks, and matched Linux baselines under the same host conditions.
 
 *Security and isolation analysis* is incomplete. The current work reduces guest code size, but it does not yet quantify attack surface reduction, fuzz the command parser, or evaluate malicious-device behavior.
 
@@ -53,7 +56,7 @@ The software-render path performs two expensive operations per frame: CPU raster
   caption: [Reviewer-driven remaining work before full SOSP-level graphics acceleration.]
 ) <tab:sosp-gaps>
 
-== Root Cause Analysis of Blocked Rows
+== Root Cause Analysis of the Remaining Gaps
 
 === K1: current PASS and remaining scope
 
@@ -67,31 +70,21 @@ The reproduction plan is to rebuild the KMSCube appliance with KraftKit, run it 
 
 === llama.cpp full inference: current PASS and remaining scope
 
-Full upstream llama.cpp CPU and Vulkan inference now pass inside single-purpose Unikraft appliances on the evaluation host. The earlier blockers were:
+Full upstream llama.cpp CPU and Vulkan inference now pass inside
+single-purpose Unikraft appliances on the evaluation host. The project has
+already crossed the major bring-up milestones: C++ runtime support, POSIX
+threads, model delivery via 9pfs, static Vulkan dispatch for `ggml-vulkan`,
+and real QEMU/Venus runtime execution. The remaining questions are therefore
+not "can the guest run upstream llama.cpp?" but rather:
 
-1. *C++ runtime missing.* The real `llama.cpp` and `ggml` source files are C++17. Unikraft's default build uses `nolibc`; adding a C++ runtime requires pulling `libc-musl` (for a full POSIX libc) plus `libcxx`/`libcxxabi` (LLVM libc++) from the Unikraft external library catalog. Without these, `std::vector`, `std::string`, and exception-handling infrastructure are absent.
-2. *POSIX threads missing.* `ggml`'s CPU backend uses a thread pool (`ggml_threadpool_t`) backed by `pthread_create`/`pthread_join`. Unikraft's core scheduler provides cooperative fibers (`uksched`), but the POSIX thread API (`pthread_*`) is not automatically available; it requires enabling `lib-pthread-embedded` (catalog: `libs/pthread-embedded`) or Unikraft's `posix_thread` library.
-3. *Model file unavailable.* Running inference requires loading a GGUF model weight file. Inside a Unikraft VM the filesystem is absent by default; options are (a) 9pfs host-share via `lib-9pfs` + `posix-vfs`, (b) ramfs with the model embedded in the initramfs image, or (c) a virtio-blk block device.
-
-GPU acceleration is delegated to upstream `ggml-vulkan` built with `-DGGML_USE_VULKAN=1` and dispatched through Mesa Venus. VOGUE does not implement or claim a custom guest-side compute-remoting ABI. The required static Vulkan API surface is routed through `libukggml_vulkan`/`libukvenus`, covered by the 164-check vk.ggml-dispatch test, and now backed by same-run QEMU/Venus llama.cpp runtime evidence. The remaining gap is performance: prefill is strong, while token generation and HTTP serving need optimization and new request-level gates.
-
-== Full llama.cpp/ggml Unikraft Porting Plan (N1 / N2 / vk.ggml-dispatch)
-
-The current substrate (legacy-llama-substrate + legacy-llama-substrate) proves every pre-condition for full inference. Advancing to real token-generation inside Unikraft follows three blocks.
-
-*N1 — Full upstream ggml CPU sources compiled for Unikraft (2–3 weeks):*
-
-`apps/app-llama-cpu/` (scaffold on branch) provides the port skeleton: `Config.uk` selects the full C++ catalog stack (`LIBMUSL`, `LIBCXX`, `LIBCXXABI`, `LIBUNWIND`, `LIBCOMPILER_RT`, `LIBPTHREAD_EMBEDDED`) and inherits the proven ABI from legacy-llama-substrate. `Makefile.uk` follows the APG `addlib_s` pattern, pinning the same upstream llama.cpp commit used for host baselines. Upstream sources are added one-by-one per the N1.D iterative patch loop; expected patch families cover `mmap` flag masks (`MAP_POPULATE`/`MAP_HUGETLB`), `/proc/cpuinfo` thread detection → `CONFIG_UKPLAT_LCPU_MAXCOUNT`, `dlopen` backend registry → compile-time register, and `<chrono>` steady_clock → `ukplat_monotonic_clock()`. `scripts/llama_cpu_runtime_eval.py` captures `pp512`/`tg128` from the guest serial log and writes `results/llama/llama_cpu_run_latest.json`; `legacy-llama-substrate` promotes from "libukllama scalar substrate" to "upstream ggml real model inference."
-
-*N2 — Dual model-delivery transport (3–5 days):*
-
-`Config.uk` for `app-llama-cpu` already provides a Kconfig choice between initramfs (cpio embedded in image) and 9pfs (host directory via `virtio-9p`). Both transports mount `/models/` at the same guest path; application code is identical. `make llama-cpu-run-initramfs` and `make llama-cpu-run-9pfs` exercise both; the acceptance gate requires `pp512`/`tg128` to agree within 5%.
-
-*vk.ggml-dispatch — Full `ggml-vulkan.cpp` linked inside Unikraft (1–3 months):*
-
-`apps/app-llama-vk/` extends N1's source set with `ggml/src/ggml-vulkan/ggml-vulkan.cpp` and the embedded SPIR-V table (C.1 path). `libukvk_icd` is extended from ICD bootstrap to the full Vulkan compute-dispatch surface (Groups 1–7: device+queue, memory, buffers, descriptors, pipelines, command encoding, submission+sync); the `libukvenus` encoders already proven by legacy-llama-substrate cover the wire side. Patch families cover `dlopen` removal (static ICD), validation-layer bypass, and host-coherent flush. Once vk.ggml-dispatch lands, `legacy-llama-substrate` promotes to run-proven with real GPU `pp512`/`tg128`; ENV10 drops the Venus-proxy qualifier.
-
-The dependency graph is: N2 (model I/O) → N1 (CPU ggml in UK, `legacy-llama-substrate`) → vk.ggml-dispatch (Vulkan/Venus, `legacy-llama-substrate` upgrade). N2 is independent of K1; vk.ggml-dispatch shares the `libukvk_icd` runtime extension with G7 (`vkmark`) but lives on its own evidence ladder.
+1. *Can the server path serve real requests?* Today the server images prove
+   direct entrypoint plus model-loaded readiness, not request/response service.
+2. *Can model load be reduced further?* Current artifacts still record
+   `use_mmap=false` and `huge_pages=false`.
+3. *How much of the remaining overhead belongs to the guest path versus the
+   transport and host stack?* The repaired Vulkan throughput is strong, but a
+   fuller server-level comparison still requires request gates and matched
+   baselines.
 
 == Future Work
 

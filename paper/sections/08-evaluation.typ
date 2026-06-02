@@ -9,7 +9,18 @@ Our evaluation is structured like the two reference unikernel papers. As in Unik
 
 == Methodology
 
-All pass/fail rows are evidence-gated. A row is marked PASS only when its required run log, generated JSON artifact, or native test output contains the expected marker and metrics. Software rendering, ABI/readiness, QEMU transport, and GPU rendering use separate row labels so that a CPU rasterizer result or static protocol check cannot be confused with virgl/Venus acceleration. Unless otherwise noted, measurements were taken on an AMD EPYC 7543P host with KVM available and an NVIDIA RTX 4000 Ada GPU. QEMU/virgl/Venus availability is recorded with the run logs; missing transport or command-stream support is reported as BLOCKED, not as a negative performance result.
+All pass/fail rows are evidence-gated. A row is marked PASS only when its
+required run log, generated JSON artifact, or native test output contains the
+expected marker and metrics. Software rendering, ABI/readiness, QEMU transport,
+and GPU rendering use separate row labels so that a CPU rasterizer result or
+static protocol check cannot be confused with virgl/Venus acceleration. The
+paper distinguishes two hardware contexts: host-native/software-substrate
+measurements are taken from the local evaluation environment, while the current
+Venus runtime claims are backed by same-run artifacts from the host that
+exposes four Tesla V100 GPUs and a Venus-capable QEMU/virglrenderer stack. The
+generated artifacts record the exact environment for each claim; rows without
+the required runtime substrate remain structured blockers rather than implicit
+negative results.
 
 #include "../generated/evidence-current-table.typ"
 
@@ -71,7 +82,7 @@ The review critique asked for comprehensive performance evidence for supported a
 
 #include "../generated/app-performance-table.typ"
 
-== RQ5b: Vulkan/vkmark Performance Evaluation
+== RQ3b: Vulkan/vkmark Substrate Evaluation
 
 VOGUE adds Vulkan substrate evaluation as point (6) of the evidence plan. Two Unikraft ports are implemented: `app-vulkan-smoke` (vk.icd gate) and `app-vkmark` (vkmark Vulkan benchmark substrate). A native host-side Vulkan test (`tests/vulkan_compute_test.c`) validates the Vulkan API surface against Khronos Vulkan Samples patterns and measures host baseline latencies. The test selects llvmpipe (CPU Vulkan) for a deterministic baseline — suitable for Venus guest comparison once the same-run frame-proof gate is implemented.
 
@@ -112,11 +123,13 @@ ENV11 (`vk.ggml-dispatch static Vulkan ICD dispatch, host-only`, `pass`) is the 
 === LLAMA-VK Vulkan/Venus Cross-Environment Throughput
 
 @tab:llama-vk-bench reports `llama-bench` throughput for the same upstream
-`llama.cpp` binary set used by `apps/app-llama-vulkan` across four
-environments on the same host hardware (AMD EPYC 7543P, NVIDIA RTX 4000 Ada).
-The Vulkan/Venus stack runs end-to-end and emits real token-rate samples;
-the Unikraft-internal hosting of the same binary is tracked separately
-under `llm.bench.vk`. `make llama-vulkan-bench` regenerates this table.
+`llama.cpp` binary set across multiple environments. It is contextual rather
+than authoritative for guest claims: the authoritative Unikraft Vulkan claim is
+the same-run `llm.bench.vk` / `llm.bench.vk.real` artifact. We retain this
+table because it helps interpret the remaining overheads of the guest path and
+because it shows that VOGUE's current contribution is not simply "Vulkan
+exists," but "Vulkan exists with a bounded and measurable guest-side
+dependency chain."
 
 #include "../generated/llama-vulkan-bench-table.typ"
 

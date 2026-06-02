@@ -4,7 +4,11 @@ VOGUE is a research artifact for running graphics and Vulkan-oriented workloads
 inside Unikraft unikernels without importing Linux DRM/KMS or Mesa into the
 guest. The codebase keeps local code small: reusable Unikraft libraries own the
 VirtIO-GPU/Venus/Vulkan glue, while upstream applications keep their own
-application logic.
+application logic. The current paper (`paper/`) and architecture notes frame
+the main result as a *dependency collapse*: VOGUE reaches the same VirtIO-GPU /
+Venus host contract as Linux guests through a much thinner Unikraft library
+stack, then validates that stack with explicit claim boundaries and same-run
+artifacts.
 
 The llama.cpp ports follow Unikraft's *one image, one purpose* principle. There
 is one image for CPU `llama-bench`, one image for the CPU server-mode
@@ -31,7 +35,7 @@ upstream llama.cpp bench/server
 A `PASS` row means the corresponding command reproduced locally. A `blocked:*`
 row (for example `blocked:unikraft-image-missing`, `blocked:image-missing`) is a documented blocker and is not acceleration or throughput evidence.
 
-**Current stage (2026-06-01 evidence).** On the evaluation host with QEMU 11.0.1
+**Current stage (2026-06-02 evidence).** On the evaluation host with QEMU 11.0.1
 `virtio-gpu-gl-pci,hostmem=...,blob=true,venus=true`, Venus-enabled
 virglrenderer, and an accessible NVIDIA render node, the full 27-row evaluation
 matrix is **27/27 PASS, 0 blocked** (`results/vogue_latest_evaluation_matrix.md`).
@@ -44,7 +48,9 @@ under `results/llama/post_opt_runs/` report `tg128={135.7, 139.9, 160.2}`
 entrypoint, reaches model-loaded readiness with
 `batch_size=2048`, `ubatch_size=512`, and `dispatch_batch_enabled=true`, and
 `xport.qemu-vgpu`, `proto.venus-ring`, `gfx.kmscube.submit`, and
-`gfx.kmscube.frame` all have same-run PASS artifacts.
+`gfx.kmscube.frame` all have same-run PASS artifacts. The paper and generated
+tables now reflect this current state, including the distinction between
+transport proof, guest-runtime proof, and broader future coverage.
 
 `make current-stage-check` also passes: the real-path checker now treats a
 CPU-only latest `.unikraft/build/config` as not applicable when production
@@ -71,13 +77,19 @@ rather than being reported as passes.
 Reproducibility manifests live in sibling `../manifest/`; do not duplicate
 manifest locks or experiment runners in this repo.
 
+For the dependency-difference view used by the paper, see
+`docs/ARCHITECTURE.md` and `results/depgraph/`: Linux reaches the host through a
+wide DRM/KMS/GEM stack, while VOGUE reaches the same protocol seam through a
+thin `libuk*` chain.
+
 ## VirtIO-GPU Venus/Vulkan v1 roadmap
 
 The bounded graphics roadmap is tracked in
 `design/unikraft-virtio-gpu-spec-v1.md` and
 `design/virtio-gpu-vulken-v1.md`. Out of scope for this revision: importing
-Linux DRM/KMS or Mesa wholesale, claiming full Venus/Vulkan rendering without
-same-run frame proof, or treating structured blockers as passes.
+Linux DRM/KMS or Mesa wholesale, claiming broad Linux-guest-equivalent graphics
+coverage from a small number of same-run artifacts, or treating structured
+blockers as passes.
 
 ## Official-doc-grounded environment and fix plan
 

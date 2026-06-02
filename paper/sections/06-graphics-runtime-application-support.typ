@@ -2,7 +2,7 @@
 
 == Minimal DRM/GBM/EGL Compatibility Layer
 
-VOGUE does _not_ implement Linux DRM/KMS. Instead, it provides a narrow compatibility layer — libukegl — that presents the DRM/GBM/EGL API surface expected by the target applications while routing all operations to the VirtIO-GPU 2D backend. This is an honest engineering choice: we implement exactly the subset needed to link and run the target applications, with clear documentation of what is stubbed versus real.
+VOGUE does _not_ implement Linux DRM/KMS. Instead, it provides a narrow compatibility layer — libukegl — that presents the DRM/GBM/EGL API surface expected by the target applications while routing only the required operations to the VirtIO-GPU backend. This is an explicit engineering choice: implement the smallest subset needed to compile and run the reported workloads, and document precisely which behaviors are real and which are bounded stubs.
 
 The framing in the codebase is explicit: the library is named libukegl (Unikraft EGL shim), not a Linux DRM port. Headers use the same standard names as the Linux EGL, GBM, and GLES2 headers, so application code requires no include-path changes.
 
@@ -50,7 +50,7 @@ The entry-point table in `uk_vulkan_dispatch.c` is structured so that `vkGetInst
 
 Struct layout is read at Vulkan 1.3 spec byte offsets, verified against the Khronos Vulkan-Headers (v1.3.352) located via `$VULKAN_HEADERS_INCLUDE` and the Mesa `vn_protocol_driver_defines.h`. A 164-check dispatch test (`ggml_vk_dispatch_test`, `make llama-ggml-vk-dispatch`) validates API coverage, proc lookup, per-stub return values, handle allocation, descriptor/copy/fill paths, cleanup, and a full 23-step compute bootstrap sequence from `vkCreateInstance` through `vkWaitForFences`.
 
-The vk.ggml-dispatch path is the bridge between VOGUE's Venus transport layer and the upstream `ggml-vulkan.cpp` compute graph executor. Remaining work: Venus ring-buffer reads (`uk_venus_ring_wait_reply`) for real device property queries, and `virtio_gpu_resource_flush` for host VRAM write coherency after each `vkQueueSubmit`.
+The vk.ggml-dispatch path is the bridge between VOGUE's Venus transport layer and the upstream `ggml-vulkan.cpp` compute graph executor. In the current artifact, this bridge is no longer only a static substrate claim: it underpins same-run Unikraft guest execution for the upstream Vulkan benchmark and model-loaded server rows. Remaining work is therefore about breadth and characterization — for example request-path serving, broader application coverage, and deeper performance attribution — rather than first execution.
 
 == Application Porting
 
@@ -62,4 +62,4 @@ The application harness calls the upstream smooth-cube initializer and then runs
 
 === glmark2-es2
 
-The glmark2 port is an official-source, bounded Unikraft adapter for the upstream `glmark2-es2` scene-clear workload (`https://github.com/glmark2/glmark2.git`, reference `22c527cb0556f3a1ac4445aaa52cc532760928d5`). It preserves the source-level workload shape that matters for this artifact: initialize EGL/GLES2, clear the active framebuffer for a deterministic frame count, present each frame, and emit a glmark2-style score marker. The port deliberately omits the full C++ scene framework, libpng/image assets, and unrelated platform backends; therefore gfx.glmark2.sw is a substrate proof, not a full benchmark-suite score.
+The glmark2 port is an official-source, bounded Unikraft adapter for the upstream `glmark2-es2` scene-clear workload (`https://github.com/glmark2/glmark2.git`, reference `22c527cb0556f3a1ac4445aaa52cc532760928d5`). It preserves the source-level workload shape that matters for this artifact: initialize EGL/GLES2, clear the active framebuffer for a deterministic frame count, present each frame, and emit a glmark2-style score marker. The port deliberately omits the full C++ scene framework, libpng/image assets, and unrelated platform backends; therefore `gfx.glmark2.sw` is a bounded substrate proof, not a benchmark-suite score.

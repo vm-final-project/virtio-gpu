@@ -77,9 +77,21 @@ The current code should be read as five layers of evidence. First, the 2D/softwa
 
 A key correctness requirement is that upstream `llama.cpp` and `ggml` sources run inside Unikraft *without patches*. Two application ports implement this:
 
-`apps/app-llama-upstream/` provides the CPU path. It compiles the full upstream ggml CPU backend (`ggml-cpu.c`, `quants.c`, `repack.cpp`, `hbm.cpp`, `traits.cpp`, `binary-ops.cpp`, `unary-ops.cpp`, `vec.cpp`, `ops.cpp`), the backend registry (`ggml-opt.cpp`, `ggml-backend-dl.cpp`, `ggml-backend-reg.cpp`), and all `src/*.cpp` llama.cpp sources directly into the Unikraft library — no prebuilt archives, no local diff against upstream. The `kraft/Kraftfile.llama-upstream-cpu` appliance wires ramfs automount (`CONFIG_LIBRAMFS + CONFIG_LIBVFSCORE_AUTOMOUNT_CI + CONFIG_LIBVFSCORE_AUTOMOUNT_CI_RAMFS`) so that `mkdir`/`mount` work before the 9pfs share is available, and `CONFIG_LIBUK9P + CONFIG_LIBVIRTIO_9P + CONFIG_LIB9PFS` for model delivery. `llm.bench.cpu` is PASS: pp512=12,610 t/s, tg128=12,597 t/s, SHA `fcae601e4`, AMD EPYC 7543P single-thread.
+`apps/app-llama-upstream/` provides the CPU path. It compiles the upstream ggml
+CPU backend, backend registry, and llama.cpp `src/*.cpp` sources directly into
+the Unikraft image — no prebuilt archives, no project-local fork of the
+application sources. The CPU appliance uses ramfs plus 9pfs for model delivery,
+and the current evidence records `llm.bench.cpu` as PASS with `pp512=9.1` and
+`tg128=7.7` for the staged Qwen3-0.6B-Q4_K_M model on the evaluation host.
 
-`apps/app-llama-upstream-vk/` extends the CPU port with the Vulkan backend. It uses `libukggml_vulkan` for the ggml core and Vulkan SPIR-V shader blobs (no duplication), then compiles the ggml-cpu backend and all llama.cpp sources in-tree, adding `GGML_USE_VULKAN=1` and `VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1`. The Kraftfile (`kraft/Kraftfile.llama-upstream-vk`) follows the same ramfs+9pfs pattern. The build passes and required static Vulkan API coverage is checked by `llama-vulkan-api-coverage`. Runtime remains evidence-gated on machines without a working QEMU/Venus EGL render node.
+`apps/app-llama-upstream-vk/` extends the CPU port with the Vulkan backend. It
+uses `libukggml_vulkan` for the ggml core and Vulkan SPIR-V shader blobs, then
+compiles the ggml CPU backend and llama.cpp sources in-tree with
+`GGML_USE_VULKAN=1`. The static API surface is checked by
+`llama-vulkan-api-coverage`; runtime is validated separately by same-run QEMU
+artifacts. On the evaluation host, the Vulkan appliance no longer represents a
+blocked bring-up path: it reaches the real Venus runtime and, after batching
+tuning, records `pp512=2232.1` and `tg128=160.2` in the latest artifact.
 
 The x86-specific CPU feature files (`x86-quants.c`, `x86-repack.cpp`, `x86-cpu-feats.cpp`) and shim files (`ggml-cpu-cpp.cpp`, `dummy-amx.cpp`, `models-llama.cpp`) are shared between the two apps via relative paths from `apps/app-llama-upstream/`. Each shim is a one-line `#include` resolved through the project-relative `-I$(LLAMA_ROOT)/...` paths supplied by `Makefile.uk`, so the tracked sources contain no personal-checkout paths. `LLAMA_ROOT` and `VULKAN_HEADERS_INCLUDE` default to the values recorded in `config/external_paths.json` and may be overridden via environment variables. The cmake toolchain file (`cmake/unikraft-clang.cmake`) consumes the same variables, so the upstream cmake build and the Unikraft in-tree build see the same header set.
 
@@ -109,6 +121,18 @@ translation units, so the bench image carries bench code only.
 image has not been built locally the row is a structured
 `blocked:image-missing`, never a fatal error, so the reviewer-only fast path
 stays usable.
+
+== Implementation Difference from Linux
+
+The code organization mirrors the dependency-collapse argument from
+@sec:system-overview. Linux guest graphics distributes responsibility across a
+kernel driver, ioctl-heavy userspace libraries, and Mesa drivers. VOGUE moves
+only the minimum necessary responsibilities into guest-local Unikraft
+libraries: transport and resource management in `libukvirtio_gpu`, bounded
+application compatibility in `libukegl`, and Vulkan/Venus protocol logic in
+`libukvirtgpu_drm`, `libukvk_icd`, `libukvenus`, and `libukggml_vulkan`. This
+split is the reason the project can support real workloads while keeping the
+guest dependency graph small enough to inspect and explain.
 
 == Performance Optimisation
 
