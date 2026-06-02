@@ -114,7 +114,7 @@ def _grant_render_nodes() -> None:
 def _write(name: str, payload: dict) -> None:
     RESULTS.mkdir(parents=True, exist_ok=True)
     payload.setdefault("generated_utc", _now())
-    (RESULTS / f"{name}_latest.json").write_text(json.dumps(payload, indent=2) + "\n")
+    (RESULTS / f"{name}.json").write_text(json.dumps(payload, indent=2) + "\n")
 
 
 def _emit(status: str, *, log_tail: str = "", extra: dict | None = None,
@@ -132,7 +132,7 @@ def _emit(status: str, *, log_tail: str = "", extra: dict | None = None,
         "host": platform.platform(),
         "venus_device": venus_device,
         "host_render_error": host_error,
-        "run_log": "results/llama/upstream_vk_latest.log",
+        "run_log": "results/llama/upstream_vk.log",
         "claim_allowed": (
             "Real boot of the upstream llama.cpp Vulkan appliance under "
             "QEMU virtio-gpu-gl venus=true; throughput only when status==pass."),
@@ -161,7 +161,7 @@ def _emit(status: str, *, log_tail: str = "", extra: dict | None = None,
         tg128 = throughput.get("tg128")
         baseline = {}
         try:
-            bl = json.loads((RESULTS / "vulkan_linux_baseline_latest.json").read_text())
+            bl = json.loads((RESULTS / "vulkan_linux_baseline.json").read_text())
             if bl.get("status") == "pass":
                 baseline = {
                     "host_linux_vulkan_pp512_t_per_s": bl.get("pp512_t_per_s"),
@@ -184,7 +184,7 @@ def _emit(status: str, *, log_tail: str = "", extra: dict | None = None,
             "pp512": pp512,
             "tg128": tg128,
             "accel": throughput.get("accel"),
-            "run_log": "results/llama/upstream_vk_latest.log",
+            "run_log": "results/llama/upstream_vk.log",
             "transport": "virtio-gpu-gl venus=true; ggml-vulkan -> libukggml_vk -> libukvenus SUBMIT_3D -> host virglrenderer Venus -> host Vulkan driver",
             "claim_allowed": ("End-to-end Vulkan compute: the Unikraft guest's ggml-vulkan backend "
                               "offloaded all layers via Venus to the host driver and emitted real "
@@ -207,7 +207,7 @@ def _emit(status: str, *, log_tail: str = "", extra: dict | None = None,
                 {"env": "qemu-unikraft-vulkan", "test": "tg128", "t_s": tg128},
             ],
             "comparison": baseline,
-            "run_log": "results/llama/upstream_vk_latest.log",
+            "run_log": "results/llama/upstream_vk.log",
             "claim_allowed": ("Apples-to-apples Vulkan throughput: same upstream ggml-vulkan + GGUF as "
                               "host.baseline.vk, run inside Unikraft over the real virtio-gpu-gl Venus "
                               "path; comparison rows quote the same-host Linux Vulkan baseline."),
@@ -250,7 +250,7 @@ def _attempt(qemu: str, model: Path) -> tuple[str, dict]:
             out = ((e.stdout or "") if isinstance(e.stdout, str) else "") + \
                   ((e.stderr or "") if isinstance(e.stderr, str) else "")
 
-    (RESULTS / "upstream_vk_latest.log").write_text(out)
+    (RESULTS / "upstream_vk.log").write_text(out)
     # Also under the *_serial.log name that scripts/model_load_time_check.py reads.
     (RESULTS / "upstream_vk_serial.log").write_text(out)
     tail = out[-4000:]
@@ -276,7 +276,7 @@ def _attempt(qemu: str, model: Path) -> tuple[str, dict]:
             "api_version": "1.2",
             "capset_venus": True,
             "transport": "virtio-gpu-gl venus=true; vkSetReplyCommandStreamMESA reply round-trip",
-            "run_log": "results/llama/upstream_vk_latest.log",
+            "run_log": "results/llama/upstream_vk.log",
             "claim_allowed": ("Unikraft libukvk_icd/libukggml_vulkan enumerated a real Venus "
                               f"physical device ({real_name}) by reading the host reply over Venus."),
             "claim_forbidden": "Vulkan compute execution, llama.cpp tokens, or throughput.",

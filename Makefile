@@ -98,7 +98,7 @@ vulkan-check:
 # static Vulkan/Venus dispatch layer required by upstream ggml-vulkan.
 # Legacy synthetic llama substrate rows were pruned.
 llama-check: llama-env-check llama-vulkan-api-coverage llama-ggml-vk-dispatch
-	python3 scripts/llama_env_matrix.py --dry-run --output results/llama-env/latest-plan.json
+	python3 scripts/llama_env_matrix.py --dry-run --output results/llama-env/plan.json
 
 llama-vulkan-api-coverage:
 	python3 scripts/llama_vulkan_api_coverage.py --check
@@ -143,7 +143,7 @@ llama-upstream-cpu-run: llama-upstream-cpu-build
 llama-upstream-cpu-check: llama-upstream-cpu-run
 	python3 -c "\
 import json, sys; \
-i=json.load(open('results/llama/upstream_cpu_latest.json')); \
+i=json.load(open('results/llama/upstream_cpu.json')); \
 ok = i.get('pass') or i.get('scaffold_booted'); \
 sys.exit(0 if ok else 1)"
 
@@ -227,7 +227,7 @@ llama-upstream-vk-server-build: llama-upstream-cmake-vk-server
 llama-upstream-vk-check: llama-upstream-vk-run
 	python3 -c "\
 import json, sys; \
-i=json.load(open('results/llama/upstream_vk_latest.json')); \
+i=json.load(open('results/llama/upstream_vk.json')); \
 ok = i.get('pass') or i.get('scaffold_booted'); \
 sys.exit(0 if ok else 1)"
 
@@ -236,7 +236,7 @@ llama-upstream-check: llama-upstream-cpu-check llama-upstream-vk-check
 env10-real-check: llama-upstream-vk-run
 	python3 -c "\
 import json, sys; \
-i=json.load(open('results/llama/env10_real_latest.json')); \
+i=json.load(open('results/llama/env10_real.json')); \
 ok = i.get('pass') or (i.get('status','').startswith('blocked:')); \
 sys.exit(0 if ok else 1)"
 
@@ -250,7 +250,7 @@ llama-env-check:
 	python3 scripts/llama_env_matrix.py --check
 
 llama-env-bench:
-	python3 scripts/llama_env_matrix.py --dry-run --output results/llama-env/latest-plan.json
+	python3 scripts/llama_env_matrix.py --dry-run --output results/llama-env/plan.json
 
 llama-env-server:
 	python3 scripts/llama_env_matrix.py --dry-run --mode server --output results/llama-env/server-plan.json
@@ -276,8 +276,8 @@ naming-check:
 image-size-check:
 	python3 scripts/image_size_check.py --check
 
-# perf-check compares results/app_perf_latest.json and
-# results/llama/upstream_cpu_latest.json against config/perf_baseline.json
+# perf-check compares results/app_perf.json and
+# results/llama/upstream_cpu.json against config/perf_baseline.json
 # and fails if anything regresses by more than the configured percentage.
 perf-check: app-perf-check
 	python3 scripts/perf_check.py --check --allow-blocked
@@ -320,7 +320,7 @@ eval:
 
 eval-check: app-perf-check venus-check vulkan-check llama-check llama-vulkan-check
 	python3 scripts/eval_matrix.py --check
-	grep -n "gfx.kmscube.sw.*software\|K1 requires\|Claim Boundaries" results/vogue_latest_evaluation_matrix.md paper/sections/08-evaluation.typ >/dev/null
+	grep -n "gfx.kmscube.sw.*software\|K1 requires\|Claim Boundaries" results/vogue_evaluation_matrix.md paper/sections/08-evaluation.typ >/dev/null
 
 claim-check: eval-check
 	@# Reject abandoned custom compute-remoting vocabulary outside archival/design material.
@@ -338,33 +338,33 @@ app-port-check:
 	python3 scripts/app_port_check.py
 
 glmark2-build:
-	mkdir -p results/glmark2/latest
+	mkdir -p results/glmark2/run
 	{ \
-		rm -f results/glmark2/latest/blocker.json; \
+		rm -f results/glmark2/run/blocker.json; \
 		if COMPILER=clang $(KRAFT) build --no-prompt --log-type basic --no-update --target qemu/x86_64 --kraftfile kraft/Kraftfile.glmark2 .; then \
 			echo "vogue-glmark2: build-pass image=.unikraft/build/vogue-glmark2_qemu-x86_64"; \
 		else \
 			rc=$$?; echo "vogue-glmark2: build blocked by local Kraft/Unikraft toolchain rc=$$rc"; \
-			python3 -c 'import json,pathlib; pathlib.Path("results/glmark2/latest/blocker.json").write_text(json.dumps({"status":"blocked:build","blocked_stage":"build","first_missing_dependency":"Kraft/Unikraft toolchain failed; see results/glmark2/latest/build.log","evidence_log":"results/glmark2/latest/build.log","claim_allowed":"Build blocker documented; no gfx.glmark2.sw QEMU pass claim.","claim_forbidden":"Full glmark2 suite, QEMU performance, or acceleration claim."}, indent=2) + "\n")'; \
+			python3 -c 'import json,pathlib; pathlib.Path("results/glmark2/run/blocker.json").write_text(json.dumps({"status":"blocked:build","blocked_stage":"build","first_missing_dependency":"Kraft/Unikraft toolchain failed; see results/glmark2/run/build.log","evidence_log":"results/glmark2/run/build.log","claim_allowed":"Build blocker documented; no gfx.glmark2.sw QEMU pass claim.","claim_forbidden":"Full glmark2 suite, QEMU performance, or acceleration claim."}, indent=2) + "\n")'; \
 		fi; \
-	} 2>&1 | tee results/glmark2/latest/build.log
+	} 2>&1 | tee results/glmark2/run/build.log
 
 kmscube-build:
-	mkdir -p results/kmscube_vgpu_gl/latest
+	mkdir -p results/kmscube_vgpu_gl/run
 	{ \
-		rm -f results/kmscube_vgpu_gl/latest/blocker.json; \
+		rm -f results/kmscube_vgpu_gl/run/blocker.json; \
 		if COMPILER=clang $(KRAFT) build --no-prompt --log-type basic --no-update --target qemu/x86_64 --kraftfile Kraftfile .; then \
 			echo "vogue: build-pass image=.unikraft/build/vogue_qemu-x86_64"; \
 		else \
 			rc=$$?; echo "vogue: build blocked by local Kraft/Unikraft toolchain rc=$$rc"; \
-			python3 -c 'import json,pathlib; pathlib.Path("results/kmscube_vgpu_gl/latest/blocker.json").write_text(json.dumps({"status":"blocked:build","blocked_stage":"build","first_missing_dependency":"Kraft/Unikraft toolchain failed; see results/kmscube_vgpu_gl/latest/build.log","evidence_log":"results/kmscube_vgpu_gl/latest/build.log","claim_allowed":"Build blocker documented; no K1 pass claim.","claim_forbidden":"Native K1 virgl/kmscube pass or acceleration claim.","next_step":"Fix the local Unikraft compiler/Kraft target failure and rerun make kmscube-build."}, indent=2) + "\n")'; \
+			python3 -c 'import json,pathlib; pathlib.Path("results/kmscube_vgpu_gl/run/blocker.json").write_text(json.dumps({"status":"blocked:build","blocked_stage":"build","first_missing_dependency":"Kraft/Unikraft toolchain failed; see results/kmscube_vgpu_gl/run/build.log","evidence_log":"results/kmscube_vgpu_gl/run/build.log","claim_allowed":"Build blocker documented; no K1 pass claim.","claim_forbidden":"Native K1 virgl/kmscube pass or acceleration claim.","next_step":"Fix the local Unikraft compiler/Kraft target failure and rerun make kmscube-build."}, indent=2) + "\n")'; \
 		fi; \
-	} 2>&1 | tee results/kmscube_vgpu_gl/latest/build.log
+	} 2>&1 | tee results/kmscube_vgpu_gl/run/build.log
 
 kmscube-run:
 	test -x "$$(command -v $(QEMU))" || { echo "$(QEMU) missing"; exit 2; }
 	test -f .unikraft/build/vogue_qemu-x86_64 || $(MAKE) kmscube-build
-	$(QEMU) -machine accel=tcg -cpu max -m 256M -kernel .unikraft/build/vogue_qemu-x86_64 -display egl-headless,gl=on -serial mon:stdio -device virtio-gpu-gl-pci,disable-modern=on,disable-legacy=off 2>&1 | tee results/kmscube_vgpu_gl/latest/run.log
+	$(QEMU) -machine accel=tcg -cpu max -m 256M -kernel .unikraft/build/vogue_qemu-x86_64 -display egl-headless,gl=on -serial mon:stdio -device virtio-gpu-gl-pci,disable-modern=on,disable-legacy=off 2>&1 | tee results/kmscube_vgpu_gl/run/run.log
 
 kmscube-check:
 	python3 scripts/kmscube_vgpu_gl_eval.py --emit-pixel-proof --check --allow-blocked

@@ -17,7 +17,7 @@ and reaches model-loaded readiness over real Venus. HTTP serving itself is NOT
 claimed here — the appliance has no TCP/IP stack (lwip is out of scope), so a
 later socket bind fails cleanly after READY. We never claim throughput/serving.
 
-Writes results/llama/upstream_server_vk_latest.json (read by eval_matrix.py) and
+Writes results/llama/upstream_server_vk.json (read by eval_matrix.py) and
 results/llama/upstream_server_vk_serial.log (read by llm_server_vk_check.py).
 """
 from __future__ import annotations
@@ -101,7 +101,7 @@ def _grant_render_nodes() -> None:
 def _write(payload: dict) -> None:
     RESULTS.mkdir(parents=True, exist_ok=True)
     payload.setdefault("generated_utc", _now())
-    (RESULTS / "upstream_server_vk_latest.json").write_text(
+    (RESULTS / "upstream_server_vk.json").write_text(
         json.dumps(payload, indent=2) + "\n")
 
 

@@ -38,7 +38,7 @@ row (for example `blocked:unikraft-image-missing`, `blocked:image-missing`) is a
 **Current stage (2026-06-02 evidence).** On the evaluation host with QEMU 11.0.1
 `virtio-gpu-gl-pci,hostmem=...,blob=true,venus=true`, Venus-enabled
 virglrenderer, and an accessible NVIDIA render node, the full 27-row evaluation
-matrix is **27/27 PASS, 0 blocked** (`results/vogue_latest_evaluation_matrix.md`).
+matrix is **27/27 PASS, 0 blocked** (`results/vogue_evaluation_matrix.md`).
 The upstream llama.cpp Vulkan bench appliance runs end-to-end on the GPU through
 real Venus and, after enabling batched Venus submission plus explicit
 llama.cpp batch controls, the latest same-run artifact records
@@ -191,10 +191,10 @@ this tree and a verification gate:
 |---|---|---|
 | Hot/cold compile-flag split | `apps/app-llama-upstream*/Makefile.uk` `<FILE>_FLAGS-y` | `make perf-check` |
 | SIMD swrender inner loops | `libs/libukswrender/swrender.c` | `make perf-check` |
-| Coalesced VirtIO-GPU 2D fence | `libs/libukvirtio_gpu/virtio_gpu_real.c` + `tests/virtio_gpu_test.c` 200–204 | `make native-tests` |
+| Coalesced VirtIO-GPU 2D fence | `libs/libukvirtio_gpu/virtio_gpu_real.c` + `tests/virtio_gpu_full_api_test.c` 200–204 | `make native-tests` |
 | Batched SUBMIT_3D (enabled in the Vulkan appliances) | `libs/libukggml_vk/uk_vulkan_dispatch.c` `UK_GGML_VK_DISPATCH_BATCH=1` | `tests/ggml_vk_dispatch_test.c` info-getter assertions + `results/llama/post_opt_runs/` |
 | Venus encoder scalar fast path | `libs/libukvenus/venus_cs.c` | `tests/venus_cs_test`, `tests/ggml_vk_dispatch_test` |
-| Explicit Vulkan batch/ubatch wiring | `apps/app-llama-upstream-vk/{bench.cpp,server.cpp}` + `Config.uk` `*_BATCH` / `*_UBATCH` | `make llm-server-vk-check` + `results/llama/upstream_vk_latest.json` |
+| Explicit Vulkan batch/ubatch wiring | `apps/app-llama-upstream-vk/{bench.cpp,server.cpp}` + `Config.uk` `*_BATCH` / `*_UBATCH` | `make llm-server-vk-check` + `results/llama/upstream_vk.json` |
 | Continuous batching / prompt cache | `apps/app-llama-upstream{,vk}/server.cpp` + `Config.uk` `*_PARALLEL` / `*_PROMPT_CACHE` | `make llm-server-vk-check` |
 | Model-load latency record (L1.4) | `apps/app-llama-upstream{,vk}/common.h` | `make model-load-time-check` |
 | QEMU `hostmem=…,blob=true,venus=true` + `egl-headless` | `kraft/Kraftfile.llama-upstream-vk-server` + `scripts/run_llama_upstream_vk_server.sh` | `make llm-server-vk-check` |
@@ -210,7 +210,7 @@ make llm-server-vk-check        # plan-optimize.md Phase-2 static contract
 ```
 
 `config/perf_baseline.json` is the authoritative reference; every gate writes
-`results/<gate>/latest.{json,md}` so a CI run can diff against the captured
+`results/<gate>/report.{json,md}` so a CI run can diff against the captured
 baseline.
 
 The software-render rows (`gfx.kmscube.sw`, `gfx.glmark2.sw`) are deterministic
@@ -314,6 +314,6 @@ Forbidden without same-run PASS artifacts:
 - Environment matrix: `config/llama_env_matrix.json`
 - Library contracts: `libs/*/README.md`
 - Application provenance/porting: `apps/*/PORTING.md` (including `apps/app-kmscube/PORTING.md`)
-- Evidence matrix: `results/vogue_latest_evaluation_matrix.{json,csv,md}`
-- Current-stage report: `results/stage/current_stage_report_latest.{json,md}`
+- Evidence matrix: `results/vogue_evaluation_matrix.{json,csv,md}`
+- Current-stage report: `results/stage/current_stage_report.{json,md}`
 - Paper: `paper/main.typ`, `paper/sections/*`, generated tables in `paper/generated/*`

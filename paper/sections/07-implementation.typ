@@ -117,7 +117,7 @@ neither from `main()` nor from required constructors is discarded from the
 final image. The same flags apply to all upstream `llama.cpp` and `ggml*`
 translation units, so the bench image carries bench code only.
 
-`make image-size-check` writes `results/image-size/latest.{json,md}`. When an
+`make image-size-check` writes `results/image-size/report.{json,md}`. When an
 image has not been built locally the row is a structured
 `blocked:image-missing`, never a fatal error, so the reviewer-only fast path
 stays usable.

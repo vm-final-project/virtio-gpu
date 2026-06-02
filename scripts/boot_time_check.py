@@ -10,7 +10,7 @@ For each appliance image present under `.unikraft/build/`, the script:
 
 Hosts without QEMU, or without a built image, produce a structured
 `blocked:*` row rather than a hard error. Writes
-`results/boot/latest.{json,md}`.
+`results/boot/report.{json,md}`.
 """
 from __future__ import annotations
 

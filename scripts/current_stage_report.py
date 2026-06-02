@@ -81,13 +81,13 @@ def main() -> int:
         "governance_check.py",
     }
 
-    stage = load_json(OUT / "stage_audit_latest.json")
-    alignment = load_json(OUT / "unikraft_alignment_latest.json")
-    bench = load_json(ROOT / "results" / "benchmarks" / "benchmark_summary_latest.json")
-    matrix = load_json(ROOT / "results" / "vogue_latest_evaluation_matrix.json")
-    venus = load_json(ROOT / "results" / "venus" / "venus_perf_latest.json")
-    real_path = load_json(ROOT / "results" / "venus" / "real_path_check_latest.json")
-    qemu = load_json(ROOT / "results" / "venus" / "qemu_2d_probe_latest.json")
+    stage = load_json(OUT / "stage_audit.json")
+    alignment = load_json(OUT / "unikraft_alignment.json")
+    bench = load_json(ROOT / "results" / "benchmarks" / "benchmark_summary.json")
+    matrix = load_json(ROOT / "results" / "vogue_evaluation_matrix.json")
+    venus = load_json(ROOT / "results" / "venus" / "venus_perf.json")
+    real_path = load_json(ROOT / "results" / "venus" / "real_path_check.json")
+    qemu = load_json(ROOT / "results" / "venus" / "qemu_2d_probe.json")
     stk = load_json(ROOT / "results" / "stk" / "latest" / "stk_runtime_eval.json")
     paper = "\n".join(read(path) for path in sorted((ROOT / "paper" / "sections").glob("*.typ")))
     readme = read(ROOT / "README.md")
@@ -107,11 +107,11 @@ def main() -> int:
             f"present={sorted(required_scripts & scripts)} missing={sorted(required_scripts - scripts)}",
             "All expected evaluation and guardrail scripts exist"),
         row("unikraft_alignment", alignment.get("status") == "pass",
-            "results/stage/unikraft_alignment_latest.json", "Unikraft design-rule alignment gate passes"),
+            "results/stage/unikraft_alignment.json", "Unikraft design-rule alignment gate passes"),
         row("stage_audit", stage.get("status") == "pass",
-            "results/stage/stage_audit_latest.json", "Current-stage audit passes"),
+            "results/stage/stage_audit.json", "Current-stage audit passes"),
         row("benchmark_summary", bench.get("status") == "pass" and len(bench.get("rows", [])) >= 8,
-            f"rows={len(bench.get('rows', []))} results/benchmarks/benchmark_summary_latest.json",
+            f"rows={len(bench.get('rows', []))} results/benchmarks/benchmark_summary.json",
             "Benchmark summary exists with native app and Venus readiness rows"),
         row("evaluation_matrix", required_eval_rows <= set(eval_by_id),
             f"rows={len(eval_rows)} missing={sorted(required_eval_rows - set(eval_by_id))}",
@@ -122,17 +122,17 @@ def main() -> int:
             and eval_by_id.get("llm.bench.cpu", {}).get("status", "").startswith(("pass", "blocked:"))
             and eval_by_id.get("llm.bench.vk", {}).get("status", "").startswith(("pass", "blocked:"))
             and eval_by_id.get("vk.smoke", {}).get("status") in ("pass", "blocked:vulkan-test-failed", "blocked:no-vulkan-device"),
-            "results/vogue_latest_evaluation_matrix.json", "Core supported rows pass; upstream llama.cpp rows accept structured blockers for missing QEMU/Venus images"),
+            "results/vogue_evaluation_matrix.json", "Core supported rows pass; upstream llama.cpp rows accept structured blockers for missing QEMU/Venus images"),
         row("blocked_rows_are_explicit",
             eval_by_id.get("gfx.kmscube.submit", {}).get("status") in ("pass", "blocked:stale-appliance-kraft-unavailable", "blocked:missing-pass-marker")
             and eval_by_id.get("gfx.kmscube.frame", {}).get("status") in ("pass", "blocked:stale-appliance-kraft-unavailable", "blocked:missing-pass-marker"),
             "gfx.kmscube.submit+gfx.kmscube.frame present in matrix; STK porting out of scope", "K1 transport/frame rows are present; STK porting explicitly dropped"),
         row("venus_blocker_recorded",
             qemu.get("status") in ("pass", "blocked:modern-pci-unsupported", "blocked:probe-incomplete", "blocked:image-missing", "blocked:timeout", "blocked:qemu-missing"),
-            "results/venus/qemu_2d_probe_latest.json; results/vogue_latest_evaluation_matrix.json",
+            "results/venus/qemu_2d_probe.json; results/vogue_evaluation_matrix.json",
             "QEMU Venus probe artifact recorded with a structured status"),
         row("real_path_selected", real_path.get("status") == "pass",
-            "results/venus/real_path_check_latest.json",
+            "results/venus/real_path_check.json",
             "Production Kraft/config/build artifacts use the real VirtIO-GPU backend"),
         row("stk_out_of_scope",
             "Out of scope" in read(ROOT / "design/unikraft-virtio-gpu-spec-v1.md"),
@@ -171,7 +171,7 @@ def main() -> int:
         "rows": rows,
         "claim_boundary": "Current supported rows pass on the evaluation host, including K1/xport.qemu-vgpu and llama.cpp Vulkan runtime rows. The same rows must not be promoted on other hosts without same-run pass artifacts. Governance metadata links release claims to ../manifest specs and marks unlinked claims non-release; STK porting is out of scope (plan.md §0.5).",
     }
-    (OUT / "current_stage_report_latest.json").write_text(json.dumps(payload, indent=2) + "\n")
+    (OUT / "current_stage_report.json").write_text(json.dumps(payload, indent=2) + "\n")
 
     md = [
         "# Current-stage completeness report", "",
@@ -182,7 +182,7 @@ def main() -> int:
     for r in rows:
         md.append(f"| `{r['id']}` | `{r['status']}` | {r['evidence']} | {r['required']} |")
     md += ["", "## Claim boundary", "", payload["claim_boundary"], ""]
-    (OUT / "current_stage_report_latest.md").write_text("\n".join(md))
+    (OUT / "current_stage_report.md").write_text("\n".join(md))
 
     table_rows = [
         ("Alignment", alignment.get("status", "missing"), "Unikraft design rules and non-reimplementation boundaries"),

@@ -1,0 +1,127 @@
+{
+  "status": "pass",
+  "written_at": "2026-06-02T04:36:56Z",
+  "summary": {
+    "libraries": 11,
+    "eval_rows": 27,
+    "benchmark_rows": 8,
+    "qemu_status": "pass",
+    "real_path_status": "pass",
+    "stk_accelerated_runtime": null
+  },
+  "rows": [
+    {
+      "id": "make_targets",
+      "status": "pass",
+      "evidence": "present=['benchmark-check', 'claim-check', 'eval-check', 'governance-check', 'lib-readme-check', 'native-tests', 'paper-check', 'stage-check', 'test-fast', 'test-gpu', 'test-native', 'test-qemu', 'venus-check', 'verify', 'vulkan-check', 'vulkan-tests'] missing=[]",
+      "required": "Makefile exposes all top-level test/evaluation/benchmark gates",
+      "blocker": ""
+    },
+    {
+      "id": "script_surface",
+      "status": "pass",
+      "evidence": "present=['app_perf_eval.py', 'benchmark_summary.py', 'eval_matrix.py', 'governance_check.py', 'lib_readme_check.py', 'llama_env_matrix.py', 'llama_vulkan_api_coverage.py', 'llama_vulkan_eval.py', 'paper_consistency_check.py', 'real_driver_static_check.py', 'real_virtio_gpu_path_check.py', 'stage_audit.py', 'unikraft_alignment_check.py', 'venus_perf_eval.py', 'venus_qemu_probe.py', 'vulkan_perf_eval.py'] missing=[]",
+      "required": "All expected evaluation and guardrail scripts exist",
+      "blocker": ""
+    },
+    {
+      "id": "unikraft_alignment",
+      "status": "pass",
+      "evidence": "results/stage/unikraft_alignment.json",
+      "required": "Unikraft design-rule alignment gate passes",
+      "blocker": ""
+    },
+    {
+      "id": "stage_audit",
+      "status": "pass",
+      "evidence": "results/stage/stage_audit.json",
+      "required": "Current-stage audit passes",
+      "blocker": ""
+    },
+    {
+      "id": "benchmark_summary",
+      "status": "pass",
+      "evidence": "rows=8 results/benchmarks/benchmark_summary.json",
+      "required": "Benchmark summary exists with native app and Venus readiness rows",
+      "blocker": ""
+    },
+    {
+      "id": "evaluation_matrix",
+      "status": "pass",
+      "evidence": "rows=27 missing=[]",
+      "required": "Evidence matrix contains every supported pass/blocked claim row",
+      "blocker": ""
+    },
+    {
+      "id": "pass_rows",
+      "status": "pass",
+      "evidence": "results/vogue_evaluation_matrix.json",
+      "required": "Core supported rows pass; upstream llama.cpp rows accept structured blockers for missing QEMU/Venus images",
+      "blocker": ""
+    },
+    {
+      "id": "blocked_rows_are_explicit",
+      "status": "pass",
+      "evidence": "gfx.kmscube.submit+gfx.kmscube.frame present in matrix; STK porting out of scope",
+      "required": "K1 transport/frame rows are present; STK porting explicitly dropped",
+      "blocker": ""
+    },
+    {
+      "id": "venus_blocker_recorded",
+      "status": "pass",
+      "evidence": "results/venus/qemu_2d_probe.json; results/vogue_evaluation_matrix.json",
+      "required": "QEMU Venus probe artifact recorded with a structured status",
+      "blocker": ""
+    },
+    {
+      "id": "real_path_selected",
+      "status": "pass",
+      "evidence": "results/venus/real_path_check.json",
+      "required": "Production Kraft/config/build artifacts use the real VirtIO-GPU backend",
+      "blocker": ""
+    },
+    {
+      "id": "stk_out_of_scope",
+      "status": "pass",
+      "evidence": "design/unikraft-virtio-gpu-spec-v1.md",
+      "required": "STK porting is documented as out of scope (plan.md \u00a70.5)",
+      "blocker": ""
+    },
+    {
+      "id": "library_readmes",
+      "status": "pass",
+      "evidence": "libs=11 missing=[]",
+      "required": "Every local library has Unikraft-style README docs",
+      "blocker": ""
+    },
+    {
+      "id": "paper_generated_tables",
+      "status": "pass",
+      "evidence": "paper/generated/app-performance-table.typ; paper/generated/venus-stage-table.typ; paper/generated/current-stage-table.typ",
+      "required": "Paper consumes generated benchmark/stage tables",
+      "blocker": ""
+    },
+    {
+      "id": "paper_claim_boundaries",
+      "status": "pass",
+      "evidence": "paper/sections/08-evaluation.typ; paper/sections/12-artifact-appendix.typ",
+      "required": "Paper states current stage and claim boundaries",
+      "blocker": ""
+    },
+    {
+      "id": "readme_current_stage",
+      "status": "pass",
+      "evidence": "README.md",
+      "required": "README exposes current-stage/evaluation commands and fix plan",
+      "blocker": ""
+    },
+    {
+      "id": "governance_metadata",
+      "status": "pass",
+      "evidence": "docs/GOVERNANCE.md; config/governance.json; ../manifest/manifests/vogue-main.yaml",
+      "required": "Research-artifact governance metadata and manifest/VM ownership split are documented",
+      "blocker": ""
+    }
+  ],
+  "claim_boundary": "Current supported rows pass on the evaluation host, including K1/xport.qemu-vgpu and llama.cpp Vulkan runtime rows. The same rows must not be promoted on other hosts without same-run pass artifacts. Governance metadata links release claims to ../manifest specs and marks unlinked claims non-release; STK porting is out of scope (plan.md \u00a70.5)."
+}

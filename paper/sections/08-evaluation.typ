@@ -92,7 +92,7 @@ The vk.drm-shim gate (`libukvirtgpu_drm`) is PASS: the Mesa/Linux virtgpu UAPI s
 
 The vk.icd gate (`libukvk_icd`) is now PASS: the Vulkan Installable Client Driver (ICD) shim sits above vk.drm-shim and bootstraps a Venus/Vulkan context. `uk_vulkan_icd_init()` opens the vk.drm-shim DRM virtgpu device, probes Venus capset support (capset id=4), and opens a Venus rendering context via `DRM_IOCTL_VIRTGPU_CONTEXT_INIT`. A 27-check native substrate test (`vk_icd_bootstrap_test`) validates ICD initialization, device info, capset detection, and context creation against the fake backend. The `app-vkmark` port uses vk.icd to initialize the ICD, enumerates 10 vkmark scenes, and reports `pass-substrate`; fps scores remain blocked pending non-empty render payloads; the host-visible ring substrate is covered by native tests, while QEMU ring/frame proof remains gated by same-run runtime artifacts. gfx.vkmark is PASS for the substrate; vk.smoke is PASS for the baseline + vk.drm-shim+vk.icd detection. Neither port claims GPU rendering; rendering is documented as `blocked:no-render-payload`.
 
-`make vulkan-check` runs the Vulkan evaluation script and updates `results/vulkan/vulkan_perf_latest.json`. `make vulkan-tests` builds and runs `vulkan_compute_test` on the host.
+`make vulkan-check` runs the Vulkan evaluation script and updates `results/vulkan/vulkan_perf.json`. `make vulkan-tests` builds and runs `vulkan_compute_test` on the host.
 
 == RQ6: llama.cpp Single-Application Appliances
 

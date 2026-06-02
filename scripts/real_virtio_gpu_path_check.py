@@ -99,12 +99,12 @@ def main() -> int:
             "skipped: .unikraft/build/ absent (no kraft build in this workspace)",
             "Latest build artifacts select the real backend")
 
-    build_logs = read(ROOT / "results/kmscube_vgpu_gl/latest/build.log")
+    build_logs = read(ROOT / "results/kmscube_vgpu_gl/run/build.log")
     real_obj = ROOT / ".unikraft/build/libukvirtio_gpu/virtio_gpu_real.o"
     build_blocked = "build blocked" in build_logs or "kraft: command not found" in build_logs
     add(rows, "build_compiles_real_object",
         "libukvirtio_gpu: virtio_gpu_real.o" in build_logs or real_obj.exists() or build_blocked,
-        f"results/kmscube_vgpu_gl/latest/build.log; {real_obj.relative_to(ROOT)}",
+        f"results/kmscube_vgpu_gl/run/build.log; {real_obj.relative_to(ROOT)}",
         "Build logs or build artifacts include virtio_gpu_real.o (or kraft build blocked)")
 
     compile_db_path = ROOT / ".unikraft/build/compile_commands.json"
@@ -134,17 +134,17 @@ def main() -> int:
 
     qemu = {}
     try:
-        qemu = json.loads((ROOT / "results/venus/qemu_2d_probe_latest.json").read_text())
+        qemu = json.loads((ROOT / "results/venus/qemu_2d_probe.json").read_text())
     except Exception:
         pass
     qemu_status = qemu.get("status", "missing")
     add(rows, "qemu_real_probe_artifact",
         qemu_status in {"pass", "blocked:modern-pci-unsupported", "blocked:probe-incomplete", "blocked:timeout", "blocked:image-missing", "blocked:qemu-missing", "missing"},
-        f"status={qemu_status}; results/venus/qemu_2d_probe_latest.json",
+        f"status={qemu_status}; results/venus/qemu_2d_probe.json",
         "QEMU probe records a real-device pass or a structured real-path blocker")
     add(rows, "modern_pci_blocker_truthful",
         qemu_status != "blocked:modern-pci-unsupported" or "0x1050" in json.dumps(qemu),
-        "results/venus/qemu_2d_probe_latest.json",
+        "results/venus/qemu_2d_probe.json",
         "If modern PCI blocks the run, artifact names QEMU VirtIO-GPU PCI ID 0x1050")
 
     ok = all(r["status"] == "pass" for r in rows)
@@ -156,12 +156,12 @@ def main() -> int:
         "qemu_status": qemu_status,
         "claim_boundary": "Production builds use the real libukvirtio_gpu backend. Accelerated Vulkan/Venus runtime may only be claimed when QEMU/Vulkan rows pass; blocked modern PCI remains a non-claim.",
     }
-    (OUT / "real_path_check_latest.json").write_text(json.dumps(payload, indent=2) + "\n")
+    (OUT / "real_path_check.json").write_text(json.dumps(payload, indent=2) + "\n")
     md = ["# Real VirtIO-GPU path check", "", f"Status: `{payload['status']}`", f"QEMU status: `{qemu_status}`", "", "| Check | Status | Evidence | Required property |", "|---|---|---|---|"]
     for r in rows:
         md.append(f"| `{r['id']}` | `{r['status']}` | {r['evidence']} | {r['required']} |")
     md += ["", "## Claim boundary", "", payload["claim_boundary"], ""]
-    (OUT / "real_path_check_latest.md").write_text("\n".join(md))
+    (OUT / "real_path_check.md").write_text("\n".join(md))
     print(f"real_virtio_gpu_path_check: {payload['status']} checks={len(rows)} qemu={qemu_status}")
     if args.check and not ok:
         for r in rows:

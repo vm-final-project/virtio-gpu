@@ -231,8 +231,8 @@ def write_artifacts(data: dict) -> None:
     GEN.mkdir(parents=True, exist_ok=True)
 
     data["written_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    (RESULTS / "vulkan_perf_latest.json").write_text(json.dumps(data, indent=2) + "\n")
-    (RESULTS / "vulkan_perf_latest.md").write_text(
+    (RESULTS / "vulkan_perf.json").write_text(json.dumps(data, indent=2) + "\n")
+    (RESULTS / "vulkan_perf.md").write_text(
         f"# Vulkan/Venus Performance Evaluation\n\n```json\n{json.dumps(data, indent=2)}\n```\n")
 
     # Generate Typst table for paper

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Record model-load latency for each llama appliance run.
 
-Reads the latest serial-log artifacts produced by the appliance's
+Reads the current serial-log artifacts produced by the appliance's
 `load_model_*` (CPU + Vulkan variants both emit `model_load path=… use_mmap=…
-huge_pages=… elapsed_ms=…`) and writes `results/model-load/latest.{json,md}`.
+huge_pages=… elapsed_ms=…`) and writes `results/model-load/report.{json,md}`.
 
 Implements plan-optimize.md L1.4 (huge-page mmap) verification gate. Hosts
 that have not yet captured a load log produce a structured `blocked:no-log`

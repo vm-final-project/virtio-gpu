@@ -8,7 +8,7 @@
   "host": "Linux-6.18.33-x86_64-with-glibc2.39",
   "venus_device": "Tesla V100-SXM2-16GB",
   "host_render_error": "failed to dispatch context op 5",
-  "run_log": "results/llama/upstream_vk_latest.log",
+  "run_log": "results/llama/upstream_vk.log",
   "claim_allowed": "Real boot of the upstream llama.cpp Vulkan appliance under QEMU virtio-gpu-gl venus=true; throughput only when status==pass.",
   "claim_forbidden": "Throughput/acceleration claim unless status==pass with same-run pp512/tg128.",
   "pp512": 2208.6,

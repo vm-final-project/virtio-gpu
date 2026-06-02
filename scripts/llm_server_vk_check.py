@@ -9,7 +9,7 @@ Asserts the Unikraft single-application contract:
   * The Vulkan server still pins the plan-optimize.md L4.1/L4.2 QEMU flags and
     surfaces L2.2/L2.3/L3.4 evidence hooks.
 
-Writes results/llama/server_vk_check_latest.{json,md}. Hosts without the
+Writes results/llama/server_vk_check.{json,md}. Hosts without the
 appliance image still pass static checks; missing same-run telemetry becomes a
 structured blocker row.
 """
@@ -171,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
         **runtime,
     }
     OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "server_vk_check_latest.json").write_text(json.dumps(payload, indent=2) + "\n")
+    (OUT / "server_vk_check.json").write_text(json.dumps(payload, indent=2) + "\n")
     md = ["# llm.server.vk Phase-2 gate", "",
           f"Generated: `{generated}`", "",
           "## Static",
@@ -184,7 +184,7 @@ def main(argv: list[str] | None = None) -> int:
         md.append("PASS — CPU/Vulkan server artifacts carry the direct single-application contract; ../llama.cpp exposes llama_server(argc, argv); no forbidden fork/exec-style supervisor calls were found in app server entrypoints.")
     md.extend(["", "## Runtime", "",
                f"status = `{runtime['runtime_status']}` log = `{runtime.get('runtime_log','n/a')}`"])
-    (OUT / "server_vk_check_latest.md").write_text("\n".join(md) + "\n")
+    (OUT / "server_vk_check.md").write_text("\n".join(md) + "\n")
 
     for f in static["static_findings"]:
         print(f"llm-server-vk: STATIC FAIL {f}")

@@ -1,0 +1,14 @@
+{
+  "schema": "llama/uk-vulkan-probe.v1",
+  "evidence_id": "uk-vulkan-probe",
+  "status": "pass",
+  "pass": true,
+  "generated_utc": "2026-06-01T20:47:46.706493Z",
+  "physical_device": "Tesla V100-SXM2-16GB",
+  "api_version": "1.2",
+  "capset_venus": true,
+  "transport": "virtio-gpu-gl venus=true; vkSetReplyCommandStreamMESA reply round-trip",
+  "run_log": "results/llama/upstream_vk.log",
+  "claim_allowed": "Unikraft libukvk_icd/libukggml_vulkan enumerated a real Venus physical device (Tesla V100-SXM2-16GB) by reading the host reply over Venus.",
+  "claim_forbidden": "Vulkan compute execution, llama.cpp tokens, or throughput."
+}

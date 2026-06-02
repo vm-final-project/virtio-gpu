@@ -76,7 +76,7 @@ make vk-drm-shim-check
 make verify
 ```
 
-The vk.drm-shim row in the evidence matrix (`results/vogue_latest_evaluation_matrix.*`)
+The vk.drm-shim row in the evidence matrix (`results/vogue_evaluation_matrix.*`)
 is promoted to `pass` when `virtgpu_drm_ioctl_test: all checks passed` appears in
 the `make native-tests` output. `make verify` re-runs all gates including vk.drm-shim
 and regenerates the evaluation matrix.

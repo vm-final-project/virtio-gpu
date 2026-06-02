@@ -18,9 +18,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results"
-LATEST_DIR = RESULTS / "kmscube_vgpu_gl" / "latest"
-LATEST_JSON = RESULTS / "kmscube_vgpu_gl_latest.json"
-LATEST_MD = RESULTS / "kmscube_vgpu_gl_latest.md"
+RUN_DIR = RESULTS / "kmscube_vgpu_gl" / "run"
+LATEST_JSON = RESULTS / "kmscube_vgpu_gl.json"
+LATEST_MD = RESULTS / "kmscube_vgpu_gl.md"
 SOFTWARE_RENDERERS = [
     "llvmpipe",
     "softpipe",
@@ -145,12 +145,12 @@ def evidence_string(paths: list[Path]) -> str:
     return ";".join(str(p.relative_to(ROOT)) for p in paths if p.exists()) or "missing:kmscube_vgpu_gl_evidence"
 
 
-def classify(latest_dir: Path) -> EvalResult:
-    build_log = latest_dir / "build.log"
-    run_log = latest_dir / "run.log"
-    frame_json = latest_dir / "frame-proof.json"
-    blocker_json = latest_dir / "blocker.json"
-    feasibility_json = latest_dir / "mesa-feasibility.json"
+def classify(run_dir: Path) -> EvalResult:
+    build_log = run_dir / "build.log"
+    run_log = run_dir / "run.log"
+    frame_json = run_dir / "frame-proof.json"
+    blocker_json = run_dir / "blocker.json"
+    feasibility_json = run_dir / "mesa-feasibility.json"
     build_text = read(build_log)
     run_text = read(run_log)
     combined = build_text + "\n" + run_text
@@ -214,7 +214,7 @@ def classify(latest_dir: Path) -> EvalResult:
 
     # virgl path confirmed — synthesize/update frame-proof.json from PASS marker fields
     # so validate_frame_proof has the correct frames count and dimensions.
-    synthesize_virgl_frame_proof(latest_dir, fields, run_text)
+    synthesize_virgl_frame_proof(run_dir, fields, run_text)
     frame = load_json(frame_json)  # reload after potential update
 
     ok_frame, frame_reason = validate_frame_proof(frame, run_log, run_text)
@@ -270,7 +270,7 @@ def run_negative_tests() -> None:
         ("uk-kmscube: PASS kmscube_vgpu_gl frames=3 frame_crc=a egl_version=1 gl_renderer=virgl capset=virgl submits_3d=0 frame_source=guest-readback evidence_id=x", "submits"),
     ]
     for text, name in fixtures:
-        tmp = LATEST_DIR / f".negative-{name}"
+        tmp = RUN_DIR / f".negative-{name}"
         tmp.mkdir(parents=True, exist_ok=True)
         (tmp / "run.log").write_text(text)
         frame = {"frames": 3, "width": 64, "height": 64, "format": "XRGB8888", "source": "guest-readback", "hashes": ["a", "b"], "variance_check": "pass", "run_log": str(tmp / "run.log")}
@@ -424,7 +424,7 @@ def emit_frame_pixel_proof(latest_dir: Path) -> dict:
         colour (Chebyshev radius 32).  SUBMIT_3D log evidence is retained as
         diagnostic context but is not accepted as pixel-correct frame proof.
 
-    Writes results/kmscube_vgpu_gl/latest/frame_pixel_proof.json.
+    Writes results/kmscube_vgpu_gl/run/frame_pixel_proof.json.
     Returns the written document.
     """
     ppm_path = latest_dir / "qmp-screendump.ppm"
@@ -505,7 +505,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--allow-blocked", action="store_true")
-    ap.add_argument("--out-dir", default=str(LATEST_DIR))
+    ap.add_argument("--out-dir", default=str(RUN_DIR))
     ap.add_argument("--emit-pixel-proof", action="store_true",
                     help="emit frame_pixel_proof.json from existing PPM + run log")
     args = ap.parse_args()

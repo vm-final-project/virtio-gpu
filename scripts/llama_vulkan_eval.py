@@ -27,7 +27,7 @@ RESULTS = ROOT / "results" / "llama"
 def write(name: str, payload: dict) -> dict:
     RESULTS.mkdir(parents=True, exist_ok=True)
     payload.setdefault("generated_utc", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
-    (RESULTS / f"{name}_latest.json").write_text(json.dumps(payload, indent=2) + "\n")
+    (RESULTS / f"{name}.json").write_text(json.dumps(payload, indent=2) + "\n")
     return payload
 
 

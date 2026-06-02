@@ -10,7 +10,7 @@ or a native server-mode entrypoint. It is not a Linux VM that starts a shell or
 - Repository: <https://github.com/ggml-org/llama.cpp>
 - License: MIT
 - Pinned commit and local checkout (`LLAMA_ROOT`) are recorded in
-  `results/vogue_latest_evaluation_matrix.json` and `config/llama_env_matrix.json`.
+  `results/vogue_evaluation_matrix.json` and `config/llama_env_matrix.json`.
 - No upstream source modifications: `git -C $LLAMA_ROOT diff --stat` must be empty.
 
 ## Stage 0 — Baselines
@@ -68,13 +68,13 @@ The model is mounted at `/mnt/model` via `lib-9pfs` + `lib-virtio-9p`; the
 ## Stage 3 — Catalog wrap-up
 
 - Kraftfiles stay single-purpose; no shell, no second app.
-- `results/llama/upstream_cpu_latest.json` carries the canonical PASS row.
+- `results/llama/upstream_cpu.json` carries the canonical PASS row.
 - Re-run `make eval-check current-stage-check` after evidence regeneration.
 
 ## Evidence
 
-Authoritative state lives in `results/vogue_latest_evaluation_matrix.json`
-and the matching `results/llama/upstream_cpu_latest.json`. Throughput numbers
+Authoritative state lives in `results/vogue_evaluation_matrix.json`
+and the matching `results/llama/upstream_cpu.json`. Throughput numbers
 must always be quoted from a same-run PASS row, never inferred.
 
 ## Porting boundary
@@ -104,7 +104,7 @@ make eval-check
 ## Claim boundaries
 
 Allowed: bench throughput, or server boot/readiness, **when**
-`results/vogue_latest_evaluation_matrix.json` records same-run PASS with the
+`results/vogue_evaluation_matrix.json` records same-run PASS with the
 matching evidence row.
 
 Forbidden: GPU acceleration claims (those belong to `app-llama-upstream-vk`),

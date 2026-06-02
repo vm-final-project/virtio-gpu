@@ -137,8 +137,8 @@ def main() -> int:
         'claim_allowed': 'VOGUE Venus command ids match Khronos Vulkan-Docs command existence and Mesa/venus-protocol VkCommandTypeEXT values.',
         'claim_forbidden': 'This registry check does not prove Vulkan conformance or rendering.',
     }
-    (OUT / 'vulkan_registry_check_latest.json').write_text(json.dumps(payload, indent=2) + '\n')
-    (OUT / 'vulkan_registry_check_latest.md').write_text('# Vulkan registry check\n\n```json\n' + json.dumps(payload, indent=2) + '\n```\n')
+    (OUT / 'vulkan_registry_check.json').write_text(json.dumps(payload, indent=2) + '\n')
+    (OUT / 'vulkan_registry_check.md').write_text('# Vulkan registry check\n\n```json\n' + json.dumps(payload, indent=2) + '\n```\n')
     print(f"vulkan_registry_check: {status} commands={len(COMMANDS)}")
     if errors:
         for err in errors:

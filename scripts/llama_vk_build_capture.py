@@ -7,7 +7,7 @@ backend genuinely compiled and linked: the image must exist and expose
 ggml_vk_*/ggml_backend_vk_* symbols (proving ggml-vulkan.cpp + the Venus/ICD
 libraries are linked in), and the build must have used -DGGML_USE_VULKAN=1.
 
-Writes results/llama/vulkan_build_latest.json (read by eval_matrix bld.host.vk).
+Writes results/llama/vulkan_build.json (read by eval_matrix bld.host.vk).
 Honest: status=pass only when the symbols are actually present in the image.
 """
 from __future__ import annotations
@@ -30,7 +30,7 @@ def _now() -> str:
 
 def _write(payload: dict) -> None:
     RESULTS.mkdir(parents=True, exist_ok=True)
-    (RESULTS / "vulkan_build_latest.json").write_text(json.dumps(payload, indent=2) + "\n")
+    (RESULTS / "vulkan_build.json").write_text(json.dumps(payload, indent=2) + "\n")
 
 
 def _vk_symbol_count(path: Path) -> int:

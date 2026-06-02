@@ -5,7 +5,7 @@ B8G8R8X8/BGRA pixel buffers for the VirtIO-GPU 2D scanout path, enabling display
 pipeline validation before virgl or Venus acceleration is available.
 
 Current stage: `gfx.kmscube.sw` and `gfx.glmark2.sw` pass, with noisy-host
-timings tracked by `results/app_perf_latest.json`. This renderer is not GPU
+timings tracked by `results/app_perf.json`. This renderer is not GPU
 acceleration evidence.
 
 ## Configuring applications to use `libukswrender`

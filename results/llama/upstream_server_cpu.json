@@ -1,0 +1,16 @@
+{
+  "schema": "llama/upstream-server.v2",
+  "evidence_id": "llama-upstream-server-cpu",
+  "status": "pass",
+  "pass": true,
+  "scaffold_booted": true,
+  "generated_utc": "2026-06-01T12:17:34.645092Z",
+  "ready_line": "uk-llama-upstream-server: READY model=/mnt/model/model.gguf threads=1 slots=1 prompt_cache=1 mode=single-app no_fork_exec=1",
+  "accel": "kvm",
+  "cpu": "host",
+  "host": "Linux-6.18.33-x86_64-with-glibc2.39",
+  "model": "Qwen3-0.6B-Q4_K_M.gguf",
+  "run_log": "results/llama/upstream_server_cpu.log",
+  "claim_allowed": "Upstream llama.cpp server appliance boots directly into a single entrypoint on Unikraft (no shell/fork/exec) and reaches READY on this host (kvm/-cpu host).",
+  "claim_forbidden": "HTTP throughput or request/response benchmarking until the lwIP netdev gate lands."
+}

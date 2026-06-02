@@ -226,7 +226,7 @@
       "id": "developer-workflow-split",
       "grade": "release",
       "command": "make test-fast",
-      "result_file": "results/stage/current_stage_report_latest.json",
+      "result_file": "results/stage/current_stage_report.json",
       "manifest": "../manifest/manifests/vogue-main.yaml",
       "rule": "Developer and release gates are distinct; manifest owns reproducibility runs, VM owns local checks.",
       "experiment_spec": "../manifest/experiments/tests/smoke.yaml"
@@ -235,7 +235,7 @@
       "id": "evidence-matrix",
       "grade": "release",
       "command": "make eval-check",
-      "result_file": "results/vogue_latest_evaluation_matrix.json",
+      "result_file": "results/vogue_evaluation_matrix.json",
       "manifest": "../manifest/manifests/vogue-main.yaml",
       "rule": "PASS and blocked rows are generated in VM; reproducible orchestration is owned by manifest.",
       "experiment_spec": "../manifest/experiments/tests/paper.yaml"
@@ -244,7 +244,7 @@
       "id": "llama-upstream-vk-runtime",
       "grade": "non-release",
       "command": "make llama-upstream-vk-run",
-      "result_file": "results/llama/upstream_vk_latest.json",
+      "result_file": "results/llama/upstream_vk.json",
       "manifest": "../manifest/manifests/llama-vulkan.yaml",
       "rule": "GPU throughput or runtime success remains non-release while upstream llama.cpp Vulkan/Venus evidence is structured blocked.",
       "experiment_spec": "../manifest/experiments/tests/llama-vulkan.yaml"
@@ -253,7 +253,7 @@
       "id": "llama-env-matrix",
       "grade": "release",
       "command": "make llama-env-check",
-      "result_file": "results/llama-env/latest-plan.json",
+      "result_file": "results/llama-env/plan.json",
       "manifest": "../manifest/manifests/llama-vulkan.yaml",
       "rule": "llama.cpp benchmark environments are selected through config/llama_env_matrix.json; runtime rows stay blocked until prerequisites are present.",
       "experiment_spec": "../manifest/experiments/tests/llama-env-matrix.yaml"

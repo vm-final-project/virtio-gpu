@@ -41,7 +41,7 @@ def _now() -> str:
 
 def _write(payload: dict) -> None:
     RESULTS.mkdir(parents=True, exist_ok=True)
-    (RESULTS / "upstream_cpu_latest.json").write_text(json.dumps(payload, indent=2) + "\n")
+    (RESULTS / "upstream_cpu.json").write_text(json.dumps(payload, indent=2) + "\n")
 
 
 def _blocker(status: str, next_step: str) -> int:
@@ -108,13 +108,13 @@ def main() -> int:
         except subprocess.TimeoutExpired as e:
             out = _dec(e.stdout) + _dec(e.stderr)
 
-    (RESULTS / "upstream_cpu_latest.log").write_text(out)
+    (RESULTS / "upstream_cpu.log").write_text(out)
     (RESULTS / "upstream_cpu_serial.log").write_text(out)  # model_load_time_check reads *_serial.log
     m = re.search(r"uk-llama-upstream: pp512=([0-9.]+) tg128=([0-9.]+)", out)
     passed = "uk-llama-upstream: PASS evidence_id=llama-upstream-cpu" in out
     if not (m and passed):
         return _blocker("blocked:no-pass-line",
-                        "Inspect results/llama/upstream_cpu_latest.log; the guest did not emit a PASS marker.")
+                        "Inspect results/llama/upstream_cpu.log; the guest did not emit a PASS marker.")
 
     pp512, tg128 = float(m.group(1)), float(m.group(2))
     _write({
@@ -129,7 +129,7 @@ def main() -> int:
         "cpu": cpu,
         "host": platform.platform(),
         "model": model.name,
-        "run_log": "results/llama/upstream_cpu_latest.log",
+        "run_log": "results/llama/upstream_cpu.log",
         "claim_allowed": (f"Upstream llama.cpp CPU path boots on Unikraft (unmodified sources) and runs a real "
                           f"GGUF via 9pfs on this host ({accel}/-cpu {cpu}). pp512={pp512} tg128={tg128} t/s."),
         "claim_forbidden": "GPU throughput, Vulkan dispatch, or cross-host comparison without a matching baseline.",

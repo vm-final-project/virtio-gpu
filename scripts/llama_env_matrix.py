@@ -213,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--model", help="override model path")
     p.add_argument("--extra-arg", action="append", default=[], help="extra llama-bench arg; repeatable")
     p.add_argument("--timeout", type=int, default=300)
-    p.add_argument("--output", type=Path, default=RESULTS / "latest-plan.json")
+    p.add_argument("--output", type=Path, default=RESULTS / "plan.json")
     args = p.parse_args(argv)
 
     cfg = load_config(args.config)

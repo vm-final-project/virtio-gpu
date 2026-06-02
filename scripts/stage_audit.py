@@ -26,10 +26,10 @@ def main() -> int:
         ["python3","scripts/venus_perf_eval.py","--repetitions","5","--allow-blocked"],
     ]
     runs=[run(c) for c in commands]
-    qemu=load_json(ROOT/"results/venus/qemu_2d_probe_latest.json")
-    venus_perf=load_json(ROOT/"results/venus/venus_perf_latest.json")
-    eval_matrix=load_json(ROOT/"results/vogue_latest_evaluation_matrix.json")
-    align=load_json(OUT/"unikraft_alignment_latest.json")
+    qemu=load_json(ROOT/"results/venus/qemu_2d_probe.json")
+    venus_perf=load_json(ROOT/"results/venus/venus_perf.json")
+    eval_matrix=load_json(ROOT/"results/vogue_evaluation_matrix.json")
+    align=load_json(OUT/"unikraft_alignment.json")
     required_docs=["design/unikraft-virtio-gpu-spec-v1.md","design/virtio-gpu-vulken-v1.md","README.md","paper/sections/08-evaluation.typ"]
     doc_status={p:(ROOT/p).exists() for p in required_docs}
     stage="real-driver-controlq-implemented; qemu-venus-blocked-modern-pci" if qemu.get("status") == "blocked:modern-pci-unsupported" else qemu.get("status","unknown")
@@ -44,11 +44,11 @@ def main() -> int:
         "eval_rows":[r.get("row_id")+":"+r.get("status") for r in eval_matrix.get("rows",[]) if isinstance(r,dict)],
         "claim_boundary":"Native/static/design/paper gates pass. Real QEMU Venus acceleration remains blocked unless qemu_probe_status is pass.",
     }
-    (OUT/"stage_audit_latest.json").write_text(json.dumps(payload, indent=2)+"\n")
+    (OUT/"stage_audit.json").write_text(json.dumps(payload, indent=2)+"\n")
     md=["# VOGUE stage audit", "", f"Status: `{payload['status']}`", f"Stage: `{stage}`", "", "## Required artifacts", ""]
     for p, exists in doc_status.items(): md.append(f"- `{p}`: {'present' if exists else 'missing'}")
     md += ["", "## Key statuses", "", f"- QEMU Venus probe: `{payload['qemu_probe_status']}`", f"- Venus perf gate: `{payload['venus_perf_status']}`", f"- Acceleration status: `{payload['venus_acceleration_status']}`", "", "## Claim boundary", payload["claim_boundary"], ""]
-    (OUT/"stage_audit_latest.md").write_text("\n".join(md)+"\n")
+    (OUT/"stage_audit.md").write_text("\n".join(md)+"\n")
     print(f"stage_audit: {payload['status']} stage={stage}")
     return 0 if ok or not args.check else 1
 if __name__ == "__main__":

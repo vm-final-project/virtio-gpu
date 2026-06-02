@@ -71,7 +71,7 @@ def _model_path() -> Path | None:
 
 def _write(payload: dict) -> None:
     RESULTS.mkdir(parents=True, exist_ok=True)
-    (RESULTS / "vulkan_linux_baseline_latest.json").write_text(
+    (RESULTS / "vulkan_linux_baseline.json").write_text(
         json.dumps(payload, indent=1) + "\n")
 
 

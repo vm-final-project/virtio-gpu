@@ -13,12 +13,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RESULT = ROOT / "results" / "llama-bench" / "multi_env_bench_latest.json"
-MD = ROOT / "results" / "llama-bench" / "multi_env_bench_latest.md"
+RESULT = ROOT / "results" / "llama-bench" / "multi_env_bench.json"
+MD = ROOT / "results" / "llama-bench" / "multi_env_bench.md"
 TYP = ROOT / "paper" / "generated" / "multi-env-bench-table.typ"
-DISPATCH = ROOT / "results" / "llama" / "vulkan_n3_dispatch_latest.json"
-UPSTREAM_VK = ROOT / "results" / "llama" / "upstream_vk_latest.json"
-ENV10_REAL = ROOT / "results" / "llama" / "env10_real_latest.json"
+DISPATCH = ROOT / "results" / "llama" / "vulkan_n3_dispatch.json"
+UPSTREAM_VK = ROOT / "results" / "llama" / "upstream_vk.json"
+ENV10_REAL = ROOT / "results" / "llama" / "env10_real.json"
 
 ORDER = [
     "baremetal_cpu_1t",

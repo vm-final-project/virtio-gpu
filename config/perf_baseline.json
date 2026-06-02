@@ -19,7 +19,7 @@
       "pp512": 9.3,
       "tg128": 7.7,
       "note": "Real measured throughput: upstream llama.cpp on the Unikraft CPU appliance booted under QEMU KVM -cpu host (Broadwell), -march=native, Qwen3-0.6B-Q4_K_M via 9pfs. Replaces the prior synthetic placeholder. Single-thread (CONFIG_APP_LLAMA_UPSTREAM_THREADS=1).",
-      "source": "results/llama/upstream_cpu_latest.json"
+      "source": "results/llama/upstream_cpu.json"
     }
   }
 }

@@ -33,7 +33,7 @@ def _now() -> str:
 
 def _write(payload: dict) -> None:
     RESULTS.mkdir(parents=True, exist_ok=True)
-    (RESULTS / "upstream_server_cpu_latest.json").write_text(json.dumps(payload, indent=2) + "\n")
+    (RESULTS / "upstream_server_cpu.json").write_text(json.dumps(payload, indent=2) + "\n")
 
 
 def _blocker(status: str, next_step: str) -> int:
@@ -97,19 +97,19 @@ def main() -> int:
         except subprocess.TimeoutExpired as e:
             out = _dec(e.stdout) + _dec(e.stderr)
 
-    (RESULTS / "upstream_server_cpu_latest.log").write_text(out)
+    (RESULTS / "upstream_server_cpu.log").write_text(out)
     (RESULTS / "upstream_server_cpu_serial.log").write_text(out)  # model_load_time_check reads *_serial.log
     m = re.search(r"uk-llama-upstream-server: READY ([^\n]+)", out)
     if not m:
         return _blocker("blocked:no-pass-line",
-                        "Inspect results/llama/upstream_server_cpu_latest.log; no READY marker observed.")
+                        "Inspect results/llama/upstream_server_cpu.log; no READY marker observed.")
 
     _write({
         "schema": "llama/upstream-server.v2", "evidence_id": "llama-upstream-server-cpu",
         "status": "pass", "pass": True, "scaffold_booted": True, "generated_utc": _now(),
         "ready_line": m.group(0).strip(),
         "accel": accel, "cpu": cpu, "host": platform.platform(), "model": model.name,
-        "run_log": "results/llama/upstream_server_cpu_latest.log",
+        "run_log": "results/llama/upstream_server_cpu.log",
         "claim_allowed": (f"Upstream llama.cpp server appliance boots directly into a single entrypoint on "
                           f"Unikraft (no shell/fork/exec) and reaches READY on this host ({accel}/-cpu {cpu})."),
         "claim_forbidden": "HTTP throughput or request/response benchmarking until the lwIP netdev gate lands.",

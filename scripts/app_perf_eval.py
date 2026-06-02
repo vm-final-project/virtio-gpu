@@ -298,12 +298,12 @@ def write_outputs(rows: list[PerfRow], raw: str, out_dir: Path | None) -> None:
         "sample_summary": summarize_samples(raw),
         "raw_output": raw,
     }
-    paths = [RESULTS / "app_perf_latest.json"]
+    paths = [RESULTS / "app_perf.json"]
     if out_dir is not None:
         paths.insert(0, out_dir / "app_perf.json")
     for path in paths:
         path.write_text(json.dumps(payload, indent=2))
-    csv_paths = [RESULTS / "app_perf_latest.csv"]
+    csv_paths = [RESULTS / "app_perf.csv"]
     if out_dir is not None:
         csv_paths.insert(0, out_dir / "app_perf.csv")
     for path in csv_paths:
@@ -319,7 +319,7 @@ def write_outputs(rows: list[PerfRow], raw: str, out_dir: Path | None) -> None:
         lines.append(f"| `{r.row_id}` | {r.app} | {r.frames} | {r.width}x{r.height} | {r.avg_frame_ms:.3f} | {r.fps:.2f} | {r.memcpy_mib_s:.2f} | {r.transfers} | {r.flushes} | {r.fences} |")
     lines += ["", "## Claim boundaries", "", "These rows measure local native performance of supported software/substrate paths. They do not establish QEMU, Linux/Mesa, or virgl/GPU performance.", "", "Timing rows use best-of-N selection only as a noisy-host smoke gate; the JSON artifact persists medians and every sample for reviewer/performance analysis."]
     text = "\n".join(lines) + "\n"
-    md_paths = [RESULTS / "app_perf_latest.md"]
+    md_paths = [RESULTS / "app_perf.md"]
     if out_dir is not None:
         md_paths.insert(0, out_dir / "app_perf.md")
     for path in md_paths:
@@ -359,7 +359,7 @@ def main() -> int:
     write_outputs(rows, raw, out_dir)
     if out_dir is not None:
         print(f"wrote {out_dir / 'app_perf.md'}")
-    print(f"wrote {RESULTS / 'app_perf_latest.md'}")
+    print(f"wrote {RESULTS / 'app_perf.md'}")
     for r in rows:
         print(f"{r.row_id}: {r.app} avg_frame_ms={r.avg_frame_ms:.3f} fps={r.fps:.2f} transfers={r.transfers} flushes={r.flushes} fences={r.fences}")
     if args.check:

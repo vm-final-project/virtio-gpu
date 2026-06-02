@@ -7,7 +7,7 @@ and fails (non-zero exit) when any metric regresses by more than
 `regression_threshold_pct`. Missing artifacts produce a structured
 `blocked:*` row rather than a hard failure, mirroring image-size-check.
 
-Writes `results/perf/latest.json` and `.md`.
+Writes `results/perf/report.json` and `.md`.
 """
 from __future__ import annotations
 
@@ -25,21 +25,21 @@ OUT = ROOT / "results" / "perf"
 # Mapping: row id -> list of (metric, source_file, json_pointer-ish)
 SOURCES = {
     "gfx.kmscube.sw": [
-        ("fps", "results/app_perf_latest.json",
+        ("fps", "results/app_perf.json",
          lambda d: _find_row(d, "gfx.kmscube.sw", "fps")),
-        ("frame_ms", "results/app_perf_latest.json",
+        ("frame_ms", "results/app_perf.json",
          lambda d: _find_row(d, "gfx.kmscube.sw", "avg_frame_ms")),
     ],
     "gfx.glmark2.sw": [
-        ("fps", "results/app_perf_latest.json",
+        ("fps", "results/app_perf.json",
          lambda d: _find_row(d, "gfx.glmark2.sw", "fps")),
-        ("frame_ms", "results/app_perf_latest.json",
+        ("frame_ms", "results/app_perf.json",
          lambda d: _find_row(d, "gfx.glmark2.sw", "avg_frame_ms")),
     ],
     "llm.bench.cpu": [
-        ("pp512", "results/llama/upstream_cpu_latest.json",
+        ("pp512", "results/llama/upstream_cpu.json",
          lambda d: d.get("pp512")),
-        ("tg128", "results/llama/upstream_cpu_latest.json",
+        ("tg128", "results/llama/upstream_cpu.json",
          lambda d: d.get("tg128")),
     ],
 }

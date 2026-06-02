@@ -54,7 +54,7 @@ def command_output(args: list[str], cwd: Path = ROOT) -> tuple[bool, str]:
 
 def app_perf_rows() -> dict[str, dict]:
     # Keep eval-check self-contained: regenerate app perf if the latest artifact is absent.
-    latest = RESULTS / "app_perf_latest.json"
+    latest = RESULTS / "app_perf.json"
     if not latest.exists():
         command_output(["python3", "scripts/app_perf_eval.py", "--check"])
     try:
@@ -66,8 +66,8 @@ def app_perf_rows() -> dict[str, dict]:
 
 def perf_summary(row: dict) -> str:
     if not row:
-        return "missing:results/app_perf_latest.json"
-    return (f"results/app_perf_latest.json; avg_frame_ms={row.get('avg_frame_ms')}; "
+        return "missing:results/app_perf.json"
+    return (f"results/app_perf.json; avg_frame_ms={row.get('avg_frame_ms')}; "
             f"fps={row.get('fps')}; transfers={row.get('transfers')}; "
             f"flushes={row.get('flushes')}; fences={row.get('fences')}")
 
@@ -80,24 +80,24 @@ def load_json(path: Path) -> dict:
 
 
 def venus_rows() -> list[Row]:
-    qemu = load_json(RESULTS / "venus" / "qemu_2d_probe_latest.json")
-    perf = load_json(RESULTS / "venus" / "venus_perf_latest.json")
-    ring_probe = load_json(RESULTS / "venus" / "qemu_venus-ring_probe_latest.json")
+    qemu = load_json(RESULTS / "venus" / "qemu_2d_probe.json")
+    perf = load_json(RESULTS / "venus" / "venus_perf.json")
+    ring_probe = load_json(RESULTS / "venus" / "qemu_venus-ring_probe.json")
     qemu_status = qemu.get("status", "missing")
     perf_status = perf.get("status", "missing")
     accel_status = perf.get("acceleration_status", "missing")
-    qemu_evidence = "results/venus/qemu_2d_probe_latest.json" if qemu else "missing:results/venus/qemu_2d_probe_latest.json"
-    perf_evidence = "results/venus/venus_perf_latest.json" if perf else "missing:results/venus/venus_perf_latest.json"
-    ring_evidence = "results/venus/qemu_venus-ring_probe_latest.json"
+    qemu_evidence = "results/venus/qemu_2d_probe.json" if qemu else "missing:results/venus/qemu_2d_probe.json"
+    perf_evidence = "results/venus/venus_perf.json" if perf else "missing:results/venus/venus_perf.json"
+    ring_evidence = "results/venus/qemu_venus-ring_probe.json"
 
     # proto.venus-enc: Venus wire-format encoding correctness gate.
     # Evidence: vulkan_registry_check (command IDs) + venus_cs_test encoding layout assertions.
-    reg_check = load_json(RESULTS / "vulkan" / "vulkan_registry_check_latest.json")
+    reg_check = load_json(RESULTS / "vulkan" / "vulkan_registry_check.json")
     venus_cs_src = ROOT / "libs" / "libukvenus" / "venus_cs.c"
     enc_src_present = venus_cs_src.exists()
     reg_pass = reg_check.get("status", "") == "pass" if reg_check else False
     enc_status = "pass" if (reg_pass or enc_src_present) else "missing"
-    enc_evidence = ("results/vulkan/vulkan_registry_check_latest.json;"
+    enc_evidence = ("results/vulkan/vulkan_registry_check.json;"
                     "libs/libukvenus/venus_cs.c")
 
     # proto.venus-ring: ring-buffer protocol implemented in libukvenus; native tests all pass.
@@ -190,9 +190,9 @@ def _sha256_file(path: Path) -> str:
 
 def _k1_row() -> dict:
     """Return the current K1 row emitted by kmscube_vgpu_gl_eval.py."""
-    k_latest = ROOT / "results" / "kmscube_vgpu_gl_latest.json"
+    k_evidence = ROOT / "results" / "kmscube_vgpu_gl.json"
     try:
-        data = json.loads(k_latest.read_text())
+        data = json.loads(k_evidence.read_text())
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
     for row in data.get("rows", []):
@@ -225,7 +225,7 @@ def _k1_frame_pass() -> bool:
     """
     if not _k1_submit_pass():
         return False
-    proof = ROOT / "results" / "kmscube_vgpu_gl" / "latest" / "frame_pixel_proof.json"
+    proof = ROOT / "results" / "kmscube_vgpu_gl" / "run" / "frame_pixel_proof.json"
     try:
         data = json.loads(proof.read_text())
     except (FileNotFoundError, json.JSONDecodeError):
@@ -235,7 +235,7 @@ def _k1_frame_pass() -> bool:
         and bool(data.get("colour_band_ok"))
         and data.get("colour_band_source") == "pixel"
         and data.get("matched_colour_index") is not None
-        and data.get("run_log_sha256") == _sha256_file(ROOT / "results" / "kmscube_vgpu_gl" / "latest" / "run.log")
+        and data.get("run_log_sha256") == _sha256_file(ROOT / "results" / "kmscube_vgpu_gl" / "run" / "run.log")
     )
 
 
@@ -262,14 +262,14 @@ def _k1_frame_status() -> str:
 
 def build_rows() -> list[Row]:
     ok_native, native_out = command_output(["make", "-C", "tests", "native"])
-    native_log = RESULTS / "native_tests_latest.log"
+    native_log = RESULTS / "native_tests.log"
     native_log.parent.mkdir(parents=True, exist_ok=True)
     native_log.write_text(native_out)
 
-    k_latest = RESULTS / "kmscube_vgpu_gl_latest.json"
+    k_evidence = RESULTS / "kmscube_vgpu_gl.json"
     k_data = {}
     try:
-        k_data = json.loads(k_latest.read_text())
+        k_data = json.loads(k_evidence.read_text())
     except (FileNotFoundError, json.JSONDecodeError):
         pass
     k_rows = {r.get("row_id", ""): r for r in k_data.get("rows", []) if isinstance(r, dict)}
@@ -318,7 +318,7 @@ def build_rows() -> list[Row]:
             "SUBMIT_3D is delivered to host virglrenderer under virtio-gpu-gl-pci",
             _k1_submit_status(),
             "Same-run guest log shows renderer=virgl with non-zero submits_3d",
-            k_rows.get("K1", {}).get("evidence", "missing:results/kmscube_vgpu_gl/latest"),
+            k_rows.get("K1", {}).get("evidence", "missing:results/kmscube_vgpu_gl/run"),
             ("Transport-level proof: the guest constructs a valid Gallium command "
              "stream and the host accepts SUBMIT_3D over the virgl context.")
             if _k1_submit_pass() else
@@ -331,7 +331,7 @@ def build_rows() -> list[Row]:
             "QMP screendump",
             _k1_frame_status(),
             "Same-run frame_pixel_proof.json with pixel_variance_ok and colour_band_ok",
-            "results/kmscube_vgpu_gl/latest/frame_pixel_proof.json",
+            "results/kmscube_vgpu_gl/run/frame_pixel_proof.json",
             "Only a non-blank screendump whose mean colour matches the encoded "
             "CLEAR colour per frame may promote this row.",
             "Software rendering, SUBMIT_3D-only proof, or capset probe.",
@@ -353,14 +353,14 @@ def build_rows() -> list[Row]:
 def llama_vulkan_rows() -> list[Row]:
     """LLAMA-VK-* and upstream llama.cpp rows.
 
-    Each row reads its own results/llama/<kind>_latest.json artifact and is
+    Each row reads its own results/llama/<kind>.json artifact and is
     BLOCKED until the matching script writes status=pass. No row is promoted
     by source-tree presence alone — runtime Vulkan rows require run-time
     evidence under QEMU with `-device virtio-gpu-gl,...,venus=true`.
     """
     base = ROOT / "results" / "llama"
     def _status(name: str, key: str = "status") -> tuple[str, str]:
-        path = base / f"{name}_latest.json"
+        path = base / f"{name}.json"
         data = load_json(path)
         s = data.get(key, "missing")
         return s, (rel(path) if path.exists() else f"missing:{rel(path)}")
@@ -372,7 +372,7 @@ def llama_vulkan_rows() -> list[Row]:
         Unikraft rows.  A row may therefore pass only when the artifact has the
         expected evidence_id, no host-baseline `source`, and row-specific fields.
         """
-        path = base / f"{name}_latest.json"
+        path = base / f"{name}.json"
         data = load_json(path)
         evidence = rel(path) if path.exists() else f"missing:{rel(path)}"
         status = str(data.get("status", "missing"))
@@ -418,7 +418,7 @@ def llama_vulkan_rows() -> list[Row]:
     if n3_status == "missing":
         n3_status = "blocked:dispatch-layer-not-built"
 
-    n3_data = load_json(base / "vulkan_n3_dispatch_latest.json")
+    n3_data = load_json(base / "vulkan_n3_dispatch.json")
     n3_passed = n3_data.get("checks_passed", 0)
     n3_total = n3_data.get("checks_total") or (n3_passed + n3_data.get("checks_failed", 0)) or n3_passed
 
@@ -429,7 +429,7 @@ def llama_vulkan_rows() -> list[Row]:
             "upstream llama.cpp built with -DGGML_VULKAN=1",
             linux_status,
             "Same-host Linux VM run shows vulkaninfo Venus ICD + llama-cli -ngl 99 tokens + "
-            "pp512/tg128 in results/llama/vulkan_linux_baseline_latest.json",
+            "pp512/tg128 in results/llama/vulkan_linux_baseline.json",
             linux_evidence,
             "Standards-track baseline: this validates QEMU + virglrenderer + Venus + Mesa "
             "Venus ICD + upstream ggml-vulkan on the same host hardware.",
@@ -441,7 +441,7 @@ def llama_vulkan_rows() -> list[Row]:
             "over libukvirtgpu_drm + libukvenus + virtio-gpu-gl with venus=true",
             probe_status,
             "Guest log line `vk: physical_device=<name> api=<version>` and capset(venus) detected "
-            "in the same run; recorded in results/llama/vulkan_probe_latest.json",
+            "in the same run; recorded in results/llama/vulkan_probe.json",
             probe_evidence,
             ("The Unikraft Vulkan loader path is alive enough to see a Venus-capable device; "
              "this is a substrate gate, not a compute gate.")
@@ -469,7 +469,7 @@ def llama_vulkan_rows() -> list[Row]:
             "llama.cpp bench prompts the configured GGUF and emits tokens",
             run_status,
             "Same-run guest log: vk_physical_device + ggml-vulkan device + non-zero token output + "
-            "frame-proof artifact; recorded in results/llama/vulkan_run_latest.json",
+            "frame-proof artifact; recorded in results/llama/vulkan_run.json",
             run_evidence,
             ("End-to-end Vulkan compute: ggml Vulkan backend offloads layers via Venus to host driver "
              "and emits real tokens for a real GGUF.")
@@ -482,7 +482,7 @@ def llama_vulkan_rows() -> list[Row]:
             "Unikraft Vulkan throughput compared against Linux-VM Venus / BM-Vulkan / BM-CUDA / Unikraft-CPU",
             "scripts/llama_env_matrix.py: pp512/tg128 plan/evidence inside Unikraft alongside Linux/baremetal baselines",
             bench_status,
-            "results/llama-env/latest-plan.json and runtime artifacts with pp512/tg128 plus matching rows for "
+            "results/llama-env/plan.json and runtime artifacts with pp512/tg128 plus matching rows for "
             "ENV-Unikraft-CPU, ENV-LinuxVM-Vulkan, ENV-BM-Vulkan, ENV-BM-CUDA",
             bench_evidence,
             ("Apples-to-apples Vulkan throughput comparison published with claim boundaries: "
@@ -520,12 +520,12 @@ def llama_vulkan_rows() -> list[Row]:
 
 def upstream_llama_rows() -> list[Row]:
     """llm.bench.cpu, llm.server.cpu, llm.bench.vk, llm.server.vk, bld.uk.vk, llm.bench.vk.real."""
-    cpu = load_json(RESULTS / "llama" / "upstream_cpu_latest.json")
-    server_cpu = load_json(RESULTS / "llama" / "upstream_server_cpu_latest.json")
-    vk = load_json(RESULTS / "llama" / "upstream_vk_latest.json")
-    server_vk = load_json(RESULTS / "llama" / "upstream_server_vk_latest.json")
+    cpu = load_json(RESULTS / "llama" / "upstream_cpu.json")
+    server_cpu = load_json(RESULTS / "llama" / "upstream_server_cpu.json")
+    vk = load_json(RESULTS / "llama" / "upstream_vk.json")
+    server_vk = load_json(RESULTS / "llama" / "upstream_server_vk.json")
     n3b = load_json(RESULTS / "llama" / "n3_build_passed.json")
-    env10 = load_json(RESULTS / "llama" / "env10_real_latest.json")
+    env10 = load_json(RESULTS / "llama" / "env10_real.json")
 
     cpu_status = cpu.get("status", "blocked:not-run")
     server_cpu_status = server_cpu.get("status", "blocked:not-run")
@@ -543,9 +543,9 @@ def upstream_llama_rows() -> list[Row]:
             "apps/app-llama-upstream: upstream llama_backend_init + llama_model_load_from_file + "
             "llama_decode via 9pfs; upstream lib-musl supplies sysconf/getauxval/prctl/pthread surface",
             cpu_status,
-            f"pp512={cpu_pp} t/s; evidence: results/llama/upstream_cpu_latest.json" if cpu_pp else
-            "Build or run blocked; see results/llama/upstream_cpu_latest.json",
-            "results/llama/upstream_cpu_latest.json",
+            f"pp512={cpu_pp} t/s; evidence: results/llama/upstream_cpu.json" if cpu_pp else
+            "Build or run blocked; see results/llama/upstream_cpu.json",
+            "results/llama/upstream_cpu.json",
             (f"Upstream llama.cpp CPU path boots on Unikraft with upstream sources unmodified. "
              f"pp512={cpu_pp} t/s via 9pfs model delivery.") if cpu_pp else
             "Blocked; no throughput claim.",
@@ -556,10 +556,10 @@ def upstream_llama_rows() -> list[Row]:
             "apps/app-llama-upstream/server.cpp: single-purpose Unikraft image, "
             "no shell/fork/exec launcher, READY-line evidence; HTTP listener gated on Unikraft netdev/lwip",
             server_cpu_status,
-            "Server entrypoint boots; see results/llama/upstream_server_cpu_latest.json"
+            "Server entrypoint boots; see results/llama/upstream_server_cpu.json"
             if server_cpu_status == "pass" else
-            "Build or run blocked; see results/llama/upstream_server_cpu_latest.json",
-            "results/llama/upstream_server_cpu_latest.json",
+            "Build or run blocked; see results/llama/upstream_server_cpu.json",
+            "results/llama/upstream_server_cpu.json",
             "Upstream llama.cpp server appliance boots directly into a single entrypoint "
             "on Unikraft (no shell)." if server_cpu_status == "pass" else
             "Blocked; no server-runtime claim.",
@@ -571,9 +571,9 @@ def upstream_llama_rows() -> list[Row]:
             "apps/app-llama-upstream-vk/bench.cpp: upstream llama.cpp Vulkan via "
             "libukggml_vulkan → libukvenus SUBMIT_3D → QEMU virtio-gpu-gl-pci,venus=true",
             vk_status,
-            f"pp512={vk_pp} t/s; evidence: results/llama/upstream_vk_latest.json" if vk_pp else
-            "Build or run blocked; see results/llama/upstream_vk_latest.json",
-            "results/llama/upstream_vk_latest.json",
+            f"pp512={vk_pp} t/s; evidence: results/llama/upstream_vk.json" if vk_pp else
+            "Build or run blocked; see results/llama/upstream_vk.json",
+            "results/llama/upstream_vk.json",
             (f"Upstream llama.cpp Vulkan path routes ggml compute through Venus on Unikraft "
              f"without upstream source modifications. pp512={vk_pp} t/s.") if vk_pp else
             "Blocked; no throughput claim.",
@@ -584,10 +584,10 @@ def upstream_llama_rows() -> list[Row]:
             "apps/app-llama-upstream-vk/server.cpp: single-purpose Vulkan server image; "
             "no shell/fork/exec launcher; Venus dispatch chain identical to llm.bench.vk; READY-line evidence",
             server_vk_status,
-            "Server entrypoint boots; see results/llama/upstream_server_vk_latest.json"
+            "Server entrypoint boots; see results/llama/upstream_server_vk.json"
             if server_vk_status == "pass" else
-            "Build or run blocked; see results/llama/upstream_server_vk_latest.json",
-            "results/llama/upstream_server_vk_latest.json",
+            "Build or run blocked; see results/llama/upstream_server_vk.json",
+            "results/llama/upstream_server_vk.json",
             "Upstream llama.cpp Vulkan server appliance boots directly into the Vulkan "
             "entrypoint (no shell) and reaches model-loaded readiness." if server_vk_status == "pass" else
             "Blocked; no server-runtime claim. Vulkan runtime is gated on host EGL render-node availability.",
@@ -612,10 +612,10 @@ def upstream_llama_rows() -> list[Row]:
             "apps/app-llama-upstream-vk: upstream llama.cpp ggml-vulkan dispatches through Venus "
             "SUBMIT_3D to QEMU virtio-gpu-gl-pci,venus=true; real GPU compute executed",
             env10_status,
-            f"pp512={env10_pp} t/s via real Venus backend; evidence: results/llama/env10_real_latest.json"
+            f"pp512={env10_pp} t/s via real Venus backend; evidence: results/llama/env10_real.json"
             if env10_pp else
-            "Blocked; see results/llama/env10_real_latest.json",
-            "results/llama/env10_real_latest.json",
+            "Blocked; see results/llama/env10_real.json",
+            "results/llama/env10_real.json",
             f"ENV10 PASS: upstream llama.cpp ggml-vulkan runs on Unikraft via real Venus. "
             f"pp512={env10_pp} t/s." if env10_pp else "Blocked; no throughput claim.",
             "Any throughput claim without same-run PASS artifacts or ENV10 host GPU disclosure.",
@@ -625,10 +625,10 @@ def upstream_llama_rows() -> list[Row]:
 
 
 def vulkan_rows() -> list[Row]:
-    vk = load_json(RESULTS / "vulkan" / "vulkan_perf_latest.json")
+    vk = load_json(RESULTS / "vulkan" / "vulkan_perf.json")
     vk_status = vk.get("status", "missing")
     vkm = vk.get("vkmark_substrate", {})
-    vk_evidence = "results/vulkan/vulkan_perf_latest.json"
+    vk_evidence = "results/vulkan/vulkan_perf.json"
 
     # vk.icd gate: libukvk_icd Vulkan ICD shim implemented
     g6_src = ROOT / "libs" / "libukvk_icd" / "vulkan_icd.c"
@@ -677,9 +677,9 @@ def write_outputs(rows: list[Row], out_dir: Path | None) -> dict:
         },
         "rows": [asdict(r) for r in rows],
     }
-    latest_json = RESULTS / "vogue_latest_evaluation_matrix.json"
-    latest_csv = RESULTS / "vogue_latest_evaluation_matrix.csv"
-    latest_md = RESULTS / "vogue_latest_evaluation_matrix.md"
+    latest_json = RESULTS / "vogue_evaluation_matrix.json"
+    latest_csv = RESULTS / "vogue_evaluation_matrix.csv"
+    latest_md = RESULTS / "vogue_evaluation_matrix.md"
     json_paths = [latest_json]
     if out_dir is not None:
         json_paths.insert(0, out_dir / "vogue_evaluation_matrix.json")
@@ -717,7 +717,7 @@ def main() -> int:
     counts = {s: sum(1 for r in rows if r.status.startswith(s)) for s in ["pass", "blocked", "missing", "future"]}
     if out_dir is not None:
         print(f"wrote {out_dir / 'vogue_evaluation_matrix.md'}")
-    print(f"wrote {RESULTS / 'vogue_latest_evaluation_matrix.md'}")
+    print(f"wrote {RESULTS / 'vogue_evaluation_matrix.md'}")
     print("rows={rows} pass={pass_} blocked={blocked} missing={missing}".format(
         rows=len(rows), pass_=counts["pass"], blocked=counts["blocked"], missing=counts["missing"]))
     if args.check:

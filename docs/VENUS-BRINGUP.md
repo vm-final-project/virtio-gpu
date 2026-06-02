@@ -89,9 +89,9 @@ real Venus (`-device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true`,
    token output with `pp512=2232.1 t/s`, `tg128=160.2 t/s` on the latest
    artifact after enabling batched Venus submission; the three post-change runs
    in `results/llama/post_opt_runs/` report `tg128={135.7, 139.9, 160.2}`.
-   (`results/llama/upstream_vk_latest.json`).
+   (`results/llama/upstream_vk.json`).
 4. The Vulkan server image boots directly into its server entrypoint, loads the
-   model over Venus, and reaches `READY` (`results/llama/upstream_server_vk_latest.json`).
+   model over Venus, and reaches `READY` (`results/llama/upstream_server_vk.json`).
 
 Honest status: the runtime rows are PASS on this host. HTTP serving semantics
 remain out of scope until the lwIP/netdev path exists; `llm.server.vk` is a

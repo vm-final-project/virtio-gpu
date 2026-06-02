@@ -1,4 +1,4 @@
-// Generated from results/vogue_latest_evaluation_matrix.json; do not edit by hand.
+// Generated from results/vogue_evaluation_matrix.json; do not edit by hand.
 #figure(
   text(size: 7pt, table(
     columns: (1.25in, 0.95in, 3.4in),
@@ -33,5 +33,5 @@
     [#raw("bld.uk.vk", block: false)], [#raw("pass", block: false)], [#raw("Upstream llama.cpp Vulkan image builds with ggml-vulkan and Venus libraries linked. Build-pass confirms toolchain compatibility between Unikraft ", block: false)],
     [#raw("llm.bench.vk.real", block: false)], [#raw("pass", block: false)], [#raw("ENV10 PASS: upstream llama.cpp ggml-vulkan runs on Unikraft via real Venus.", block: false)],
   )),
-  caption: [Current generated evidence matrix from `results/vogue_latest_evaluation_matrix.json`: 27 rows, 27 PASS, 0 blocked on the evaluation host. Hosts without the required QEMU/Venus/GPU stack must report structured blockers instead of pass claims.]
+  caption: [Current generated evidence matrix from `results/vogue_evaluation_matrix.json`: 27 rows, 27 PASS, 0 blocked on the evaluation host. Hosts without the required QEMU/Venus/GPU stack must report structured blockers instead of pass claims.]
 ) <tab:evidence>

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Measure the on-disk size of every built Unikraft appliance image.
 
-Writes `results/image-size/latest.{json,md}`. When the image isn't built
+Writes `results/image-size/report.{json,md}`. When the image isn't built
 (common during reviewer-only runs), the appliance row carries a structured
 `blocked:image-missing` marker — never a fatal error.
 """

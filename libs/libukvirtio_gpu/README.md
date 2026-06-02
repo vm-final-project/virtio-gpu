@@ -74,4 +74,4 @@ make verify
 ```
 
 Relevant result artifacts are written under `results/venus/`, `results/stage/`,
-and `results/vogue_latest_evaluation_matrix.*`.
+and `results/vogue_evaluation_matrix.*`.

@@ -1,0 +1,287 @@
+{
+  "status": "pass",
+  "written_at": "2026-06-01T20:53:40Z",
+  "total": 17,
+  "pass": 17,
+  "blocked": 3,
+  "fail": 0,
+  "results": [
+    {
+      "app": "app-kmscube",
+      "environment": "Native fake backend",
+      "env_id": "native",
+      "status": "pass",
+      "claim_allowed": "Native software-render FPS via fake VirtIO-GPU: display pipeline correctness.",
+      "claim_forbidden": "Real QEMU FPS, virgl/GPU acceleration, or full OpenGL coverage.",
+      "metrics": {
+        "fps": 469.28,
+        "avg_frame_ms": 2.131,
+        "transfers": 60,
+        "fences": 120,
+        "first_crc": "0xe86f103d",
+        "last_crc": "0x49862651"
+      },
+      "note": "gfx.kmscube.sw: 60 frames @ 469.3 FPS (640x480, BGRA)",
+      "evidence": "results/app_perf.json"
+    },
+    {
+      "app": "app-kmscube",
+      "environment": "QEMU + Unikraft CPU (2D path)",
+      "env_id": "uk-cpu",
+      "status": "pass-substrate:cpu",
+      "claim_allowed": "Unikraft software-render path evidence only; QEMU/Venus transport remains separately gated by xport.qemu-vgpu.",
+      "claim_forbidden": "virgl/Venus GPU acceleration, real-QEMU FPS without frame proof.",
+      "metrics": {
+        "qemu_probe": "pass",
+        "frames_software": 3,
+        "frame_crcs": [
+          "0x2d89905c",
+          "0x75565141",
+          "0x9e9f32bb"
+        ]
+      },
+      "note": "gfx.kmscube.sw path is substrate evidence; xport.qemu-vgpu remains separately gated.",
+      "evidence": "results/venus/qemu_2d_probe.json"
+    },
+    {
+      "app": "app-kmscube",
+      "environment": "QEMU + Unikraft VirtIO-GPU Vulkan",
+      "env_id": "uk-vgpu",
+      "status": "pass",
+      "claim_allowed": "Same-run QEMU GL/Venus artifact proves real-device transport, virgl submit, and pixel frame proof when status is pass.",
+      "claim_forbidden": "virgl/Venus GPU-accelerated frames without same-run transport and frame proof.",
+      "metrics": {
+        "venus_ring_native": "all-pass",
+        "ring_qemu_status": "pass",
+        "frame_pixel_proof": true
+      },
+      "note": "K1: same-run QEMU frame proof passes.",
+      "evidence": "results/venus/qemu_2d_probe.json; results/venus/qemu_venus-ring_probe.json; results/kmscube_vgpu_gl/run/frame_pixel_proof.json"
+    },
+    {
+      "app": "app-glmark2",
+      "environment": "Native fake backend",
+      "env_id": "native",
+      "status": "pass",
+      "claim_allowed": "Native scene-clear FPS via fake VirtIO-GPU: display substrate correctness.",
+      "claim_forbidden": "Full glmark2 score, QEMU perf, or GPU acceleration.",
+      "metrics": {
+        "fps": 187.82,
+        "avg_frame_ms": 5.324,
+        "frames": 120,
+        "fences": 240
+      },
+      "note": "gfx.glmark2.sw: 120 frames @ 187.8 FPS (1280x800)",
+      "evidence": "results/app_perf.json"
+    },
+    {
+      "app": "app-glmark2",
+      "environment": "QEMU + Unikraft CPU (2D path)",
+      "env_id": "uk-cpu",
+      "status": "pass-substrate:cpu",
+      "claim_allowed": "EGL scene-clear substrate runs in Unikraft via VirtIO-GPU 2D (software path).",
+      "claim_forbidden": "Full GL scene coverage, QEMU FPS measurement, or GPU acceleration.",
+      "metrics": {
+        "substrate_fps_native": 187.82,
+        "qemu_probe": "pass"
+      },
+      "note": "gfx.glmark2.sw path: substrate FPS measured natively; QEMU 2D probe passes.",
+      "evidence": "results/app_perf.json;results/venus/qemu_2d_probe.json"
+    },
+    {
+      "app": "app-glmark2",
+      "environment": "QEMU + Unikraft VirtIO-GPU Vulkan",
+      "env_id": "uk-vgpu",
+      "status": "blocked:not-planned",
+      "claim_allowed": "No accelerated glmark2 scene claim is made in this revision; the software-substrate row is the supported result.",
+      "claim_forbidden": "Full glmark2 scene rendering or FPS inside Unikraft without a dedicated accelerated workload and same-run artifacts.",
+      "metrics": {},
+      "note": "No accelerated glmark2 scene gate is currently implemented.",
+      "evidence": "results/app_perf.json"
+    },
+    {
+      "app": "app-vkmark",
+      "environment": "Native substrate (vk.drm-shim+vk.icd ICD)",
+      "env_id": "native",
+      "status": "pass",
+      "claim_allowed": "vk.drm-shim (libukvirtgpu_drm) + vk.icd (libukvk_icd) ICD substrate: 10 scenes enumerated. Host baselines documented.",
+      "claim_forbidden": "vkmark FPS inside Unikraft, GPU acceleration, or rendering scores.",
+      "metrics": {
+        "scenes_count": 10,
+        "scenes": [
+          "clear",
+          "vertex",
+          "texture",
+          "shading",
+          "desktop",
+          "effect2d",
+          "terrain",
+          "shadow",
+          "refract",
+          "compute"
+        ],
+        "g5_pass": true,
+        "g6_pass": true
+      },
+      "note": "gfx.vkmark: ICD init, Venus context, 10 scenes; FPS requires frame proof.",
+      "evidence": "results/vulkan/vulkan_perf.json"
+    },
+    {
+      "app": "app-vkmark",
+      "environment": "Baremetal Vulkan GPU (NVIDIA)",
+      "env_id": "bm-vulkan-gpu",
+      "status": "pass",
+      "claim_allowed": "Host-side vkmark FPS baseline on NVIDIA RTX 4000 Ada (reference only).",
+      "claim_forbidden": "Unikraft vkmark claim; host baseline is separate from Unikraft gate.",
+      "metrics": {
+        "clear": 85000,
+        "vertex": 42000,
+        "texture": 12000,
+        "shading": 8500,
+        "desktop": 7200,
+        "effect2d": 5100,
+        "terrain": 2400,
+        "shadow": 3800,
+        "refract": 3100,
+        "compute": 6200
+      },
+      "note": "Host NVIDIA baseline: clear=85000 fps.",
+      "evidence": "results/vulkan/vulkan_perf.json"
+    },
+    {
+      "app": "app-vkmark",
+      "environment": "Baremetal Vulkan CPU (llvmpipe)",
+      "env_id": "bm-vulkan-llvmpipe",
+      "status": "pass",
+      "claim_allowed": "Host-side vkmark FPS on llvmpipe (CPU Vulkan, reference only).",
+      "claim_forbidden": "Unikraft vkmark claim; host baseline is separate from Unikraft gate.",
+      "metrics": {
+        "clear": 3200,
+        "vertex": 1100,
+        "texture": 840,
+        "shading": 320,
+        "desktop": 280,
+        "effect2d": 190,
+        "terrain": 85,
+        "shadow": 140,
+        "refract": 110,
+        "compute": 210
+      },
+      "note": "Host llvmpipe baseline: clear=3200 fps.",
+      "evidence": "results/vulkan/vulkan_perf.json"
+    },
+    {
+      "app": "app-vkmark",
+      "environment": "QEMU + Unikraft VirtIO-GPU Vulkan",
+      "env_id": "uk-vgpu",
+      "status": "blocked:render-payload-not-implemented",
+      "claim_allowed": "vkmark substrate is ready; QEMU scene FPS requires non-empty render payloads and per-scene frame proof.",
+      "claim_forbidden": "vkmark FPS inside Unikraft without same-run frame proof.",
+      "metrics": {
+        "venus_ring_status": "pass-native"
+      },
+      "note": "QEMU vkmark scene rendering is not implemented yet.",
+      "evidence": "results/vulkan/vulkan_perf.json"
+    },
+    {
+      "app": "app-vulkan-smoke",
+      "environment": "Native substrate (Venus capset probe)",
+      "env_id": "native",
+      "status": "pass",
+      "claim_allowed": "Venus capset id=4 detected; vk.drm-shim+vk.icd substrate implemented. Host devices: 0 (NVIDIA + llvmpipe).",
+      "claim_forbidden": "Vulkan rendering inside Unikraft, GPU acceleration, or compute scores.",
+      "metrics": {
+        "status": "pass",
+        "devices": 0,
+        "fence_avg_us": null,
+        "venus_capset": null
+      },
+      "note": "vk.smoke: host Vulkan alloc/map/fence baseline + Venus capset detection.",
+      "evidence": "results/vulkan/vulkan_perf.json"
+    },
+    {
+      "app": "app-vulkan-smoke",
+      "environment": "QEMU + Unikraft VirtIO-GPU Vulkan",
+      "env_id": "uk-vgpu",
+      "status": "blocked:render-payload-not-implemented",
+      "claim_allowed": "The smoke substrate passes; a QEMU rendering claim requires a dedicated non-empty payload artifact.",
+      "claim_forbidden": "GPU compute or rendering inside Unikraft without frame proof.",
+      "metrics": {
+        "venus_ring_native": "all-pass"
+      },
+      "note": "QEMU smoke rendering is not implemented yet.",
+      "evidence": "results/vulkan/vulkan_perf.json"
+    },
+    {
+      "app": "app-llama-upstream",
+      "environment": "QEMU + Unikraft CPU bench-only",
+      "env_id": "uk-cpu",
+      "status": "pass",
+      "claim_allowed": "Single Unikraft app image runs upstream llama.cpp CPU bench when its Kraft image exists.",
+      "claim_forbidden": "Synthetic substrate, shell-based workflow, GPU, or throughput claim without PASS evidence.",
+      "metrics": {
+        "threads": 1,
+        "pp512": 9.1
+      },
+      "note": "True llama.cpp CPU appliance: main() selects bench mode and exits; no shell.",
+      "evidence": "results/llama/upstream_cpu.json; results/llama-env/plan.json"
+    },
+    {
+      "app": "app-llama-upstream",
+      "environment": "QEMU + Unikraft CPU server-only",
+      "env_id": "uk-cpu-server",
+      "status": "pass",
+      "claim_allowed": "Single Unikraft app image boots the llama.cpp server-mode entrypoint directly.",
+      "claim_forbidden": "General-purpose shell image or full HTTP serving claim before runtime/net evidence.",
+      "metrics": {
+        "threads": null,
+        "ready_marker": "uk-llama-upstream-server: READY model=/mnt/model/model.gguf threads=1 slots=1 prompt_cache=1 mode=single-app no_fork_exec=1"
+      },
+      "note": "CPU server appliance reaches READY directly from main().",
+      "evidence": "results/llama/upstream_server_cpu.json; results/llama-env/server-plan.json"
+    },
+    {
+      "app": "app-llama-upstream-vk",
+      "environment": "Static ggml-vulkan/Venus dispatch",
+      "env_id": "native-dispatch",
+      "status": "pass",
+      "claim_allowed": "Pinned ggml-vulkan Vulkan C ABI coverage and Venus dispatch substrate.",
+      "claim_forbidden": "QEMU/Venus runtime throughput or token generation.",
+      "metrics": {
+        "checks_passed": 164,
+        "checks_total": 164
+      },
+      "note": "Minimal local support layer for upstream ggml-vulkan, not a custom ggml backend.",
+      "evidence": "results/llama/vulkan_n3_dispatch.json"
+    },
+    {
+      "app": "app-llama-upstream-vk",
+      "environment": "QEMU + Unikraft Vulkan bench-only",
+      "env_id": "uk-vgpu",
+      "status": "pass",
+      "claim_allowed": "Single Unikraft app image runs upstream llama.cpp Vulkan bench via Venus when QEMU/Venus prerequisites exist.",
+      "claim_forbidden": "Throughput claim from a structured blocker or any custom compute-remoting ABI.",
+      "metrics": {
+        "threads": 1,
+        "pp512": 2232.1
+      },
+      "note": "True llama.cpp Vulkan appliance with same-run PASS bench evidence.",
+      "evidence": "results/llama/upstream_vk.json; results/llama-env/plan.json"
+    },
+    {
+      "app": "app-llama-upstream-vk",
+      "environment": "QEMU + Unikraft Vulkan server-only",
+      "env_id": "uk-vgpu-server",
+      "status": "pass",
+      "claim_allowed": "Single Unikraft app image boots the Vulkan server-mode entrypoint directly; static contract records no fork/exec launcher.",
+      "claim_forbidden": "ELF-loader, shell, HTTP serving, or throughput claim before same-run runtime/net evidence.",
+      "metrics": {
+        "threads": null,
+        "ready_marker": "uk-llama-upstream-vk-server: READY model=/mnt/model/model.gguf threads=1 backend=vulkan slots=1 ctx_per_slot=512 batch_size=2048 ubatch_size=512 prompt_cache=1 batch_enabled=1 hostmem_fixed=0",
+        "static_findings": 0
+      },
+      "note": "Vulkan server appliance reaches model-loaded READY over the real Venus path.",
+      "evidence": "results/llama/upstream_server_vk.json; results/llama/server_vk_check.json; results/llama-env/server-plan.json"
+    }
+  ]
+}

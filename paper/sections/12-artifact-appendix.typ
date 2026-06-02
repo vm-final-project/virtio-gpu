@@ -25,10 +25,10 @@ the artifact records a structured blocker instead of promoting a weaker result.
     [vk.drm-shim / vk.icd substrate], [`virtgpu_drm_ioctl_test`, `vk_icd_bootstrap_test`], [`make native-tests`],
     [Static ggml-Vulkan dispatch], [`ggml_vk_dispatch_test`, API coverage scripts], [`make llama-vulkan-api-coverage`, `make llama-ggml-vk-dispatch`],
     [QEMU/Venus transport], [QEMU probe + runtime artifacts], [`make venus-check`, evaluation matrix rows],
-    [Upstream llama.cpp CPU appliance], [`results/llama/upstream_cpu_latest.json`], [`make llama-upstream-cpu-check`],
-    [Upstream llama.cpp Vulkan appliance], [`results/llama/upstream_vk_latest.json`, `results/llama/post_opt_runs/`], [`make llama-upstream-vk-check` + same-run runtime logs],
-    [Upstream llama.cpp Vulkan server readiness], [`results/llama/upstream_server_vk_latest.json`], [`make llm-server-vk-check`],
-    [Current-stage consistency], [`results/stage/current_stage_report_latest.json`], [`make current-stage-check`],
+    [Upstream llama.cpp CPU appliance], [`results/llama/upstream_cpu.json`], [`make llama-upstream-cpu-check`],
+    [Upstream llama.cpp Vulkan appliance], [`results/llama/upstream_vk.json`, `results/llama/post_opt_runs/`], [`make llama-upstream-vk-check` + same-run runtime logs],
+    [Upstream llama.cpp Vulkan server readiness], [`results/llama/upstream_server_vk.json`], [`make llm-server-vk-check`],
+    [Current-stage consistency], [`results/stage/current_stage_report.json`], [`make current-stage-check`],
   )),
   caption: [Current artifact claim map. The evaluation host records 27 PASS rows, but new hosts must still generate the corresponding same-run artifacts before promoting transport or runtime claims.]
 )
@@ -162,7 +162,7 @@ The native test suite is organized into five focused groups. Reviewers can repro
     [`make test-core`], [VirtIO-GPU core, DMA, shims], [proto.real-driver, gfx.kmscube.sw, disp.2d],
     [`make test-venus`], [VirtIO-GPU 3D, Venus encoder, virgl], [vk.drm-shim, vk.icd, proto.venus-enc, proto.venus-ring],
     [`make test-llm`], [LLM/ggml substrate], [llm.bench.cpu, llm.bench.vk, vk.ggml-dispatch],
-    [`make test-n3`], [vk.ggml-dispatch static Vulkan dispatch (164 checks)], [vk.ggml-dispatch],
+    [`make test-dispatch`], [vk.ggml-dispatch static Vulkan dispatch (164 checks)], [vk.ggml-dispatch],
     [`make proto-abi`], [VirtIO wire-ABI struct/offset/feature], [proto.real-driver],
   )),
   caption: [Native test group targets. All run on the host without QEMU, Unikraft, or a GPU. See `tests/README.md` for expected pass strings and evidence mapping.]

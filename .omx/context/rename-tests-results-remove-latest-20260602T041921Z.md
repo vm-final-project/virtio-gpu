@@ -1,0 +1,21 @@
+# Autopilot Context Snapshot
+
+- activation prompt / task seed: Update `tests`, `scripts`, and `results`; rename tests and output results to remove useless `latest`; update all related content across the whole `virtio-gpu` project; reorganize tests (remove/split/union allowed); update `README.md`.
+- original task status: activation-prompt
+- desired outcome: concise, clear test/result naming and organization across repo with all references updated and docs aligned.
+- known facts/evidence:
+  - repo paths include `tests/`, `scripts/`, `results/`, `README.md`
+  - prior memory indicates documentation and consistency checks are important in this repo
+  - user explicitly wants all related content updated across whole project
+- constraints:
+  - remove useless `latest` wording from filenames
+  - keep project concise and names clear
+  - may reorganize tests by remove/split/union
+  - must update corresponding references across whole repo
+- unknowns/open questions:
+  - preferred naming policy for single canonical artifacts vs timestamped/generated artifacts
+  - whether to preserve backward-compat symlinks/wrappers or perform a clean break
+  - desired grouping principle for test reorganization
+- likely codebase touchpoints:
+  - `tests/**`, `scripts/**`, `results/**`, `README.md`, `Makefile`, docs, plans, checks, scripts, paper, apps/libs docs, CI-like helpers
+- scope note: this seed is the Autopilot activation prompt, not guaranteed prior conversation context.

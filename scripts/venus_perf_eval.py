@@ -24,7 +24,7 @@ def main() -> int:
         proc=subprocess.run(["python3", "scripts/real_driver_static_check.py"], cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         latencies.append((time.perf_counter_ns()-t0)/1e6)
         statuses.append(proc.returncode)
-    qemu_json = OUT / "qemu_2d_probe_latest.json"
+    qemu_json = OUT / "qemu_2d_probe.json"
     qemu_status = "not-run"
     if qemu_json.exists():
         qemu_status = json.loads(qemu_json.read_text()).get("status", "unknown")
@@ -43,13 +43,13 @@ def main() -> int:
         "claim_boundary": "Static/native gates are measured here; STK/Vulkan acceleration is blocked until QEMU Venus probe is pass.",
         "written_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
-    (OUT/"venus_perf_latest.json").write_text(json.dumps(data, indent=2)+"\n")
-    with (OUT/"venus_perf_latest.csv").open("w", newline="") as f:
+    (OUT/"venus_perf.json").write_text(json.dumps(data, indent=2)+"\n")
+    with (OUT/"venus_perf.csv").open("w", newline="") as f:
         w=csv.DictWriter(f, fieldnames=["metric","value"], lineterminator="\n"); w.writeheader()
         for k,v in data["static_gate_latency_ms"].items(): w.writerow({"metric":f"static_gate_latency_ms_{k}", "value":v})
         w.writerow({"metric":"qemu_probe_status", "value":qemu_status})
         w.writerow({"metric":"acceleration_status", "value":acceleration_status})
-    (OUT/"venus_perf_latest.md").write_text("# Venus performance/evaluation gate\n\n"+json.dumps(data,indent=2)+"\n")
+    (OUT/"venus_perf.md").write_text("# Venus performance/evaluation gate\n\n"+json.dumps(data,indent=2)+"\n")
     print(f"venus_perf_eval: {status} acceleration={acceleration_status} qemu={qemu_status}")
     return 0 if status == "pass" and (args.allow_blocked or acceleration_status == "ready-for-venus-smoke") else 1
 if __name__ == "__main__":

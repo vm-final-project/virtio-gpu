@@ -22,11 +22,11 @@ PROTO_HDR := ../libs/libukvirtio_gpu/virtio_gpu_proto.h
 JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
 MAKEFLAGS += --no-print-directory
 
-.PHONY: native test-core test-venus test-n3 proto-abi vulkan g5 venus-cs venus-compute virgl-enc n3-dispatch clean
+.PHONY: native test-core test-venus test-dispatch test-n3 proto-abi vulkan g5 venus-cs venus-compute virgl-enc n3-dispatch clean
 
 NATIVE_BINS := \
 	$(BUILD)/dma_buf_test \
-	$(BUILD)/virtio_gpu_test \
+	$(BUILD)/virtio_gpu_full_api_test \
 	$(BUILD)/virtio_gpu_2d_render_test \
 	$(BUILD)/kmscube_compat_test \
 	$(BUILD)/virtgpu_drm_ioctl_test \
@@ -48,7 +48,7 @@ native:
 # Group 1: VirtIO-GPU core, DMA, shims (proto.real-driver, gfx.kmscube.sw)
 TEST_CORE_BINS := \
 	$(BUILD)/dma_buf_test \
-	$(BUILD)/virtio_gpu_test \
+	$(BUILD)/virtio_gpu_full_api_test \
 	$(BUILD)/virtio_gpu_2d_render_test \
 	$(BUILD)/kmscube_compat_test
 test-core:
@@ -67,8 +67,11 @@ test-venus:
 	@for b in $(TEST_VENUS_BINS); do ./$$b || exit $$?; done
 
 # Group 3: vk.ggml-dispatch static Vulkan dispatch for upstream ggml-vulkan (vk.ggml-dispatch)
-test-n3: $(BUILD)/ggml_vk_dispatch_test
+test-dispatch: $(BUILD)/ggml_vk_dispatch_test
 	./$(BUILD)/ggml_vk_dispatch_test
+
+# Legacy alias kept for existing notes/scripts.
+test-n3: test-dispatch
 
 venus-cs: $(BUILD)/venus_cs_test
 	./$(BUILD)/venus_cs_test
@@ -103,7 +106,7 @@ clean:
 $(BUILD)/dma_buf_test: dma_buf_test.c ../libs/libukdma/dma_alloc.c ../libs/libukdma_pool/buf_pool.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(BUILD)/virtio_gpu_test: virtio_gpu_test.c ./virtio_gpu_fake.c | $(BUILD)
+$(BUILD)/virtio_gpu_full_api_test: virtio_gpu_full_api_test.c ./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(BUILD)/kmscube_compat_test: kmscube_compat_test.c ../libs/libukdrm_compat/drm_compat.c ../libs/libukgbm_compat/gbm_compat.c | $(BUILD)

@@ -1,6 +1,6 @@
 # VOGUE architecture and artifact taxonomy
 
-The evidence matrix (`results/vogue_latest_evaluation_matrix.json`) is the
+The evidence matrix (`results/vogue_evaluation_matrix.json`) is the
 source of truth for PASS versus `blocked:*` status. The codebase is intentionally
 small: local Unikraft libraries provide device/compatibility glue; upstream
 application projects keep their own application semantics.

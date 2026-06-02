@@ -1,0 +1,1 @@
+{"frames": 3, "width": 64, "height": 64, "format": "XRGB8888", "source": "guest-readback", "hashes": ["a", "b"], "variance_check": "pass", "run_log": "/mydata/JerryT/virtio-gpu/results/kmscube_vgpu_gl/run/.negative-software/run.log"}

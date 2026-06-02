@@ -107,8 +107,8 @@ def extract_supported(dispatch: Path) -> set[str]:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument('--ggml-vulkan', type=Path, default=DEFAULT_GGML)
-    ap.add_argument('--out', type=Path, default=ROOT/'results/llama/vulkan_api_coverage_latest.json')
-    ap.add_argument('--md', type=Path, default=ROOT/'results/llama/vulkan_api_coverage_latest.md')
+    ap.add_argument('--out', type=Path, default=ROOT/'results/llama/vulkan_api_coverage.json')
+    ap.add_argument('--md', type=Path, default=ROOT/'results/llama/vulkan_api_coverage.md')
     ap.add_argument('--check', action='store_true')
     args = ap.parse_args()
     if not args.ggml_vulkan.exists():

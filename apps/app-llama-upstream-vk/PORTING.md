@@ -88,16 +88,16 @@ backed by a host Vulkan ICD. Hosts without an EGL render node should expect
 
 ## Stage 3 — Catalog wrap-up
 
-- `results/llama/upstream_vk_latest.json` carries the canonical row.
+- `results/llama/upstream_vk.json` carries the canonical row.
 - Re-run `make llama-check llama-vulkan-check eval-check current-stage-check`
   after evidence regeneration.
 
 ## Evidence
 
-Authoritative state lives in `results/vogue_latest_evaluation_matrix.json`
-and the matching `results/llama/upstream_vk_latest.json`,
-`results/llama/upstream_server_vk_latest.json`, and
-`results/llama/env10_real_latest.json`.
+Authoritative state lives in `results/vogue_evaluation_matrix.json`
+and the matching `results/llama/upstream_vk.json`,
+`results/llama/upstream_server_vk.json`, and
+`results/llama/env10_real.json`.
 
 ## Porting boundary
 
@@ -127,7 +127,7 @@ make llama-upstream-vk-check
 ## Claim boundaries
 
 Allowed: GPU/Vulkan acceleration claims **only** when
-`results/vogue_latest_evaluation_matrix.json` records a same-run PASS row for
+`results/vogue_evaluation_matrix.json` records a same-run PASS row for
 `llm.bench.vk` or `llm.bench.vk.real`.
 
 Forbidden: treating a successful build, a static dispatch coverage PASS, or a

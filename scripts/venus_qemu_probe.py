@@ -5,7 +5,7 @@ import argparse, hashlib, json, os, pathlib, shutil, socket, subprocess, time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 RESULT = ROOT / "results" / "venus"
-FRAME_RESULT = ROOT / "results" / "kmscube_vgpu_gl" / "latest"
+FRAME_RESULT = ROOT / "results" / "kmscube_vgpu_gl" / "run"
 QEMU_CMD = [
     "qemu-system-x86_64", "-machine", "accel=tcg", "-cpu", "max", "-m", "512M",
     "-display", "egl-headless,gl=on", "-serial", "mon:stdio",
@@ -54,10 +54,10 @@ def select_qemu() -> str | None:
 
 def write_artifact(mode: str, data: dict) -> pathlib.Path:
     RESULT.mkdir(parents=True, exist_ok=True)
-    path = RESULT / f"qemu_{mode}_probe_latest.json"
+    path = RESULT / f"qemu_{mode}_probe.json"
     data["written_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     path.write_text(json.dumps(data, indent=2) + "\n")
-    md = RESULT / f"qemu_{mode}_probe_latest.md"
+    md = RESULT / f"qemu_{mode}_probe.md"
     md.write_text(f"# Venus QEMU {mode} probe\n\n```json\n{json.dumps(data, indent=2)}\n```\n")
     return path
 

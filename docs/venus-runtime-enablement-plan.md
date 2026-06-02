@@ -31,7 +31,7 @@ The host is **fully Venus-capable**; all prerequisites verified present:
 ## 2. The problem
 
 These evaluation-matrix rows are `blocked:*` (see
-`results/vogue_latest_evaluation_matrix.md`):
+`results/vogue_evaluation_matrix.md`):
 
 - `xport.qemu-vgpu` — QEMU VirtIO-GPU Venus probe
 - `gfx.kmscube.submit`, `gfx.kmscube.frame` — virgl SUBMIT_3D / pixel frame
@@ -206,7 +206,7 @@ consumption is proven to work):
 3. After the host advances `head`, decode the reply (count, handle,
    `VkPhysicalDeviceProperties.deviceName`/`apiVersion`).
 4. Log `vk: physical_device=<name> api=<version>`; a probe script records
-   `results/llama/vulkan_probe_latest.json` and the eval flips `host.vk.probe`.
+   `results/llama/vulkan_probe.json` and the eval flips `host.vk.probe`.
 
 This is bounded, source-grounded work — but multi-hour with protocol-decode
 uncertainty, and only the first of the six Vulkan rows (the rest add

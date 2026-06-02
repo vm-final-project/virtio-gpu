@@ -50,11 +50,11 @@ def main() -> int:
         ok &= passed
     OUT.mkdir(parents=True, exist_ok=True)
     payload={"status":"pass" if ok else "fail", "written_at":time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "rows":rows}
-    (OUT/"unikraft_alignment_latest.json").write_text(json.dumps(payload, indent=2)+"\n")
+    (OUT/"unikraft_alignment.json").write_text(json.dumps(payload, indent=2)+"\n")
     md=["# Unikraft alignment gate", "", f"Status: `{payload['status']}`", "", "| Check | Status | Evidence |", "|---|---|---|"]
     for r in rows:
         md.append(f"| `{r['id']}` | `{r['status']}` | {r.get('reason','')} (`{r['path']}`) |")
-    (OUT/"unikraft_alignment_latest.md").write_text("\n".join(md)+"\n")
+    (OUT/"unikraft_alignment.md").write_text("\n".join(md)+"\n")
     print(f"unikraft_alignment_check: {payload['status']}")
     return 0 if ok else 1
 

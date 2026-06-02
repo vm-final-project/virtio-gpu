@@ -73,7 +73,7 @@ make eval-check           # regenerates gfx.vkmark row (now pass-substrate)
 make verify               # full gate
 ```
 
-The `gfx.vkmark` row in the evidence matrix (`results/vogue_latest_evaluation_matrix.*`)
+The `gfx.vkmark` row in the evidence matrix (`results/vogue_evaluation_matrix.*`)
 is promoted to `pass` (substrate) when `vk_icd_bootstrap_test: all checks passed`
 appears in the `make native-tests` output and `libukvk_icd/vulkan_icd.c`
 exists.

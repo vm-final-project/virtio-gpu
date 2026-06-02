@@ -28,7 +28,7 @@ Follow the surrounding C style: tabs for indentation where existing files use ta
 
 ## Testing Guidelines
 
-Add or update focused tests in `tests/` for library behavior. Test files generally use descriptive names ending in `_test.c`, and single targets can be run via `make -C tests <target>` such as `venus-cs`, `virgl-enc`, or `test-n3`. After touching apps, libs, or claims, run `make governance-check lib-readme-check app-port-check`.
+Add or update focused tests in `tests/` for library behavior. Test files generally use descriptive names ending in `_test.c`, and single targets can be run via `make -C tests <target>` such as `venus-cs`, `virgl-enc`, or `test-dispatch`. After touching apps, libs, or claims, run `make governance-check lib-readme-check app-port-check`.
 
 ## Commit & Pull Request Guidelines
 
