@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-02T04:30:15.726977Z",
+    "generated_utc": "2026-06-02T08:40:14.588835Z",
     "source": "scripts/eval_matrix.py",
     "paper": "paper/main.typ"
   },
@@ -241,9 +241,9 @@
       "claim": "Upstream llama.cpp CPU path on Unikraft without source modifications (W3)",
       "workload": "apps/app-llama-upstream: upstream llama_backend_init + llama_model_load_from_file + llama_decode via 9pfs; upstream lib-musl supplies sysconf/getauxval/prctl/pthread surface",
       "status": "pass",
-      "required_evidence": "pp512=9.1 t/s; evidence: results/llama/upstream_cpu.json",
+      "required_evidence": "pp512=9.5 t/s; evidence: results/llama/upstream_cpu.json",
       "evidence": "results/llama/upstream_cpu.json",
-      "claim_allowed": "Upstream llama.cpp CPU path boots on Unikraft with upstream sources unmodified. pp512=9.1 t/s via 9pfs model delivery.",
+      "claim_allowed": "Upstream llama.cpp CPU path boots on Unikraft with upstream sources unmodified. pp512=9.5 t/s via 9pfs model delivery.",
       "claim_forbidden": "GPU throughput, Vulkan dispatch, or upstream modification claim.",
       "next_step": "Complete W3.3 cmake build (make llama-upstream-cmake) then make llama-upstream-cpu-build."
     },
@@ -271,13 +271,13 @@
     },
     {
       "row_id": "llm.server.vk",
-      "claim": "Upstream llama.cpp Vulkan server appliance on Unikraft via Venus SUBMIT_3D",
-      "workload": "apps/app-llama-upstream-vk/server.cpp: single-purpose Vulkan server image; no shell/fork/exec launcher; Venus dispatch chain identical to llm.bench.vk; READY-line evidence",
+      "claim": "Upstream llama.cpp Vulkan HTTP server appliance on Unikraft via Venus SUBMIT_3D + lwIP",
+      "workload": "apps/app-llama-upstream-vk/server.cpp: single-purpose Vulkan server image; no shell/fork/exec launcher; Venus dispatch chain identical to llm.bench.vk; in-guest TCP/IP (virtio-net -> libuknetdev -> lwIP) serves the upstream llama_server() listener; same-run /health + /v1/models + /completion proof",
       "status": "pass",
-      "required_evidence": "Server entrypoint boots; see results/llama/upstream_server_vk.json",
+      "required_evidence": "Server boots over Venus and serves HTTP (/health 200, /completion 200); see results/llama/upstream_server_vk.json",
       "evidence": "results/llama/upstream_server_vk.json",
-      "claim_allowed": "Upstream llama.cpp Vulkan server appliance boots directly into the Vulkan entrypoint (no shell) and reaches model-loaded readiness.",
-      "claim_forbidden": "GPU throughput, HTTP serving, fork/exec launcher semantics, or any claim without same-run PASS evidence.",
+      "claim_allowed": "Upstream llama.cpp Vulkan server appliance boots directly into the Vulkan entrypoint (no shell), reaches model-loaded readiness over real Venus, and serves HTTP over an in-guest lwIP stack (same-run /health + one bounded /completion).",
+      "claim_forbidden": "Aggregate HTTP throughput / requests-per-second / TTFT, fork/exec launcher semantics, or any claim without same-run PASS evidence.",
       "next_step": "Build kraft/Kraftfile.llama-upstream-vk-server; promote when same-run evidence exists."
     },
     {

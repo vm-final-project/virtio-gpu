@@ -8,13 +8,18 @@ name: vogue-llama-upstream-vk-server
 # the only difference is the Kconfig mode, which compiles server.cpp
 # instead of bench.cpp.
 #
-# Reference QEMU invocation (plan-optimize.md L4.1/L4.2):
+# Reference QEMU invocation (plan-optimize.md L4.1/L4.2 + HTTP serving):
 #   qemu-system-x86_64 -machine accel=kvm -cpu max -m 4G \
 #       -kernel .unikraft/build/vogue-llama-upstream-vk-server_qemu-x86_64 \
+#       -append "console=ttyS0 random.seed=<8 u32 words>" \
 #       -display egl-headless,gl=on \
 #       -device virtio-gpu-gl-pci,hostmem=8G,blob=true,venus=true \
+#       -netdev user,id=net0,hostfwd=tcp:127.0.0.1:18080-10.0.2.15:8080 \
+#       -device virtio-net-pci,netdev=net0 \
 #       -virtfs local,path=$(pwd)/rootfs/llama,mount_tag=model,security_model=none,id=model \
 #       -serial mon:stdio
+#   # then: curl http://127.0.0.1:18080/health  ->  {"status":"ok"}
+# See scripts/run_llama_upstream_vk_server.sh for the canonical command.
 # The hostmem=8G window backs Venus host-visible blobs (KV cache); blob=true
 # is required for that mapping; venus=true exposes capset id=4 to the guest.
 # See scripts/llm_server_vk_check.py for the gate that records the host
@@ -65,12 +70,43 @@ unikraft:
     CONFIG_LIBUKVENUS: 'y'
     CONFIG_LIBUKGGML_VULKAN: 'y'
     # posix-socket provides the socket()/bind()/listen()/accept() API the
-    # upstream cpp-httplib server references so the image links. No TCP/IP
-    # stack is wired in (lwip is out of scope — see the llm.server.vk claim
-    # boundary), so the appliance boots to model-loaded READY over the real
-    # Venus path; an actual socket bind then fails cleanly. No HTTP-serving
-    # claim is made.
+    # upstream cpp-httplib server references; lwIP (below) is the TCP/IP backend
+    # that registers the AF_INET socket family, so the upstream HTTP listener now
+    # binds 0.0.0.0:8080 and actually serves requests inside the unikernel.
     CONFIG_LIBPOSIX_SOCKET: 'y'
+    # --- TCP/IP networking for the upstream llama.cpp HTTP server -------------
+    # virtio-net NIC -> libuknetdev -> lwIP (sockets API). Static IPv4 config is
+    # passed on the kernel command line through the uknetdev EINFO libparam
+    # (netdev.ipv4_addr/…); QEMU user-mode networking (-netdev user,hostfwd=…)
+    # forwards a host port to guest 8080. See scripts/run_llama_upstream_vk_server.sh.
+    CONFIG_LIBVIRTIO_NET: 'y'
+    CONFIG_LIBUKNETDEV: 'y'
+    CONFIG_LIBUKNETDEV_EINFO_LIBPARAM: 'y'
+    CONFIG_LIBUKSCHED: 'y'
+    CONFIG_LIBLWIP: 'y'
+    CONFIG_LWIP_UNIKRAFT21X: 'y'
+    CONFIG_LWIP_UKNETDEV: 'y'
+    CONFIG_LWIP_AUTOIFACE: 'y'
+    # QEMU user-mode networking runs a built-in DHCP server that hands the guest
+    # 10.0.2.15; lwIP's DHCP client configures en1 from it (same approach as the
+    # upstream catalog http-c/nginx appliances). This is more robust than a
+    # static einfo config across netdev indices.
+    CONFIG_LWIP_DHCP: 'y'
+    CONFIG_LWIP_IPV4: 'y'
+    CONFIG_LWIP_UDP: 'y'
+    CONFIG_LWIP_TCP: 'y'
+    CONFIG_LWIP_THREADS: 'y'
+    CONFIG_LWIP_SOCKET: 'y'
+    CONFIG_LWIP_NETIF_STATUS_PRINT: 'y'
+    # The upstream cpp-httplib server uses std::random_device, which opens
+    # /dev/urandom. Provide it via ukrandom's devfs nodes; the CSPRNG is seeded
+    # from the kernel command line (random.seed=…) because QEMU/x86 has no DTB.
+    CONFIG_LIBUKRANDOM: 'y'
+    CONFIG_LIBUKRANDOM_CMDLINE_SEED: 'y'
+    CONFIG_LIBUKRANDOM_GETRANDOM: 'y'
+    CONFIG_LIBUKRANDOM_DEVFS: 'y'
+    CONFIG_LIBDEVFS: 'y'
+    CONFIG_LIBDEVFS_AUTOMOUNT: 'y'
 
 targets:
   - qemu/x86_64
@@ -86,6 +122,8 @@ libraries:
     source: ../lib-libunwind
   libcompiler-rt:
     source: ../lib-compiler-rt
+  liblwip:
+    source: ../lib-lwip
   libukdma:
     source: ./libs/libukdma
   libukbuf:

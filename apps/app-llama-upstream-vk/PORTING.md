@@ -23,8 +23,14 @@ llama.cpp batch controls into the appliance, `llm.bench.vk` now reports
 post-change runs under `results/llama/post_opt_runs/` showing a `tg128` median
 of `139.9` on a Tesla V100. `llm.server.vk` reaches model-loaded readiness with
 `prompt_cache=true`, `batch_size=2048`, `ubatch_size=512`, and
-`dispatch_batch_enabled=true`. This file still forbids HTTP serving or
-request-throughput claims until the lwIP/netdev path is implemented and
+`dispatch_batch_enabled=true`, and now **serves HTTP**: the appliance carries an
+in-guest TCP/IP stack (`virtio-net → libuknetdev → lwIP`, DHCP) and `server.cpp`
+hands control to the upstream `llama_server()` listener
+(`--host 0.0.0.0 --port 8080 --no-mmap`). A same-run host probe records
+`/health → 200`, `/v1/models → 200`, and one bounded `/completion → 200`
+(`results/llama/upstream_server_vk.json`; `make llm-server-vk-check` →
+`http=pass`). This file still forbids **aggregate** HTTP throughput /
+requests-per-second / TTFT claims until a dedicated throughput gate is added and
 measured.
 
 - Repository: <https://github.com/ggml-org/llama.cpp> (same as `app-llama-upstream`).
@@ -60,9 +66,11 @@ Two single-purpose Kraftfiles back this app, mirroring the CPU appliance:
 | Server | `kraft/Kraftfile.llama-upstream-vk-server` | `CONFIG_APP_LLAMA_UPSTREAM_VK_MODE_SERVER=y` | `llm.server.vk` |
 
 Only the selected mode's source file is compiled; `common.h` carries the
-shared 9pfs mount and the Venus dispatch initialiser. A future full HTTP port
-should call a refactored `llama_server_main(argc, argv)` directly from
-`main()`, not launch a second Linux userspace binary.
+shared 9pfs mount and the Venus dispatch initialiser. The server mode follows
+the in-process pattern: `server.cpp`'s `main()` calls the upstream
+`llama_server(argc, argv)` directly (no second binary, no fork/exec), with the
+TCP/IP stack supplied by lwIP (`CONFIG_LIBLWIP` + `virtio-net`/`libuknetdev`)
+and `/dev/urandom` by `ukrandom` devfs.
 
 ```sh
 make llama-upstream-vk-build               # bench image (default)

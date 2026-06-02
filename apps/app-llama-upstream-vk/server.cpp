@@ -88,17 +88,21 @@ static int llama_server_main(void)
     static char threads[]    = UK_LLAMA_STR(CONFIG_APP_LLAMA_UPSTREAM_VK_THREADS);
     static char ngl_f[]      = "--n-gpu-layers";
     static char ngl[]        = "99";
+    /* The GGUF is mounted over 9pfs, which does not support file-backed mmap in
+     * the guest (mmap returns "Bad address"); force the read()-based loader, the
+     * same path the readiness probe above used with use_mmap=0. */
+    static char nommap[]     = "--no-mmap";
 #if CONFIG_APP_LLAMA_UPSTREAM_VK_PROMPT_CACHE
     static char cache[]      = "--cache-prompt";
     char *argv[] = {arg0, model_f, model, host_f, host, port_f, port,
                     ctx_f, ctx, batch_f, batch, ubatch_f, ubatch,
                     parallel_f, parallel, threads_f, threads,
-                    ngl_f, ngl, cache};
+                    ngl_f, ngl, nommap, cache};
 #else
     char *argv[] = {arg0, model_f, model, host_f, host, port_f, port,
                     ctx_f, ctx, batch_f, batch, ubatch_f, ubatch,
                     parallel_f, parallel, threads_f, threads,
-                    ngl_f, ngl};
+                    ngl_f, ngl, nommap};
 #endif
 
     return llama_server((int)(sizeof(argv) / sizeof(argv[0])), argv);

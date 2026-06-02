@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-01T20:53:35.218275Z",
+    "generated_utc": "2026-06-02T08:35:37.050140Z",
     "source": "scripts/llm_server_vk_check.py",
     "principle": "plan-optimize.md Phase-2 verification gate"
   },
@@ -13,5 +13,11 @@
   "ubatch_size": 512,
   "prompt_cache": true,
   "dispatch_batch_enabled": true,
-  "hostmem_fixed": false
+  "hostmem_fixed": false,
+  "http_status": "pass",
+  "http_health": 200,
+  "http_models_status": 200,
+  "http_completion_status": 200,
+  "http_completion_content": "8888888888888888",
+  "http_endpoint": "http://127.0.0.1:43787"
 }

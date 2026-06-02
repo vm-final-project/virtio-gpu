@@ -40,7 +40,21 @@ LLAMA_SERVER_IMPL = LLAMA_ROOT / "tools" / "server" / "server.cpp"
 SERIAL_LOG      = ROOT / "results" / "llama" / "upstream_server_vk_serial.log"
 
 HOSTMEM_RE = re.compile(r"hostmem=(\S+).*blob=true.*venus=true")
-RUNSH_FLAGS = ("egl-headless", "blob=true", "venus=true", "hostmem=")
+RUNSH_FLAGS = ("egl-headless", "blob=true", "venus=true", "hostmem=",
+               "hostfwd=", "virtio-net-pci")
+# lwIP/netdev wiring that turns the model-loaded-readiness appliance into a
+# real HTTP server (plan-fix.md "Full HTTP llama-server semantics").
+VK_NET_KCONFIG = (
+    "CONFIG_LIBVIRTIO_NET",
+    "CONFIG_LIBUKNETDEV",
+    "CONFIG_LIBUKNETDEV_EINFO_LIBPARAM",
+    "CONFIG_LIBLWIP",
+    "CONFIG_LWIP_TCP",
+    "CONFIG_LWIP_SOCKET",
+    "CONFIG_LWIP_DHCP",
+    "CONFIG_LIBUKRANDOM_DEVFS",
+)
+SERVER_VK_RUNTIME = ROOT / "results" / "llama" / "upstream_server_vk.json"
 VK_SERVER_FLAGS = (
     "CONFIG_APP_LLAMA_UPSTREAM_VK_PARALLEL",
     "CONFIG_APP_LLAMA_UPSTREAM_VK_BATCH",
@@ -93,6 +107,9 @@ def _check_static() -> dict:
 
     if not HOSTMEM_RE.search(vk_kraft):
         findings.append("L4.1: kraft/Kraftfile.llama-upstream-vk-server missing hostmem=…,blob=true,venus=true")
+    for sym in VK_NET_KCONFIG:
+        if sym not in vk_kraft:
+            findings.append(f"http: kraft/Kraftfile.llama-upstream-vk-server missing {sym} (lwIP/netdev HTTP path)")
     if RUNSH.exists() and not all(flag in runsh for flag in RUNSH_FLAGS):
         findings.append("L4.2: scripts/run_llama_upstream_vk_server.sh missing one of "
                         + ", ".join(RUNSH_FLAGS))
@@ -130,6 +147,27 @@ def _check_static() -> dict:
     return {"static_findings": findings}
 
 
+def _read_http_proof() -> dict:
+    """Read the same-run HTTP proof recorded by llama_server_vk_capture.py."""
+    if not SERVER_VK_RUNTIME.exists():
+        return {"http_status": "blocked:no-runtime-json"}
+    try:
+        data = json.loads(SERVER_VK_RUNTIME.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {"http_status": "blocked:bad-runtime-json"}
+    http = data.get("http") or {}
+    health = http.get("health_status")
+    out = {
+        "http_status": "pass" if health == 200 else f"blocked:health={health}",
+        "http_health": health,
+        "http_models_status": http.get("models_status"),
+        "http_completion_status": http.get("completion_status"),
+        "http_completion_content": http.get("completion_content"),
+        "http_endpoint": http.get("endpoint"),
+    }
+    return out
+
+
 def _check_runtime() -> dict:
     if not SERIAL_LOG.exists():
         return {"runtime_status": "blocked:no-serial-log",
@@ -139,7 +177,7 @@ def _check_runtime() -> dict:
     if not m:
         return {"runtime_status": "blocked:no-ready-line",
                 "runtime_log":    str(SERIAL_LOG.relative_to(ROOT))}
-    return {
+    out = {
         "runtime_status": "pass",
         "runtime_log":    str(SERIAL_LOG.relative_to(ROOT)),
         "slots":          int(m.group("slots")),
@@ -150,6 +188,8 @@ def _check_runtime() -> dict:
         "dispatch_batch_enabled": bool(int(m.group("be"))),
         "hostmem_fixed":  bool(int(m.group("hf"))),
     }
+    out.update(_read_http_proof())
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -183,12 +223,20 @@ def main(argv: list[str] | None = None) -> int:
     else:
         md.append("PASS — CPU/Vulkan server artifacts carry the direct single-application contract; ../llama.cpp exposes llama_server(argc, argv); no forbidden fork/exec-style supervisor calls were found in app server entrypoints.")
     md.extend(["", "## Runtime", "",
-               f"status = `{runtime['runtime_status']}` log = `{runtime.get('runtime_log','n/a')}`"])
+               f"status = `{runtime['runtime_status']}` log = `{runtime.get('runtime_log','n/a')}`",
+               "", "## HTTP",
+               "",
+               f"status = `{runtime.get('http_status','n/a')}` "
+               f"health = `{runtime.get('http_health')}` "
+               f"models = `{runtime.get('http_models_status')}` "
+               f"completion = `{runtime.get('http_completion_status')}`"])
+    if runtime.get("http_completion_content"):
+        md.append(f"completion sample: `{runtime['http_completion_content']}`")
     (OUT / "server_vk_check.md").write_text("\n".join(md) + "\n")
 
     for f in static["static_findings"]:
         print(f"llm-server-vk: STATIC FAIL {f}")
-    print(f"llm-server-vk: runtime={runtime['runtime_status']}")
+    print(f"llm-server-vk: runtime={runtime['runtime_status']} http={runtime.get('http_status','n/a')}")
     if args.check and static["static_findings"]:
         return 1
     return 0

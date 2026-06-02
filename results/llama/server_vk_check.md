@@ -1,6 +1,6 @@
 # llm.server.vk Phase-2 gate
 
-Generated: `2026-06-01T20:53:35.218275Z`
+Generated: `2026-06-02T08:35:37.050140Z`
 
 ## Static
 
@@ -9,3 +9,8 @@ PASS — CPU/Vulkan server artifacts carry the direct single-application contrac
 ## Runtime
 
 status = `pass` log = `results/llama/upstream_server_vk_serial.log`
+
+## HTTP
+
+status = `pass` health = `200` models = `200` completion = `200`
+completion sample: `8888888888888888`

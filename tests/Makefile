@@ -1,3 +1,24 @@
+# SPDX-License-Identifier: BSD-3-Clause
+#
+# VOGUE — host-native test suite (component Makefile)
+# ============================================================================
+# Builds and runs the deterministic C tests in this directory against the fake
+# VirtIO-GPU backend (virtio_gpu_fake.c). No QEMU, Unikraft, GPU, or model is
+# required. Each test compiles project library sources directly and links one
+# self-checking binary under build/.
+#
+# The repository root Makefile wraps the everyday groups so reviewers can stay
+# at the top level:
+#     make native-tests   ->  make -C tests native
+#     make test-core      ->  make -C tests test-core
+#     make test-venus     ->  make -C tests test-venus
+#     make test-dispatch  ->  make -C tests test-dispatch
+#     make proto-abi      ->  make -C tests proto-abi
+#     make vulkan-tests   ->  make -C tests vulkan
+# Use the targets here directly only to run a single binary (e.g. `make -C
+# tests venus-cs`). `make -C tests` defaults to the full `native` suite.
+# ============================================================================
+
 CC ?= cc
 CFLAGS ?= -D_POSIX_C_SOURCE=200112L -std=c11 -Wall -Wextra \
 	-I../libs/libukdma/include \

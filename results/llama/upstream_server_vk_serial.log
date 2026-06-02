@@ -1,3 +1,4 @@
+en1: Interface is up
 Powered by
 o.   .o       _ _               __ _
 Oo   Oo  ___ (_) | __ __  __ _ ' _) :_
@@ -6,8 +7,6 @@ oOo oOO| | | | |   (| | | (_) |  _) :_
  OoOoO ._, ._:_:_,\_._,  .__,_:_, \___)
            Ijiraq 0.21.0~7351f8b-custom
 ggml_vulkan: WARNING: Instance extension VK_EXT_debug_utils not found.
-VOGUE-DBG map_blob res=1 off=0x0 size=0x1000 hv_addr=0xc0000000 hv_size=0x20000000
-uk-ggml-vk: venus physical_device=Tesla V100-SXM2-16GB
 ggml_vulkan: Found 1 Vulkan devices:
 ggml_vulkan: 0 = Tesla V100-SXM2-16GB () | uma: 0 | fp16: 0 | bf16: 0 | warp size: 32 | shared memory: 49152 | int dot: 0 | matrix cores: none
 register_backend: registered backend Vulkan (1 devices)
@@ -54,7 +53,6 @@ llama_model_loader: - type q6_K:   29 tensors
 print_info: file format = GGUF V3 (latest)
 print_info: file type   = Q4_K - Medium
 print_info: file size   = 372.65 MiB (5.24 BPW) 
-uk-ggml-vk: venus memory types=11 heaps=2
 llama_prepare_model_devices: using device Vulkan0 (Tesla V100-SXM2-16GB) (unknown id) - 16384 MiB free
 init_tokenizer: initializing tokenizer for type 2
 load: 0 unused tokens
@@ -487,14 +485,34 @@ create_tensor: loading tensor blk.27.ffn_norm.weight
 create_tensor: loading tensor blk.27.ffn_gate.weight
 create_tensor: loading tensor blk.27.ffn_down.weight
 create_tensor: loading tensor blk.27.ffn_up.weight
-VOGUE-DBG allocMem type=7 size=372MB hostvis=0
-VOGUE-DBG allocMem type=9 size=121MB hostvis=1
-VOGUE-DBG map_blob res=2 off=0x1000 size=0x79b8000 hv_addr=0xc0000000 hv_size=0x20000000
 load_tensors: offloading output layer to GPU
 load_tensors: offloading 27 repeating layers to GPU
 load_tensors: offloaded 29/29 layers to GPU
 load_tensors:      Vulkan0 model buffer size =   372.65 MiB
 load_tensors:  Vulkan_Host model buffer size =   121.71 MiB
+load_all_data: using async uploads for device Vulkan0, buffer type Vulkan0, backend Vulkan0
+....................................................load_all_data: buffer type Vulkan_Host is not the default buffer type for device Vulkan0 for async uploads
+.
+uk-llama-upstream-vk-server: model_load path=/mnt/model/model.gguf use_mmap=0 huge_pages=0 elapsed_ms=6527.02
+uk-llama-upstream-vk-server: READY model=/mnt/model/model.gguf threads=1 backend=vulkan slots=1 ctx_per_slot=512 batch_size=2048 ubatch_size=512 prompt_cache=1 batch_enabled=1 hostmem_fixed=0 mode=single-app no_fork_exec=1
+[34m0.00.002.393[0m [32mI [0mlog_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+[34m0.00.002.394[0m [32mI [0mdevice_info:
+[34m0.00.002.732[0m [32mI [0m  - Vulkan0 : Tesla V100-SXM2-16GB (16384 MiB, 16384 MiB free)
+[34m0.00.002.734[0m [32mI [0m  - CPU     : CPU (0 MiB, 0 MiB free)
+[34m0.00.002.852[0m [32mI [0msystem_info: n_threads = 1 (n_threads_batch = 1) / 1 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | 
+[34m0.00.003.000[0m [32mI [0msrv          init: using 5 threads for HTTP server
+[34m0.00.003.278[0m [32mI [0msrv         start: binding port with default address family
+[34m0.00.049.653[0m [32mI [0msrv  llama_server: loading model
+[34m0.00.049.667[0m [32mI [0msrv    load_model: loading model '/mnt/model/model.gguf'
+[34m0.00.049.750[0m [32mI [0mcommon_init_result: fitting params to device memory ...
+[34m0.00.049.751[0m [32mI [0mcommon_init_result: (for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on)
+VOGUE-DBG map_blob res=1 off=0x0 size=0x1000 hv_addr=0xc0000000 hv_size=0x20000000
+uk-ggml-vk: venus physical_device=Tesla V100-SXM2-16GB
+en1: Set IPv4 address 10.0.2.15 mask 255.255.255.0 gw 10.0.2.2
+uk-ggml-vk: venus memory types=11 heaps=2
+VOGUE-DBG allocMem type=7 size=372MB hostvis=0
+VOGUE-DBG allocMem type=9 size=121MB hostvis=1
+VOGUE-DBG map_blob res=2 off=0x1000 size=0x79b8000 hv_addr=0xc0000000 hv_size=0x20000000
 VOGUE-DBG allocMem type=9 size=1MB hostvis=1
 VOGUE-DBG map_blob res=3 off=0x79b9000 size=0x101000 hv_addr=0xc0000000 hv_size=0x20000000
 VOGUE-DBG allocMem type=9 size=1MB hostvis=1
@@ -503,22 +521,96 @@ VOGUE-DBG allocMem type=9 size=1MB hostvis=1
 VOGUE-DBG map_blob res=5 off=0x7bbb000 size=0x101000 hv_addr=0xc0000000 hv_size=0x20000000
 VOGUE-DBG allocMem type=9 size=1MB hostvis=1
 VOGUE-DBG map_blob res=6 off=0x7cbc000 size=0x101000 hv_addr=0xc0000000 hv_size=0x20000000
-load_all_data: using async uploads for device Vulkan0, buffer type Vulkan0, backend Vulkan0
-....................................................load_all_data: buffer type Vulkan_Host is not the default buffer type for device Vulkan0 for async uploads
-.
-uk-llama-upstream-vk-server: model_load path=/mnt/model/model.gguf use_mmap=0 huge_pages=0 elapsed_ms=5743.00
-uk-llama-upstream-vk-server: READY model=/mnt/model/model.gguf threads=1 backend=vulkan slots=1 ctx_per_slot=512 batch_size=2048 ubatch_size=512 prompt_cache=1 batch_enabled=1 hostmem_fixed=0 mode=single-app no_fork_exec=1
-[    6.281806] CRIT:  Unikraft Crash - Ijiraq (0.21.0~7351f8b-custom)
- [    6.287050] CRIT:      _      
- [    6.289820] CRIT:    cx xo    
- [    6.292592] CRIT:    (|O|)/V  
- [    6.295367] CRIT:             
- [    6.298147] CRIT:  Registers:
- [    6.300841] CRIT:   rip: 0008:0000000000000000
- [    6.304829] CRIT:   rsp: 0010:ffffffffffff7aa0 eflags: 00010286 orig_rax: 0000000000000000
- [    6.312189] CRIT:   rax: 00000000007761fa rbx: 0000000000000000 rcx:0000000000000000
- [    6.319123] CRIT:   rdx: 8080808080808080 rsi: 000000000000003d rdi:00000000007761f7
- [    6.326000] CRIT:   rbp: 0000000000000000 r08: 004d52455400524f r09:ffb2adbaabffadb0
- [    6.332665] CRIT:   r10: ff00010002ff0100 r11: 00000000bffcf4f0 r12:000000000000ea28
- [    6.339000] CRIT:   r13: 0000000000000000 r14: 000000000000a468 r15:0000000000000014
- [ 
+VOGUE-DBG allocMem type=9 size=0MB hostvis=1
+VOGUE-DBG map_blob res=[34m0.03.500.515[0m [35mW load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+[0m7 off=0x7dbd000 size=0x95000 hv_addr=0xc0000000 hv_size=0x20000000
+VOGUE-DBG allocMem type=7 size=372MB hostvis=0
+VOGUE-DBG allocMem type=9 size=121MB hostvis=1
+VOGUE-DBG map_blob res=8 off=0x7e52000 size=0x79b8000 hv_addr=0xc0000000 hv_size=0x20000000
+VOGUE-DBG allocMem type=9 size=1MB hostvis=1
+VOGUE-DBG map_blob res=9 off=0xf80a000 size=0x101000 hv_addr=0xc0000000 hv_size=0x20000000
+VOGUE-DBG allocMem type=9 size=1MB hostvis=1
+VOGUE-DBG map_blob res=10 off=0xf90b000 size=0x101000 hv_addr=0xc0000000 hv_size=0x20000000
+VOGUE-DBG allocMem type=9 size=1MB hostvis=1
+VOGUE-DBG map_blob res=11 off=0xfa0c000 size=0x101000 hv_addr=0xc0000000 hv_size=0x20000000
+VOGUE-DBG allocMem type=9 size=1MB hostvis=1
+VOGUE-DBG map_blob res=12 off=0xfb0d000 size=0x101000 hv_addr=0xc0000000 hv_size=0x20000000
+VOGUE-DBG allocMem type=9 size=0MB hostvis=1
+VOGUE-DBG map_blob res=13 off=0xfc0e000 size=0x95000 hv_addr=0xc0000000 hv_size=0x20000000
+VOGUE-DBG allocMem type=7 size=56MB hostvis=0
+VOGUE-DBG allocMem type=7 size=298MB hostvis=[34m0.04.477.987[0m [35mW llama_context: n_ctx_seq (512) < n_ctx_train (40960) -- the full capacity of the model will not be utilized
+[0m[34m0.04.598.039[0m [32mI [0mcommon_init_from_params: warming up the model with an empty run - please wait ... (--no-warmup to disable)
+0
+VOGUE-DBG allocMem type=9 size=4MB hostvis=1
+VOGUE-DBG map_blob res=14 off=0xfca3000 size=0x486000 hv_addr=0xc0000000 hv_size=0x20000000
+VOGUE-DBG allocMem type=7 size=0MB hostvis=0
+VOGUE-DBG createShaderModule h=0x200000000015b codeSize=67176 encpos=67412 ovf=0 bufsz=2097152
+VOGUE-DBG createComputePipeline h=0x200000000015d module=0x200000000015b layout=0x200000000015c
+VOGUE-DBG createShaderModule h=0x2000000000160 codeSize=17320 encpos=86076 ovf=0 bufsz=2097152
+VOGUE-DBG createComputePipeline h=0x2000000000162 module=0x2000000000160 layout=0x2000000000161
+VOGUE-DBG createShaderModule h=0x2000000000164 codeSize=25340 encpos=112668 ovf=0 bufsz=2097152
+VOGUE-DBG createComputePipeline h=0x2000000000166 module=0x2000000000164 layout=0x2000000000165
+VOGUE-DBG createShaderModule h=0x2000000000169 codeSize=26336 encpos=141236 ovf=0 bufsz=2097152
+VOGUE-DBG createComputePipeline h=0x200000000016b module=0x2000000000169 layout=0x200000000016a
+VOGUE-DBG createShaderModule h=0x200000000016e codeSize=26500 encpos=169432virgl_render_server[823429]: failed to receive data: expected 251436 but received 264
+virgl_render_server[823429]: failed to dispatch context op 5
+virgl_render_server[823429]: vkr: destroying context 1 (ggml-vulkan-uk) with a valid instance
+virgl_render_server[823429]: vkr: destroying device with valid objects
+ ovf=0 bufsz=2097152
+VOGUE-DBG createComputePipeline h=0x2000000000170 module=0x200000000016e layout=0x200000000016f
+VOGUE-DBG createShaderModule h=0x2000000000171 codeSize=5784 encpos=176816 ovf=0 bufsz=2097152
+VOGUE-DBG createComputePipeline h=0x2000000000173 module=0x2000000000171 layout=0x2000000000172
+VOGUE-DBG createShaderModule h=0x2000000000177 codeSize=73440 encpos=251420 ovf=0 bufsz=2097152
+VOGUE-DBG createComputePipeline h=0x2000000000179 module=0x2000000000177 layout=0x2000000000178
+VOGUE-DBG allocMem type=7 size=0MB hostvis=0
+VOGUE-DBG createShaderModule h=0x200000000017d codeSize=5392 encpos=5724 ovf=0 bufsz=2097152
+VOGUE-DBG createComputePipeline h=0x200000000017f module=0x200000000017d layout=0x200000000017e
+VOGUE-DBG createShaderModule h=0x2000000000184 codeSize=5880 encpos=14816 ovf=0 bufsz=2097152
+VOGUE-DBG createComputePipeline h=0x2000000000186 module=0x2000000000184 layout=0x2000000000185
+VOGUE-DBG createShaderModule h=0x200000000018d codeSize=3852 encpos=22580 ovf=0 bufsz=2097152
+VOGUE-DBG createComputePipeline h=0x[34m0.04.786.519[0m [32mI [0msrv    load_model: initializing slots, n_slots = 1
+[34m0.04.794.947[0m [35mW common_speculative_init: no implementations specified for speculative decoding
+[0m[34m0.04.794.949[0m [32mI [0mslot   load_model: id  0 | task -1 | new slot, n_ctx = 512
+[34m0.04.795.010[0m [32mI [0msrv    load_model: prompt cache is enabled, size limit: 8192 MiB
+[34m0.04.795.011[0m [32mI [0msrv    load_model: use `--cache-ram 0` to disable the prompt cache
+[34m0.04.795.033[0m [32mI [0msrv    load_model: for more info see https://github.com/ggml-org/llama.cpp/pull/16391
+[34m0.04.795.036[0m [32mI [0msrv    load_model: context checkpoints enabled, max = 32, min spacing = 256
+[34m0.04.795.132[0m [35mW srv          init: --cache-idle-slots requires --kv-unified, disabling
+[0m[34m0.04.825.971[0m [32mI [0minit: chat template, example_format: '<|im_start|>system
+You are a helpful assistant<|im_end|>
+<|im_start|>user
+Hello<|im_end|>
+<|im_start|>assistant
+Hi there<|im_end|>
+<|im_start|>user
+How are you?<|im_end|>
+<|im_start|>assistant
+'
+[34m0.04.844.062[0m [32mI [0msrv          init: init: chat template, thinking = 1
+[34m0.04.844.080[0m [32mI [0msrv  llama_server: model loaded
+[34m0.04.844.081[0m [32mI [0msrv  llama_server: server is listening on http://0.0.0.0:8080
+[34m0.04.844.106[0m [32mI [0msrv  update_slots: all slots are idle
+[34m0.04.948.230[0m [32mI [0mslot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = -1
+[34m0.04.948.234[0m [32mI [0msrv  get_availabl: updating prompt cache
+[34m0.04.948.247[0m [32mI [0msrv          load:  - looking for better prompt, base f_keep = -1.000, sim = 0.000
+[34m0.04.948.252[0m [32mI [0msrv        update:  - cache state: 0 prompts, 0.000 MiB (limits: 8192.000 MiB, 512 tokens, 8589934592 est)
+[34m0.04.948.256[0m [32mI [0msrv  get_availabl: prompt cache update took 0.02 ms
+[34m0.04.948.288[0m [32mI [0mslot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+200000000018f module=0x200000000018d layout=0x200000000018e
+VOGUE-DBG createShaderModule h=0x2000000000280 codeSize=3752 encpos=80000 ovf=0 bufsz=2097152
+VOGUE-DBG createComputePipeline h=0x2000000000282 module=0x2000000000280 layout=0x2000000000281
+VOGUE-DBG createShaderModule h=0x2000000000283 codeSize=7384 encpos=90052 ovf=0 bufsz=2097152
+VOGUE-DBG createComputePipeline h=0x2000000000285 module=0x2000000000283 layout=0x2000000000284
+VOGUE-DBG createShaderModule h=0x2000000000286 codeSize=5444 encpos=96672 ovf=0 bufsz=2097152
+VOGUE-DBG createComputePipeline h=0x2000000000288 module=0x2000000000286 layout=0x2000000000287
+VOGUE-DBG createShaderModule h=0x2000000000289 codeSize=17320 encpos=115168 ovf=0 bufsz=2097152
+VOGUE-DBG createComputePipeline h=0x200000000028b module=0x2000000000289 layout=0x200000000028a
+VOGUE-DBG createShaderModule h=0x20000000002cd codeSize=25340 encpos=144484 ovf=0 bufsz=2097152
+VOGUE-DBG createComputePipeline h=0x20000000002cf module=0x20000000002cd layout=0x20000000002ce
+VOGUE-DBG createShaderModule h=0x[34m0.05.194.599[0m [32mI [0mslot print_timing: id  0 | task 0 | prompt eval time =     128.88 ms /    16 tokens (    8.06 ms per token,   124.14 tokens per second)
+[34m0.05.194.607[0m [32mI [0mslot print_timing: id  0 | task 0 |        eval time =     117.36 ms /    16 tokens (    7.33 ms per token,   136.33 tokens per second)
+[34m0.05.194.609[0m [32mI [0mslot print_timing: id  0 | task 0 |       total time =     246.24 ms /    32 tokens
+[34m0.05.194.610[0m [32mI [0mslot print_timing: id  0 | task 0 |    graphs reused =         15
+[34m0.05.194.662[0m [32mI [0mslot      release: id  0 | task 0 | stop processing: n_tokens = 31, truncated = 0
+[34m0.05.194.668[0m [32mI [0msrv  update_slots: all slots are idle
+qemu-system-x86_64: terminating on signal 15 from pid 823406 (python3)

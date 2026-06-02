@@ -12,7 +12,7 @@ Oo   Oo  ___ (_) | __ __  __ _ ' _) :_
 oO   oO ' _ `| | |/ /  _)' _` | |_|  _)
 oOo oOO| | | | |   (| | | (_) |  _) :_
  OoOoO ._, ._:_:_,\_._,  .__,_:_, \___)
-                  Ijiraq 0.21.0~7351f8b
+           Ijiraq 0.21.0~7351f8b-custom
 register_backend: registered backend CPU (1 devices)
 register_device: registered device CPU (CPU)
 llama_model_loader: loaded meta data with 32 key-value pairs and 310 tensors from /mnt/model/model.gguf (version GGUF V3 (latest))
@@ -487,7 +487,7 @@ create_tensor: loading tensor blk.27.ffn_up.weight
 load_tensors:          CPU model buffer size =   372.65 MiB
 load_all_data: no device found for buffer type CPU for async uploads
 .....................................................................
-uk-llama-upstream: model_load path=/mnt/model/model.gguf use_mmap=0 huge_pages=0 elapsed_ms=7106.14
+uk-llama-upstream: model_load path=/mnt/model/model.gguf use_mmap=0 huge_pages=0 elapsed_ms=6828.47
 llama_context: constructing llama_context
 llama_context: n_seq_max     = 1
 llama_context: n_ctx         = 768
@@ -551,10 +551,10 @@ sched_reserve: fused Gated Delta Net (chunked) enabled
 graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  1, n_outputs =  512
 graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
 graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  1, n_outputs =  512
-sched_reserve:        CPU compute buffer size =   300.75 MiB
-sched_reserve: graph nodes  = 987
+sched_reserve:        CPU compute buffer size =   309.51 MiB
+sched_reserve: graph nodes  = 986
 sched_reserve: graph splits = 1
-sched_reserve: reserve took 200.36 ms, sched copies = 1
-uk-llama-upstream: pp512=9.1 tg128=7.7
+sched_reserve: reserve took 113.97 ms, sched copies = 1
+uk-llama-upstream: pp512=9.5 tg128=7.7
 uk-llama-upstream: PASS evidence_id=llama-upstream-cpu
-~llama_context:        CPU compute buffer size is 300.7520 MiB, matches expectation of 300.7520 MiB
+~llama_context:        CPU compute buffer size is 309.5137 MiB, matches expectation of 309.5137 MiB

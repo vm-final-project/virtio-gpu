@@ -580,18 +580,24 @@ def upstream_llama_rows() -> list[Row]:
             "Any claim without same-run PASS artifacts.",
             "Complete llm.bench.vk.real Venus runtime path to unblock real device queries."),
         Row("llm.server.vk",
-            "Upstream llama.cpp Vulkan server appliance on Unikraft via Venus SUBMIT_3D",
+            "Upstream llama.cpp Vulkan HTTP server appliance on Unikraft via Venus SUBMIT_3D + lwIP",
             "apps/app-llama-upstream-vk/server.cpp: single-purpose Vulkan server image; "
-            "no shell/fork/exec launcher; Venus dispatch chain identical to llm.bench.vk; READY-line evidence",
+            "no shell/fork/exec launcher; Venus dispatch chain identical to llm.bench.vk; "
+            "in-guest TCP/IP (virtio-net -> libuknetdev -> lwIP) serves the upstream "
+            "llama_server() listener; same-run /health + /v1/models + /completion proof",
             server_vk_status,
-            "Server entrypoint boots; see results/llama/upstream_server_vk.json"
+            "Server boots over Venus and serves HTTP (/health 200, /completion 200); "
+            "see results/llama/upstream_server_vk.json"
             if server_vk_status == "pass" else
             "Build or run blocked; see results/llama/upstream_server_vk.json",
             "results/llama/upstream_server_vk.json",
             "Upstream llama.cpp Vulkan server appliance boots directly into the Vulkan "
-            "entrypoint (no shell) and reaches model-loaded readiness." if server_vk_status == "pass" else
+            "entrypoint (no shell), reaches model-loaded readiness over real Venus, and "
+            "serves HTTP over an in-guest lwIP stack (same-run /health + one bounded "
+            "/completion)." if server_vk_status == "pass" else
             "Blocked; no server-runtime claim. Vulkan runtime is gated on host EGL render-node availability.",
-            "GPU throughput, HTTP serving, fork/exec launcher semantics, or any claim without same-run PASS evidence.",
+            "Aggregate HTTP throughput / requests-per-second / TTFT, fork/exec launcher "
+            "semantics, or any claim without same-run PASS evidence.",
             "Build kraft/Kraftfile.llama-upstream-vk-server; promote when same-run evidence exists."),
         Row("bld.uk.vk",
             "Upstream llama.cpp Vulkan Unikraft image build with ggml-vulkan + Venus libraries linked (W5)",
