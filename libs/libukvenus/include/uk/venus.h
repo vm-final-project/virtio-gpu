@@ -449,19 +449,8 @@ uint32_t uk_venus_ring_load_head(const struct uk_venus_ring *ring);
 void uk_venus_encode_vkAllocateMemory(struct uk_venus_encoder *enc,
 				      uint64_t device, uint64_t mem_handle,
 				      uint64_t alloc_size, uint32_t mem_type_index);
-void uk_venus_encode_vkAllocateMemory_import(struct uk_venus_encoder *enc,
-					     uint64_t device, uint64_t mem_handle,
-					     uint64_t alloc_size,
-					     uint32_t mem_type_index,
-					     uint32_t resource_id);
 void uk_venus_encode_vkFreeMemory(struct uk_venus_encoder *enc,
 				  uint64_t device, uint64_t memory);
-void uk_venus_encode_vkMapMemory(struct uk_venus_encoder *enc,
-				 uint64_t device, uint64_t memory,
-				 uint64_t offset, uint64_t size,
-				 uint64_t *ppdata_handle);
-void uk_venus_encode_vkUnmapMemory(struct uk_venus_encoder *enc,
-				   uint64_t device, uint64_t memory);
 
 /* Buffers */
 void uk_venus_encode_vkCreateBuffer(struct uk_venus_encoder *enc,
@@ -604,8 +593,6 @@ void uk_venus_encode_vkCmdPipelineBarrier(struct uk_venus_encoder *enc,
 void uk_venus_encode_vkCreateFence(struct uk_venus_encoder *enc,
 				   uint64_t device, uint64_t fence_handle,
 				   int signaled);
-void uk_venus_encode_vkDestroyFence(struct uk_venus_encoder *enc,
-				    uint64_t device, uint64_t fence);
 void uk_venus_encode_vkResetFences(struct uk_venus_encoder *enc,
 				   uint64_t device,
 				   uint32_t n_fences,

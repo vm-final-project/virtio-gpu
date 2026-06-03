@@ -124,6 +124,27 @@ this table by `make app-port-check` / `make governance-check`.
 | `app-llama-upstream` | canonical | Upstream llama.cpp CPU bench / server | `llm.bench.cpu`, `llm.server.cpu` |
 | `app-llama-upstream-vk` | canonical | Upstream llama.cpp Vulkan bench / HTTP server | `llm.bench.vk`, `llm.server.vk` |
 
+### Libraries & usage status
+
+All nine first-party libraries are in active use: each is selected (directly or
+via Kconfig `select`) by at least one buildable appliance. The two appliance
+families are the **Vulkan/llama** images (`llama-upstream-vk`,
+`llama-upstream-vk-server`) and the **graphics** images (`kmscube`, `glmark2`;
+the root `Kraftfile` is kmscube). `make governance-check lib-readme-check`
+enforces each library's `README.md` contract.
+
+| Library | Role | Used by |
+|---|---|---|
+| `libukvirtio_gpu` | VirtIO-GPU frontend + Gallium virgl encoder + fake backend | Graphics **and** Vulkan/llama (all GPU appliances) |
+| `libukvenus` | Venus wire encoder + ring protocol (parity-locked to headers generated from `../venus-protocol`) | Vulkan/llama |
+| `libukvirtgpu_drm` | Mesa/Linux virtgpu DRM-ioctl shim (`vk.drm-shim`) | Vulkan/llama |
+| `libukvk_icd` | Vulkan ICD bootstrap shim (`vk.icd`) | Vulkan/llama |
+| `libukggml_vk` | Static ggml-vulkan dispatch (`CONFIG_LIBUKGGML_VULKAN`) | Vulkan/llama |
+| `libukswrender` | Deterministic CPU software renderer | Graphics |
+| `libukegl` | EGL/GLES2/GBM/DRM ABI shim for upstream GL apps | Graphics |
+| `libukdrm_compat` | DRM struct/ioctl compatibility facade | Graphics |
+| `libukgbm_compat` | GBM buffer-object compatibility layer | Graphics |
+
 ---
 
 ## How to Find What You Need

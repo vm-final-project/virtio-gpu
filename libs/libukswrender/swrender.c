@@ -50,22 +50,6 @@ uint32_t uk_sw_framebuf_crc(const struct uk_sw_framebuf *fb)
 	return h;
 }
 
-/* ── primitive rasterizer ─────────────────────────────────────────────── */
-
-void uk_sw_draw_rect(const struct uk_sw_framebuf *fb,
-                     uint32_t x, uint32_t y, uint32_t w, uint32_t h,
-                     uint32_t color)
-{
-	if (!fb || !fb->pixels) return;
-	uint32_t x1 = (x + w > fb->width)  ? fb->width  : x + w;
-	uint32_t y1 = (y + h > fb->height) ? fb->height : y + h;
-	uint32_t span = x1 - x;
-	for (uint32_t row = y; row < y1; row++) {
-		uint32_t *p = fb->pixels + (size_t)row * fb->stride_px + x;
-		for (uint32_t k = 0; k < span; k++)
-			p[k] = color;
-	}
-}
 
 /* Per-row vertical gradient. The hot inner loop is a single-colour run, so
  * we precompute the colour for the row and then run a tight 32-bit fill,

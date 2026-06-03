@@ -108,41 +108,6 @@ void uk_venus_encode_vkAllocateMemory(struct uk_venus_encoder *enc,
 	uk_venus_encode_uint64(enc, mem_handle);
 }
 
-/*
- * vkAllocateMemory with VkImportMemoryResourceInfoMESA in the pNext chain — the
- * Venus host-visible memory path (Mesa vn_device_memory.c). The host backs the
- * VkDeviceMemory with the named virtio-gpu blob resource so the guest's mapping
- * of that blob aliases the host VkDeviceMemory: guest CPU writes are visible to
- * the host GPU and vice-versa. resource_id is a host-visible blob attached to
- * the same Venus context.
- *
- * VkMemoryAllocateInfo pNext chain (Mesa vn_encode_*_pnext, packed):
- *   [u64 pNext present=1][u32 sType=1000384002 IMPORT_MEMORY_RESOURCE_INFO_MESA]
- *   [u64 import.pNext present=0][u32 resourceId]
- */
-void uk_venus_encode_vkAllocateMemory_import(struct uk_venus_encoder *enc,
-					     uint64_t device, uint64_t mem_handle,
-					     uint64_t alloc_size,
-					     uint32_t mem_type_index,
-					     uint32_t resource_id)
-{
-	uk_venus_encode_command_header(enc, VN_CMD_vkAllocateMemory,
-				       VN_COMMAND_FLAGS_NONE);
-	uk_venus_encode_uint64(enc, device);
-	uk_venus_encode_pointer_flag(enc, 1);                 /* VkMemoryAllocateInfo present */
-	uk_venus_encode_uint32(enc, VK_STYPE_MEMORY_ALLOCATE_INFO);
-	/* pNext = VkImportMemoryResourceInfoMESA */
-	uk_venus_encode_pointer_flag(enc, 1);                 /* pNext present */
-	uk_venus_encode_uint32(enc, 1000384002u);             /* IMPORT_MEMORY_RESOURCE_INFO_MESA */
-	uk_venus_encode_pointer_flag(enc, 0);                 /* import.pNext = NULL */
-	uk_venus_encode_uint32(enc, resource_id);             /* import.resourceId */
-	uk_venus_encode_uint64(enc, alloc_size);
-	uk_venus_encode_uint32(enc, mem_type_index);
-	uk_venus_encode_pointer_flag(enc, 0);                 /* pAllocator */
-	uk_venus_encode_pointer_flag(enc, 1);                 /* pMemory output */
-	uk_venus_encode_uint64(enc, mem_handle);
-}
-
 void uk_venus_encode_vkFreeMemory(struct uk_venus_encoder *enc,
 				  uint64_t device, uint64_t memory)
 {
@@ -151,33 +116,6 @@ void uk_venus_encode_vkFreeMemory(struct uk_venus_encoder *enc,
 	uk_venus_encode_uint64(enc, device);
 	uk_venus_encode_uint64(enc, memory);
 	uk_venus_encode_pointer_flag(enc, 0); /* pAllocator */
-}
-
-void uk_venus_encode_vkMapMemory(struct uk_venus_encoder *enc,
-				 uint64_t device, uint64_t memory,
-				 uint64_t offset, uint64_t size,
-				 uint64_t *ppdata_handle)
-{
-	uk_venus_encode_command_header(enc, VN_CMD_vkMapMemory,
-				       VN_COMMAND_FLAGS_NONE);
-	uk_venus_encode_uint64(enc, device);
-	uk_venus_encode_uint64(enc, memory);
-	uk_venus_encode_uint64(enc, offset);
-	uk_venus_encode_uint64(enc, size);
-	uk_venus_encode_uint32(enc, 0); /* flags */
-	/* ppData output pointer-to-pointer; encode as pointer_flag + handle */
-	uk_venus_encode_pointer_flag(enc, ppdata_handle ? 1 : 0);
-	if (ppdata_handle)
-		uk_venus_encode_uint64(enc, *ppdata_handle);
-}
-
-void uk_venus_encode_vkUnmapMemory(struct uk_venus_encoder *enc,
-				   uint64_t device, uint64_t memory)
-{
-	uk_venus_encode_command_header(enc, VN_CMD_vkUnmapMemory,
-				       VN_COMMAND_FLAGS_NONE);
-	uk_venus_encode_uint64(enc, device);
-	uk_venus_encode_uint64(enc, memory);
 }
 
 void uk_venus_encode_vkBindBufferMemory(struct uk_venus_encoder *enc,
@@ -760,12 +698,6 @@ void uk_venus_encode_vkCreateFence(struct uk_venus_encoder *enc,
 	/* pFence output */
 	uk_venus_encode_pointer_flag(enc, 1);
 	uk_venus_encode_uint64(enc, fence_handle);
-}
-
-void uk_venus_encode_vkDestroyFence(struct uk_venus_encoder *enc,
-				    uint64_t device, uint64_t fence)
-{
-	encode_destroy_dev_handle(enc, VN_CMD_vkDestroyFence, device, fence);
 }
 
 void uk_venus_encode_vkResetFences(struct uk_venus_encoder *enc,
