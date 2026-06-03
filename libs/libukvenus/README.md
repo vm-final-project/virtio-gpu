@@ -6,10 +6,13 @@ and submits them through VirtIO-GPU `SUBMIT_3D`.
 
 Source lineage: the Venus wire format is owned upstream by Mesa's
 `venus-protocol` generator (pinned in `scripts/venus/pin.json`). VOGUE generates
-the driver-side encoder headers into `generated/` via `make gen-libukvenus`, and
-the in-image encoders here are byte-for-byte parity-locked to that generated
-reference (`make -C tests venus-parity`). See `GENERATOR.md`. The transport stays
-`libukvirtio_gpu`; this library never imports Mesa's `vn_renderer_virtgpu.c`.
+the driver-side encoder headers into `generated/` via `make gen-libukvenus`. The
+in-image `uk_venus_encode_*` entry points in `venus_cs.c`/`venus_compute.c` are
+thin bridges: each builds the real `Vk*` struct from its scalar arguments and
+calls the generated `vn_encode_vk*`, so the emitted wire format **is** the Mesa
+Venus format — there is no hand-rolled byte layout left. See `GENERATOR.md`. The
+transport stays `libukvirtio_gpu`; this library never imports Mesa's
+`vn_renderer_virtgpu.c`.
 
 Current stage: Venus command encoding, ring protocol, QEMU transport, and
 llama.cpp Vulkan runtime rows pass on the evaluation host. HTTP serving and

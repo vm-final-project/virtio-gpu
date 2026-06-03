@@ -16,7 +16,7 @@ VOGUE is organized as reusable Unikraft micro-libraries plus application harness
     [libukswrender], [264], [CPU software rasterizer],
     [libukegl], [778], [EGL/GLES2/GBM/DRM shim],
     [libukvirtgpu_drm], [~310], [vk.drm-shim: Mesa/Linux virtgpu UAPI shim (DRM ioctl → VirtIO-GPU protocol)],
-    [libukvenus], [~2940], [Venus wire encoder + ring protocol; parity-locked to driver headers generated from pinned `../venus-protocol` (`make gen-libukvenus`)],
+    [libukvenus], [~2400], [Venus wire encoder + ring protocol; `uk_venus_encode_*` delegate to driver encoders generated from pinned `../venus-protocol` (`make gen-libukvenus`)],
     [libukvk_icd], [~110], [vk.icd: Vulkan ICD shim (ICD bootstrap over vk.drm-shim for Venus context)],
     [apps/app-kmscube], [~250], [kmscube harness and upstream source glue],
     [apps/app-glmark2], [~190], [official-source glmark2 scene-clear adapter],
@@ -218,13 +218,16 @@ every one has a generated `vn_encode_*`. The generator slices by upstream
 extension and Vulkan core version — unreferenced `static inline` encoders are
 dropped by compile-time dead-code elimination, so the image stays minimal.
 
-The generated headers are the *authoritative reference* for the wire format.
-The compact in-image encoders in `venus_cs.c`/`venus_compute.c` (which avoid a
-`vulkan.h`/generated-tree dependency in the unikernel image) are *parity-locked*
-to them: a native gate (`venus_parity_test`) asserts both emit byte-for-byte
-identical streams for every command on the ggml compute path, so divergence in
-either direction fails CI. Two small shims (`vn_cs.h`, `vn_ring.h`) map the
-generated encoders onto `struct uk_venus_encoder`. Detailed workflow:
+The generated encoders are used directly in the image: each scalar
+`uk_venus_encode_*` entry point in `venus_cs.c`/`venus_compute.c` builds the
+real `Vk*` struct from its arguments and calls the generated `vn_encode_vk*`, so
+the emitted wire format is the Mesa Venus format with no hand-rolled byte layout
+remaining (`libukvenus` therefore compiles against the generated tree and the
+Vulkan headers, like `libukggml_vulkan`). Two small shims (`vn_cs.h`,
+`vn_ring.h`) map the generated encoders onto `struct uk_venus_encoder`. A native
+gate (`venus_parity_test`) plus the `venus_cs_test`/`venus_compute_test` byte
+oracles guard the bridge, and the Vulkan/Venus server boots over real
+virtio-gpu-gl Venus on the evaluation host through this path. Detailed workflow:
 `libs/libukvenus/GENERATOR.md`.
 
 == Kraftfile Integration

@@ -136,7 +136,7 @@ enforces each library's `README.md` contract.
 | Library | Role | Used by |
 |---|---|---|
 | `libukvirtio_gpu` | VirtIO-GPU frontend + Gallium virgl encoder + fake backend | Graphics **and** Vulkan/llama (all GPU appliances) |
-| `libukvenus` | Venus wire encoder + ring protocol (parity-locked to headers generated from `../venus-protocol`) | Vulkan/llama |
+| `libukvenus` | Venus wire encoder + ring protocol; `uk_venus_encode_*` delegate to the encoders generated from `../venus-protocol` | Vulkan/llama |
 | `libukvirtgpu_drm` | Mesa/Linux virtgpu DRM-ioctl shim (`vk.drm-shim`) | Vulkan/llama |
 | `libukvk_icd` | Vulkan ICD bootstrap shim (`vk.icd`) | Vulkan/llama |
 | `libukggml_vk` | Static ggml-vulkan dispatch (`CONFIG_LIBUKGGML_VULKAN`) | Vulkan/llama |
@@ -153,7 +153,7 @@ enforces each library's `README.md` contract.
 |---|---|
 | Understand the big picture | `docs/ARCHITECTURE.md`, then this file's *Project Architecture*. |
 | Find **VirtIO-GPU frontend / virgl** logic | `libs/libukvirtio_gpu/` (`virgl_encoder.c`, `virtio_gpu_proto.h`). |
-| Find **Venus encoder / ring protocol** | `libs/libukvenus/` (`venus_cs.c`, `venus_init.c`, `venus_compute.c`). Wire encoders are parity-locked to driver headers generated from the pinned `../venus-protocol` (`make gen-libukvenus`; pin in `scripts/venus/pin.json`, command set in `config/venus_command_manifest.json`; workflow in `GENERATOR.md`). |
+| Find **Venus encoder / ring protocol** | `libs/libukvenus/` (`venus_cs.c`, `venus_init.c`, `venus_compute.c`). The `uk_venus_encode_*` entry points delegate to driver encoders generated from the pinned `../venus-protocol` (`make gen-libukvenus`; pin in `scripts/venus/pin.json`, command set in `config/venus_command_manifest.json`; workflow in `GENERATOR.md`). |
 | Find the **Vulkan ICD / DRM virtgpu shim** | `libs/libukvk_icd/` and `libs/libukvirtgpu_drm/`. |
 | Find **3D rendering / GPU dispatch for ggml** | `libs/libukggml_vk/` (`uk_vulkan_dispatch.c`). |
 | Find **2D/KMS graphics (kmscube)** | `apps/app-kmscube/` + shims `libs/libukdrm_compat/`, `libs/libukgbm_compat/`. |

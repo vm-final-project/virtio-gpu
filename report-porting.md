@@ -13,7 +13,7 @@ by a deterministic generator, sliced to the commands ggml-vulkan/llama.cpp uses.
 | M3 vn_cs/vn_ring shim | done | `include/uk/vn_cs.h`, `include/uk/vn_ring.h`, `vn_ring_shim.c` |
 | M4 compile gate | done | `tests/venus_generated_compile_test.c` (`make -C tests venus-gen-compile`) PASS |
 | M5 wire-format parity | done | `tests/venus_parity_test.c` (`make -C tests venus-parity`): 14/14 byte-identical |
-| M6 source-of-truth model | done (parity-lock) | see decision below |
+| M6 cutover (image uses generated encoders) | done | see section below; native 164/0 + server runs on GPU |
 | M7 build wiring + governance + docs | done | `gen-libukvenus-verify` gates `governance-check`; `GENERATOR.md` rewritten |
 
 ## Key finding: hand-written encoders already match the generated reference
@@ -24,27 +24,36 @@ through the hand-written `uk_venus_encode_*` and the generated `vn_encode_vk*`
 `vkCreateShaderModule` 100 B). No wire-format divergences were found — the
 hand-written encoders were a faithful manual port of the Venus format.
 
-## Decision: M6 is "parity-lock", not "delete and delegate"
+## M6: full cutover — the image uses the generated Mesa encoders
 
-The plan's literal M6 was to delete the hand-written wire code and route
-`uk_venus_encode_*` through the generated headers. We deliberately kept the
-in-image encoders and instead lock them to the generated reference with the
-`venus-parity` gate, because:
+The cutover was completed (an earlier interim step parity-locked the hand-written
+encoders as a staging measure; that has been superseded). Every scalar
+`uk_venus_encode_*` in `venus_cs.c`/`venus_compute.c` now builds the real `Vk*`
+struct and calls the generated `vn_encode_vk*`; no hand-rolled byte layout
+remains, and the now-orphaned encode primitives
+(`size`/`float32`/`array_size`/`command_header`) and the `VkApplicationInfo`
+helper were removed.
 
-1. **Image-size discipline.** Routing the in-image encoders through the
-   generated tree pulls `vulkan.h` + 38 generated headers into the `libukvenus`
-   unikernel build. The emitted bytes are provably identical (parity), so this
-   would enlarge the single-purpose image for zero behavioural gain.
-2. **Risk.** The generated encoders are authoritative and CI-enforced via
-   `venus-parity` + `gen-libukvenus-verify`; drift in either direction fails the
-   build. This achieves M6's *intent* (generated is the source of truth) without
-   a 52-function rewrite on the server's critical path.
-3. `vn_ring_shim.c` + the generated tree remain available for the optional
-   `vn_call_*` round-trip path and are exercised by the native compile/parity
-   tests; they are simply not compiled into the image.
+- `libukvenus/Makefile.uk` adds `-Igenerated -Iinclude/uk
+  -I$(VULKAN_HEADERS_INCLUDE)`; the generated tree was verified to compile
+  against the kraft Vulkan-Headers (VK_HEADER_VERSION 352), and the MESA structs
+  (`VkRingCreateInfoMESA`, `VkDeviceQueueTimelineInfoMESA`,
+  `VkCommandStreamDescriptionMESA`) are self-defined by the generated
+  `defines.h`, so no special `vulkan.h` is needed.
+- The bootstrap/transport encoders convert cleanly too: the generated
+  `vkGetDeviceQueue2` pNext walker encodes `VkDeviceQueueTimelineInfoMESA`
+  (`ringIdx`) that virglrenderer requires, and `vkCreateRingMESA` /
+  `vkSetReplyCommandStreamMESA` map onto their generated `Vk*MESA` structs.
+- Guards: `venus_cs_test` + `venus_compute_test` byte oracles and `venus-parity`
+  stay green (164/0 native), and the Vulkan/Venus HTTP **server boots over real
+  virtio-gpu-gl Venus on the Tesla V100 and serves `/health`+`/v1/models`+
+  `/completion` (all 200)** with the rebuilt image — end-to-end proof the
+  generated-encoder handshake works.
 
-This is a reviewed deviation from the written plan, recorded here per the plan's
-"record divergences" instruction.
+The other three virtgpu libs (`libukvirtgpu_drm`, `libukvirtio_gpu`,
+`libukvk_icd`) are the hand-written transport/shim layer that mirrors Mesa's
+non-generatable `vn_renderer_virtgpu.c` (plan Appendix A); a dead-code scan
+found nothing stale to remove in them.
 
 ## Gates (host-native, no QEMU/GPU)
 

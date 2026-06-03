@@ -71,22 +71,27 @@ by two hand-written headers:
 `tests/venus_generated_compile_test.c` (the `venus-gen-compile` gate) compiles
 the generated tree through this shim and exercises real encoders.
 
-## Source-of-truth model: parity-lock, not vendor-and-drift
+## Source-of-truth model: the image uses the generated encoders
 
-The generated encoders are the **authoritative reference** for the Venus wire
-format. The in-image encoders in `venus_cs.c`/`venus_compute.c` are kept (they
-have no `vulkan.h`/generated-tree dependency, so the unikernel image stays
-minimal and single-purpose), and `tests/venus_parity_test.c` (the
-`venus-parity` gate) asserts they are **byte-for-byte identical** to the
-generated `vn_encode_vk*` for every command on the ggml compute path. Drift in
-either direction fails CI.
+The generated encoders are the Venus wire format used **in the image**. Each
+scalar `uk_venus_encode_*` entry point in `venus_cs.c`/`venus_compute.c` is a
+thin bridge: it builds the real `Vk*` struct from its arguments and calls the
+generated `vn_encode_vk*`. No hand-rolled byte layout remains. `libukvenus`
+therefore compiles against the generated tree and the Vulkan headers
+(`Makefile.uk` adds `-Igenerated -Iinclude/uk -I$(VULKAN_HEADERS_INCLUDE)`),
+exactly like `libukggml_vulkan`; the generated tree is verified to build against
+the kraft Vulkan-Headers (VK_HEADER_VERSION 352).
 
-This deliberately differs from "delete the hand-written code and call the
-generated headers from the image": doing so would pull `vulkan.h` and the full
-generated tree into the `libukvenus` unikernel build, enlarging the image for
-no change in emitted bytes (parity proves they are identical). `vn_ring_shim.c`
-exists for the native compile/parity tests and the optional `vn_call_*`
-round-trip path; it is **not** part of the unikernel image build.
+Guards: `tests/venus_parity_test.c` (the `venus-parity` gate) plus the
+`venus_cs_test`/`venus_compute_test` byte oracles confirm the bridges emit the
+expected streams, and `venus-gen-compile` keeps the generated tree compiling
+through the shim. The Vulkan/Venus llama.cpp server boots over real
+virtio-gpu-gl Venus on the evaluation host through this exact path.
+
+`vn_ring_shim.c` provides the four `vn_ring_*` functions the generated
+`vn_submit_*`/`vn_call_*` wrappers reference; the encode-only image path never
+calls them, so they are dropped by DCE in the image and used only by the native
+tests + the optional `vn_call_*` round-trip path.
 
 ## Upgrade procedure
 
