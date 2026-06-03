@@ -16,6 +16,7 @@ VOGUE is organized as reusable Unikraft micro-libraries plus application harness
     [libukswrender], [264], [CPU software rasterizer],
     [libukegl], [778], [EGL/GLES2/GBM/DRM shim],
     [libukvirtgpu_drm], [~310], [vk.drm-shim: Mesa/Linux virtgpu UAPI shim (DRM ioctl → VirtIO-GPU protocol)],
+    [libukvenus], [~2940], [Venus wire encoder + ring protocol; parity-locked to driver headers generated from pinned `../venus-protocol` (`make gen-libukvenus`)],
     [libukvk_icd], [~110], [vk.icd: Vulkan ICD shim (ICD bootstrap over vk.drm-shim for Venus context)],
     [apps/app-kmscube], [~250], [kmscube harness and upstream source glue],
     [apps/app-glmark2], [~190], [official-source glmark2 scene-clear adapter],
@@ -204,10 +205,26 @@ image still gets a useful report.
 generator already walks `vk.xml` plus `VK_MESA_venus_protocol.xml` with Mako
 templates; vendoring its 3,000+ lines and 30+ templates would duplicate
 upstream maintenance every time the Venus wire format moves. Instead
-`scripts/gen_libukvenus.py` delegates to the sibling `../venus-protocol`
-checkout and writes the result into `libs/libukvenus/generated/`, which
-`make clean` removes. Only the extensions used by upstream `ggml-vulkan.cpp`
-are sliced, keeping the encoder small. Detailed workflow:
+`scripts/gen_libukvenus.py` runs the pinned sibling `../venus-protocol`
+generator (`vn_protocol.py --outdir`, driver/guest variant) and commits the 37
+driver headers verbatim under `libs/libukvenus/generated/` with a sha256
+`GENERATED.lock`. The pin (commit + slice) lives in `scripts/venus/pin.json`;
+`make gen-libukvenus-verify` regenerates to a temp directory and diffs, and
+gates `make governance-check`, so the committed tree can never drift from
+upstream. A deterministic extractor (`scripts/extract_ggml_vk_commands.py`)
+derives the exact Venus wire commands `ggml-vulkan.cpp` uses
+(`config/venus_command_manifest.json`, 66 commands); a coverage check asserts
+every one has a generated `vn_encode_*`. The generator slices by upstream
+extension and Vulkan core version — unreferenced `static inline` encoders are
+dropped by compile-time dead-code elimination, so the image stays minimal.
+
+The generated headers are the *authoritative reference* for the wire format.
+The compact in-image encoders in `venus_cs.c`/`venus_compute.c` (which avoid a
+`vulkan.h`/generated-tree dependency in the unikernel image) are *parity-locked*
+to them: a native gate (`venus_parity_test`) asserts both emit byte-for-byte
+identical streams for every command on the ggml compute path, so divergence in
+either direction fails CI. Two small shims (`vn_cs.h`, `vn_ring.h`) map the
+generated encoders onto `struct uk_venus_encoder`. Detailed workflow:
 `libs/libukvenus/GENERATOR.md`.
 
 == Kraftfile Integration

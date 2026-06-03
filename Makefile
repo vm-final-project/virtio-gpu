@@ -536,4 +536,6 @@ paper-check:
 clean:
 	$(MAKE) -C tests clean
 	rm -f paper/vogue-paper.pdf
-	rm -rf libs/libukvenus/generated
+	# libs/libukvenus/generated/ is committed verbatim (sha256 GENERATED.lock,
+	# gated by gen-libukvenus-verify) — regenerate with `make gen-libukvenus`,
+	# never `clean`-delete it.

@@ -132,7 +132,7 @@ this table by `make app-port-check` / `make governance-check`.
 |---|---|
 | Understand the big picture | `docs/ARCHITECTURE.md`, then this file's *Project Architecture*. |
 | Find **VirtIO-GPU frontend / virgl** logic | `libs/libukvirtio_gpu/` (`virgl_encoder.c`, `virtio_gpu_proto.h`). |
-| Find **Venus encoder / ring protocol** | `libs/libukvenus/` (`venus_cs.c`, `venus_init.c`, `venus_compute.c`; generator in `GENERATOR.md`). |
+| Find **Venus encoder / ring protocol** | `libs/libukvenus/` (`venus_cs.c`, `venus_init.c`, `venus_compute.c`). Wire encoders are parity-locked to driver headers generated from the pinned `../venus-protocol` (`make gen-libukvenus`; pin in `scripts/venus/pin.json`, command set in `config/venus_command_manifest.json`; workflow in `GENERATOR.md`). |
 | Find the **Vulkan ICD / DRM virtgpu shim** | `libs/libukvk_icd/` and `libs/libukvirtgpu_drm/`. |
 | Find **3D rendering / GPU dispatch for ggml** | `libs/libukggml_vk/` (`uk_vulkan_dispatch.c`). |
 | Find **2D/KMS graphics (kmscube)** | `apps/app-kmscube/` + shims `libs/libukdrm_compat/`, `libs/libukgbm_compat/`. |
@@ -206,7 +206,7 @@ The root `Makefile` is the single entry point; it delegates the C suite to
 | `make perf-check` / `image-size-check` / `boot-time-check` / `model-load-time-check` | Performance & resource budgets. |
 | `make current-stage-check` | Assert the documented current-stage report. |
 | `make paper` / `paper-check` | Build / consistency-check the Typst paper. |
-| `make clean` | Remove generated test/paper/generator outputs. |
+| `make clean` | Remove generated test/paper outputs. (The committed `libs/libukvenus/generated/` Venus headers are not touched — regenerate with `make gen-libukvenus`.) |
 
 ### Artifact bundles
 

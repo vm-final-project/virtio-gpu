@@ -55,51 +55,28 @@ OUTDIR = LIBVENUS / "generated"
 PIN = json.loads((ROOT / "scripts/venus/pin.json").read_text())
 VENUS_PROTOCOL = (ROOT / PIN["checkout"]).resolve()
 
-# Slices we actually emit. Keep this list minimal — every extra extension
-# bloats the encoder and the final unikernel image.
-WANTED_EXTENSIONS = [
-    "VK_EXT_command_serialization",
-    "VK_MESA_venus_protocol",
-    "VK_KHR_get_physical_device_properties2",
-    "VK_KHR_external_memory",
-    "VK_KHR_external_memory_capabilities",
-    "VK_KHR_external_semaphore",
-    "VK_KHR_external_semaphore_capabilities",
-    "VK_KHR_synchronization2",
-]
-
-ARTIFACTS = [
-    {
-        "path": str(LIBVENUS.relative_to(ROOT) / "generated" / "vn_protocol_driver_defines.h"),
-        "template": "driver_defines.h",
-        "purpose": "Command IDs and wire-format constants used by libukvenus encoders.",
-    },
-    {
-        "path": str(LIBVENUS.relative_to(ROOT) / "generated" / "vn_protocol_driver_types.h"),
-        "template": "driver_types.h",
-        "purpose": "Packed types layered on top of vulkan.h for guest-side encoding.",
-    },
-    {
-        "path": str(LIBVENUS.relative_to(ROOT) / "generated" / "vn_protocol_driver_commands.h"),
-        "template": "driver_commands.h",
-        "purpose": "SUBMIT_3D command writers consumed by venus_cs.c.",
-    },
-]
-
-
 def cmd_plan(_args: argparse.Namespace) -> int:
+    """Print the real generation plan, sourced from pin.json + the committed tree."""
+    generated = sorted(p.name for p in OUTDIR.glob("vn_protocol_driver_*.h"))
     payload = {
-        "generator": "venus-protocol (upstream Mako templates)",
+        "generator": str(VENUS_PROTOCOL / PIN["generator"]),
         "checkout": str(VENUS_PROTOCOL),
-        "wanted_extensions": WANTED_EXTENSIONS,
-        "artifacts": ARTIFACTS,
-        "make_target": "gen-libukvenus",
+        "commit": PIN["commit"],
+        "variant": PIN["variant"],
+        "outdir": str(OUTDIR.relative_to(ROOT)),
+        "generated_header_count": len(generated),
+        "lock": str((OUTDIR / "GENERATED.lock").relative_to(ROOT)),
+        "make_targets": {
+            "generate": "gen-libukvenus",
+            "verify": "gen-libukvenus-verify",
+            "selftest": "gen-libukvenus-selftest",
+        },
         "notes": [
-            "Generated files land under libs/libukvenus/generated/ and are git-ignored.",
-            "Hand-written wrappers in libs/libukvenus/{venus_cs,venus_init,venus_compute}.c "
-            "stay small and call into the generated encoders.",
-            "Bumping the upstream Vulkan SDK only requires updating "
-            "../venus-protocol and re-running this script.",
+            "Driver headers are committed verbatim under libs/libukvenus/generated/ "
+            "with a sha256 GENERATED.lock; gen-libukvenus-verify gates governance-check.",
+            "The in-image encoders in libs/libukvenus/{venus_cs,venus_compute}.c are "
+            "byte-for-byte parity-locked to the generated reference (make -C tests "
+            "venus-parity); they are not regenerated into the image. See GENERATOR.md.",
         ],
     }
     print(json.dumps(payload, indent=2))
