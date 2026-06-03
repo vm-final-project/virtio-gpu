@@ -23,10 +23,11 @@ Replace DRM multiplexing with a *minimal exclusive-client driver*
   [Command path], [app → ioctl → kernel → virtio], [app → direct virtio ring],
 )
 
+#pause
+
 *Unlocks:*
 - No DRM multiplexing → ~1,650 LoC driver
-- No user/kernel boundary → zero ioctl overhead
-- Direct VirtIO ring access
+- No user/kernel boundary → virtqueue writes are direct function calls, no ioctl
 
 #metadata((
   t: "Note",
@@ -48,13 +49,15 @@ Replace DRM multiplexing with a *minimal exclusive-client driver*
   [Transport], [Unikraft PCI / virtio (*reused*)],
 )
 
+#pause
+
 - Host: `QEMU virtio-gpu-gl-pci` → `virglrenderer` → Host Vulkan / GL driver
 - Guest image size: *292 KB* (vs Linux kernel 9.2 MB — 31× smaller)
 - Boot time: *10–11 ms* (vs Linux + initramfs 857–861 ms — 80× faster)
 
 #metadata((
   t: "Note",
-  v: "這張表展示 VOGUE 的完整分層架構。最底層的 Transport 直接重用 Unikraft 既有的 PCI 和 virtio 基礎設施，完全不修改。往上是 VirtIO 前端、Venus 協議層、相容層、應用層，每一層都有明確的職責。這個架構帶來的效果非常顯著：guest image 只有 292 KB，是 Linux kernel 的三十分之一；開機時間只要 10 毫秒，是 Linux 的八十分之一。",
+  v: "這張表是整個系統的地圖，每一層職責如下。\n L1（Application）：kmscube、glmark2、llama.cpp，上游原始碼完全不修改，直接 link 進 unikernel image。\n L2（Compat shim）：libukegl 提供 EGL/GLES2/GBM/DRM 的 API stub，讓 app 誤以為自己在 Linux 上；libukswrender 是 264 行的 CPU rasterizer，負責 2D 路徑的像素繪製。\n L3（Venus/Vulkan）：libukvenus 把 Vulkan API 呼叫序列化成 Venus binary stream（PACKED 格式）；libukggml_vk 提供靜態 Vulkan dispatch table 給 ggml，省掉 Vulkan loader 的動態載入。\n L4（VirtIO frontend）：libukvirtio_gpu 實作完整的 VirtIO-GPU 協議（1,650 LoC），把 2D display 命令和 Venus SUBMIT_3D 透過 virtqueue 送給 QEMU；libukdma 管理 DMA 記憶體配置。\n L5（Transport）：Unikraft 既有的 PCI/virtio 基礎設施，處理 virtqueue descriptor ring 的讀寫、doorbell 通知、PCI MMIO，完全不修改直接重用。點擊後：292 KB 和 10 毫秒是因為這五層全部編譯成單一 binary，沒有 kernel、沒有 init、沒有模組系統。",
 )) <pdfpc>
 
 == VOGUE vs Linux: Layer by Layer
@@ -124,15 +127,15 @@ Replace DRM multiplexing with a *minimal exclusive-client driver*
 - *DG3* Application source compatibility: kmscube / llama.cpp upstream sources *unmodified*
 - *DG4* Progressive validation: bottom-up — native tests → SW render → ABI → QEMU transport → accelerated render
 
+#pause
+
 *DG5 — Evidence-Gated Claims*
 
 - `gfx.kmscube.sw` PASS *≠* virgl / GPU acceleration
 - `proto.real-driver` PASS *≠* QEMU execution
 - Host Linux baseline *≠* Unikraft runtime
 
-*27 rows: 18 PASS, 9 blocked (cause + unblock documented)*
-
 #metadata((
   t: "Note",
-  v: "【初始】設計目標 DG1 到 DG4 比較標準：使用官方 VirtIO 標準、保持程式碼小且可審計、不修改上游原始碼、漸進式驗證策略。【點擊後】DG5 是方法論上最重要的貢獻。我們建立了嚴格的證據閘門制度，明確區分不同層次的宣告。27 個 evidence row，18 個通過、9 個有明確記錄的阻塞原因。blocked 不代表失敗，而是代表已知有哪些阻塞、怎麼解決。",
+  v: "【初始】DG1（Standards-based）：嚴格遵循 OASIS VirtIO-GPU 規範，不發明私有協議。這確保 VOGUE 的 guest image 可以在任何支援標準 VirtIO-GPU 的 hypervisor 上執行（QEMU、crosvm、cloud-hypervisor），不需要特殊的 host 端修改。DG2（Small trusted substrate）：整個 guest 圖形棧約 5,000 LoC，比 Linux 三百萬行小了 600 倍，小到可以被完整審計。對安全敏感的 unikernel 部署很重要，你需要知道 TCB 裡每一行做什麼。DG3（Application source compatibility）：kmscube、llama.cpp 等 app 的原始碼完全不修改，compat shim 必須完整模擬 EGL、GLES2、GBM、DRM 的 API surface 和狀態機。DG4（Progressive validation）：由底往上分層驗證——native tests（不需要 QEMU）→ SW render → ABI 靜態檢查（Venus wire format）→ QEMU transport → accelerated render，每一層通過才往上，出問題可以精確定位在哪層。【點擊後】DG5（Evidence-Gated Claims）是方法論貢獻：嚴格區分不同層次的宣告。SW render PASS 不代表 GPU 加速能跑；ABI 靜態檢查 PASS 不代表 QEMU 執行沒問題；host Linux baseline 不能當 Unikraft 的效能證據。27 個 evidence row，18 個 PASS，9 個有明確記錄的阻塞原因和解鎖路徑。Blocked 不代表失敗，代表誠實記錄了已知的限制。",
 )) <pdfpc>
