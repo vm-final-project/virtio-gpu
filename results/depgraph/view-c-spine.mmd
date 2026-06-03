@@ -1,8 +1,8 @@
 %% View C: Protocol Spine
 flowchart LR
   subgraph linux["Linux DRM guest"]
-    linux_virtgpu_submit["virtgpu_submit"]
     linux_virtgpu_vq["virtgpu_vq"]
+    linux_virtgpu_submit["virtgpu_submit"]
   end
   subgraph vogue["VOGUE guest"]
     vogue_libukvirtio_gpu["libukvirtio_gpu"]

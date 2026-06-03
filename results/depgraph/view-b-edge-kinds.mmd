@@ -2,10 +2,10 @@
 flowchart LR
   subgraph vogue["VOGUE guest"]
     vogue_libukvirtio_gpu["libukvirtio_gpu"]
-    vogue_libukggml_vk["libukggml_vk"]
-    vogue_libukvk_icd["libukvk_icd"]
-    vogue_libukvirtgpu_drm["libukvirtgpu_drm"]
     vogue_libukvenus["libukvenus"]
+    vogue_libukggml_vk["libukggml_vk"]
+    vogue_libukvirtgpu_drm["libukvirtgpu_drm"]
+    vogue_libukvk_icd["libukvk_icd"]
   end
   subgraph seam["Protocol seam"]
     seam_venus_ring["Venus command ring"]
