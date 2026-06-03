@@ -253,7 +253,10 @@ int uk_ggml_vulkan_dispatch_init(void)
         const char *r = getenv("UK_GGML_VK_DISPATCH_RING");
         int want_ring = !(r && (*r == '0'));
         if (want_ring) {
-            int rc = uk_venus_ring_create(g_gpu, &g_ring,
+            /* Create the ring on the existing dispatch context g_ctx so the
+             * ring's vkCreateRingMESA/Notify commands and the Vulkan compute
+             * objects share one host-side Venus context. */
+            int rc = uk_venus_ring_create_on_ctx(g_gpu, &g_ring, g_ctx,
                                           UK_VENUS_RING_CTRL_SIZE +
                                           UK_VENUS_RING_DEFAULT_SIZE,
                                           UK_VENUS_RING_DEFAULT_BLOB_ID + 1);

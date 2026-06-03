@@ -161,6 +161,76 @@ const char *uk_venus_ring_status(struct uk_virtio_gpu_dev *dev)
 	return "pass";
 }
 
+int uk_venus_ring_create_on_ctx(struct uk_virtio_gpu_dev *dev,
+				struct uk_venus_ring *ring,
+				const struct uk_virtio_gpu_context *ctx,
+				size_t size, uint64_t blob_id)
+{
+	struct uk_virtio_gpu_caps caps;
+	int rc;
+
+	if (!dev || !ring || !ctx)
+		return -EINVAL;
+	if (!size)
+		return -EINVAL;
+	if (ring->ready || ring->blob.created)
+		return -EINVAL;
+
+	rc = uk_virtio_gpu_gl_caps_get(dev, &caps);
+	if (rc)
+		return rc;
+	if (!caps.has_context_init || !caps.has_resource_blob || !caps.has_host_visible)
+		return -ENOTSUP;
+
+	memset(ring, 0, sizeof(*ring));
+	/* Borrow the caller's Venus context: the ring's commands must share the
+	 * same host-side context as the Vulkan objects it drives. */
+	ring->ctx = *ctx;
+	ring->borrowed_ctx = 1;
+
+	rc = uk_virtio_gpu_gl_blob_create_with_ctx(dev, ring->ctx.id,
+					  (uint64_t)size,
+					  UK_VIRTIO_GPU_BLOB_MEM_HOST3D,
+					  UK_VIRTIO_GPU_BLOB_FLAG_USE_MAPPABLE,
+					  blob_id,
+					  &ring->blob);
+	if (rc) {
+		printf("uk-venus: ring(on_ctx) blob_create rc=%d ctx=%u blob_id=%llu size=%llu\n",
+		       rc, ring->ctx.id, (unsigned long long)blob_id,
+		       (unsigned long long)size);
+		memset(ring, 0, sizeof(*ring));
+		return rc;
+	}
+	goto map_common;
+
+map_common:
+	rc = uk_virtio_gpu_gl_blob_map(dev, &ring->blob);
+	if (rc)
+		goto err_blob;
+	if (!ring->blob.mapped_addr || ring->blob.mapped_size < (uint64_t)size) {
+		rc = -ENOTSUP;
+		goto err_unmap;
+	}
+	rc = uk_virtio_gpu_gl_context_attach_resource(dev, &ring->ctx,
+						      ring->blob.resource_id);
+	if (rc)
+		goto err_unmap;
+	ring->base = (uint8_t *)ring->blob.mapped_addr;
+	ring->size = size;
+	ring->write_pos = 0;
+	ring->bytes_written = 0;
+	ring->commands_submitted = 0;
+	ring->ready = 1;
+	return 0;
+
+err_unmap:
+	(void)uk_virtio_gpu_gl_blob_unmap(dev, &ring->blob);
+err_blob:
+	(void)uk_virtio_gpu_gl_blob_destroy(dev, &ring->blob);
+	memset(ring, 0, sizeof(*ring));
+	return rc;
+}
+
 int uk_venus_ring_create(struct uk_virtio_gpu_dev *dev,
 			 struct uk_venus_ring *ring,
 			 size_t size, uint64_t blob_id)
@@ -265,7 +335,9 @@ void uk_venus_ring_destroy(struct uk_virtio_gpu_dev *dev,
 		(void)uk_virtio_gpu_gl_blob_unmap(dev, &ring->blob);
 	if (ring->blob.created)
 		(void)uk_virtio_gpu_gl_blob_destroy(dev, &ring->blob);
-	if (ring->ctx.created)
+	/* Only destroy the context if we created it; borrowed contexts are owned
+	 * by the caller (the dispatch layer's main g_ctx). */
+	if (ring->ctx.created && !ring->borrowed_ctx)
 		(void)uk_virtio_gpu_gl_context_destroy(dev, &ring->ctx);
 	memset(ring, 0, sizeof(*ring));
 }

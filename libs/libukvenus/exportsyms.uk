@@ -24,6 +24,7 @@ uk_venus_probe
 uk_venus_context_create
 uk_venus_submit
 uk_venus_ring_create
+uk_venus_ring_create_on_ctx
 uk_venus_ring_bind_current
 uk_venus_ring_destroy
 uk_venus_ring_write

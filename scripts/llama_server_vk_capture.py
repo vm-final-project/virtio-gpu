@@ -55,6 +55,7 @@ READY_RE = re.compile(
     r"ctx_per_slot=(?P<ctx>\d+) batch_size=(?P<batch>\d+) "
     r"ubatch_size=(?P<ubatch>\d+) prompt_cache=(?P<pc>\d) "
     r"batch_enabled=(?P<be>\d) "
+    r"(?:ring_enabled=(?P<re_>\d) )?"
     r"hostmem_fixed=(?P<hf>\d)")
 
 
@@ -410,6 +411,7 @@ def _attempt(qemu: str, model: Path) -> tuple[str, dict]:
         "ubatch_size": int(m.group("ubatch")),
         "prompt_cache": bool(int(m.group("pc"))),
         "dispatch_batch_enabled": bool(int(m.group("be"))),
+        "ring_enabled": bool(int(m.group("re_"))) if m.group("re_") else False,
         "hostmem_fixed": bool(int(m.group("hf"))),
         "venus_device": venus_device,
         "ready_marker": m.group(0).strip(),

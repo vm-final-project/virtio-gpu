@@ -156,6 +156,7 @@ struct uk_venus_encoder {
  */
 struct uk_venus_ring {
 	struct uk_virtio_gpu_context ctx;
+	uint8_t borrowed_ctx; /* 1 = ctx is owned by caller; do not destroy it */
 	struct uk_virtio_gpu_blob blob;
 	uint8_t *base;      /* mapped blob start (offset 0 = head field) */
 	size_t size;        /* total blob size (UK_VENUS_RING_CTRL_SIZE + buf_size) */
@@ -393,6 +394,13 @@ void uk_venus_ring_bind_current(struct uk_virtio_gpu_dev *dev,
 int uk_venus_ring_create(struct uk_virtio_gpu_dev *dev,
 			 struct uk_venus_ring *ring,
 			 size_t size, uint64_t blob_id);
+/* Like uk_venus_ring_create but reuses an existing Venus context (ctx) instead
+ * of creating a new one — required when the ring must share the host-side
+ * context that owns the Vulkan objects it drives. */
+int uk_venus_ring_create_on_ctx(struct uk_virtio_gpu_dev *dev,
+				struct uk_venus_ring *ring,
+				const struct uk_virtio_gpu_context *ctx,
+				size_t size, uint64_t blob_id);
 void uk_venus_ring_destroy(struct uk_virtio_gpu_dev *dev,
 			   struct uk_venus_ring *ring);
 int uk_venus_ring_write(struct uk_venus_ring *ring, const void *data,
