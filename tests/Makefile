@@ -54,6 +54,7 @@ NATIVE_BINS := \
 	$(BUILD)/venus_compute_test \
 	$(BUILD)/virgl_encoder_test \
 	$(BUILD)/venus_generated_compile_test \
+	$(BUILD)/venus_parity_test \
 	$(BUILD)/ggml_vk_dispatch_test
 
 # Full deterministic suite — primary CI gate. Two phases: parallel compile
@@ -82,7 +83,8 @@ TEST_VENUS_BINS := \
 	$(BUILD)/venus_cs_test \
 	$(BUILD)/venus_compute_test \
 	$(BUILD)/virgl_encoder_test \
-	$(BUILD)/venus_generated_compile_test
+	$(BUILD)/venus_generated_compile_test \
+	$(BUILD)/venus_parity_test
 test-venus:
 	+@$(MAKE) -j$(JOBS) $(TEST_VENUS_BINS)
 	@for b in $(TEST_VENUS_BINS); do ./$$b || exit $$?; done
