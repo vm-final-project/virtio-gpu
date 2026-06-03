@@ -4,6 +4,13 @@
 serializes the Vulkan compute commands required by the pinned ggml-vulkan path
 and submits them through VirtIO-GPU `SUBMIT_3D`.
 
+Source lineage: the Venus wire format is owned upstream by Mesa's
+`venus-protocol` generator (pinned in `scripts/venus/pin.json`). VOGUE generates
+the driver-side encoder headers into `generated/` via `make gen-libukvenus`, and
+the in-image encoders here are byte-for-byte parity-locked to that generated
+reference (`make -C tests venus-parity`). See `GENERATOR.md`. The transport stays
+`libukvirtio_gpu`; this library never imports Mesa's `vn_renderer_virtgpu.c`.
+
 Current stage: Venus command encoding, ring protocol, QEMU transport, and
 llama.cpp Vulkan runtime rows pass on the evaluation host. HTTP serving and
 broader Vulkan benchmark rendering remain separate gates.
