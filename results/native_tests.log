@@ -9,6 +9,7 @@ make[2]: 'build/venus_cs_test' is up to date.
 make[2]: 'build/venus_compute_test' is up to date.
 make[2]: 'build/virgl_encoder_test' is up to date.
 make[2]: 'build/venus_generated_compile_test' is up to date.
+make[2]: 'build/venus_parity_test' is up to date.
 make[2]: 'build/ggml_vk_dispatch_test' is up to date.
 dma_buf_test passed alignment=4096 sg=1 len=4096
 virtio_gpu_full_api_test passed capsets=5 fences=7 submits_3d=1 blobs=1 bytes_to_host=36864 bytes_from_host=4096
@@ -208,7 +209,7 @@ venus_cs_test:
   PASS  ring_perf:probe_ok
   PASS  ring_perf:create_ok
   PASS  ring_perf:writes_ok
-venus_ring_perf: bytes=65536 writes=256 elapsed_ns=5606 throughput_mib_s=11148.77
+venus_ring_perf: bytes=65536 writes=256 elapsed_ns=6194 throughput_mib_s=10090.41
 venus_cs_test: all checks passed
 venus_compute_test: Venus compute dispatch wire-format tests
 ============================================================
@@ -361,6 +362,21 @@ virgl_encoder_test: Gallium command stream encoder
   PASS  submit:teardown_ok
 virgl_encoder_test: all checks passed
 venus_generated_compile_test: PASS
+  PASS  vkCmdDispatch (28 bytes)
+  PASS  vkCreateBuffer (92 bytes)
+  PASS  vkDestroyBuffer (32 bytes)
+  PASS  vkAllocateMemory (72 bytes)
+  PASS  vkFreeMemory (32 bytes)
+  PASS  vkBindBufferMemory (40 bytes)
+  PASS  vkCmdCopyBuffer (68 bytes)
+  PASS  vkCmdFillBuffer (44 bytes)
+  PASS  vkCmdBindPipeline (28 bytes)
+  PASS  vkCmdPushConstants (60 bytes)
+  PASS  vkCreateShaderModule (100 bytes)
+  PASS  vkCreateFence (64 bytes)
+  PASS  vkResetFences (36 bytes)
+  PASS  vkQueueWaitIdle (16 bytes)
+venus_parity_test: PASS (all parity checks identical)
 ggml_vk_dispatch_test: N3 static Vulkan ICD dispatch layer
 ================================================================
 

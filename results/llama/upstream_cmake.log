@@ -1530,3 +1530,717 @@ gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
 gmake[3]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
 gmake[2]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
 gmake[1]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+CMAKE_BUILD_TYPE=Release
+-- Setting GGML_NATIVE_DEFAULT to OFF
+-- ccache found, compilation results will be cached. Disable with GGML_CCACHE=OFF.
+-- CMAKE_SYSTEM_PROCESSOR: x86_64
+-- GGML_SYSTEM_ARCH: x86
+-- Including CPU backend
+-- x86 detected
+-- Adding CPU backend variant ggml-cpu:  
+-- Vulkan found
+-- GL_KHR_cooperative_matrix supported by glslc
+-- GL_NV_cooperative_matrix2 not supported by glslc
+-- GL_NV_cooperative_matrix_decode_vector not supported by glslc
+-- GL_EXT_integer_dot_product not supported by glslc
+-- GL_EXT_bfloat16 not supported by glslc
+-- Host compiler: /usr/bin/gcc /usr/bin/g++
+-- vulkan-shaders-gen toolchain file: /mydata/JerryT/llama.cpp/build-unikraft-vk-server/host-toolchain.cmake
+-- Including Vulkan backend
+-- ggml version: 0.13.1
+-- ggml commit:  9e58d4d69
+-- OpenSSL found: 3.0.13
+-- UI: building llama-ui-embed with host compiler /usr/bin/g++
+-- Generating embedded license file for target: llama-app
+-- Configuring done (1.3s)
+-- Generating done (0.4s)
+-- Build files have been written to: /mydata/JerryT/llama.cpp/build-unikraft-vk-server
+gmake[1]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[3]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[  0%] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml.cpp.o
+[ 50%] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend.cpp.o
+[ 50%] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml.c.o
+[ 50%] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-threading.cpp.o
+[ 50%] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-alloc.c.o
+[ 50%] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-opt.cpp.o
+[ 50%] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-quants.c.o
+[ 50%] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend-meta.cpp.o
+[100%] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/gguf.cpp.o
+[100%] Linking CXX static library libggml-base.a
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[100%] Built target ggml-base
+gmake[3]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[3]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 50%] Built target ggml-base
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 50%] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.c.o
+[ 50%] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/mmq.cpp.o
+[ 50%] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/repack.cpp.o
+[ 50%] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/unary-ops.cpp.o
+[ 50%] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/traits.cpp.o
+[ 75%] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/amx.cpp.o
+[ 75%] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.cpp.o
+[ 75%] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/binary-ops.cpp.o
+[ 75%] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/vec.cpp.o
+[ 75%] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ops.cpp.o
+[ 75%] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/x86/quants.c.o
+[100%] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/x86/repack.cpp.o
+[100%] Linking CXX static library libggml-cpu.a
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[100%] Built target ggml-cpu
+gmake[3]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[3]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[  0%] Performing build step for 'vulkan-shaders-gen'
+[  4%] Built target ggml-base
+gmake[5]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[5]: warning: jobserver unavailable: using -j1.  Add '+' to parent make rule.
+gmake[6]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[7]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[7]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+[100%] Built target vulkan-shaders-gen
+gmake[6]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[5]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+[  4%] Performing install step for 'vulkan-shaders-gen'
+-- Up-to-date: /mydata/JerryT/llama.cpp/build-unikraft-vk-server/Release/./vulkan-shaders-gen
+[  6%] Completed 'vulkan-shaders-gen'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[  9%] Built target vulkan-shaders-gen
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 11%] Building CXX object ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan.cpp.o
+[ 11%] Linking CXX static library libggml-vulkan.a
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[100%] Built target ggml-vulkan
+gmake[3]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[3]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[  0%] Performing build step for 'vulkan-shaders-gen'
+[  3%] Built target ggml-base
+gmake[5]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[5]: warning: jobserver unavailable: using -j1.  Add '+' to parent make rule.
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[6]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[7]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[7]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[100%] Built target vulkan-shaders-gen
+gmake[6]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[5]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+[  6%] Built target ggml-cpu
+[  6%] Performing install step for 'vulkan-shaders-gen'
+-- Up-to-date: /mydata/JerryT/llama.cpp/build-unikraft-vk-server/Release/./vulkan-shaders-gen
+[  7%] Completed 'vulkan-shaders-gen'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[  9%] Built target vulkan-shaders-gen
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 69%] Built target ggml-vulkan
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 69%] Building CXX object ggml/src/CMakeFiles/ggml.dir/ggml-backend-reg.cpp.o
+[ 69%] Linking CXX static library libggml.a
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 69%] Built target ggml
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 69%] Building CXX object src/CMakeFiles/llama.dir/llama.cpp.o
+[ 69%] Building CXX object src/CMakeFiles/llama.dir/llama-adapter.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/llama.dir/llama-cparams.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/llama.dir/llama-batch.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/llama.dir/llama-chat.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/llama.dir/llama-grammar.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/llama.dir/llama-arch.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/llama.dir/llama-context.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/llama.dir/llama-graph.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/llama.dir/llama-hparams.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/llama.dir/llama-impl.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache-iswa.cpp.o
+[ 72%] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache-dsa.cpp.o
+[ 72%] Building CXX object src/CMakeFiles/llama.dir/llama-memory.cpp.o
+[ 72%] Building CXX object src/CMakeFiles/llama.dir/llama-memory-hybrid.cpp.o
+[ 72%] Building CXX object src/CMakeFiles/llama.dir/llama-memory-hybrid-iswa.cpp.o
+[ 72%] Building CXX object src/CMakeFiles/llama.dir/llama-memory-recurrent.cpp.o
+[ 72%] Building CXX object src/CMakeFiles/llama.dir/llama-model-loader.cpp.o
+[ 72%] Building CXX object src/CMakeFiles/llama.dir/llama-model-saver.cpp.o
+[ 73%] Building CXX object src/CMakeFiles/llama.dir/llama-model.cpp.o
+[ 73%] Building CXX object src/CMakeFiles/llama.dir/llama-quant.cpp.o
+[ 73%] Building CXX object src/CMakeFiles/llama.dir/llama-sampler.cpp.o
+[ 73%] Building CXX object src/CMakeFiles/llama.dir/llama-vocab.cpp.o
+[ 73%] Building CXX object src/CMakeFiles/llama.dir/models/afmoe.cpp.o
+[ 73%] Building CXX object src/CMakeFiles/llama.dir/models/apertus.cpp.o
+[ 75%] Building CXX object src/CMakeFiles/llama.dir/models/arcee.cpp.o
+[ 75%] Building CXX object src/CMakeFiles/llama.dir/models/arctic.cpp.o
+[ 75%] Building CXX object src/CMakeFiles/llama.dir/models/arwkv7.cpp.o
+[ 75%] Building CXX object src/CMakeFiles/llama.dir/models/baichuan.cpp.o
+[ 75%] Building CXX object src/CMakeFiles/llama.dir/models/bailingmoe.cpp.o
+[ 75%] Building CXX object src/CMakeFiles/llama.dir/models/bailingmoe2.cpp.o
+[ 75%] Building CXX object src/CMakeFiles/llama.dir/models/bert.cpp.o
+[ 75%] Building CXX object src/CMakeFiles/llama.dir/models/bitnet.cpp.o
+[ 76%] Building CXX object src/CMakeFiles/llama.dir/models/bloom.cpp.o
+[ 76%] Building CXX object src/CMakeFiles/llama.dir/models/chameleon.cpp.o
+[ 76%] Building CXX object src/CMakeFiles/llama.dir/models/chatglm.cpp.o
+[ 76%] Building CXX object src/CMakeFiles/llama.dir/models/codeshell.cpp.o
+[ 76%] Building CXX object src/CMakeFiles/llama.dir/models/cogvlm.cpp.o
+[ 76%] Building CXX object src/CMakeFiles/llama.dir/models/cohere2.cpp.o
+[ 76%] Building CXX object src/CMakeFiles/llama.dir/models/command-r.cpp.o
+[ 76%] Building CXX object src/CMakeFiles/llama.dir/models/dbrx.cpp.o
+[ 78%] Building CXX object src/CMakeFiles/llama.dir/models/deci.cpp.o
+[ 78%] Building CXX object src/CMakeFiles/llama.dir/models/deepseek.cpp.o
+[ 78%] Building CXX object src/CMakeFiles/llama.dir/models/deepseek2.cpp.o
+[ 78%] Building CXX object src/CMakeFiles/llama.dir/models/deepseek2ocr.cpp.o
+[ 78%] Building CXX object src/CMakeFiles/llama.dir/models/deepseek32.cpp.o
+[ 78%] Building CXX object src/CMakeFiles/llama.dir/models/delta-net-base.cpp.o
+[ 78%] Building CXX object src/CMakeFiles/llama.dir/models/dots1.cpp.o
+[ 78%] Building CXX object src/CMakeFiles/llama.dir/models/dream.cpp.o
+[ 80%] Building CXX object src/CMakeFiles/llama.dir/models/ernie4-5-moe.cpp.o
+[ 80%] Building CXX object src/CMakeFiles/llama.dir/models/ernie4-5.cpp.o
+[ 80%] Building CXX object src/CMakeFiles/llama.dir/models/eurobert.cpp.o
+[ 80%] Building CXX object src/CMakeFiles/llama.dir/models/exaone-moe.cpp.o
+[ 80%] Building CXX object src/CMakeFiles/llama.dir/models/exaone.cpp.o
+[ 80%] Building CXX object src/CMakeFiles/llama.dir/models/exaone4.cpp.o
+[ 80%] Building CXX object src/CMakeFiles/llama.dir/models/falcon-h1.cpp.o
+[ 80%] Building CXX object src/CMakeFiles/llama.dir/models/falcon.cpp.o
+[ 81%] Building CXX object src/CMakeFiles/llama.dir/models/gemma-embedding.cpp.o
+[ 81%] Building CXX object src/CMakeFiles/llama.dir/models/gemma.cpp.o
+[ 81%] Building CXX object src/CMakeFiles/llama.dir/models/gemma2.cpp.o
+[ 81%] Building CXX object src/CMakeFiles/llama.dir/models/gemma3.cpp.o
+[ 81%] Building CXX object src/CMakeFiles/llama.dir/models/gemma3n.cpp.o
+[ 81%] Building CXX object src/CMakeFiles/llama.dir/models/gemma4.cpp.o
+[ 81%] Building CXX object src/CMakeFiles/llama.dir/models/glm-dsa.cpp.o
+[ 81%] Building CXX object src/CMakeFiles/llama.dir/models/glm4-moe.cpp.o
+[ 81%] Building CXX object src/CMakeFiles/llama.dir/models/gpt2.cpp.o
+[ 83%] Building CXX object src/CMakeFiles/llama.dir/models/glm4.cpp.o
+[ 83%] Building CXX object src/CMakeFiles/llama.dir/models/gptneox.cpp.o
+[ 83%] Building CXX object src/CMakeFiles/llama.dir/models/granite-hybrid.cpp.o
+[ 83%] Building CXX object src/CMakeFiles/llama.dir/models/granite-moe.cpp.o
+[ 83%] Building CXX object src/CMakeFiles/llama.dir/models/granite.cpp.o
+[ 83%] Building CXX object src/CMakeFiles/llama.dir/models/grok.cpp.o
+[ 83%] Building CXX object src/CMakeFiles/llama.dir/models/grovemoe.cpp.o
+[ 84%] Building CXX object src/CMakeFiles/llama.dir/models/hunyuan-dense.cpp.o
+[ 84%] Building CXX object src/CMakeFiles/llama.dir/models/hunyuan-moe.cpp.o
+[ 84%] Building CXX object src/CMakeFiles/llama.dir/models/hunyuan-vl.cpp.o
+[ 84%] Building CXX object src/CMakeFiles/llama.dir/models/internlm2.cpp.o
+[ 84%] Building CXX object src/CMakeFiles/llama.dir/models/jais.cpp.o
+[ 84%] Building CXX object src/CMakeFiles/llama.dir/models/jais2.cpp.o
+[ 86%] Building CXX object src/CMakeFiles/llama.dir/models/jina-bert-v2.cpp.o
+[ 86%] Building CXX object src/CMakeFiles/llama.dir/models/jamba.cpp.o
+[ 86%] Building CXX object src/CMakeFiles/llama.dir/models/jina-bert-v3.cpp.o
+[ 86%] Building CXX object src/CMakeFiles/llama.dir/models/kimi-linear.cpp.o
+[ 86%] Building CXX object src/CMakeFiles/llama.dir/models/lfm2.cpp.o
+[ 86%] Building CXX object src/CMakeFiles/llama.dir/models/lfm2moe.cpp.o
+[ 86%] Building CXX object src/CMakeFiles/llama.dir/models/llada-moe.cpp.o
+[ 86%] Building CXX object src/CMakeFiles/llama.dir/models/llama-embed.cpp.o
+[ 86%] Building CXX object src/CMakeFiles/llama.dir/models/llada.cpp.o
+[ 87%] Building CXX object src/CMakeFiles/llama.dir/models/llama.cpp.o
+[ 87%] Building CXX object src/CMakeFiles/llama.dir/models/llama4.cpp.o
+[ 87%] Building CXX object src/CMakeFiles/llama.dir/models/maincoder.cpp.o
+[ 87%] Building CXX object src/CMakeFiles/llama.dir/models/mamba-base.cpp.o
+[ 87%] Building CXX object src/CMakeFiles/llama.dir/models/mamba.cpp.o
+[ 87%] Building CXX object src/CMakeFiles/llama.dir/models/mamba2.cpp.o
+[ 87%] Building CXX object src/CMakeFiles/llama.dir/models/mellum.cpp.o
+[ 87%] Building CXX object src/CMakeFiles/llama.dir/models/mimo2.cpp.o
+[ 89%] Building CXX object src/CMakeFiles/llama.dir/models/minicpm.cpp.o
+[ 89%] Building CXX object src/CMakeFiles/llama.dir/models/minicpm3.cpp.o
+[ 89%] Building CXX object src/CMakeFiles/llama.dir/models/minimax-m2.cpp.o
+[ 89%] Building CXX object src/CMakeFiles/llama.dir/models/mistral3.cpp.o
+[ 89%] Building CXX object src/CMakeFiles/llama.dir/models/mistral4.cpp.o
+[ 89%] Building CXX object src/CMakeFiles/llama.dir/models/modern-bert.cpp.o
+[ 89%] Building CXX object src/CMakeFiles/llama.dir/models/mpt.cpp.o
+[ 89%] Building CXX object src/CMakeFiles/llama.dir/models/nemotron-h-moe.cpp.o
+[ 90%] Building CXX object src/CMakeFiles/llama.dir/models/nemotron-h.cpp.o
+[ 90%] Building CXX object src/CMakeFiles/llama.dir/models/nemotron.cpp.o
+[ 90%] Building CXX object src/CMakeFiles/llama.dir/models/neo-bert.cpp.o
+[ 90%] Building CXX object src/CMakeFiles/llama.dir/models/nomic-bert-moe.cpp.o
+[ 90%] Building CXX object src/CMakeFiles/llama.dir/models/nomic-bert.cpp.o
+[ 90%] Building CXX object src/CMakeFiles/llama.dir/models/olmo.cpp.o
+[ 90%] Building CXX object src/CMakeFiles/llama.dir/models/olmo2.cpp.o
+[ 90%] Building CXX object src/CMakeFiles/llama.dir/models/olmoe.cpp.o
+[ 92%] Building CXX object src/CMakeFiles/llama.dir/models/openai-moe.cpp.o
+[ 92%] Building CXX object src/CMakeFiles/llama.dir/models/openelm.cpp.o
+[ 92%] Building CXX object src/CMakeFiles/llama.dir/models/orion.cpp.o
+[ 92%] Building CXX object src/CMakeFiles/llama.dir/models/paddleocr.cpp.o
+[ 92%] Building CXX object src/CMakeFiles/llama.dir/models/pangu-embed.cpp.o
+[ 92%] Building CXX object src/CMakeFiles/llama.dir/models/phi2.cpp.o
+[ 92%] Building CXX object src/CMakeFiles/llama.dir/models/phi3.cpp.o
+[ 92%] Building CXX object src/CMakeFiles/llama.dir/models/phimoe.cpp.o
+[ 93%] Building CXX object src/CMakeFiles/llama.dir/models/plamo.cpp.o
+[ 93%] Building CXX object src/CMakeFiles/llama.dir/models/plamo2.cpp.o
+[ 93%] Building CXX object src/CMakeFiles/llama.dir/models/plamo3.cpp.o
+[ 93%] Building CXX object src/CMakeFiles/llama.dir/models/plm.cpp.o
+[ 93%] Building CXX object src/CMakeFiles/llama.dir/models/qwen.cpp.o
+[ 93%] Building CXX object src/CMakeFiles/llama.dir/models/qwen2.cpp.o
+[ 93%] Building CXX object src/CMakeFiles/llama.dir/models/qwen2moe.cpp.o
+[ 93%] Building CXX object src/CMakeFiles/llama.dir/models/qwen2vl.cpp.o
+[ 95%] Building CXX object src/CMakeFiles/llama.dir/models/qwen3.cpp.o
+[ 95%] Building CXX object src/CMakeFiles/llama.dir/models/qwen35.cpp.o
+[ 95%] Building CXX object src/CMakeFiles/llama.dir/models/qwen35moe.cpp.o
+[ 95%] Building CXX object src/CMakeFiles/llama.dir/models/qwen3moe.cpp.o
+[ 95%] Building CXX object src/CMakeFiles/llama.dir/models/qwen3next.cpp.o
+[ 95%] Building CXX object src/CMakeFiles/llama.dir/models/qwen3vl.cpp.o
+[ 95%] Building CXX object src/CMakeFiles/llama.dir/models/qwen3vlmoe.cpp.o
+[ 95%] Building CXX object src/CMakeFiles/llama.dir/models/refact.cpp.o
+[ 96%] Building CXX object src/CMakeFiles/llama.dir/models/rnd1.cpp.o
+[ 96%] Building CXX object src/CMakeFiles/llama.dir/models/rwkv6-base.cpp.o
+[ 96%] Building CXX object src/CMakeFiles/llama.dir/models/rwkv6.cpp.o
+[ 96%] Building CXX object src/CMakeFiles/llama.dir/models/rwkv6qwen2.cpp.o
+[ 96%] Building CXX object src/CMakeFiles/llama.dir/models/rwkv7-base.cpp.o
+[ 96%] Building CXX object src/CMakeFiles/llama.dir/models/rwkv7.cpp.o
+[ 96%] Building CXX object src/CMakeFiles/llama.dir/models/seed-oss.cpp.o
+[ 96%] Building CXX object src/CMakeFiles/llama.dir/models/smallthinker.cpp.o
+[ 98%] Building CXX object src/CMakeFiles/llama.dir/models/smollm3.cpp.o
+[ 98%] Building CXX object src/CMakeFiles/llama.dir/models/stablelm.cpp.o
+[ 98%] Building CXX object src/CMakeFiles/llama.dir/models/starcoder.cpp.o
+[ 98%] Building CXX object src/CMakeFiles/llama.dir/models/starcoder2.cpp.o
+[ 98%] Building CXX object src/CMakeFiles/llama.dir/models/step35.cpp.o
+[ 98%] Building CXX object src/CMakeFiles/llama.dir/models/t5.cpp.o
+[ 98%] Building CXX object src/CMakeFiles/llama.dir/models/t5encoder.cpp.o
+[100%] Building CXX object src/CMakeFiles/llama.dir/models/talkie.cpp.o
+[100%] Building CXX object src/CMakeFiles/llama.dir/models/wavtokenizer-dec.cpp.o
+[100%] Building CXX object src/CMakeFiles/llama.dir/models/xverse.cpp.o
+[100%] Linking CXX static library libllama.a
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[100%] Built target llama
+gmake[3]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[3]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[  0%] Performing build step for 'vulkan-shaders-gen'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[  0%] Built target llama-ui-embed
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[  0%] Building CXX object common/CMakeFiles/llama-common-base.dir/build-info.cpp.o
+[  0%] Building CXX object vendor/cpp-httplib/CMakeFiles/cpp-httplib.dir/httplib.cpp.o
+gmake[5]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[5]: warning: jobserver unavailable: using -j1.  Add '+' to parent make rule.
+[  2%] Built target ggml-base
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[  2%] Provisioning UI assets
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[6]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[7]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+-- UI: running npm run build, output -> /mydata/JerryT/llama.cpp/build-unikraft-vk-server/tools/ui/dist
+gmake[7]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+[  5%] Built target ggml-cpu
+[100%] Built target vulkan-shaders-gen
+gmake[6]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[5]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+[  5%] Performing install step for 'vulkan-shaders-gen'
+-- Up-to-date: /mydata/JerryT/llama.cpp/build-unikraft-vk-server/Release/./vulkan-shaders-gen
+[  6%] Completed 'vulkan-shaders-gen'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[  8%] Built target vulkan-shaders-gen
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+
+> llama-ui@1.0.0 build
+> vite build
+
+[ 60%] Built target ggml-vulkan
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 60%] Built target ggml
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 60%] Linking CXX static library libllama-common-base.a
+[ 86%] Built target llama
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 86%] Built target llama-common-base
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 86%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/mtmd-helper.cpp.o
+[ 86%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/clip.cpp.o
+[ 88%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/mtmd-audio.cpp.o
+[ 88%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/mtmd-image.cpp.o
+[ 88%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/cogvlm.cpp.o
+[ 88%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/mtmd.cpp.o
+[ 88%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/conformer.cpp.o
+[36mvite v7.3.2 [32mbuilding ssr environment for production...[36m[39m
+transforming...
+[ 88%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/dotsocr.cpp.o
+[ 88%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/exaone4_5.cpp.o
+[ 89%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/gemma4a.cpp.o
+[ 89%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/gemma4v.cpp.o
+[ 89%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/glm4v.cpp.o
+[ 89%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/granite-speech.cpp.o
+[ 89%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/hunyuanvl.cpp.o
+[ 89%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/internvl.cpp.o
+[ 89%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/kimivl.cpp.o
+[ 89%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/kimik25.cpp.o
+[ 90%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/nemotron-v2-vl.cpp.o
+[ 90%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/llama4.cpp.o
+[ 90%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/llava.cpp.o
+[ 90%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/minicpmv.cpp.o
+[ 90%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/paddleocr.cpp.o
+[ 90%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/pixtral.cpp.o
+[ 90%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/qwen2vl.cpp.o
+[ 90%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/qwen3vl.cpp.o
+[ 92%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/mimovl.cpp.o
+[ 92%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/qwen3a.cpp.o
+[ 92%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/step3vl.cpp.o
+[ 92%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/siglip.cpp.o
+[ 92%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/whisper-enc.cpp.o
+[ 92%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/deepseekocr.cpp.o
+[ 92%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/deepseekocr2.cpp.o
+[ 93%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/mobilenetv5.cpp.o
+[ 93%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/youtuvl.cpp.o
+[ 93%] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/yasa2.cpp.o
+[ 93%] Linking CXX static library libmtmd.a
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 93%] Built target mtmd
+[ 93%] Linking CXX static library libcpp-httplib.a
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 93%] Built target cpp-httplib
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 93%] Building CXX object common/CMakeFiles/llama-common.dir/chat-auto-parser-generator.cpp.o
+[ 93%] Building CXX object common/CMakeFiles/llama-common.dir/chat-auto-parser-helpers.cpp.o
+[ 93%] Building CXX object common/CMakeFiles/llama-common.dir/arg.cpp.o
+[ 93%] Building CXX object common/CMakeFiles/llama-common.dir/chat-peg-parser.cpp.o
+[ 94%] Building CXX object common/CMakeFiles/llama-common.dir/chat.cpp.o
+[ 94%] Building CXX object common/CMakeFiles/llama-common.dir/chat-diff-analyzer.cpp.o
+[ 94%] Building CXX object common/CMakeFiles/llama-common.dir/common.cpp.o
+[32m✓[39m 4825 modules transformed.
+rendering chunks...
+[36mvite v7.3.2 [32mbuilding client environment for production...[36m[39m
+transforming...
+[ 94%] Building CXX object common/CMakeFiles/llama-common.dir/console.cpp.o
+[ 94%] Building CXX object common/CMakeFiles/llama-common.dir/debug.cpp.o
+[ 94%] Building CXX object common/CMakeFiles/llama-common.dir/download.cpp.o
+[ 94%] Building CXX object common/CMakeFiles/llama-common.dir/fit.cpp.o
+[ 94%] Building CXX object common/CMakeFiles/llama-common.dir/hf-cache.cpp.o
+[ 96%] Building CXX object common/CMakeFiles/llama-common.dir/json-schema-to-grammar.cpp.o
+[ 96%] Building CXX object common/CMakeFiles/llama-common.dir/llguidance.cpp.o
+[ 96%] Building CXX object common/CMakeFiles/llama-common.dir/log.cpp.o
+[ 96%] Building CXX object common/CMakeFiles/llama-common.dir/ngram-cache.cpp.o
+[ 96%] Building CXX object common/CMakeFiles/llama-common.dir/ngram-map.cpp.o
+[ 96%] Building CXX object common/CMakeFiles/llama-common.dir/peg-parser.cpp.o
+[ 96%] Building CXX object common/CMakeFiles/llama-common.dir/preset.cpp.o
+[ 97%] Building CXX object common/CMakeFiles/llama-common.dir/regex-partial.cpp.o
+[ 97%] Building CXX object common/CMakeFiles/llama-common.dir/reasoning-budget.cpp.o
+[ 97%] Building CXX object common/CMakeFiles/llama-common.dir/sampling.cpp.o
+[ 97%] Building CXX object common/CMakeFiles/llama-common.dir/speculative.cpp.o
+[32m✓[39m 5961 modules transformed.
+rendering chunks...
+computing gzip size...
+[2m.svelte-kit/output/client/[22m[32m_app/version.json                          [39m[1m[2m    0.02 kB[22m[1m[22m[2m │ gzip:     0.04 kB[22m
+[2m.svelte-kit/output/client/[22m[32m.vite/manifest.json                        [39m[1m[2m    0.30 kB[22m[1m[22m[2m │ gzip:     0.19 kB[22m
+[2m.svelte-kit/output/client/[22m[35m_app/immutable/assets/bundle.D7dBxY5D.css  [39m[1m[2m  511.63 kB[22m[1m[22m[2m │ gzip:   289.45 kB[22m
+[2m.svelte-kit/output/client/[22m[36m_app/immutable/bundle.CURokelv.js          [39m[1m[33m5,301.70 kB[39m[22m[2m │ gzip: 1,587.68 kB[22m
+[32m✓ built in 27.58s[39m
+✓ Inlined favicon.svg as base64 data URL
+✓ Updated index.html
+[2m.svelte-kit/output/server/[22m[32m.vite/manifest.json                                     [39m[1m[2m 11.63 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[35m_app/immutable/assets/_page.CV-KWLNP.css                [39m[1m[2m  0.29 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[35m_app/immutable/assets/DialogConfirmation.bHHIbcsu.css   [39m[1m[2m  0.35 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[35m_app/immutable/assets/_layout.BlWqTsQV.css              [39m[1m[2m130.59 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[35m_app/immutable/assets/sidebar-menu-button.C6kWnTzR.css  [39m[1m[2m380.05 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/environment.js                                   [39m[1m[2m  0.07 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/api-key-validation.js                            [39m[1m[2m  0.19 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/server.js                                        [39m[1m[2m  0.20 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/(chat)/_page.ts.js                        [39m[1m[2m  0.29 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/(chat)/chat/_id_/_page.ts.js              [39m[1m[2m  0.31 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/arrow-right.js                                   [39m[1m[2m  0.31 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36minternal.js                                             [39m[1m[2m  0.37 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/refresh-cw.js                                    [39m[1m[2m  0.44 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/utils.js                                         [39m[1m[2m  0.60 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/settings/_layout.svelte.js                [39m[1m[2m  0.85 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/ui.js                                            [39m[1m[2m  0.86 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/(chat)/_page.svelte.js                    [39m[1m[2m  1.06 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/settings.js                                      [39m[1m[2m  1.12 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/trash-2.js                                       [39m[1m[2m  1.16 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/(chat)/chat/_id_/_page.svelte.js          [39m[1m[2m  1.21 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/exports.js                                       [39m[1m[2m  1.46 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/url.js                                           [39m[1m[2m  1.60 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/input.js                                         [39m[1m[2m  1.62 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/label.js                                         [39m[1m[2m  1.78 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/render-context.js                                [39m[1m[2m  1.81 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/internal.js                                      [39m[1m[2m  2.58 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/DialogModelNotAvailable.js                       [39m[1m[2m  2.70 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/index2.js                                        [39m[1m[2m  3.41 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/dialog-footer.js                                 [39m[1m[2m  5.64 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/_error.svelte.js                          [39m[1m[2m  8.50 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/mcp-servers/_page.svelte.js               [39m[1m[2m  9.30 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/McpServerIdentity.js                             [39m[1m[2m 10.27 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mremote-entry.js                                         [39m[1m[2m 14.02 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/shared.js                                        [39m[1m[2m 15.12 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/popper-layer-force-mount.js                      [39m[1m[2m 15.40 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/conversations.svelte.js                          [39m[1m[2m 16.82 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/index.js                                         [39m[1m[2m 20.65 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/ActionIcon.js                                    [39m[1m[2m 22.76 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/DialogConfirmation.js                            [39m[1m[2m 34.81 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/_layout.svelte.js                         [39m[1m[2m 37.78 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/root.js                                          [39m[1m[2m 40.11 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/url2.js                                          [39m[1m[2m 50.18 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mindex.js                                                [39m[1m[2m 57.10 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/chat.svelte.js                                   [39m[1m[2m 58.63 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/settings/__section__/_page.svelte.js      [39m[1m[2m 68.11 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/sidebar-menu-button.js                           [39m[1m[2m137.57 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/(chat)/_layout.svelte.js                  [39m[1m[2m258.57 kB[22m[1m[22m
+[32m✓ built in 47.75s[39m
+
+Run [1m[36mnpm run preview[22m[39m to preview your production build locally.
+[1m[36m
+> Using @sveltejs/adapter-static[22m[39m
+[ 97%] Linking CXX static library libllama-common.a
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 98%] Built target llama-common
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 98%] Building CXX object tools/server/CMakeFiles/server-context.dir/server-task.cpp.o
+[ 98%] Building CXX object tools/server/CMakeFiles/server-context.dir/server-chat.cpp.o
+[ 98%] Building CXX object tools/server/CMakeFiles/server-context.dir/server-common.cpp.o
+[ 98%] Building CXX object tools/server/CMakeFiles/server-context.dir/server-queue.cpp.o
+[100%] Building CXX object tools/server/CMakeFiles/server-context.dir/server-context.cpp.o
+[100%] Building CXX object tools/server/CMakeFiles/server-context.dir/server-tools.cpp.o
+[1m[33mOverwriting /mydata/JerryT/llama.cpp/build-unikraft-vk-server/tools/ui/dist/index.html with fallback page. Consider using a different name for the fallback.[22m[39m
+  Wrote site to "/mydata/JerryT/llama.cpp/build-unikraft-vk-server/tools/ui/dist"
+  [32m✔ done[39m
+✓ Inlined favicon.svg as base64 data URL
+✓ Updated index.html
+✓ Copied bundle.CURokelv.js -> bundle.js
+✓ Copied bundle.D7dBxY5D.css -> bundle.css
+✓ Removed _app directory
+✓ Removed favicon.svg
+-- UI: npm build succeeded
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[100%] Built target llama-ui-assets
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[100%] Building CXX object tools/ui/CMakeFiles/llama-ui.dir/ui.cpp.o
+[100%] Linking CXX static library libllama-ui.a
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[100%] Built target llama-ui
+[100%] Linking CXX static library libserver-context.a
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[100%] Built target server-context
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[100%] Building CXX object tools/server/CMakeFiles/llama-server-impl.dir/server-http.cpp.o
+[100%] Building CXX object tools/server/CMakeFiles/llama-server-impl.dir/server.cpp.o
+[100%] Building CXX object tools/server/CMakeFiles/llama-server-impl.dir/server-models.cpp.o
+[100%] Linking CXX static library libllama-server-impl.a
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[100%] Built target llama-server-impl
+gmake[3]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[1]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+CMAKE_BUILD_TYPE=Release
+-- Setting GGML_NATIVE_DEFAULT to OFF
+-- ccache found, compilation results will be cached. Disable with GGML_CCACHE=OFF.
+-- CMAKE_SYSTEM_PROCESSOR: x86_64
+-- GGML_SYSTEM_ARCH: x86
+-- Including CPU backend
+-- x86 detected
+-- Adding CPU backend variant ggml-cpu:  
+-- Vulkan found
+-- GL_KHR_cooperative_matrix supported by glslc
+-- GL_NV_cooperative_matrix2 not supported by glslc
+-- GL_NV_cooperative_matrix_decode_vector not supported by glslc
+-- GL_EXT_integer_dot_product not supported by glslc
+-- GL_EXT_bfloat16 not supported by glslc
+-- Host compiler: /usr/bin/gcc /usr/bin/g++
+-- vulkan-shaders-gen toolchain file: /mydata/JerryT/llama.cpp/build-unikraft-vk-server/host-toolchain.cmake
+-- Including Vulkan backend
+-- ggml version: 0.13.1
+-- ggml commit:  9e58d4d69
+-- OpenSSL found: 3.0.13
+-- UI: building llama-ui-embed with host compiler /usr/bin/g++
+-- Generating embedded license file for target: llama-app
+-- Configuring done (1.2s)
+-- Generating done (0.3s)
+-- Build files have been written to: /mydata/JerryT/llama.cpp/build-unikraft-vk-server
+gmake[1]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[3]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[100%] Built target ggml-base
+gmake[3]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[3]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 50%] Built target ggml-base
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[100%] Built target ggml-cpu
+gmake[3]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[3]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[  0%] Performing build step for 'vulkan-shaders-gen'
+[  4%] Built target ggml-base
+gmake[5]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[5]: warning: jobserver unavailable: using -j1.  Add '+' to parent make rule.
+gmake[6]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[7]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[7]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+[100%] Built target vulkan-shaders-gen
+gmake[6]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[5]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+[  4%] Performing install step for 'vulkan-shaders-gen'
+-- Up-to-date: /mydata/JerryT/llama.cpp/build-unikraft-vk-server/Release/./vulkan-shaders-gen
+[  6%] Completed 'vulkan-shaders-gen'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[  9%] Built target vulkan-shaders-gen
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[100%] Built target ggml-vulkan
+gmake[3]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[3]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[  0%] Performing build step for 'vulkan-shaders-gen'
+[  3%] Built target ggml-base
+gmake[5]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[5]: warning: jobserver unavailable: using -j1.  Add '+' to parent make rule.
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[6]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[7]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+[  6%] Built target ggml-cpu
+gmake[7]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+[100%] Built target vulkan-shaders-gen
+gmake[6]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[5]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+[  6%] Performing install step for 'vulkan-shaders-gen'
+-- Up-to-date: /mydata/JerryT/llama.cpp/build-unikraft-vk-server/Release/./vulkan-shaders-gen
+[  7%] Completed 'vulkan-shaders-gen'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[  9%] Built target vulkan-shaders-gen
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 69%] Built target ggml-vulkan
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 69%] Built target ggml
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[100%] Built target llama
+gmake[3]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[3]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[  0%] Performing build step for 'vulkan-shaders-gen'
+[  0%] Built target llama-ui-embed
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[  0%] Built target cpp-httplib
+[  0%] Built target llama-common-base
+[  2%] Built target ggml-base
+gmake[5]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[5]: warning: jobserver unavailable: using -j1.  Add '+' to parent make rule.
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[  2%] Provisioning UI assets
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[6]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[7]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[7]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+[  5%] Built target ggml-cpu
+-- UI: npm output up-to-date, skipping build
+[100%] Built target vulkan-shaders-gen
+gmake[6]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+gmake[5]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build'
+[  5%] Performing install step for 'vulkan-shaders-gen'
+-- Up-to-date: /mydata/JerryT/llama.cpp/build-unikraft-vk-server/Release/./vulkan-shaders-gen
+[  6%] Completed 'vulkan-shaders-gen'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[  8%] Built target vulkan-shaders-gen
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 60%] Built target ggml-vulkan
+[ 60%] Built target llama-ui-assets
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 60%] Built target ggml
+[ 60%] Built target llama-ui
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 86%] Built target llama
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[ 92%] Built target llama-common
+[ 98%] Built target mtmd
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[100%] Built target server-context
+gmake[4]: Entering directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[4]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+[100%] Built target llama-server-impl
+gmake[3]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[2]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'
+gmake[1]: Leaving directory '/mydata/JerryT/llama.cpp/build-unikraft-vk-server'

@@ -1,6 +1,6 @@
 # llm.server.vk Phase-2 gate
 
-Generated: `2026-06-03T12:32:01.278864Z`
+Generated: `2026-06-03T17:04:41.721144Z`
 
 ## Static
 

@@ -1,6 +1,6 @@
 # Unikraft Image Size
 
-Generated: `2026-06-03T12:26:07.895339Z`
+Generated: `2026-06-03T17:01:51.170297Z`
 
 | Appliance | Row | Image | Status | Size |
 |---|---|---|---|---|
@@ -9,4 +9,4 @@ Generated: `2026-06-03T12:26:07.895339Z`
 | llama-cpu-bench | `llm.bench.cpu` | `.unikraft/build/vogue-llama-upstream-bench_qemu-x86_64` | `pass` | 3.33 MiB |
 | llama-cpu-server | `llm.server.cpu` | `.unikraft/build/vogue-llama-upstream-server_qemu-x86_64` | `pass` | 3.27 MiB |
 | llama-vk-bench | `llm.bench.vk` | `.unikraft/build/vogue-llama-upstream-vk_qemu-x86_64` | `pass` | 24.16 MiB |
-| llama-vk-server | `llm.server.vk` | `.unikraft/build/vogue-llama-upstream-vk-server_qemu-x86_64` | `pass` | 28.40 MiB |
+| llama-vk-server | `llm.server.vk` | `.unikraft/build/vogue-llama-upstream-vk-server_qemu-x86_64` | `pass` | 28.49 MiB |

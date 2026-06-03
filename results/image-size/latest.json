@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-03T12:26:07.895339Z",
+    "generated_utc": "2026-06-03T17:01:51.170297Z",
     "source": "scripts/image_size_check.py",
     "principle": "Unikraft single-purpose images carry only the linked-in source per Kconfig mode (see paper \u00a77)."
   },
@@ -49,8 +49,8 @@
       "name": "llama-vk-server",
       "row": "llm.server.vk",
       "image": ".unikraft/build/vogue-llama-upstream-vk-server_qemu-x86_64",
-      "size_bytes": 29774968,
-      "size_human": "28.40 MiB",
+      "size_bytes": 29869176,
+      "size_human": "28.49 MiB",
       "status": "pass"
     }
   ]

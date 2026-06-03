@@ -11,7 +11,7 @@
     [Fence latency (llvmpipe)], [`20 µs avg`], [Empty cmd submit + vkWaitForFences],
     [Device extensions], [`161`], [llvmpipe VkDevice extension count],
     [vkmark port (vk.drm-shim+vk.icd)], [`pass`], [Unikraft app-vkmark substrate: vk.drm-shim+vk.icd init, 10 scenes documented],
-    [Venus ring substrate], [`pass`], [host-visible blob copy 8072.85 MiB/s in native fake backend],
+    [Venus ring substrate], [`pass`], [host-visible blob copy 7550.13 MiB/s in native fake backend],
     [vkmark clear baseline], [`~3,200 fps`], [llvmpipe host reference (not Unikraft)],
     [NVIDIA clear baseline], [`~85,000 fps`], [RTX 4000 Ada host reference (not Unikraft)],
     [Venus/Unikraft vkmark fps], [`blocked:no-render-payload`], [Requires non-empty render payloads plus frame proof; substrate is PASS],
