@@ -1,16 +1,19 @@
 # libukggml_vulkan — ggml-vulkan Static Dispatch for Unikraft
 
-`libukggml_vk` is the source directory for the Unikraft library symbol `CONFIG_LIBUKGGML_VULKAN`.
-`libukggml_vulkan` is the Unikraft-side Vulkan dispatch layer for upstream
-`ggml-vulkan.cpp`. It replaces the Linux Vulkan loader/`dlopen` path with a
-static `vkGetInstanceProcAddr` table and routes the pinned ggml-vulkan compute
-API surface through `libukvenus` and VirtIO-GPU `SUBMIT_3D`.
+`libukggml_vk` (Unikraft library symbol `CONFIG_LIBUKGGML_VULKAN`) is the
+Unikraft-side Vulkan dispatch layer for upstream `ggml-vulkan.cpp`. It replaces
+the Linux Vulkan loader/`dlopen` path with a static `vkGetInstanceProcAddr`
+table and routes the pinned ggml-vulkan compute API surface through `libukvenus`
+and VirtIO-GPU `SUBMIT_3D`. The `libukvenus` encoders it drives are generated
+from the pinned `../venus-protocol` and parity-locked (see
+`libs/libukvenus/GENERATOR.md`).
 
 ## Current state
 
-- **API coverage:** `scripts/llama_vulkan_api_coverage.py --check` compares
-  `/home/jerrytsai/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan.cpp` with
-  `uk_vulkan_dispatch.c`. Current result: all required pinned ggml-vulkan APIs
+- **API coverage:** `scripts/llama_vulkan_api_coverage.py --check` compares the
+  sibling `../llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan.cpp` (resolved via
+  `LLAMA_ROOT`) with `uk_vulkan_dispatch.c`. Current result: all required pinned
+  ggml-vulkan APIs
   are present; optional debug/cooperative-matrix/timing APIs remain non-claiming.
 - **Native substrate:** `vk.ggml-dispatch` passes. The native test exercises
   proc lookup, Vulkan-Hpp bootstrap, descriptor updates, copy/fill commands,
