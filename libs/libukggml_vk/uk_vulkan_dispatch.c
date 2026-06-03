@@ -291,6 +291,7 @@ void uk_ggml_vulkan_dispatch_get_info(struct uk_ggml_vulkan_dispatch_info *out)
     if (!out)
         return;
     out->batch_enabled     = g_batch_enabled;
+    out->ring_enabled      = g_ring_enabled && g_ring_ready;
     /* The fixed-blob window is set when the underlying VirtIO-GPU device
      * supports it. We probe the metrics counter for a host_blob_mapped
      * marker once the real driver records it; for now leave it zero so

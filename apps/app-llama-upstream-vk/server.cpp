@@ -54,7 +54,7 @@ static int llama_server_main(void)
     uk_ggml_vulkan_dispatch_get_info(&info);
     uk_printf("uk-llama-upstream-vk-server: READY model=/mnt/model/model.gguf threads=%d backend=vulkan "
               "slots=%d ctx_per_slot=%d batch_size=%d ubatch_size=%d prompt_cache=%d "
-              "batch_enabled=%d hostmem_fixed=%d mode=single-app no_fork_exec=1\n",
+              "batch_enabled=%d ring_enabled=%d hostmem_fixed=%d mode=single-app no_fork_exec=1\n",
               CONFIG_APP_LLAMA_UPSTREAM_VK_THREADS,
               CONFIG_APP_LLAMA_UPSTREAM_VK_PARALLEL,
               CONFIG_APP_LLAMA_UPSTREAM_VK_CTX,
@@ -62,6 +62,7 @@ static int llama_server_main(void)
               CONFIG_APP_LLAMA_UPSTREAM_VK_UBATCH,
               CONFIG_APP_LLAMA_UPSTREAM_VK_PROMPT_CACHE,
               info.batch_enabled,
+              info.ring_enabled,
               info.hostmem_fixed);
 
     /* Release the readiness-probe model; the upstream server below reloads it

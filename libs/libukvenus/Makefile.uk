@@ -3,6 +3,7 @@ $(eval $(call addlib,libukvenus))
 LIBUKVENUS_SRCS-y += $(LIBUKVENUS_BASE)/venus_cs.c
 LIBUKVENUS_SRCS-y += $(LIBUKVENUS_BASE)/venus_init.c
 LIBUKVENUS_SRCS-y += $(LIBUKVENUS_BASE)/venus_compute.c
+LIBUKVENUS_SRCS-y += $(LIBUKVENUS_BASE)/vn_ring_shim.c
 
 LIBUKVENUS_CINCLUDES-y += -I$(LIBUKVENUS_BASE)/include
 LIBUKVENUS_CINCLUDES-y += -I$(LIBUKVIRTIO_GPU_BASE)/include

@@ -68,6 +68,7 @@ PFN_uk_vkGetInstanceProcAddr uk_ggml_vulkan_get_proc_addr_fn(void);
  */
 struct uk_ggml_vulkan_dispatch_info {
     int      batch_enabled;
+    int      ring_enabled;    /* 1 when ring stream model is active */
     int      hostmem_fixed;
     uint32_t wanted_extensions;
 };

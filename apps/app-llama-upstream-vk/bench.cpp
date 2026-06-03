@@ -79,12 +79,13 @@ int main(void)
 
     struct uk_ggml_vulkan_dispatch_info info;
     uk_ggml_vulkan_dispatch_get_info(&info);
-    uk_printf("uk-llama-upstream-vk: config threads=%d n_ctx=%d n_batch=%d n_ubatch=%d batch_enabled=%d hostmem_fixed=%d\n",
+    uk_printf("uk-llama-upstream-vk: config threads=%d n_ctx=%d n_batch=%d n_ubatch=%d batch_enabled=%d ring_enabled=%d hostmem_fixed=%d\n",
               CONFIG_APP_LLAMA_UPSTREAM_VK_THREADS,
               cparams.n_ctx,
               cparams.n_batch,
               cparams.n_ubatch,
               info.batch_enabled,
+              info.ring_enabled,
               info.hostmem_fixed);
     uk_printf("uk-llama-upstream-vk: pp512=%.1f tg128=%.1f\n", pp512, tg128);
     uk_puts("uk-llama-upstream-vk: PASS evidence_id=llama-upstream-vk\n");
