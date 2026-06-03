@@ -49,12 +49,15 @@ through the Linux-ABI shims (`libukdrm_compat`, `libukgbm_compat`, `libukegl`).
   in the same run; a `blocked:*` row is a documented blocker, never throughput
   or acceleration evidence (see *Evidence & Claim Discipline*).
 
-### Current stage (2026-06-02)
+### Current stage (2026-06-03)
 
 On the evaluation host (QEMU 11.0.1 `virtio-gpu-gl-pci,blob=true,venus=true`,
 Venus-enabled virglrenderer, Tesla V100 render node) the 27-row evaluation
 matrix is **27/27 PASS, 0 blocked** (`results/vogue_evaluation_matrix.md`).
-Highlights:
+Device-backing memory now flows through the upstream Unikraft `uksglist`
+(scatter-gather) + `ukalloc` (`uk_posix_memalign`) libraries directly — there is
+no first-party DMA library — and every appliance below was rebuilt and
+re-verified on that stack. Highlights:
 
 * **llama.cpp Vulkan bench** runs end-to-end on the GPU via real Venus
   (`pp512=2232.1`, `tg128=160.2` t/s, latest same-run artifact).
@@ -67,8 +70,9 @@ Highlights:
   (`--parallel 4`), `--ctx-size = parallel × per-slot`, prompt cache, and
   `--flash-attn off` (the V100 has no Vulkan coopmat2). Throughput is
   **measured** by `make llm-server-vk-throughput-check`: latest same-run
-  **decode 140.6 tok/s** (88 % of the in-guest Vulkan bench `tg128=160`),
-  prefill 866 tok/s. A stock-Linux-guest-over-Venus baseline
+  **decode 120.8 tok/s** (75 % of the in-guest Vulkan bench `tg128=160`),
+  prefill 757 tok/s, TTFT 1.18 s (`results/llama/server_vk_throughput.json`).
+  A stock-Linux-guest-over-Venus baseline
   (`make linux-guest-vk-baseline`) shows the headroom is in VOGUE's guest-side
   stack, not the Venus transport — see *Performance vs native* below.
 * **Graphics**: `xport.qemu-vgpu`, `proto.venus-ring`, `gfx.kmscube.submit`,
@@ -310,8 +314,8 @@ three environments — two are para-virtualised over the **identical**
 
 | Metric | ① Bare-metal host | ② Linux guest + Venus (QEMU) | ③ VOGUE Unikraft + Venus |
 |---|---|---|---|
-| `pp512` prefill | 5586.9 t/s | **4948.2 t/s** | bench 2232.1 · server 865.7 |
-| `tg128` decode | 239.2 t/s | **323.6 t/s** | bench 160.2 · **server 140.6** |
+| `pp512` prefill | 5586.9 t/s | **4948.2 t/s** | bench 2232.1 · server 757.2 |
+| `tg128` decode | 239.2 t/s | **323.6 t/s** | bench 160.2 · **server 120.8** |
 
 **What the Linux-guest baseline reveals.** A *stock Linux guest* over the same
 Venus path reaches ~89 % of bare-metal prefill and matches/exceeds its decode
@@ -322,7 +326,7 @@ guest stack rides it at near-native speed. The Unikraft port currently reaches
 lives in **VOGUE's own guest-side stack** (the `libukvenus` encoder + the
 `libukggml_vk` static dispatch vs Mesa's mature Venus ICD, plus the single guest
 vCPU), which is real optimisation headroom — not an unavoidable virtualisation
-tax. Within the Unikraft image, the **server decode rate (140.6 t/s) is 88 % of
+tax. Within the Unikraft image, the **server decode rate (120.8 t/s) is 75 % of
 its own bench (160.2)**, so the HTTP request path itself is efficient; the work
 is in the dispatch/encoder layer and in guest SMP (`plan-optimize.md` Phase 3).
 
