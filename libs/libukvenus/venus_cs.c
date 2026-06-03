@@ -99,30 +99,6 @@ void uk_venus_encode_uint64(struct uk_venus_encoder *enc, uint64_t v)
 	enc->pos += sizeof(v);
 }
 
-/* size_t on 64-bit is 8 bytes; Mesa's vn_encode_size_t always uses uint64. */
-void uk_venus_encode_size(struct uk_venus_encoder *enc, uint64_t v)
-{
-	uk_venus_encode_uint64(enc, v);
-}
-
-/*
- * uk_venus_encode_array_size — encode an array presence/count field.
- *
- * Mesa's vn_encode_array_size() writes uint64_t.  A value of 0 means the
- * array pointer is absent/NULL; a non-zero value is the element count.
- */
-void uk_venus_encode_array_size(struct uk_venus_encoder *enc, uint64_t n)
-{
-	uk_venus_encode_uint64(enc, n);
-}
-
-void uk_venus_encode_float32(struct uk_venus_encoder *enc, float v)
-{
-	uint32_t bits;
-	memcpy(&bits, &v, sizeof(bits));
-	uk_venus_encode_uint32(enc, bits);
-}
-
 void uk_venus_encode_cstring(struct uk_venus_encoder *enc, const char *s)
 {
 	if (!s) {
@@ -143,13 +119,6 @@ void uk_venus_encode_cstring(struct uk_venus_encoder *enc, const char *s)
 void uk_venus_encode_pointer_flag(struct uk_venus_encoder *enc, int present)
 {
 	uk_venus_encode_uint64(enc, present ? VN_PTR_PRESENT : VN_PTR_NULL);
-}
-
-void uk_venus_encode_command_header(struct uk_venus_encoder *enc,
-				    uint32_t cmd_type, uint32_t flags)
-{
-	uk_venus_encode_uint32(enc, cmd_type);
-	uk_venus_encode_uint32(enc, flags);
 }
 
 /* ggml uses a single physical device; bound the marshalling array. */

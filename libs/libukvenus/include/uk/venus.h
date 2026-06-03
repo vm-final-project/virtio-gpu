@@ -188,20 +188,16 @@ size_t uk_venus_encoder_size(const struct uk_venus_encoder *enc);
 /* Returns non-zero if any write overflowed the buffer. */
 int uk_venus_encoder_overflow(const struct uk_venus_encoder *enc);
 
-/* Low-level write helpers — used by encode functions below. */
+/* Low-level write helpers. uint32/uint64/bytes back the vn_cs.h shim and the
+ * ring shared-memory layout writes in venus_init.c; cstring/pointer_flag remain
+ * for the encoder primitive tests. */
 void uk_venus_encode_uint32(struct uk_venus_encoder *enc, uint32_t v);
 void uk_venus_encode_uint64(struct uk_venus_encoder *enc, uint64_t v);
-/* Encode a size_t as uint64 (Venus targets 64-bit; vn_encode_size_t = uint64). */
-void uk_venus_encode_size(struct uk_venus_encoder *enc, uint64_t v);
-void uk_venus_encode_float32(struct uk_venus_encoder *enc, float v);
 void uk_venus_encode_bytes(struct uk_venus_encoder *enc,
 			   const void *src, size_t len);
 void uk_venus_encode_cstring(struct uk_venus_encoder *enc, const char *s);
 /* pointer presence: uint64_t (0=absent, 1=present) */
 void uk_venus_encode_pointer_flag(struct uk_venus_encoder *enc, int present);
-/* array presence/count: uint64_t (0=NULL, n=element count) — matches Mesa vn_encode_array_size */
-void uk_venus_encode_array_size(struct uk_venus_encoder *enc, uint64_t n);
-void uk_venus_encode_command_header(struct uk_venus_encoder *enc, uint32_t cmd_type, uint32_t flags);
 
 
 /*
