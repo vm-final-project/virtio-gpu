@@ -148,10 +148,10 @@ $(BUILD)/vk_icd_bootstrap_test: vk_icd_bootstrap_test.c ../libs/libukvk_icd/vulk
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(BUILD)/venus_cs_test: venus_cs_test.c ../libs/libukvenus/venus_cs.c ../libs/libukvenus/venus_init.c ../libs/libukvenus/venus_compute.c ./virtio_gpu_fake.c | $(BUILD)
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $(GEN_CFLAGS) $^ -o $@
 
 $(BUILD)/venus_compute_test: venus_compute_test.c ../libs/libukvenus/venus_cs.c ../libs/libukvenus/venus_compute.c | $(BUILD)
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $(GEN_CFLAGS) $^ -o $@
 
 venus-compute: $(BUILD)/venus_compute_test
 	./$(BUILD)/venus_compute_test
@@ -196,7 +196,7 @@ $(BUILD)/ggml_vk_dispatch_test: ggml_vk_dispatch_test.c \
 	../libs/libukvenus/venus_cs.c \
 	../libs/libukvenus/venus_compute.c \
 	./virtio_gpu_fake.c | $(BUILD)
-	$(CC) $(CFLAGS) -Wno-unused-parameter $^ -o $@
+	$(CC) $(CFLAGS) $(GEN_CFLAGS) $^ -o $@
 
 n3-dispatch: $(BUILD)/ggml_vk_dispatch_test
 	./$(BUILD)/ggml_vk_dispatch_test

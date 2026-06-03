@@ -203,16 +203,6 @@ void uk_venus_encode_pointer_flag(struct uk_venus_encoder *enc, int present);
 void uk_venus_encode_array_size(struct uk_venus_encoder *enc, uint64_t n);
 void uk_venus_encode_command_header(struct uk_venus_encoder *enc, uint32_t cmd_type, uint32_t flags);
 
-/*
- * Encode a VkApplicationInfo into the stream.
- * app_name and engine_name may be NULL.
- */
-void uk_venus_encode_VkApplicationInfo(struct uk_venus_encoder *enc,
-				       const char *app_name,
-				       uint32_t app_version,
-				       const char *engine_name,
-				       uint32_t engine_version,
-				       uint32_t api_version);
 
 /*
  * Encode vkCreateInstance into the stream.

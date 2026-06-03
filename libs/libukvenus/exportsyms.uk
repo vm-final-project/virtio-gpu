@@ -7,7 +7,6 @@ uk_venus_encode_uint64
 uk_venus_encode_bytes
 uk_venus_encode_cstring
 uk_venus_encode_pointer_flag
-uk_venus_encode_VkApplicationInfo
 uk_venus_encode_vkCreateInstance
 uk_venus_encode_vkEnumeratePhysicalDevices
 uk_venus_encode_vkCreateDevice
