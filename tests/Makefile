@@ -41,7 +41,7 @@ PROTO_HDR := ../libs/libukvirtio_gpu/virtio_gpu_proto.h
 JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
 MAKEFLAGS += --no-print-directory
 
-.PHONY: native test-core test-venus test-dispatch test-n3 proto-abi vulkan g5 venus-cs venus-compute venus-gen-compile virgl-enc n3-dispatch clean
+.PHONY: native test-core test-venus test-dispatch test-n3 proto-abi vulkan g5 venus-cs venus-compute venus-gen-compile venus-parity virgl-enc n3-dispatch clean
 
 NATIVE_BINS := \
 	$(BUILD)/dma_buf_test \
@@ -168,6 +168,15 @@ $(BUILD)/venus_generated_compile_test: venus_generated_compile_test.c \
 
 venus-gen-compile: $(BUILD)/venus_generated_compile_test
 	./$(BUILD)/venus_generated_compile_test
+
+$(BUILD)/venus_parity_test: venus_parity_test.c \
+	../libs/libukvenus/venus_cs.c ../libs/libukvenus/venus_init.c \
+	../libs/libukvenus/venus_compute.c ../libs/libukvenus/vn_ring_shim.c \
+	./virtio_gpu_fake.c | $(BUILD)
+	$(CC) $(CFLAGS) $(GEN_CFLAGS) $^ -o $@
+
+venus-parity: $(BUILD)/venus_parity_test
+	./$(BUILD)/venus_parity_test
 
 $(BUILD)/virgl_encoder_test: virgl_encoder_test.c ../libs/libukvirtio_gpu/virgl_encoder.c ./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) -I../libs/libukvenus/include $^ -o $@
