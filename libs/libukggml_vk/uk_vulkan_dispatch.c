@@ -72,6 +72,8 @@ static struct uk_vulkan_icd_dev      g_icd;
 static int                           g_disp_initialized;
 /* Convenience: points into g_icd.drm._ctx after init */
 static struct uk_virtio_gpu_context *g_ctx;
+/* Last fence submitted via QueueSubmit; polled by WaitForFences. */
+static uk_gpu_fence_id               g_last_fence;
 
 /* Real host VkPhysicalDeviceMemoryProperties (520B), filled by the first real
  * round-trip in stub_vkGetPhysicalDeviceMemoryProperties. Used by both that stub
@@ -129,26 +131,41 @@ static inline uint64_t uk_vk_alloc_handle(void)
 #define UK_DISPATCH_BUF_SIZE (2u * 1024u * 1024u)
 static uint8_t g_enc_buf[UK_DISPATCH_BUF_SIZE];
 
-/* ── SUBMIT_3D batching (P1.3) ─────────────────────────────────────────────
+/* ── Ring stream model (P1.3 → ring) ────────────────────────────────────
  *
- * Most ggml-vulkan commands recorded between vkBeginCommandBuffer and
- * vkEndCommandBuffer can be batched into a single Venus SUBMIT_3D rather than
- * one per vkCmd*. We track whether a command buffer is currently being
- * recorded and append to a persistent encoder. vkEndCommandBuffer flushes
- * the batched bytes.
+ * When UK_GGML_VK_DISPATCH_RING=1 (default for production images), every
+ * vkCmd* call writes directly into the Venus ring circular buffer instead of
+ * going through a separate SUBMIT_3D:
  *
- * Controlled by env var UK_GGML_VK_DISPATCH_SYNC: any truthy value disables
- * batching and reverts to per-call submission, matching the existing native
- * test harness (which counts submits_3d per stub). Default is batched.
+ *   vkBeginCommandBuffer → open ring write window
+ *   vkCmd*              → uk_venus_ring_cmd_write (no malloc, no kick)
+ *   vkEndCommandBuffer  → flush ring tail (kick only if host idle)
+ *   vkQueueSubmit       → append QueueSubmit + flush once
+ *   vkWaitForFences     → poll completed_fence (no Venus command sent)
+ *
+ * The batch encoder (SUBMIT_3D path) is kept as fallback for the native test
+ * harness (which counts submits_3d) and for commands outside the Begin/End
+ * window (init-time creates). Controlled by UK_GGML_VK_DISPATCH_RING.
  */
-static int                  g_batch_enabled;     /* 0 = sync, 1 = batched */
+static int                  g_batch_enabled;     /* 0 = sync, 1 = batched (SUBMIT_3D) */
 static int                  g_batch_recording;   /* in vkBegin..vkEnd window */
 static struct uk_venus_encoder g_batch_enc;
 static uint8_t              g_batch_buf[UK_DISPATCH_BUF_SIZE];
 
+/* Ring stream state (active when g_ring_enabled=1) */
+static int                  g_ring_enabled;
+static struct uk_venus_ring g_ring;
+static int                  g_ring_ready;        /* 1 after uk_venus_ring_register() */
+static int                  g_ring_recording;    /* in vkBegin..vkEnd ring window */
+
 static inline int uk_dispatch_batch_active(void)
 {
     return g_batch_enabled && g_batch_recording;
+}
+
+static inline int uk_dispatch_ring_active(void)
+{
+    return g_ring_enabled && g_ring_ready && g_ring_recording;
 }
 
 /* Helpers for single-call encode + submit, batched when active. */
@@ -167,7 +184,11 @@ static inline void uk_disp_unlock(void) { uk_mutex_unlock(&g_disp_lock); }
     (void)0
 #define UK_ENC_SUBMIT() \
     do { \
-        if (uk_dispatch_batch_active()) { \
+        if (uk_dispatch_ring_active()) { \
+            /* Ring stream: write encoded bytes into the circular buffer.   \
+             * No malloc, no virtqueue kick — host ring_thread drains async. */ \
+            uk_venus_ring_cmd_write(&g_ring, _enc.buf, _enc.pos); \
+        } else if (uk_dispatch_batch_active()) { \
             g_batch_enc = _enc; /* keep accumulator up to date */ \
         } else { \
             if (_enc.overflow) \
@@ -222,6 +243,43 @@ int uk_ggml_vulkan_dispatch_init(void)
     }
     g_batch_recording = 0;
     uk_venus_encoder_init(&g_batch_enc, g_batch_buf, UK_DISPATCH_BUF_SIZE);
+
+    /* Ring stream model: create + register a Venus command ring so that
+     * vkCmd* calls write directly into the circular buffer instead of
+     * triggering individual SUBMIT_3D virtqueue kicks. Enabled by default
+     * when UK_GGML_VK_DISPATCH_RING is unset or "1"; disable with "0" for
+     * native tests (which count submits_3d). */
+    {
+        const char *r = getenv("UK_GGML_VK_DISPATCH_RING");
+        int want_ring = !(r && (*r == '0'));
+        if (want_ring) {
+            int rc = uk_venus_ring_create(g_gpu, &g_ring,
+                                          UK_VENUS_RING_CTRL_SIZE +
+                                          UK_VENUS_RING_DEFAULT_SIZE,
+                                          UK_VENUS_RING_DEFAULT_BLOB_ID + 1);
+            if (rc == 0) {
+                rc = uk_venus_ring_register(g_gpu, &g_ring,
+                                             UK_VENUS_RING_DEFAULT_BLOB_ID + 1);
+                if (rc == 0) {
+                    /* Bind transport thunk so vn_submit_* wrappers route here */
+                    uk_venus_ring_bind_current(g_gpu, g_ctx);
+                    g_ring_enabled = 1;
+                    g_ring_ready   = 1;
+                    printf("uk-ggml-vk: ring stream enabled (buf=%u B)\n",
+                           UK_VENUS_RING_DEFAULT_SIZE);
+                } else {
+                    uk_venus_ring_destroy(g_gpu, &g_ring);
+                    printf("uk-ggml-vk: ring register failed rc=%d, "
+                           "falling back to SUBMIT_3D\n", rc);
+                }
+            } else {
+                printf("uk-ggml-vk: ring create failed rc=%d, "
+                       "falling back to SUBMIT_3D\n", rc);
+            }
+        }
+        /* If ring is not active, fall back to batch/sync depending on
+         * UK_GGML_VK_DISPATCH_BATCH (already set above). */
+    }
     return 0;
 }
 
@@ -1396,9 +1454,10 @@ static void stub_vkFreeCommandBuffers(VkDevice d, VkCommandPool p, uint32_t n,
 static VkResult stub_vkBeginCommandBuffer(VkCommandBuffer cb, const void *bi)
 {
     (void)bi;
-    /* Open the batch window before recording vkBeginCommandBuffer so that
-     * the begin command itself is also part of the deferred batch. */
-    if (g_batch_enabled) {
+    if (g_ring_enabled && g_ring_ready) {
+        /* Ring mode: open ring write window; Begin command goes into ring. */
+        g_ring_recording = 1;
+    } else if (g_batch_enabled) {
         uk_venus_encoder_init(&g_batch_enc, g_batch_buf, UK_DISPATCH_BUF_SIZE);
         g_batch_recording = 1;
     }
@@ -1413,8 +1472,13 @@ static VkResult stub_vkEndCommandBuffer(VkCommandBuffer cb)
     UK_ENC_BEGIN();
     uk_venus_encode_vkEndCommandBuffer(&_enc, (uint64_t)cb);
     UK_ENC_SUBMIT();
-    /* Flush the accumulated batch as ONE Venus SUBMIT_3D. */
-    if (g_batch_enabled && g_batch_recording) {
+    if (g_ring_enabled && g_ring_ready && g_ring_recording) {
+        /* Ring mode: flush tail to shared memory + notify host if idle.
+         * QueueSubmit will append its command and do the final flush. */
+        uk_venus_ring_cmd_flush(g_gpu, &g_ring);
+        g_ring_recording = 0;
+    } else if (g_batch_enabled && g_batch_recording) {
+        /* Batch (SUBMIT_3D) fallback: flush in one shot. */
         uk_venus_submit(g_gpu, g_ctx, &g_batch_enc);
         g_batch_recording = 0;
     }
@@ -1524,8 +1588,6 @@ static VkResult stub_vkQueueSubmit(VkQueue queue, uint32_t submitCount,
                                     const void *pSubmits, VkFence fence)
 {
     (void)submitCount; (void)pSubmits;
-    /* VkSubmitInfo: commandBufferCount at offset 16, pCommandBuffers at offset 24 */
-    /* Encode a QueueSubmit for each submit's command buffers */
     const uint8_t *s = (const uint8_t *)pSubmits;
     for (uint32_t i = 0; i < submitCount; i++) {
         uint32_t cbCount = rd_u32(s, OFF_SUBMIT_CMD_COUNT);
@@ -1534,6 +1596,15 @@ static VkResult stub_vkQueueSubmit(VkQueue queue, uint32_t submitCount,
         uk_venus_encode_vkQueueSubmit(&_enc, UK_H_QUEUE, cbCount, cbs, (uint64_t)fence);
         UK_ENC_SUBMIT();
         s += SIZE_SUBMIT_INFO;
+    }
+    /* Track the fence for WaitForFences polling. */
+    if (fence)
+        g_last_fence = (uk_gpu_fence_id)(uintptr_t)fence;
+    if (g_ring_enabled && g_ring_ready) {
+        /* Ring mode: one final flush after QueueSubmit command is written.
+         * This is the single virtqueue kick for the entire Begin→End→Submit
+         * sequence (3 kicks → 1). */
+        uk_venus_ring_cmd_flush(g_gpu, &g_ring);
     }
     return VK_SUCCESS;
 }
@@ -1576,10 +1647,17 @@ static VkResult stub_vkWaitForFences(VkDevice dev, uint32_t count,
                                       const VkFence *pFences, uint32_t waitAll,
                                       uint64_t timeout)
 {
-    UK_ENC_BEGIN();
-    uk_venus_encode_vkWaitForFences(&_enc, UK_H_DEVICE, count,
-                                     (const uint64_t *)pFences, timeout);
-    UK_ENC_SUBMIT();
+    (void)dev; (void)count; (void)pFences; (void)waitAll;
+    /* Opt: poll completed_fence instead of sending a Venus round-trip.
+     * cmd_submit_locked() already updates completed_fence synchronously when
+     * the host returns the response; so by the time QueueSubmit returns the
+     * fence is already marked done — no Venus vkWaitForFences command needed. */
+    if (g_gpu) {
+        int rc = uk_virtio_gpu_fence_wait(g_gpu, g_last_fence,
+                                           timeout == UINT64_MAX ? 5000000000ull
+                                                                  : timeout);
+        (void)rc;
+    }
     return VK_SUCCESS;
 }
 

@@ -195,6 +195,7 @@ $(BUILD)/ggml_vk_dispatch_test: ggml_vk_dispatch_test.c \
 	../libs/libukvenus/venus_init.c \
 	../libs/libukvenus/venus_cs.c \
 	../libs/libukvenus/venus_compute.c \
+	../libs/libukvenus/vn_ring_shim.c \
 	./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) $(GEN_CFLAGS) $^ -o $@
 
