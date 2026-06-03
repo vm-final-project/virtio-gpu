@@ -132,14 +132,6 @@
     }
   },
   "libraries": {
-    "libukdma": {
-      "owner": "memory/DMA",
-      "api_stability": "stable",
-      "public_headers": [
-        "include/uk/dma.h"
-      ],
-      "boundary": "Must not include GPU-specific protocol or llama.cpp headers."
-    },
     "libukvirtio_gpu": {
       "owner": "VirtIO-GPU frontend",
       "api_stability": "semi-stable",
@@ -203,14 +195,6 @@
         "include/uk/swrender.h"
       ],
       "boundary": "Software-render substrate only; not acceleration evidence."
-    },
-    "libukdma_pool": {
-      "owner": "buffer-pool",
-      "api_stability": "stable",
-      "public_headers": [
-        "include/uk/buf.h"
-      ],
-      "boundary": "Must not know about llama.cpp, Vulkan, or app-level workloads."
     },
     "libukggml_vk": {
       "owner": "upstream ggml-vulkan support",

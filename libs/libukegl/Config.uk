@@ -2,7 +2,8 @@ config LIBUKEGL
 	bool "libukegl: EGL shim for virtio-gpu-gl"
 	default n
 	select LIBUKVIRTIO_GPU
-	select LIBUKDMA
+	select LIBUKSGLIST
+	select LIBUKALLOC
 	select LIBUKSWRENDER
 	select LIBMUSL
 	help

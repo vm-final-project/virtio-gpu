@@ -6,7 +6,8 @@
 #include <uk/virtio_gpu.h>
 #include <uk/virgl_encoder.h>
 #include <uk/venus.h>
-#include <uk/dma.h>
+#include <uk/sglist.h>
+#include <uk/alloc.h>
 #include <uk/swrender.h>
 #include <uk/drm_compat.h>
 #include <uk/gbm_compat.h>
@@ -126,13 +127,13 @@ static int run_swrender_path(struct uk_virtio_gpu_dev *dev,
 {
 	struct uk_sw_framebuf   fb;
 	struct uk_sw_cube_state cube;
-	struct uk_dma_buf       dma;
-	struct uk_dma_sg        sg;
+	void                   *dma_vaddr = NULL;
+	struct uk_sglist        sg;
+	struct uk_sglist_seg    sg_seg[1];
 	struct uk_gpu_rect      rect = {0, 0, w, h};
 	uk_gpu_res_id           res[NFRAMES];
 	uk_gpu_fence_id         fence;
 	uint32_t                crcs[NFRAMES];
-	size_t                  nr_sg = 0;
 	size_t                  pix_bytes = (size_t)w * h * 4u;
 	int                     rc;
 
@@ -141,15 +142,15 @@ static int run_swrender_path(struct uk_virtio_gpu_dev *dev,
 	rc = uk_sw_framebuf_alloc(&fb, w, h);
 	if (rc) { printf("uk-kmscube: BLOCKED framebuf_alloc rc=%d\n", rc); return rc; }
 
-	/* Allocate a DMA buffer large enough for one frame. */
-	rc = uk_dma_alloc(&dma, pix_bytes, 4096,
-	                  UK_DMA_F_CONTIGUOUS | UK_DMA_F_ZEROED);
-	if (rc) { uk_sw_framebuf_free(&fb);
-	          printf("uk-kmscube: BLOCKED dma_alloc rc=%d\n", rc); return rc; }
+	/* Allocate a device-backing buffer large enough for one frame. */
+	rc = uk_posix_memalign(uk_alloc_get_default(), &dma_vaddr, 4096, pix_bytes);
+	if (rc || !dma_vaddr) { uk_sw_framebuf_free(&fb);
+	          printf("uk-kmscube: BLOCKED dma_alloc rc=%d\n", rc); return rc ? rc : -1; }
 
-	rc = uk_dma_build_sg(&dma, &sg, 1, &nr_sg);
-	if (rc || nr_sg != 1) {
-		uk_dma_free(&dma); uk_sw_framebuf_free(&fb);
+	uk_sglist_init(&sg, 1, sg_seg);
+	rc = uk_sglist_append(&sg, dma_vaddr, pix_bytes);
+	if (rc || sg.sg_nseg != 1) {
+		uk_free(uk_alloc_get_default(), dma_vaddr); uk_sw_framebuf_free(&fb);
 		printf("uk-kmscube: BLOCKED dma_build_sg rc=%d\n", rc);
 		return -1;
 	}
@@ -161,9 +162,9 @@ static int run_swrender_path(struct uk_virtio_gpu_dev *dev,
 		uk_sw_cube_render(&cube, &fb);
 		crcs[f] = uk_sw_framebuf_crc(&fb);
 
-		/* Copy pixels to DMA buffer. */
-		memcpy(dma.vaddr, fb.pixels, pix_bytes);
-		uk_dma_sync_for_device(&dma, UK_DMA_TO_DEVICE);
+		/* Copy pixels to the device-backing buffer. x86 guest memory is
+		 * cache-coherent with the device, so no explicit DMA sync. */
+		memcpy(dma_vaddr, fb.pixels, pix_bytes);
 
 		if (dev) {
 			/* Create a fresh 2D resource each frame (format=1 RGBX). */
@@ -171,7 +172,7 @@ static int run_swrender_path(struct uk_virtio_gpu_dev *dev,
 			rc = uk_virtio_gpu_resource_create_2d(dev, w, h, 1, &res[f]);
 			if (rc) { printf("uk-kmscube: resource_create_2d rc=%d\n", rc); goto cleanup; }
 
-			rc = uk_virtio_gpu_resource_attach_backing(dev, res[f], &sg, 1);
+			rc = uk_virtio_gpu_resource_attach_backing(dev, res[f], &sg);
 			if (rc) { printf("uk-kmscube: attach_backing rc=%d\n", rc); goto cleanup; }
 
 			/* Coalesced submission: only the final flush carries a fence
@@ -201,7 +202,7 @@ static int run_swrender_path(struct uk_virtio_gpu_dev *dev,
 
 	rc = 0;
 cleanup:
-	uk_dma_free(&dma);
+	uk_free(uk_alloc_get_default(), dma_vaddr);
 	uk_sw_framebuf_free(&fb);
 	return rc;
 }

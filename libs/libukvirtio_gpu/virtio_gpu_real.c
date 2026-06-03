@@ -268,7 +268,7 @@ int uk_virtio_gpu_resource_create_2d(struct uk_virtio_gpu_dev *d, uint32_t w,
 }
 
 int uk_virtio_gpu_resource_attach_backing(struct uk_virtio_gpu_dev *d,
-		uk_gpu_res_id res, const struct uk_dma_sg *dma_sg, size_t nr_sg)
+		uk_gpu_res_id res, const struct uk_sglist *sg)
 {
 	struct {
 		struct ukvgpu_resource_attach_backing req;
@@ -276,22 +276,24 @@ int uk_virtio_gpu_resource_attach_backing(struct uk_virtio_gpu_dev *d,
 	} cmd;
 	struct ukvgpu_ctrl_hdr resp;
 	struct ukvgpu_resource_state *r = find_res(d, res);
+	uint16_t nr_sg;
 	int rc;
 
-	if (!r || !dma_sg || !nr_sg || nr_sg > 16)
+	if (!r || !sg || !sg->sg_nseg || sg->sg_nseg > 16)
 		return -EINVAL;
+	nr_sg = sg->sg_nseg;
 	memset(&cmd, 0, sizeof(cmd));
 	hdr_init(d, &cmd.req.hdr, UKVGPU_CMD_RESOURCE_ATTACH_BACKING, NULL, 0);
 	cmd.req.resource_id = res;
 	cmd.req.nr_entries = (uint32_t)nr_sg;
-	for (size_t i = 0; i < nr_sg; i++) {
-		if (!dma_sg[i].len)
+	for (uint16_t i = 0; i < nr_sg; i++) {
+		if (!sg->sg_segs[i].ss_len)
 			return -EINVAL;
-		cmd.ents[i].addr = (uint64_t)dma_sg[i].paddr_or_iova;
-		cmd.ents[i].length = (uint32_t)dma_sg[i].len;
+		cmd.ents[i].addr = (uint64_t)sg->sg_segs[i].ss_paddr;
+		cmd.ents[i].length = (uint32_t)sg->sg_segs[i].ss_len;
 	}
 	memset(&resp, 0, sizeof(resp));
-	rc = cmd_submit(d, &cmd, sizeof(cmd.req) + nr_sg * sizeof(cmd.ents[0]),
+	rc = cmd_submit(d, &cmd, sizeof(cmd.req) + (size_t)nr_sg * sizeof(cmd.ents[0]),
 			&resp, sizeof(resp), UKVGPU_RESP_OK_NODATA, NULL);
 	if (!rc) {
 		r->backing_attached = 1;

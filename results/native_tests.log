@@ -1,15 +1,15 @@
-make[1]: Entering directory '/mydata/JerryT/virtio-gpu/tests'
-make[2]: 'build/dma_buf_test' is up to date.
-make[2]: 'build/virtio_gpu_full_api_test' is up to date.
-make[2]: 'build/virtio_gpu_2d_render_test' is up to date.
-make[2]: 'build/kmscube_compat_test' is up to date.
-make[2]: 'build/virtgpu_drm_ioctl_test' is up to date.
-make[2]: 'build/vk_icd_bootstrap_test' is up to date.
-make[2]: 'build/venus_cs_test' is up to date.
-make[2]: 'build/venus_compute_test' is up to date.
-make[2]: 'build/virgl_encoder_test' is up to date.
-make[2]: 'build/ggml_vk_dispatch_test' is up to date.
-dma_buf_test passed alignment=4096 sg=1 pool=2
+make[2]: Entering directory '/mydata/JerryT/virtio-gpu/tests'
+make[3]: 'build/dma_buf_test' is up to date.
+make[3]: 'build/virtio_gpu_full_api_test' is up to date.
+make[3]: 'build/virtio_gpu_2d_render_test' is up to date.
+make[3]: 'build/kmscube_compat_test' is up to date.
+make[3]: 'build/virtgpu_drm_ioctl_test' is up to date.
+make[3]: 'build/vk_icd_bootstrap_test' is up to date.
+make[3]: 'build/venus_cs_test' is up to date.
+make[3]: 'build/venus_compute_test' is up to date.
+make[3]: 'build/virgl_encoder_test' is up to date.
+make[3]: 'build/ggml_vk_dispatch_test' is up to date.
+dma_buf_test passed alignment=4096 sg=1 len=4096
 virtio_gpu_full_api_test passed capsets=5 fences=7 submits_3d=1 blobs=1 bytes_to_host=36864 bytes_from_host=4096
 virtio_gpu_2d_render_test: frame=0 res=1 crc=0x6f2935c5
 virtio_gpu_2d_render_test: frame=1 res=2 crc=0x85ce0dc5
@@ -207,7 +207,7 @@ venus_cs_test:
   PASS  ring_perf:probe_ok
   PASS  ring_perf:create_ok
   PASS  ring_perf:writes_ok
-venus_ring_perf: bytes=65536 writes=256 elapsed_ns=6931 throughput_mib_s=9017.46
+venus_ring_perf: bytes=65536 writes=256 elapsed_ns=13750 throughput_mib_s=4545.45
 venus_cs_test: all checks passed
 venus_compute_test: Venus compute dispatch wire-format tests
 ============================================================
@@ -546,4 +546,4 @@ VOGUE-DBG createComputePipeline h=0x2000000000114 module=0x200000000010f layout=
 Results: 164 passed, 0 failed
 ggml_vk_dispatch_test: all checks PASS
 uk-llama-vk-n3: PASS evidence_id=llama-vk-n3-dispatch gpu=1 venus=1 substrate=static-vk-icd
-make[1]: Leaving directory '/mydata/JerryT/virtio-gpu/tests'
+make[2]: Leaving directory '/mydata/JerryT/virtio-gpu/tests'

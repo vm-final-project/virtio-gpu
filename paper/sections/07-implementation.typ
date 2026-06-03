@@ -11,7 +11,6 @@ VOGUE is organized as reusable Unikraft micro-libraries plus application harness
     align: (left, right, left),
     table.header([Module], [LoC], [Role]),
     [libukvirtio_gpu], [~1650], [VirtIO-GPU 2D/3D frontend, blob controlq, Gallium virgl encoder (`virgl_encoder.c`), and fake backend],
-    [libukdma], [~180], [DMA allocation and scatter-gather],
     [libukdrm_compat], [~120], [DRM struct compatibility shims],
     [libukgbm_compat], [~80], [GBM compatibility shims],
     [libukswrender], [264], [CPU software rasterizer],
@@ -225,8 +224,7 @@ unikraft:
   source: ../unikraft
   kconfig:
     CONFIG_APP_KMSCUBE: 'y'
-    CONFIG_LIBUKDMA: 'y'
-    CONFIG_LIBUKBUF: 'y'
+    CONFIG_LIBUKSGLIST: 'y'
     CONFIG_LIBUKVIRTIO_GPU: 'y'
     CONFIG_LIBUKSWRENDER: 'y'
     CONFIG_LIBUKEGL: 'y'

@@ -72,8 +72,7 @@ unikraft:
     CONFIG_LIBVIRTIO_9P: 'y'
     CONFIG_LIB9PFS: 'y'
     CONFIG_LIBPTHREAD_EMBEDDED: 'y'
-    CONFIG_LIBUKDMA: 'y'
-    CONFIG_LIBUKBUF: 'y'
+    CONFIG_LIBUKSGLIST: 'y'
     CONFIG_LIBUKVIRTIO_GPU: 'y'
     CONFIG_LIBUKVIRTIO_GPU_BACKEND_REAL: 'y'
     CONFIG_LIBUKVIRTGPU_DRM: 'y'
@@ -135,10 +134,6 @@ libraries:
     source: ../lib-compiler-rt
   liblwip:
     source: ../lib-lwip
-  libukdma:
-    source: ./libs/libukdma
-  libukbuf:
-    source: ./libs/libukdma_pool
   libukvirtio_gpu:
     source: ./libs/libukvirtio_gpu
   libukvirtgpu_drm:

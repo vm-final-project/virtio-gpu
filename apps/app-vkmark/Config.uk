@@ -2,7 +2,7 @@ config APP_VKMARK
 	bool "vkmark Vulkan benchmark substrate port"
 	default n
 	select LIBUKVIRTIO_GPU
-	select LIBUKDMA
+	select LIBUKSGLIST
 	select LIBUKVIRTGPU_DRM
 	select LIBUKVK_ICD
 	help

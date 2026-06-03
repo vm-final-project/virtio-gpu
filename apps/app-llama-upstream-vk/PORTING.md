@@ -85,8 +85,7 @@ Kraftfiles: `kraft/Kraftfile.llama-upstream-vk{,-server}`. Single entrypoint; no
 External libraries: `lib-musl`, `lib-libcxx`, `lib-libcxxabi`, `lib-libunwind`,
 `lib-compiler-rt`, `lib-pthread-embedded`.
 
-Local libraries (in dependency order): `libukdma`, `libukbuf`,
-`libukvirtio_gpu`, `libukvirtgpu_drm`, `libukvk_icd`, `libukvenus`,
+Local libraries (in dependency order): `libukvirtio_gpu`, `libukvirtgpu_drm`, `libukvk_icd`, `libukvenus`,
 `libukggml_vk`.
 
 ## Stage 2b host requirement

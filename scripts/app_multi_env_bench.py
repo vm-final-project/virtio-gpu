@@ -446,6 +446,15 @@ def write_md(results: list[AppEnvResult], path: Path) -> None:
     path.write_text("\n".join(lines) + "\n")
 
 
+def _typ_escape(text: str) -> str:
+    """Escape characters that are syntactically significant in Typst content
+    mode so free-form evidence/note strings render literally. '@' would
+    otherwise be parsed as a label reference and fail compilation."""
+    for ch in ("\\", "@", "#", "$", "*", "_", "<", ">"):
+        text = text.replace(ch, "\\" + ch)
+    return text
+
+
 def write_typst(results: list[AppEnvResult], path: Path) -> None:
     by_app: dict[str, list[AppEnvResult]] = {}
     for r in results:
@@ -456,8 +465,8 @@ def write_typst(results: list[AppEnvResult], path: Path) -> None:
         app_short = app.replace("app-", "")
         for r in rows:
             status_str = r.status if len(r.status) <= 38 else r.status[:35] + "..."
-            env_short = r.environment[:38]
-            note_short = r.note[:50] if r.note else r.claim_allowed[:50]
+            env_short = _typ_escape(r.environment[:38])
+            note_short = _typ_escape(r.note[:50] if r.note else r.claim_allowed[:50])
             rows_typ.append(
                 f"    [`{app_short}`], [{env_short}], [`{status_str}`], [{note_short}],"
             )

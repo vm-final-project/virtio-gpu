@@ -21,8 +21,6 @@
 
 CC ?= cc
 CFLAGS ?= -D_POSIX_C_SOURCE=200112L -std=c11 -Wall -Wextra \
-	-I../libs/libukdma/include \
-	-I../libs/libukdma_pool/include \
 	-I../libs/libukvirtio_gpu/include \
 	-I../libs/libukdrm_compat/include \
 	-I../libs/libukgbm_compat/include \
@@ -124,7 +122,7 @@ $(BUILD):
 clean:
 	rm -rf $(BUILD)
 
-$(BUILD)/dma_buf_test: dma_buf_test.c ../libs/libukdma/dma_alloc.c ../libs/libukdma_pool/buf_pool.c | $(BUILD)
+$(BUILD)/dma_buf_test: dma_buf_test.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(BUILD)/virtio_gpu_full_api_test: virtio_gpu_full_api_test.c ./virtio_gpu_fake.c | $(BUILD)
@@ -133,19 +131,19 @@ $(BUILD)/virtio_gpu_full_api_test: virtio_gpu_full_api_test.c ./virtio_gpu_fake.
 $(BUILD)/kmscube_compat_test: kmscube_compat_test.c ../libs/libukdrm_compat/drm_compat.c ../libs/libukgbm_compat/gbm_compat.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(BUILD)/virtio_gpu_2d_render_test: virtio_gpu_2d_render_test.c ./virtio_gpu_fake.c ../libs/libukdma/dma_alloc.c | $(BUILD)
+$(BUILD)/virtio_gpu_2d_render_test: virtio_gpu_2d_render_test.c ./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(BUILD)/virtio_gpu_proto_abi_test: virtio_gpu_proto_abi_test.c $(PROTO_HDR) | $(BUILD)
 	$(CC) $(CFLAGS) $< -o $@
 
-$(BUILD)/virtgpu_drm_ioctl_test: virtgpu_drm_ioctl_test.c ../libs/libukvirtgpu_drm/drm_virtgpu.c ./virtio_gpu_fake.c ../libs/libukdma/dma_alloc.c | $(BUILD)
+$(BUILD)/virtgpu_drm_ioctl_test: virtgpu_drm_ioctl_test.c ../libs/libukvirtgpu_drm/drm_virtgpu.c ./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(BUILD)/vk_icd_bootstrap_test: vk_icd_bootstrap_test.c ../libs/libukvk_icd/vulkan_icd.c ../libs/libukvirtgpu_drm/drm_virtgpu.c ./virtio_gpu_fake.c ../libs/libukdma/dma_alloc.c | $(BUILD)
+$(BUILD)/vk_icd_bootstrap_test: vk_icd_bootstrap_test.c ../libs/libukvk_icd/vulkan_icd.c ../libs/libukvirtgpu_drm/drm_virtgpu.c ./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(BUILD)/venus_cs_test: venus_cs_test.c ../libs/libukvenus/venus_cs.c ../libs/libukvenus/venus_init.c ../libs/libukvenus/venus_compute.c ./virtio_gpu_fake.c ../libs/libukdma/dma_alloc.c | $(BUILD)
+$(BUILD)/venus_cs_test: venus_cs_test.c ../libs/libukvenus/venus_cs.c ../libs/libukvenus/venus_init.c ../libs/libukvenus/venus_compute.c ./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(BUILD)/venus_compute_test: venus_compute_test.c ../libs/libukvenus/venus_cs.c ../libs/libukvenus/venus_compute.c | $(BUILD)
@@ -154,14 +152,14 @@ $(BUILD)/venus_compute_test: venus_compute_test.c ../libs/libukvenus/venus_cs.c 
 venus-compute: $(BUILD)/venus_compute_test
 	./$(BUILD)/venus_compute_test
 
-$(BUILD)/virgl_encoder_test: virgl_encoder_test.c ../libs/libukvirtio_gpu/virgl_encoder.c ./virtio_gpu_fake.c ../libs/libukdma/dma_alloc.c | $(BUILD)
+$(BUILD)/virgl_encoder_test: virgl_encoder_test.c ../libs/libukvirtio_gpu/virgl_encoder.c ./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) -I../libs/libukvenus/include $^ -o $@
 
 $(BUILD)/vulkan_compute_test: vulkan_compute_test.c | $(BUILD)
 	$(CC) -std=c11 -D_POSIX_C_SOURCE=199309L -Wall -Wno-missing-field-initializers -I$(VK_INC) $< $(VK_LIB) -lm -o $@
 
 # vk.ggml-dispatch: static Vulkan ICD dispatch layer test. Links uk_vulkan_dispatch.c against
-# the fake VirtIO-GPU backend and the full Venus/ICD/vk.drm-shim/DMA stack.
+# the fake VirtIO-GPU backend and the full Venus/ICD/vk.drm-shim stack.
 $(BUILD)/ggml_vk_dispatch_test: ggml_vk_dispatch_test.c \
 	../libs/libukggml_vk/uk_vulkan_dispatch.c \
 	../libs/libukvk_icd/vulkan_icd.c \
@@ -169,8 +167,7 @@ $(BUILD)/ggml_vk_dispatch_test: ggml_vk_dispatch_test.c \
 	../libs/libukvenus/venus_init.c \
 	../libs/libukvenus/venus_cs.c \
 	../libs/libukvenus/venus_compute.c \
-	./virtio_gpu_fake.c \
-	../libs/libukdma/dma_alloc.c | $(BUILD)
+	./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) -Wno-unused-parameter $^ -o $@
 
 n3-dispatch: $(BUILD)/ggml_vk_dispatch_test

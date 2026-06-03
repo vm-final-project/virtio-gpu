@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-02T04:29:42.130316Z"
+    "generated_utc": "2026-06-03T08:01:26.409669Z"
   },
   "rows": [
     {
@@ -32,7 +32,7 @@
           "source": "virgl-submit-pass-marker",
           "run_log": "results/kmscube_vgpu_gl/run/run.log",
           "pass_marker": "uk-kmscube: PASS kmscube_vgpu_gl frames=3 renderer=virgl submits_3d=3 evidence_id=virgl-clear-proof real_virtio_gpu=1 w=1280 h=800",
-          "written_at": "2026-06-02T04:29:42.126597Z",
+          "written_at": "2026-06-03T08:01:26.406352Z",
           "qmp_screendump_sha256": "56407cbda8c895498929324e5efbf0ddb1d1cf82befdd69959b00a905dcc0c63",
           "qmp_screendump": "results/kmscube_vgpu_gl/run/qmp-screendump.ppm"
         },
@@ -76,8 +76,8 @@
           "first_missing_dependency": "bounded Mesa EGL/GLES/virgl static slice for Unikraft"
         },
         "evidence_identity": {
-          "run_log_sha256": "413e69f2e07c4ca84a2631214f04aca36a06ce0504b5281eefc4691d2bb6d194",
-          "build_log_sha256": "2e20d425472ab994d18e82bd4c4972c163843f70dbdd3c327be8a3da2f8e05fb"
+          "run_log_sha256": "91be074caf84e05b853ded786a14cf55ca9f45022f4527bbe0532fc8cfb1b53e",
+          "build_log_sha256": "d22dbb36f7795d693254e87372d419515e08e52131aa49e4c56f9e2139849f00"
         }
       }
     }

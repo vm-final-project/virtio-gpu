@@ -28,7 +28,7 @@
           fill: sfill, stroke: solid, name: <sw0>),
     pnode((1,0), step([libukswrender],     [CPU rasterise pixels into SW framebuffer]),
           fill: sfill, stroke: solid, name: <sw1>),
-    pnode((2,0), step([DMA copy],          [memcpy into DMA-backed buffer (libukdma)]),
+    pnode((2,0), step([DMA copy],          [memcpy into device-backing buffer (uk_posix_memalign)]),
           fill: sfill, stroke: solid, name: <sw2>),
     pnode((3,0), step([TRANSFER\_TO\_HOST\_2D], [push framebuffer to host resource]),
           fill: sfill, stroke: solid, name: <sw3>),

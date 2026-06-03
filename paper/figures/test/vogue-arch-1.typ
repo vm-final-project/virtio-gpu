@@ -40,7 +40,7 @@
     edge("->"),
     sysnode((0, 1), label2([libukgfx / libukegl], [EGL, GLES2, GBM, DRM shim]), name: <libukgfx>),
     edge("->"),
-    sysnode((0, 2), label2([libukswrender + libukdma], [software pixels + DMA buffers]), fill: impl-fill, name: <libuksw>),
+    sysnode((0, 2), label2([libukswrender + uksglist], [software pixels + sglist backing]), fill: impl-fill, name: <libuksw>),
     edge("->"),
     sysnode((0, 3), label2([libukvirtio_gpu 2D], [resources, transfers, scanout, fences]), fill: impl-fill, name: <libukvirtio_gpu>),
 

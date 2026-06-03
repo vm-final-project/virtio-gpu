@@ -3,7 +3,8 @@ config APP_KMSCUBE
 	default n
 	select LIBUKSWRENDER
 	select LIBUKEGL
-	select LIBUKDMA
+	select LIBUKSGLIST
+	select LIBUKALLOC
 	select LIBUKVIRTIO_GPU
 	select LIBUKVENUS
 	help

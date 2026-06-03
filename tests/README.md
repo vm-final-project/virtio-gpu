@@ -68,7 +68,7 @@ make -C tests build/dma_buf_test && tests/build/dma_buf_test
 ## Expected PASS output
 
 ```text
-dma_buf_test passed alignment=4096 sg=1 pool=2
+dma_buf_test passed alignment=4096 sg=1 len=4096
 virtio_gpu_full_api_test passed capsets=5 fences=7 submits_3d=1 blobs=1 bytes_to_host=36864 bytes_from_host=4096
 virtio_gpu_2d_render_test: PASS frames=3 transfers=3 flushes=3 fences=6
 kmscube_compat_test passed mode=1280x800 c0=0xcaac5505 c1=0xcbd70305
@@ -93,10 +93,15 @@ The full `native` run ends with `Results: 164 passed, 0 failed`.
 * **Two phases** — `native` compiles all binaries in parallel (one job per core,
   override with `make -C tests native JOBS=1`), then runs them **serially** for
   stable output ordering.
-* **Library sources under test** — `dma_alloc.c`/`buf_pool.c` (`libukdma`),
-  `drm_compat.c`/`gbm_compat.c` (Linux ABI shims), `drm_virtgpu.c`
+* **Library sources under test** — `drm_compat.c`/`gbm_compat.c` (Linux ABI shims), `drm_virtgpu.c`
   (`libukvirtgpu_drm`), `vulkan_icd.c` (`libukvk_icd`), `venus_*.c`
   (`libukvenus`), `virgl_encoder.c` (`libukvirtio_gpu`), and
   `uk_vulkan_dispatch.c` (`libukggml_vk`).
+* **Host shims** — `shim/uk/*.h` (added to the include path via `-Ishim`) provide
+  host-compilable stand-ins for the upstream Unikraft headers the guest sources
+  use: `mutex.h` (no-op recursive lock), `sglist.h` (upstream `uksglist`
+  scatter-gather under the host's identity mapping), and `alloc.h`
+  (`uk_posix_memalign`/`uk_free` over libc). Device-backing memory in the guest
+  uses these upstream APIs directly — there is no first-party DMA library.
 
 Full evidence matrix: `results/vogue_evaluation_matrix.md`.

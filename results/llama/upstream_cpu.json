@@ -3,14 +3,14 @@
   "evidence_id": "llama-upstream-cpu",
   "status": "pass",
   "pass": true,
-  "generated_utc": "2026-06-02T07:46:06.902570Z",
-  "pp512": 9.5,
-  "tg128": 7.7,
+  "generated_utc": "2026-06-03T07:18:30.160729Z",
+  "pp512": 9.4,
+  "tg128": 7.4,
   "accel": "kvm",
   "cpu": "host",
   "host": "Linux-6.18.33-x86_64-with-glibc2.39",
   "model": "Qwen3-0.6B-Q4_K_M.gguf",
   "run_log": "results/llama/upstream_cpu.log",
-  "claim_allowed": "Upstream llama.cpp CPU path boots on Unikraft (unmodified sources) and runs a real GGUF via 9pfs on this host (kvm/-cpu host). pp512=9.5 tg128=7.7 t/s.",
+  "claim_allowed": "Upstream llama.cpp CPU path boots on Unikraft (unmodified sources) and runs a real GGUF via 9pfs on this host (kvm/-cpu host). pp512=9.4 tg128=7.4 t/s.",
   "claim_forbidden": "GPU throughput, Vulkan dispatch, or cross-host comparison without a matching baseline."
 }

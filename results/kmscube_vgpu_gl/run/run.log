@@ -20,6 +20,7 @@ uk-kmscube: frame_ready marker=qmp-screendump-hold hold_ns=5000000000
 uk-kmscube: frame_ready marker=qmp-screendump-release
 uk-kmscube: PASS kmscube_vgpu_gl frames=3 renderer=virgl submits_3d=3 evidence_id=virgl-clear-proof real_virtio_gpu=1 w=1280 h=800
 uk-venus: ring status=pass
+VOGUE-DBG map_blob res=4 off=0x0 size=0x10000 hv_addr=0xc0000000 hv_size=0x20000000
 uk-venus: ring registered resource=4 size=65536 buf_size=32768
 uk-venus: ring flush ok tail=0 head=0
 uk-venus: ring wait ok head=0 tail=0

@@ -487,7 +487,7 @@ create_tensor: loading tensor blk.27.ffn_up.weight
 load_tensors:          CPU model buffer size =   372.65 MiB
 load_all_data: no device found for buffer type CPU for async uploads
 .....................................................................
-uk-llama-upstream: model_load path=/mnt/model/model.gguf use_mmap=0 huge_pages=0 elapsed_ms=6828.47
+uk-llama-upstream: model_load path=/mnt/model/model.gguf use_mmap=0 huge_pages=0 elapsed_ms=6454.40
 llama_context: constructing llama_context
 llama_context: n_seq_max     = 1
 llama_context: n_ctx         = 768
@@ -554,7 +554,7 @@ graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  1, n
 sched_reserve:        CPU compute buffer size =   309.51 MiB
 sched_reserve: graph nodes  = 986
 sched_reserve: graph splits = 1
-sched_reserve: reserve took 113.97 ms, sched copies = 1
-uk-llama-upstream: pp512=9.5 tg128=7.7
+sched_reserve: reserve took 133.03 ms, sched copies = 1
+uk-llama-upstream: pp512=9.4 tg128=7.4
 uk-llama-upstream: PASS evidence_id=llama-upstream-cpu
 ~llama_context:        CPU compute buffer size is 309.5137 MiB, matches expectation of 309.5137 MiB

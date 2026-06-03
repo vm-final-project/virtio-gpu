@@ -8,7 +8,7 @@
 
 Since the design optimizes for a narrow data plane and explicit compatibility contracts, each layer has a well-defined responsibility:
 
-*libukdma* provides DMA buffer allocation and scatter-gather descriptor construction. It is the only VOGUE layer that interacts directly with guest-physical memory layout for virtio backing; it relies on Unikraft allocation primitives instead of introducing an independent memory manager.
+Device-backing memory is allocated with Unikraft's allocator (`uk_posix_memalign`) and described with the upstream scatter-gather library (`uksglist`); VOGUE introduces no independent memory manager or first-party DMA library. This is the only place VOGUE touches guest-physical memory layout for virtio backing, and it reuses Unikraft primitives directly.
 
 *libukvirtio_gpu* implements the VirtIO-GPU protocol on top of Unikraft's existing virtio/PCI stack: command encoding and submission, response parsing, fence creation and polling, 2D resource management, capset discovery, context management, 3D submit, resource blobs, UUID assignment, and map/unmap helpers. The 2D path is exercised by native display tests. The 3D/blob path is implemented as a real control-queue surface and checked by ABI/static/readiness gates. On the evaluation host the current generated matrix records QEMU/Venus execution, the Mesa-compatible Venus ring-buffer protocol, KMSCube virgl frame proof, and upstream llama.cpp Vulkan runtime as PASS with same-run artifacts.
 

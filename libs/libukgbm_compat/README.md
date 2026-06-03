@@ -10,7 +10,7 @@ proof rows. DMABUF export, modifiers, and full Mesa GBM remain non-claims.
 
 ## Configuring applications to use `libukgbm_compat`
 
-Enable `CONFIG_LIBUKGBM_COMPAT`; it selects `LIBUKDMA` for buffer backing.
+Enable `CONFIG_LIBUKGBM_COMPAT`; it selects `LIBUKSGLIST` for scatter-gather buffer backing.
 
 ```yaml
 unikraft:

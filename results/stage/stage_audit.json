@@ -1,12 +1,12 @@
 {
   "status": "pass",
   "stage": "pass",
-  "written_at": "2026-06-01T12:24:02Z",
+  "written_at": "2026-06-03T08:01:34Z",
   "runs": [
     {
       "cmd": "make -C tests proto-abi",
       "returncode": 0,
-      "stdout_tail": "make[1]: Entering directory '/mydata/JerryT/virtio-gpu/tests'\nmake[2]: 'build/virtio_gpu_proto_abi_test' is up to date.\nvirtio_gpu_proto_abi_test passed ctrl_hdr=24 display_info=408 edid=1056\nmake[1]: Leaving directory '/mydata/JerryT/virtio-gpu/tests'\n"
+      "stdout_tail": "make[2]: Entering directory '/mydata/JerryT/virtio-gpu/tests'\nmake[3]: 'build/virtio_gpu_proto_abi_test' is up to date.\nvirtio_gpu_proto_abi_test passed ctrl_hdr=24 display_info=408 edid=1056\nmake[2]: Leaving directory '/mydata/JerryT/virtio-gpu/tests'\n"
     },
     {
       "cmd": "python3 scripts/check_venus_vulkan_docs.py",
