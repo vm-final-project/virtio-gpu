@@ -357,6 +357,35 @@ is in the dispatch/encoder layer and in guest SMP (`plan-optimize.md` Phase 3).
 > claims. `tg128` for a 0.6 B model is variance-prone — read `pp512` as the
 > cleaner ordering (① > ② > ③).
 
+### Venus transport optimizations (hot path)
+
+The guest→host gap above lives in VOGUE's transport, not the Venus para-virtual
+device. The per-inference-step hot path was reduced from **3 virtqueue kicks +
+3 mallocs** (one each for `vkEndCommandBuffer`, `vkQueueSubmit`,
+`vkWaitForFences`) toward Mesa's streaming model. Four changes, all on the
+`libukggml_vk → libukvenus → libukvirtio_gpu` path:
+
+| # | Optimization | Mechanism | Effect |
+|---|---|---|---|
+| 1 | **Merge EndCmdBuf + QueueSubmit + WaitFences** | In ring mode, `vkEndCommandBuffer` flushes the ring tail; `vkQueueSubmit` appends its command + does the single final flush | 3 kicks → 1 kick per step |
+| 2 | **`vkWaitForFences` polls `completed_fence`** | `cmd_submit_locked()` already marks `completed_fence` synchronously on the host response, so WaitFences reads the local value instead of sending a Venus command | eliminates the 3rd SUBMIT_3D per step (active even without ring) |
+| 3 | **`__asm__("pause")` in busy-polls** | `uk_venus_ring_cmd_wait` + `cmd_submit_locked` spin-waits yield the core to the host `ring_thread` | lower spin pressure on the single guest vCPU |
+| 4 | **True ring stream model** | `vkCmd*` write directly into a host-visible Venus ring circular buffer (`uk_venus_ring_cmd_write`); host `ring_thread` drains asynchronously, kick only when the ring is idle — mirroring Mesa `vn_ring.c` | 0 mallocs, request-response → streaming |
+
+The ring (4) is created **lazily** on the first command buffer (after the Venus
+`VkInstance`/`VkDevice` exist) on the dispatch's existing Venus context, and is
+**host-visible-blob backed** — the QEMU `hostmem=` shared-memory BAR exposed to
+Unikraft via `virtio_pci_shm_region_get` (Unikraft 0.21). If the ring cannot be
+created/registered, the dispatch **falls back to the batched SUBMIT_3D path**, so
+the server always boots. The `READY` marker reports the active mode
+(`ring_enabled=`, `batch_enabled=`, `hostmem_fixed=`). Toggle with
+`UK_GGML_VK_DISPATCH_RING` (default on) / `UK_GGML_VK_DISPATCH_BATCH`.
+
+Path difference vs Mesa: Mesa's `vn_renderer_virtgpu.c` reaches the ring through
+Linux `/dev/dri` `ioctl`/`mmap`; VOGUE's `libukvirtgpu_drm` + `libukvirtio_gpu`
+reach the same virtio-gpu ring through Unikraft's virtqueue + `posix-mmap`
+host-visible BAR directly, with no Linux DRM layer in the guest.
+
 ---
 
 ## Evidence & Claim Discipline
