@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-03T08:03:37.307245Z",
+    "generated_utc": "2026-06-03T12:27:44.183160Z",
     "source": "scripts/model_load_time_check.py",
     "principle": "plan-optimize.md L1.4 \u2014 huge-page mmap loader gate; use_mmap=False until lib-9pfs grows mmap support."
   },

@@ -1,13 +1,13 @@
 # VOGUE Evaluation Matrix
 
-Generated: `2026-06-03T08:01:54.363991Z`
+Generated: `2026-06-03T12:32:30.317192Z`
 
 | Row | Claim | Status | Evidence | Allowed | Forbidden |
 |-----|-------|--------|----------|---------|-----------|
 | `disp.2d` | 2D display pipeline | `pass` | `results/native_tests.log` | VirtIO-GPU 2D command ordering, DMA backing, scanout, flush, and fence synchronization work in the native harness. | GPU acceleration, virgl rendering, or Mesa compatibility. |
 | `proto.api-contract` | API contract | `pass` | `results/native_tests.log` | Guest API contract and fake-backend semantics are covered. | Host virglrenderer execution or hardware acceleration. |
-| `gfx.kmscube.sw` | kmscube software-render proof | `pass` | `results/app_perf.json; avg_frame_ms=2.143; fps=466.57; transfers=60; flushes=60; fences=120` | Upstream kmscube source can be supported through VOGUE shims and software-rendered scanout; native software-path frame cost is measured. | K1 virgl rendering, hardware acceleration, full Mesa compatibility, or QEMU performance. |
-| `gfx.glmark2.sw` | glmark2 scene-clear substrate | `pass` | `results/app_perf.json; avg_frame_ms=5.645; fps=177.14; transfers=120; flushes=120; fences=240` | The scene-clear subset exercises EGL-style clear/present costs through the same substrate and reports native frame cost. | Full glmark2 suite score, QEMU performance, or GPU acceleration. |
+| `gfx.kmscube.sw` | kmscube software-render proof | `pass` | `results/app_perf.json; avg_frame_ms=1.955; fps=511.39; transfers=60; flushes=60; fences=120` | Upstream kmscube source can be supported through VOGUE shims and software-rendered scanout; native software-path frame cost is measured. | K1 virgl rendering, hardware acceleration, full Mesa compatibility, or QEMU performance. |
+| `gfx.glmark2.sw` | glmark2 scene-clear substrate | `pass` | `results/app_perf.json; avg_frame_ms=5.281; fps=189.34; transfers=120; flushes=120; fences=240` | The scene-clear subset exercises EGL-style clear/present costs through the same substrate and reports native frame cost. | Full glmark2 suite score, QEMU performance, or GPU acceleration. |
 | `xport.gl-probe` | virgl device discovery | `pass` | `paper/sections/08-evaluation.typ` | The tested host exposes a GL-capable VirtIO-GPU path for future K1 work. | Rendering or acceleration without a virgl command stream. |
 | `gfx.kmscube.submit` | virgl SUBMIT_3D delivery proven | `pass` | `results/kmscube_vgpu_gl/run/build.log;results/kmscube_vgpu_gl/run/run.log;results/kmscube_vgpu_gl/run/frame-proof.json;results/kmscube_vgpu_gl/run/mesa-feasibility.json` | Transport-level proof: the guest constructs a valid Gallium command stream and the host accepts SUBMIT_3D over the virgl context. | Pixel-correct frame, accelerated rendering, or any visual fidelity claim. |
 | `gfx.kmscube.frame` | virgl pixel-correct frame | `pass` | `results/kmscube_vgpu_gl/run/frame_pixel_proof.json` | Only a non-blank screendump whose mean colour matches the encoded CLEAR colour per frame may promote this row. | Software rendering, SUBMIT_3D-only proof, or capset probe. |

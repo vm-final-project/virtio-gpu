@@ -1,6 +1,6 @@
 # Model-load latency (plan-optimize.md L1.4)
 
-Generated: `2026-06-03T08:03:37.307245Z`
+Generated: `2026-06-03T12:27:44.183160Z`
 
 | Appliance | Status | use_mmap | huge_pages | elapsed_ms |
 |---|---|---|---|---|

@@ -41,18 +41,19 @@ llama_model_loader: - kv  22:                tokenizer.ggml.eos_token_id u32    
 llama_model_loader: - kv  23:            tokenizer.ggml.padding_token_id u32              = 151654
 llama_model_loader: - kv  24:               tokenizer.ggml.add_bos_token bool             = false
 llama_model_loader: - kv  25:                    tokenizer.chat_template str              = {%- if tools %}\n    {{- '<|im_start|>...
-llama_model_loader: - kv  26:               general.quantization_version u32              = 2
-llama_model_loader: - kv  27:                          general.file_type u32              = 15
-llama_model_loader: - kv  28:                      quantize.imatrix.file str              = Qwen3-0.6B-GGUF/imatrix_unsloth.dat
-llama_model_loader: - kv  29:                   quantize.imatrix.dataset str              = unsloth_calibration_Qwen3-0.6B.txt
-llama_model_loader: - kv  30:             quantize.imatrix.entries_count u32              = 196
-llama_model_loader: - kv  31:              quantize.imatrix.chunks_count u32              = 688
+llama_model_loader: - kv  26:                      quantize.imatrix.file str              = Qwen3-0.6B-GGUF/imatrix_unsloth.dat
+llama_model_loader: - kv  27:                   quantize.imatrix.dataset str              = unsloth_calibration_Qwen3-0.6B.txt
+llama_model_loader: - kv  28:             quantize.imatrix.entries_count u32              = 196
+llama_model_loader: - kv  29:              quantize.imatrix.chunks_count u32              = 688
+llama_model_loader: - kv  30:               general.quantization_version u32              = 2
+llama_model_loader: - kv  31:                          general.file_type u32              = 10
 llama_model_loader: - type  f32:  113 tensors
-llama_model_loader: - type q4_K:  168 tensors
-llama_model_loader: - type q6_K:   29 tensors
+llama_model_loader: - type q2_K:  112 tensors
+llama_model_loader: - type q3_K:   84 tensors
+llama_model_loader: - type q6_K:    1 tensors
 print_info: file format = GGUF V3 (latest)
-print_info: file type   = Q4_K - Medium
-print_info: file size   = 372.65 MiB (5.24 BPW) 
+print_info: file type   = Q2_K - Medium
+print_info: file size   = 276.84 MiB (3.90 BPW) 
 llama_prepare_model_devices: using device Vulkan0 (Tesla V100-SXM2-16GB) (unknown id) - 16384 MiB free
 init_tokenizer: initializing tokenizer for type 2
 load: 0 unused tokens
@@ -488,29 +489,29 @@ create_tensor: loading tensor blk.27.ffn_up.weight
 load_tensors: offloading output layer to GPU
 load_tensors: offloading 27 repeating layers to GPU
 load_tensors: offloaded 29/29 layers to GPU
-load_tensors:      Vulkan0 model buffer size =   372.65 MiB
+load_tensors:      Vulkan0 model buffer size =   276.84 MiB
 load_tensors:  Vulkan_Host model buffer size =   121.71 MiB
 load_all_data: using async uploads for device Vulkan0, buffer type Vulkan0, backend Vulkan0
-....................................................load_all_data: buffer type Vulkan_Host is not the default buffer type for device Vulkan0 for async uploads
+........................................load_all_data: buffer type Vulkan_Host is not the default buffer type for device Vulkan0 for async uploads
 .
-uk-llama-upstream-vk-server: model_load path=/mnt/model/model.gguf use_mmap=0 huge_pages=0 elapsed_ms=5935.26
+uk-llama-upstream-vk-server: model_load path=/mnt/model/model.gguf use_mmap=0 huge_pages=0 elapsed_ms=4657.15
 uk-llama-upstream-vk-server: READY model=/mnt/model/model.gguf threads=4 backend=vulkan slots=4 ctx_per_slot=512 batch_size=2048 ubatch_size=512 prompt_cache=1 batch_enabled=1 hostmem_fixed=0 mode=single-app no_fork_exec=1
-[34m0.00.002.229[0m [32mI [0mlog_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
-[34m0.00.002.229[0m [32mI [0mdevice_info:
-[34m0.00.002.653[0m [32mI [0m  - Vulkan0 : Tesla V100-SXM2-16GB (16384 MiB, 16384 MiB free)
-[34m0.00.002.654[0m [32mI [0m  - CPU     : CPU (0 MiB, 0 MiB free)
-[34m0.00.002.767[0m [32mI [0msystem_info: n_threads = 4 (n_threads_batch = 4) / 1 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | 
-[34m0.00.002.947[0m [32mI [0msrv          init: using 8 threads for HTTP server
-[34m0.00.003.216[0m [32mI [0msrv         start: binding port with default address family
-[34m0.00.045.114[0m [32mI [0msrv  llama_server: loading model
-[34m0.00.045.124[0m [32mI [0msrv    load_model: loading model '/mnt/model/model.gguf'
-[34m0.00.045.186[0m [32mI [0mcommon_init_result: fitting params to device memory ...
-[34m0.00.045.187[0m [32mI [0mcommon_init_result: (for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on)
+[34m0.00.002.361[0m [32mI [0mlog_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+[34m0.00.002.362[0m [32mI [0mdevice_info:
+[34m0.00.002.672[0m [32mI [0m  - Vulkan0 : Tesla V100-SXM2-16GB (16384 MiB, 16384 MiB free)
+[34m0.00.002.673[0m [32mI [0m  - CPU     : CPU (0 MiB, 0 MiB free)
+[34m0.00.002.777[0m [32mI [0msystem_info: n_threads = 4 (n_threads_batch = 4) / 1 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | 
+[34m0.00.002.937[0m [32mI [0msrv          init: using 8 threads for HTTP server
+[34m0.00.003.239[0m [32mI [0msrv         start: binding port with default address family
+[34m0.00.046.107[0m [32mI [0msrv  llama_server: loading model
+[34m0.00.046.116[0m [32mI [0msrv    load_model: loading model '/mnt/model/model.gguf'
+[34m0.00.046.176[0m [32mI [0mcommon_init_result: fitting params to device memory ...
+[34m0.00.046.177[0m [32mI [0mcommon_init_result: (for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on)
 VOGUE-DBG map_blob res=1 off=0x0 size=0x1000 hv_addr=0xc0000000 hv_size=0x20000000
 uk-ggml-vk: venus physical_device=Tesla V100-SXM2-16GB
 en1: Set IPv4 address 10.0.2.15 mask 255.255.255.0 gw 10.0.2.2
 uk-ggml-vk: venus memory types=11 heaps=2
-VOGUE-DBG allocMem type=7 size=372MB hostvis=0
+VOGUE-DBG allocMem type=7 size=276MB hostvis=0
 VOGUE-DBG allocMem type=9 size=121MB hostvis=1
 VOGUE-DBG map_blob res=2 off=0x1000 size=0x79b8000 hv_addr=0xc0000000 hv_size=0x20000000
 VOGUE-DBG allocMem type=9 size=1MB hostvis=1
@@ -522,9 +523,9 @@ VOGUE-DBG map_blob res=5 off=0x7bbb000 size=0x101000 hv_addr=0xc0000000 hv_size=
 VOGUE-DBG allocMem type=9 size=1MB hostvis=1
 VOGUE-DBG map_blob res=6 off=0x7cbc000 size=0x101000 hv_addr=0xc0000000 hv_size=0x20000000
 VOGUE-DBG allocMem type=9 size=2MB hostvis=1
-VOGUE-DBG map_blob res=[34m0.03.444.288[0m [35mW load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+VOGUE-DBG map_blob res=[34m0.03.213.134[0m [35mW load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
 [0m7 off=0x7dbd000 size=0x252000 hv_addr=0xc0000000 hv_size=0x20000000
-VOGUE-DBG allocMem type=7 size=372MB hostvis=0
+VOGUE-DBG allocMem type=7 size=276MB hostvis=0
 VOGUE-DBG allocMem type=9 size=121MB hostvis=1
 VOGUE-DBG map_blob res=8 off=0x800f000 size=0x79b8000 hv_addr=0xc0000000 hv_size=0x20000000
 VOGUE-DBG allocMem type=9 size=1MB hostvis=1
@@ -538,31 +539,31 @@ VOGUE-DBG map_blob res=12 off=0xfcca000 size=0x101000 hv_addr=0xc0000000 hv_size
 VOGUE-DBG allocMem type=9 size=2MB hostvis=1
 VOGUE-DBG map_blob res=13 off=0xfdcb000 size=0x252000 hv_addr=0xc0000000 hv_size=0x20000000
 VOGUE-DBG allocMem type=7 size=224MB hostvis=0
-VOGUE-DBG allocMem type=7 size=298MB hostvis=[34m0.04.346.832[0m [35mW llama_context: n_ctx_seq (512) < n_ctx_train (40960) -- the full capacity of the model will not be utilized
-[0m[34m0.04.452.874[0m [32mI [0mcommon_init_from_params: warming up the model with an empty run - please wait ... (--no-warmup to disable)
+VOGUE-DBG allocMem type=7 size=298MB hostvis=[34m0.03.952.635[0m [35mW llama_context: n_ctx_seq (512) < n_ctx_train (40960) -- the full capacity of the model will not be utilized
+[0m[34m0.04.089.541[0m [32mI [0mcommon_init_from_params: warming up the model with an empty run - please wait ... (--no-warmup to disable)
 0
 VOGUE-DBG allocMem type=9 size=9MB hostvis=1
 VOGUE-DBG map_blob res=14 off=0x1001d000 size=0x905000 hv_addr=0xc0000000 hv_size=0x20000000
 VOGUE-DBG allocMem type=7 size=0MB hostvis=0
 VOGUE-DBG createShaderModule h=0x200000000015b codeSize=67176 encpos=67412 ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x200000000015d module=0x200000000015b layout=0x200000000015c
-VOGUE-DBG createShaderModule h=0x2000000000160 codeSize=17320 encpos=86076 ovf=0 bufsz=2097152
+VOGUE-DBG createShaderModule h=0x2000000000160 codeSize=30508 encpos=99264 ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x2000000000162 module=0x2000000000160 layout=0x2000000000161
-VOGUE-DBG createShaderModule h=0x2000000000164 codeSize=25340 encpos=112668 ovf=0 bufsz=2097152
+VOGUE-DBG createShaderModule h=0x2000000000164 codeSize=33080 encpos=133596 ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x2000000000166 module=0x2000000000164 layout=0x2000000000165
-VOGUE-DBG createShaderModule h=0x2000000000169 codeSize=26336 encpos=141236 ovf=0 bufsz=2097152
+VOGUE-DBG createShaderModule h=0x2000000000169 codeSize=26336 encpos=162164 ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x200000000016b module=0x2000000000169 layout=0x200000000016a
-VOGUE-DBG createShaderModule h=0x200000000016e codeSize=67176 encpos=210108virgl_render_server[1754135]: failed to receive data: expected 238864 but received 264
-virgl_render_server[1754135]: failed to dispatch context op 5
-virgl_render_server[1754135]: vkr: destroying context 1 (ggml-vulkan-uk) with a valid instance
-virgl_render_server[1754135]: vkr: destroying device with valid objects
+VOGUE-DBG createShaderModule h=0x200000000016e codeSize=67176 encpos=231036virgl_render_server[1954551]: failed to receive data: expected 259792 but received 264
+virgl_render_server[1954551]: failed to dispatch context op 5
+virgl_render_server[1954551]: vkr: destroying context 1 (ggml-vulkan-uk) with a valid instance
+virgl_render_server[1954551]: vkr: destroying device with valid objects
  ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x2000000000170 module=0x200000000016e layout=0x200000000016f
-VOGUE-DBG createShaderModule h=0x2000000000171 codeSize=5880 encpos=217164 ovf=0 bufsz=2097152
+VOGUE-DBG createShaderModule h=0x2000000000171 codeSize=5880 encpos=238092 ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x2000000000173 module=0x2000000000171 layout=0x2000000000172
-VOGUE-DBG createShaderModule h=0x2000000000177 codeSize=11940 encpos=230268 ovf=0 bufsz=2097152
+VOGUE-DBG createShaderModule h=0x2000000000177 codeSize=11940 encpos=251196 ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x2000000000179 module=0x2000000000177 layout=0x2000000000178
-VOGUE-DBG createShaderModule h=0x200000000017a codeSize=5784 encpos=237352 ovf=0 bufsz=2097152
+VOGUE-DBG createShaderModule h=0x200000000017a codeSize=5784 encpos=258280 ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x200000000017c module=0x200000000017a layout=0x200000000017b
 VOGUE-DBG allocMem type=7 size=0MB hostvis=0
 VOGUE-DBG allocMem type=7 size=0MB hostvis=0
@@ -588,20 +589,20 @@ VOGUE-DBG createShaderModule h=0x20000000002db codeSize=7384 encpos=25300 ovf=0 
 VOGUE-DBG createComputePipeline h=0x20000000002dd module=0x20000000002db layout=0x20000000002dc
 VOGUE-DBG createShaderModule h=0x20000000002de codeSize=5444 encpos=31920 ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x20000000002e0 module=0x20000000002de layout=0x20000000002df
-VOGUE-DBG createShaderModule h=0x20000000002e1 codeSize=17320 encpos=50416 ovf=0 bufsz=2097152
+VOGUE-DBG createShaderModule h=0x20000000002e1 codeSize=30508 encpos=63604 ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x20000000002e3 module=0x20000000002e1 layout=0x20000000002e2
-VOGUE-DBG createShaderModule h=0x[34m0.04.768.343[0m [32mI [0msrv    load_model: initializing slots, n_slots = 4
-[34m0.04.777.904[0m [35mW common_speculative_init: no implementations specified for speculative decoding
-[0m[34m0.04.777.906[0m [32mI [0mslot   load_model: id  0 | task -1 | new slot, n_ctx = 512
-[34m0.04.777.912[0m [32mI [0mslot   load_model: id  1 | task -1 | new slot, n_ctx = 512
-[34m0.04.777.915[0m [32mI [0mslot   load_model: id  2 | task -1 | new slot, n_ctx = 512
-[34m0.04.777.918[0m [32mI [0mslot   load_model: id  3 | task -1 | new slot, n_ctx = 512
-[34m0.04.778.135[0m [32mI [0msrv    load_model: prompt cache is enabled, size limit: 8192 MiB
-[34m0.04.778.138[0m [32mI [0msrv    load_model: use `--cache-ram 0` to disable the prompt cache
-[34m0.04.778.141[0m [32mI [0msrv    load_model: for more info see https://github.com/ggml-org/llama.cpp/pull/16391
-[34m0.04.778.144[0m [32mI [0msrv    load_model: context checkpoints enabled, max = 32, min spacing = 256
-[34m0.04.778.283[0m [35mW srv          init: --cache-idle-slots requires --kv-unified, disabling
-[0m[34m0.04.807.558[0m [32mI [0minit: chat template, example_format: '<|im_start|>system
+VOGUE-DBG createShaderModule h=0x[34m0.04.451.276[0m [32mI [0msrv    load_model: initializing slots, n_slots = 4
+[34m0.04.460.641[0m [35mW common_speculative_init: no implementations specified for speculative decoding
+[0m[34m0.04.460.644[0m [32mI [0mslot   load_model: id  0 | task -1 | new slot, n_ctx = 512
+[34m0.04.460.646[0m [32mI [0mslot   load_model: id  1 | task -1 | new slot, n_ctx = 512
+[34m0.04.460.647[0m [32mI [0mslot   load_model: id  2 | task -1 | new slot, n_ctx = 512
+[34m0.04.460.648[0m [32mI [0mslot   load_model: id  3 | task -1 | new slot, n_ctx = 512
+[34m0.04.461.328[0m [32mI [0msrv    load_model: prompt cache is enabled, size limit: 8192 MiB
+[34m0.04.461.329[0m [32mI [0msrv    load_model: use `--cache-ram 0` to disable the prompt cache
+[34m0.04.461.330[0m [32mI [0msrv    load_model: for more info see https://github.com/ggml-org/llama.cpp/pull/16391
+[34m0.04.461.331[0m [32mI [0msrv    load_model: context checkpoints enabled, max = 32, min spacing = 256
+[34m0.04.461.419[0m [35mW srv          init: --cache-idle-slots requires --kv-unified, disabling
+[0m[34m0.04.493.399[0m [32mI [0minit: chat template, example_format: '<|im_start|>system
 You are a helpful assistant<|im_end|>
 <|im_start|>user
 Hello<|im_end|>
@@ -611,168 +612,31 @@ Hi there<|im_end|>
 How are you?<|im_end|>
 <|im_start|>assistant
 '
-[34m0.04.825.000[0m [32mI [0msrv          init: init: chat template, thinking = 1
-[34m0.04.825.041[0m [32mI [0msrv  llama_server: model loaded
-[34m0.04.825.045[0m [32mI [0msrv  llama_server: server is listening on http://0.0.0.0:8080
-[34m0.04.825.066[0m [32mI [0msrv  update_slots: all slots are idle
-[34m0.05.703.327[0m [32mI [0mslot get_availabl: id  3 | task -1 | selected slot by LRU, t_last = -1
-[34m0.05.703.352[0m [32mI [0msrv  get_availabl: updating prompt cache
-[34m0.05.703.364[0m [32mI [0msrv          load:  - looking for better prompt, base f_keep = -1.000, sim = 0.000
-[34m0.05.703.392[0m [32mI [0msrv        update:  - cache state: 0 prompts, 0.000 MiB (limits: 8192.000 MiB, 2048 tokens, 8589934592 est)
-[34m0.05.703.400[0m [32mI [0msrv  get_availabl: prompt cache update took 0.04 ms
-[34m0.05.703.431[0m [32mI [0mslot launch_slot_: id  3 | task 0 | processing task, is_child = 0
-20000000002e4 codeSize=25340 encpos=78492 ovf=0 bufsz=2097152
+[34m0.04.511.841[0m [32mI [0msrv          init: init: chat template, thinking = 1
+[34m0.04.511.886[0m [32mI [0msrv  llama_server: model loaded
+[34m0.04.511.888[0m [32mI [0msrv  llama_server: server is listening on http://0.0.0.0:8080
+[34m0.04.511.908[0m [32mI [0msrv  update_slots: all slots are idle
+[34m0.04.634.679[0m [32mI [0mslot get_availabl: id  3 | task -1 | selected slot by LRU, t_last = -1
+[34m0.04.634.687[0m [32mI [0msrv  get_availabl: updating prompt cache
+[34m0.04.634.691[0m [32mI [0msrv          load:  - looking for better prompt, base f_keep = -1.000, sim = 0.000
+[34m0.04.634.701[0m [32mI [0msrv        update:  - cache state: 0 prompts, 0.000 MiB (limits: 8192.000 MiB, 2048 tokens, 8589934592 est)
+[34m0.04.634.702[0m [32mI [0msrv  get_availabl: prompt cache update took 0.01 ms
+[34m0.04.634.715[0m [32mI [0mslot launch_slot_: id  3 | task 0 | processing task, is_child = 0
+20000000002e4 codeSize=33080 encpos=99420 ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x20000000002e6 module=0x20000000002e4 layout=0x20000000002e5
-VOGUE-DBG createShaderModule h=0x20000000002eb codeSize=13400 encpos=14476 ovf=0 bufsz=2097152
-VOGUE-DBG createComputePipeline h=0x20000000002ed module=0x20000000002eb layout=0x20000000002ec
-VOGUE-DBG createShaderModule h=0x20000000002ee codeSize=12420 encpos=27836 ovf=0 bufsz=2097152
+VOGUE-DBG createShaderModule h=0x20000000002e7 codeSize=25340 encpos=126836 ovf=0 bufsz=2097152
+VOGUE-DBG createComputePipeline h=0x20000000002e9 module=0x20000000002e7 layout=0x20000000002e8
+VOGUE-DBG createShaderModule h=0x20000000002ee codeSize=12216 encpos=13292 ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x20000000002f0 module=0x20000000002ee layout=0x20000000002ef
-VOGUE-DBG createShaderModule h=0x20000000002f1 codeSize=11012 encpos=46816 ovf=0 bufsz=2097152
+VOGUE-DBG createShaderModule h=0x20000000002f1 codeSize=13012 encpos=27244 ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x20000000002f3 module=0x20000000002f1 layout=0x20000000002f2
-VOGUE-DBG createShaderModule h=0x20000000002f4 codeSize=11012 encpos=60228 ovf=0 bufsz=2097152
+VOGUE-DBG createShaderModule h=0x20000000002f4 codeSize=11012 encpos=46224 ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x20000000002f6 module=0x20000000002f4 layout=0x20000000002f5
-VOGUE-DBG createShaderModule h=0x20000000002f7 codeSize=6768 encpos=15568 ovf=0 bufsz=2097152
-VOGUE-DBG createComputePipeline h=0x[34m0.06.039.010[0m [32mI [0mslot print_timing: id  3 | task 0 | prompt eval time =     119.83 ms /    16 tokens (    7.49 ms per token,   133.53 tokens per second)
-[34m0.06.039.019[0m [32mI [0mslot print_timing: id  3 | task 0 |        eval time =     215.65 ms /    16 tokens (   13.48 ms per token,    74.19 tokens per second)
-[34m0.06.039.022[0m [32mI [0mslot print_timing: id  3 | task 0 |       total time =     335.48 ms /    32 tokens
-[34m0.06.039.028[0m [32mI [0mslot print_timing: id  3 | task 0 |    graphs reused =         15
-[34m0.06.039.129[0m [32mI [0mslot      release: id  3 | task 0 | stop processing: n_tokens = 31, truncated = 0
-[34m0.06.039.139[0m [32mI [0msrv  update_slots: all slots are idle
-[34m0.06.094.658[0m [32mI [0mslot get_availabl: id  2 | task -1 | selected slot by LRU, t_last = -1
-[34m0.06.094.661[0m [32mI [0msrv  get_availabl: updating prompt cache
-[34m0.06.094.667[0m [32mI [0msrv          load:  - looking for better prompt, base f_keep = -1.000, sim = 0.000
-[34m0.06.094.672[0m [32mI [0msrv        update:  - cache state: 0 prompts, 0.000 MiB (limits: 8192.000 MiB, 2048 tokens, 8589934592 est)
-[34m0.06.094.675[0m [32mI [0msrv  get_availabl: prompt cache update took 0.01 ms
-[34m0.06.094.689[0m [32mI [0mslot launch_slot_: id  2 | task 17 | processing task, is_child = 0
-[34m0.06.911.702[0m [32mI [0mslot print_timing: id  2 | task 17 | n_decoded =    100, tg = 124.07 t/s
-[34m0.07.142.878[0m [32mI [0mslot print_timing: id  2 | task 17 | prompt eval time =      10.98 ms /     9 tokens (    1.22 ms per token,   819.30 tokens per second)
-[34m0.07.142.882[0m [32mI [0mslot print_timing: id  2 | task 17 |        eval time =    1037.18 ms /   128 tokens (    8.10 ms per token,   123.41 tokens per second)
-[34m0.07.142.886[0m [32mI [0mslot print_timing: id  2 | task 17 |       total time =    1048.16 ms /   137 tokens
-[34m0.07.142.891[0m [32mI [0mslot print_timing: id  2 | task 17 |    graphs reused =        141
-[34m0.07.142.942[0m [32mI [0mslot      release: id  2 | task 17 | stop processing: n_tokens = 136, truncated = 0
-[34m0.07.142.958[0m [32mI [0msrv  update_slots: all slots are idle
-[34m0.07.248.171[0m [35mW srv          stop: cancel task, id_task = 17
-[0m[34m0.07.253.885[0m [32mI [0msrv  update_slots: all slots are idle
-[34m0.07.272.353[0m [32mI [0mslot get_availabl: id  2 | task -1 | selected slot by LCP similarity, sim_best = 1.000 (> 0.100 thold), f_keep = 0.066
-[34m0.07.272.357[0m [32mI [0msrv  get_availabl: updating prompt cache
-[34m0.07.272.572[0m [35mW srv   prompt_save:  - saving prompt with length 136, total state size = 14.877 MiB (draft: 0.000 MiB)
-[0m[34m0.17.639.028[0m [32mI [0msrv          load:  - looking for better prompt, base f_keep = 0.066, sim = 1.000
-[34m0.17.639.060[0m [32mI [0msrv        update:  - cache state: 1 prompts, 14.877 MiB (limits: 8192.000 MiB, 2048 tokens, 74887 est)
-[34m0.17.639.067[0m [32mI [0msrv        update:    - prompt 0xbca53030:     136 tokens, checkpoints:  0,    14.877 MiB
-[34m0.17.639.075[0m [32mI [0msrv  get_availabl: prompt cache update took 10366.71 ms
-[34m0.17.639.349[0m [32mI [0mslot launch_slot_: id  2 | task 147 | processing task, is_child = 0
-[34m0.18.450.524[0m [32mI [0mslot print_timing: id  2 | task 147 | n_decoded =    100, tg = 125.56 t/s
-[34m0.18.679.133[0m [32mI [0mslot print_timing: id  2 | task 147 | prompt eval time =      14.66 ms /     9 tokens (    1.63 ms per token,   613.92 tokens per second)
-[34m0.18.679.138[0m [32mI [0mslot print_timing: id  2 | task 147 |        eval time =    1025.04 ms /   128 tokens (    8.01 ms per token,   124.87 tokens per second)
-[34m0.18.679.141[0m [32mI [0mslot print_timing: id  2 | task 147 |       total time =    1039.70 ms /   137 tokens
-[34m0.18.679.156[0m [32mI [0mslot print_timing: id  2 | task 147 |    graphs reused =        267
-[34m0.18.679.271[0m [32mI [0mslot      release: id  2 | task 147 | stop processing: n_tokens = 136, truncated = 0
-[34m0.18.679.300[0m [32mI [0msrv  update_slots: all slots are idle
-[34m0.18.802.774[0m [32mI [0mslot get_availabl: id  2 | task -1 | selected slot by LCP similarity, sim_best = 1.000 (> 0.100 thold), f_keep = 0.066
-[34m0.18.802.777[0m [32mI [0msrv  get_availabl: updating prompt cache
-[34m0.18.803.011[0m [35mW srv   prompt_save:  - saving prompt with length 136, total state size = 14.877 MiB (draft: 0.000 MiB)
-[0m[34m0.18.803.018[0m [32mI [0msrv         alloc:  - prompt is already in the cache, skipping
-[34m0.18.803.021[0m [32mI [0msrv          load:  - looking for better prompt, base f_keep = 0.066, sim = 1.000
-[34m0.18.803.026[0m [32mI [0msrv        update:  - cache state: 1 prompts, 14.877 MiB (limits: 8192.000 MiB, 2048 tokens, 74887 est)
-[34m0.18.803.029[0m [32mI [0msrv        update:    - prompt 0xbca53030:     136 tokens, checkpoints:  0,    14.877 MiB
-[34m0.18.803.032[0m [32mI [0msrv  get_availabl: prompt cache update took 0.25 ms
-[34m0.18.803.056[0m [32mI [0mslot launch_slot_: id  2 | task 276 | processing task, is_child = 0
-[34m0.19.872.593[0m [32mI [0mslot print_timing: id  2 | task 276 | prompt eval time =      11.30 ms /     9 tokens (    1.26 ms per token,   796.25 tokens per second)
-[34m0.19.872.597[0m [32mI [0mslot print_timing: id  2 | task 276 |        eval time =    1058.21 ms /   128 tokens (    8.27 ms per token,   120.96 tokens per second)
-[34m0.19.872.601[0m [32mI [0mslot print_timing: id  2 | task 276 |       total time =    1069.51 ms /   137 tokens
-[34m0.19.872.618[0m [32mI [0mslot print_timing: id  2 | task 276 |    graphs reused =        393
-[34m0.19.872.673[0m [32mI [0mslot      release: id  2 | task 276 | stop processing: n_tokens = 136, truncated = 0
-[34m0.19.872.687[0m [32mI [0msrv  update_slots: all slots are idle
-[34m0.20.024.343[0m [32mI [0mslot get_availabl: id  2 | task -1 | selected slot by LCP similarity, sim_best = 1.000 (> 0.100 thold), f_keep = 0.066
-[34m0.20.024.347[0m [32mI [0msrv  get_availabl: updating prompt cache
-[34m0.20.024.594[0m [35mW srv   prompt_save:  - saving prompt with length 136, total state size = 14.877 MiB (draft: 0.000 MiB)
-[0m[34m0.20.024.602[0m [32mI [0msrv         alloc:  - prompt is already in the cache, skipping
-[34m0.20.024.607[0m [32mI [0msrv          load:  - looking for better prompt, base f_keep = 0.066, sim = 1.000
-[34m0.20.024.613[0m [32mI [0msrv        update:  - cache state: 1 prompts, 14.877 MiB (limits: 8192.000 MiB, 2048 tokens, 74887 est)
-[34m0.20.024.618[0m [32mI [0msrv        update:    - prompt 0xbca53030:     136 tokens, checkpoints:  0,    14.877 MiB
-[34m0.20.024.622[0m [32mI [0msrv  get_availabl: prompt cache update took 0.27 ms
-[34m0.20.024.655[0m [32mI [0mslot launch_slot_: id  2 | task 405 | processing task, is_child = 0
-[34m0.21.075.880[0m [32mI [0mslot print_timing: id  2 | task 405 | prompt eval time =      10.68 ms /     9 tokens (    1.19 ms per token,   842.93 tokens per second)
-[34m0.21.075.886[0m [32mI [0mslot print_timing: id  2 | task 405 |        eval time =    1040.51 ms /   128 tokens (    8.13 ms per token,   123.02 tokens per second)
-[34m0.21.075.889[0m [32mI [0mslot print_timing: id  2 | task 405 |       total time =    1051.19 ms /   137 tokens
-[34m0.21.075.895[0m [32mI [0mslot print_timing: id  2 | task 405 |    graphs reused =        519
-[34m0.21.075.946[0m [32mI [0mslot      release: id  2 | task 405 | stop processing: n_tokens = 136, truncated = 0
-[34m0.21.075.963[0m [32mI [0msrv  update_slots: all slots are idle
-[34m0.21.202.967[0m [32mI [0mslot get_availabl: id  2 | task -1 | selected slot by LCP similarity, sim_best = 1.000 (> 0.100 thold), f_keep = 0.066
-[34m0.21.202.970[0m [32mI [0msrv  get_availabl: updating prompt cache
-[34m0.21.203.104[0m [35mW srv   prompt_save:  - saving prompt with length 136, total state size = 14.877 MiB (draft: 0.000 MiB)
-[0m[34m0.21.203.111[0m [32mI [0msrv         alloc:  - prompt is already in the cache, skipping
-[34m0.21.203.115[0m [32mI [0msrv          load:  - looking for better prompt, base f_keep = 0.066, sim = 1.000
-[34m0.21.203.119[0m [32mI [0msrv        update:  - cache state: 1 prompts, 14.877 MiB (limits: 8192.000 MiB, 2048 tokens, 74887 est)
-[34m0.21.203.123[0m [32mI [0msrv        update:    - prompt 0xbca53030:     136 tokens, checkpoints:  0,    14.877 MiB
-[34m0.21.203.127[0m [32mI [0msrv  get_availabl: prompt cache update took 0.15 ms
-[34m0.21.203.158[0m [32mI [0mslot launch_slot_: id  2 | task 534 | processing task, is_child = 0
-[34m0.22.026.501[0m [32mI [0mslot print_timing: id  2 | task 534 | n_decoded =    100, tg = 123.16 t/s
-[34m0.22.252.117[0m [32mI [0mslot print_timing: id  2 | task 534 | prompt eval time =      11.35 ms /     9 tokens (    1.26 ms per token,   792.81 tokens per second)
-[34m0.22.252.122[0m [32mI [0mslot print_timing: id  2 | task 534 |        eval time =    1037.59 ms /   128 tokens (    8.11 ms per token,   123.36 tokens per second)
-[34m0.22.252.126[0m [32mI [0mslot print_timing: id  2 | task 534 |       total time =    1048.94 ms /   137 tokens
-[34m0.22.252.131[0m [32mI [0mslot print_timing: id  2 | task 534 |    graphs reused =        645
-[34m0.22.252.173[0m [32mI [0mslot      release: id  2 | task 534 | stop processing: n_tokens = 136, truncated = 0
-[34m0.22.252.196[0m [32mI [0msrv  update_slots: all slots are idle
-[34m0.22.387.061[0m [32mI [0mslot get_availabl: id  2 | task -1 | selected slot by LCP similarity, sim_best = 1.000 (> 0.100 thold), f_keep = 0.066
-[34m0.22.387.065[0m [32mI [0msrv  get_availabl: updating prompt cache
-[34m0.22.387.272[0m [35mW srv   prompt_save:  - saving prompt with length 136, total state size = 14.877 MiB (draft: 0.000 MiB)
-[0m[34m0.22.387.279[0m [32mI [0msrv         alloc:  - prompt is already in the cache, skipping
-[34m0.22.387.282[0m [32mI [0msrv          load:  - looking for better prompt, base f_keep = 0.066, sim = 1.000
-[34m0.22.387.287[0m [32mI [0msrv        update:  - cache state: 1 prompts, 14.877 MiB (limits: 8192.000 MiB, 2048 tokens, 74887 est)
-[34m0.22.387.291[0m [32mI [0msrv        update:    - prompt 0xbca53030:     136 tokens, checkpoints:  0,    14.877 MiB
-[34m0.22.387.294[0m [32mI [0msrv  get_availabl: prompt cache update took 0.23 ms
-[34m0.22.387.323[0m [32mI [0mslot launch_slot_: id  2 | task 663 | processing task, is_child = 0
-[34m0.23.468.760[0m [32mI [0mslot print_timing: id  2 | task 663 | prompt eval time =      13.05 ms /     9 tokens (    1.45 ms per token,   689.39 tokens per second)
-[34m0.23.468.765[0m [32mI [0mslot print_timing: id  2 | task 663 |        eval time =    1068.36 ms /   128 tokens (    8.35 ms per token,   119.81 tokens per second)
-[34m0.23.468.770[0m [32mI [0mslot print_timing: id  2 | task 663 |       total time =    1081.42 ms /   137 tokens
-[34m0.23.468.775[0m [32mI [0mslot print_timing: id  2 | task 663 |    graphs reused =        771
-[34m0.23.468.840[0m [32mI [0mslot      release: id  2 | task 663 | stop processing: n_tokens = 136, truncated = 0
-[34m0.23.468.857[0m [32mI [0msrv  update_slots: all slots are idle
-[34m0.23.595.358[0m [32mI [0mslot get_availabl: id  2 | task -1 | selected slot by LCP similarity, sim_best = 1.000 (> 0.100 thold), f_keep = 0.066
-[34m0.23.595.362[0m [32mI [0msrv  get_availabl: updating prompt cache
-[34m0.23.595.556[0m [35mW srv   prompt_save:  - saving prompt with length 136, total state size = 14.877 MiB (draft: 0.000 MiB)
-[0m[34m0.23.595.565[0m [32mI [0msrv         alloc:  - prompt is already in the cache, skipping
-[34m0.23.595.569[0m [32mI [0msrv          load:  - looking for better prompt, base f_keep = 0.066, sim = 1.000
-[34m0.23.595.574[0m [32mI [0msrv        update:  - cache state: 1 prompts, 14.877 MiB (limits: 8192.000 MiB, 2048 tokens, 74887 est)
-[34m0.23.595.578[0m [32mI [0msrv        update:    - prompt 0xbca53030:     136 tokens, checkpoints:  0,    14.877 MiB
-[34m0.23.595.581[0m [32mI [0msrv  get_availabl: prompt cache update took 0.22 ms
-[34m0.23.595.598[0m [32mI [0mslot launch_slot_: id  2 | task 792 | processing task, is_child = 0
-[34m0.24.678.333[0m [32mI [0mslot print_timing: id  2 | task 792 | prompt eval time =      12.27 ms /     9 tokens (    1.36 ms per token,   733.38 tokens per second)
-[34m0.24.678.339[0m [32mI [0mslot print_timing: id  2 | task 792 |        eval time =    1070.43 ms /   128 tokens (    8.36 ms per token,   119.58 tokens per second)
-[34m0.24.678.342[0m [32mI [0mslot print_timing: id  2 | task 792 |       total time =    1082.70 ms /   137 tokens
-[34m0.24.678.348[0m [32mI [0mslot print_timing: id  2 | task 792 |    graphs reused =        897
-[34m0.24.678.383[0m [32mI [0mslot      release: id  2 | task 792 | stop processing: n_tokens = 136, truncated = 0
-[34m0.24.678.426[0m [32mI [0msrv  update_slots: all slots are idle
-[34m0.24.805.595[0m [32mI [0mslot get_availabl: id  2 | task -1 | selected slot by LCP similarity, sim_best = 1.000 (> 0.100 thold), f_keep = 0.066
-[34m0.24.805.598[0m [32mI [0msrv  get_availabl: updating prompt cache
-[34m0.24.805.734[0m [35mW srv   prompt_save:  - saving prompt with length 136, total state size = 14.877 MiB (draft: 0.000 MiB)
-[0m[34m0.24.805.738[0m [32mI [0msrv         alloc:  - prompt is already in the cache, skipping
-[34m0.24.805.742[0m [32mI [0msrv          load:  - looking for better prompt, base f_keep = 0.066, sim = 1.000
-[34m0.24.805.747[0m [32mI [0msrv        update:  - cache state: 1 prompts, 14.877 MiB (limits: 8192.000 MiB, 2048 tokens, 74887 est)
-[34m0.24.805.751[0m [32mI [0msrv        update:    - prompt 0xbca53030:     136 tokens, checkpoints:  0,    14.877 MiB
-[34m0.24.805.754[0m [32mI [0msrv  get_availabl: prompt cache update took 0.15 ms
-[34m0.24.805.774[0m [32mI [0mslot launch_slot_: id  2 | task 921 | processing task, is_child = 0
-[34m0.25.634.566[0m [32mI [0mslot print_timing: id  2 | task 921 | n_decoded =    100, tg = 122.35 t/s
-[34m0.25.872.685[0m [32mI [0mslot print_timing: id  2 | task 921 | prompt eval time =      11.34 ms /     9 tokens (    1.26 ms per token,   793.51 tokens per second)
-[34m0.25.872.691[0m [32mI [0mslot print_timing: id  2 | task 921 |        eval time =    1055.53 ms /   128 tokens (    8.25 ms per token,   121.27 tokens per second)
-[34m0.25.872.695[0m [32mI [0mslot print_timing: id  2 | task 921 |       total time =    1066.88 ms /   137 tokens
-[34m0.25.872.701[0m [32mI [0mslot print_timing: id  2 | task 921 |    graphs reused =       1023
-[34m0.25.872.718[0m [32mI [0mslot      release: id  2 | task 921 | stop processing: n_tokens = 136, truncated = 0
-[34m0.25.872.728[0m [32mI [0msrv  update_slots: all slots are idle
-[34m0.26.006.841[0m [32mI [0mslot get_availabl: id  2 | task -1 | selected slot by LCP similarity, sim_best = 1.000 (> 0.100 thold), f_keep = 0.066
-[34m0.26.006.845[0m [32mI [0msrv  get_availabl: updating prompt cache
-[34m0.26.006.982[0m [35mW srv   prompt_save:  - saving prompt with length 136, total state size = 14.877 MiB (draft: 0.000 MiB)
-[0m[34m0.26.006.986[0m [32mI [0msrv         alloc:  - prompt is already in the cache, skipping
-[34m0.26.006.990[0m [32mI [0msrv          load:  - looking for better prompt, base f_keep = 0.066, sim = 1.000
-[34m0.26.006.998[0m [32mI [0msrv        update:  - cache state: 1 prompts, 14.877 MiB (limits: 8192.000 MiB, 2048 tokens, 74887 est)
-[34m0.26.007.002[0m [32mI [0msrv        update:    - prompt 0xbca53030:     136 tokens, checkpoints:  0,    14.877 MiB
-[34m0.26.007.005[0m [32mI [0msrv  get_availabl: prompt cache update took 0.16 ms
-[34m0.26.007.026[0m [32mI [0mslot launch_slot_: id  2 | task 1050 | processing task, is_child = 0
-[34m0.27.143.638[0m [32mI [0mslot print_timing: id  2 | task 1050 | prompt eval time =      11.31 ms /     9 tokens (    1.26 ms per token,   795.54 tokens per second)
-[34m0.27.143.644[0m [32mI [0mslot print_timing: id  2 | task 1050 |        eval time =    1125.26 ms /   128 tokens (    8.79 ms per token,   113.75 tokens per second)
-[34m0.27.143.649[0m [32mI [0mslot print_timing: id  2 | task 1050 |       total time =    1136.58 ms /   137 tokens
-[34m0.27.143.656[0m [32mI [0mslot print_timing: id  2 | task 1050 |    graphs reused =       1149
-[34m0.27.143.675[0m [32mI [0mslot      release: id  2 | task 1050 | stop processing: n_tokens = 136, truncated = 0
-[34m0.27.143.686[0m [32mI [0msrv  update_slots: all slots are idle
-qemu-system-x86_64: terminating on signal 15 from pid 1754112 (/usr/bin/python3)
+VOGUE-DBG createShaderModule h=0x20000000002f7 codeSize=11012 encpos=59636 ovf=0 bufsz=2097152
+VOGUE-DBG createComputePipeline h=0x[34m0.04.874.244[0m [32mI [0mslot print_timing: id  3 | task 0 | prompt eval time =     128.68 ms /    16 tokens (    8.04 ms per token,   124.34 tokens per second)
+[34m0.04.874.248[0m [32mI [0mslot print_timing: id  3 | task 0 |        eval time =     110.80 ms /    16 tokens (    6.93 ms per token,   144.40 tokens per second)
+[34m0.04.874.249[0m [32mI [0mslot print_timing: id  3 | task 0 |       total time =     239.49 ms /    32 tokens
+[34m0.04.874.251[0m [32mI [0mslot print_timing: id  3 | task 0 |    graphs reused =         15
+[34m0.04.874.284[0m [32mI [0mslot      release: id  3 | task 0 | stop processing: n_tokens = 31, truncated = 0
+[34m0.04.874.289[0m [32mI [0msrv  update_slots: all slots are idle
+qemu-system-x86_64: terminating on signal 15 from pid 1954532 (python3)
