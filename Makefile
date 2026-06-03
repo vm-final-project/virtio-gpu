@@ -67,7 +67,7 @@ export LLAMA_ROOT VENUS_PROTOCOL_ROOT VULKAN_HEADERS_INCLUDE SPIRV_HEADERS_INCLU
         governance-check lib-readme-check app-port-check naming-check claim-check \
         eval eval-check current-stage-check current-stage-refresh \
         app-perf-check perf-check image-size-check boot-time-check model-load-time-check llm-server-vk-check llm-server-vk-throughput-check \
-        depgraph depgraph-check gen-libukvenus gen-libukvenus-plan gen-libukvenus-check \
+        depgraph depgraph-check gen-libukvenus gen-libukvenus-plan gen-libukvenus-check gen-libukvenus-verify gen-libukvenus-selftest \
         paper paper-check clean
 
 # ============================================================================
@@ -418,7 +418,7 @@ app-multi-env-bench:
 # ============================================================================
 # Evidence, governance & claim discipline
 # ============================================================================
-governance-check:
+governance-check: gen-libukvenus-verify
 	python3 scripts/governance_check.py --check
 
 lib-readme-check:
@@ -502,6 +502,18 @@ gen-libukvenus-check:
 
 gen-libukvenus: gen-libukvenus-check
 	python3 scripts/gen_libukvenus.py generate
+
+# Prove the committed generated tree still matches a fresh upstream regen.
+gen-libukvenus-verify: gen-libukvenus-check
+	python3 scripts/gen_libukvenus.py verify
+
+# Self-tests for the generator pin/extractor/manifest/coverage/parity harness.
+gen-libukvenus-selftest:
+	python3 scripts/venus/test_pin.py
+	python3 scripts/venus/test_extract.py
+	python3 scripts/venus/test_manifest.py
+	python3 scripts/venus/test_generate.py
+	python3 scripts/venus/test_coverage.py
 
 depgraph:
 	python3 scripts/gen_depgraph.py
