@@ -101,11 +101,6 @@
 
 #define VN_COMMAND_FLAGS_NONE 0u
 
-/*
- * VkStructureType for Venus ring creation (VK_STRUCTURE_TYPE_RING_CREATE_INFO_MESA).
- * Source: mesa/src/virtio/venus-protocol/vn_protocol_driver_defines.h
- */
-#define VK_STRUCTURE_TYPE_RING_CREATE_INFO_MESA 1000384000u
 
 /*
  * Venus ring shared-memory layout (Mesa vn_ring_get_layout).
@@ -377,6 +372,15 @@ int uk_venus_context_create(struct uk_virtio_gpu_dev *dev, uint32_t *ctx_id);
 int uk_venus_submit(struct uk_virtio_gpu_dev *dev,
 		    const struct uk_virtio_gpu_context *ctx,
 		    const struct uk_venus_encoder *enc);
+
+/*
+ * uk_venus_ring_bind_current — bind the device+context that the generated
+ * Venus submit/call wrappers route through (see vn_ring_shim.c). Call once
+ * after a Venus context is created, before driving any generated wrapper.
+ */
+struct uk_virtio_gpu_context;
+void uk_venus_ring_bind_current(struct uk_virtio_gpu_dev *dev,
+				struct uk_virtio_gpu_context *ctx);
 
 /*
  * Ring/blob helpers for the accelerated Venus substrate.

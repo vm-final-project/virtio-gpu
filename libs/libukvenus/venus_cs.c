@@ -20,6 +20,13 @@
 
 #include <uk/venus.h>
 
+/* Venus ring-create sType. Defined here (guarded) rather than in the public
+ * header so it never collides with the generated vn_protocol_driver_defines.h
+ * when a translation unit pulls in both. */
+#ifndef VK_STRUCTURE_TYPE_RING_CREATE_INFO_MESA
+#define VK_STRUCTURE_TYPE_RING_CREATE_INFO_MESA 1000384000u
+#endif
+
 int uk_venus_encoder_init(struct uk_venus_encoder *enc, void *buf, size_t cap)
 {
 	if (!enc || !buf || !cap)

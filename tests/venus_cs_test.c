@@ -21,6 +21,10 @@
 
 #include <uk/venus.h>
 
+#ifndef VK_STRUCTURE_TYPE_RING_CREATE_INFO_MESA
+#define VK_STRUCTURE_TYPE_RING_CREATE_INFO_MESA 1000384000u
+#endif
+
 /* ------------------------------------------------------------------ helpers */
 
 static int g_fail_count;

@@ -41,7 +41,7 @@ PROTO_HDR := ../libs/libukvirtio_gpu/virtio_gpu_proto.h
 JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
 MAKEFLAGS += --no-print-directory
 
-.PHONY: native test-core test-venus test-dispatch test-n3 proto-abi vulkan g5 venus-cs venus-compute virgl-enc n3-dispatch clean
+.PHONY: native test-core test-venus test-dispatch test-n3 proto-abi vulkan g5 venus-cs venus-compute venus-gen-compile virgl-enc n3-dispatch clean
 
 NATIVE_BINS := \
 	$(BUILD)/dma_buf_test \
@@ -53,6 +53,7 @@ NATIVE_BINS := \
 	$(BUILD)/venus_cs_test \
 	$(BUILD)/venus_compute_test \
 	$(BUILD)/virgl_encoder_test \
+	$(BUILD)/venus_generated_compile_test \
 	$(BUILD)/ggml_vk_dispatch_test
 
 # Full deterministic suite — primary CI gate. Two phases: parallel compile
@@ -80,7 +81,8 @@ TEST_VENUS_BINS := \
 	$(BUILD)/vk_icd_bootstrap_test \
 	$(BUILD)/venus_cs_test \
 	$(BUILD)/venus_compute_test \
-	$(BUILD)/virgl_encoder_test
+	$(BUILD)/virgl_encoder_test \
+	$(BUILD)/venus_generated_compile_test
 test-venus:
 	+@$(MAKE) -j$(JOBS) $(TEST_VENUS_BINS)
 	@for b in $(TEST_VENUS_BINS); do ./$$b || exit $$?; done
@@ -151,6 +153,21 @@ $(BUILD)/venus_compute_test: venus_compute_test.c ../libs/libukvenus/venus_cs.c 
 
 venus-compute: $(BUILD)/venus_compute_test
 	./$(BUILD)/venus_compute_test
+
+# Generated-encoder includes: bare "vn_cs.h"/"vn_ring.h" live in include/uk;
+# the driver headers live in generated/; vulkan.h comes from VK_INC. The
+# generated code is upstream-shaped, so silence its stylistic warnings.
+GEN_CFLAGS := -I../libs/libukvenus/include/uk -I../libs/libukvenus/generated \
+	-I$(VK_INC) -Wno-unused-parameter -Wno-missing-field-initializers
+
+$(BUILD)/venus_generated_compile_test: venus_generated_compile_test.c \
+	../libs/libukvenus/venus_cs.c ../libs/libukvenus/venus_init.c \
+	../libs/libukvenus/venus_compute.c ../libs/libukvenus/vn_ring_shim.c \
+	./virtio_gpu_fake.c | $(BUILD)
+	$(CC) $(CFLAGS) $(GEN_CFLAGS) $^ -o $@
+
+venus-gen-compile: $(BUILD)/venus_generated_compile_test
+	./$(BUILD)/venus_generated_compile_test
 
 $(BUILD)/virgl_encoder_test: virgl_encoder_test.c ../libs/libukvirtio_gpu/virgl_encoder.c ./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) -I../libs/libukvenus/include $^ -o $@
