@@ -37,15 +37,23 @@ to avoid forking 3,000 lines of Mesa code into VOGUE.
 from __future__ import annotations
 
 import argparse
+import filecmp
+import hashlib
 import json
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LIBVENUS = ROOT / "libs" / "libukvenus"
-VENUS_PROTOCOL = ROOT.parent / "venus-protocol"
+OUTDIR = LIBVENUS / "generated"
+
+# The pinned upstream generator commit + slice config is the single source of
+# truth. See scripts/venus/pin.json and scripts/venus/test_pin.py.
+PIN = json.loads((ROOT / "scripts/venus/pin.json").read_text())
+VENUS_PROTOCOL = (ROOT / PIN["checkout"]).resolve()
 
 # Slices we actually emit. Keep this list minimal — every extra extension
 # bloats the encoder and the final unikernel image.
@@ -121,29 +129,49 @@ def cmd_check(_args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_upstream(dest: Path) -> None:
+    """Run the pinned upstream generator into dest (driver/guest variant)."""
+    dest.mkdir(parents=True, exist_ok=True)
+    for stale in dest.glob("vn_protocol_driver_*.h"):
+        stale.unlink()
+    cmd = [sys.executable, str(VENUS_PROTOCOL / PIN["generator"]),
+           "--outdir", str(dest)]  # no --renderer => driver/guest encoder variant
+    subprocess.run(cmd, check=True, cwd=str(VENUS_PROTOCOL))
+
+
+def _write_lock(dest: Path) -> None:
+    files = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+             for p in sorted(dest.glob("vn_protocol_driver_*.h"))}
+    lock = {"commit": PIN["commit"], "variant": PIN["variant"], "files": files}
+    (dest / "GENERATED.lock").write_text(json.dumps(lock, indent=2) + "\n")
+
+
 def cmd_generate(args: argparse.Namespace) -> int:
     if cmd_check(args) != 0:
         return 1
+    _run_upstream(OUTDIR)
+    _write_lock(OUTDIR)
+    print(f"gen_libukvenus: PASS wrote {OUTDIR.relative_to(ROOT)}")
+    return 0
 
-    out_dir = LIBVENUS / "generated"
-    out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Delegate to the upstream generator so we never fork template logic.
-    upstream_script = VENUS_PROTOCOL / "vn_protocol.py"
-    cmd = [
-        sys.executable,
-        str(upstream_script),
-        "--out-dir",
-        str(out_dir),
-    ]
-    print(f"gen_libukvenus: running {' '.join(cmd)}")
-    try:
-        subprocess.run(cmd, check=True, cwd=VENUS_PROTOCOL)
-    except subprocess.CalledProcessError as exc:
-        print(f"gen_libukvenus: FAIL upstream generator exit={exc.returncode}")
-        return exc.returncode
-
-    print(f"gen_libukvenus: PASS wrote artifacts under {out_dir.relative_to(ROOT)}")
+def cmd_verify(args: argparse.Namespace) -> int:
+    """Regenerate into a temp dir and diff against the committed tree."""
+    if cmd_check(args) != 0:
+        return 1
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        _run_upstream(tmp)
+        _write_lock(tmp)
+        names = {p.name for p in OUTDIR.glob("vn_protocol_driver_*.h")}
+        names |= {p.name for p in tmp.glob("vn_protocol_driver_*.h")}
+        diffs = [n for n in sorted(names)
+                 if not (OUTDIR / n).exists() or not (tmp / n).exists()
+                 or not filecmp.cmp(OUTDIR / n, tmp / n, shallow=False)]
+        if diffs:
+            print("gen_libukvenus verify: FAIL drift in: " + ", ".join(diffs))
+            return 1
+    print("gen_libukvenus verify: PASS committed tree matches upstream regen")
     return 0
 
 
@@ -153,6 +181,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("plan").set_defaults(func=cmd_plan)
     sub.add_parser("check").set_defaults(func=cmd_check)
     sub.add_parser("generate").set_defaults(func=cmd_generate)
+    sub.add_parser("verify").set_defaults(func=cmd_verify)
     parser.add_argument("--plan", dest="legacy_plan", action="store_true")
     parser.add_argument("--check", dest="legacy_check", action="store_true")
     parser.add_argument("--generate", dest="legacy_generate", action="store_true")
