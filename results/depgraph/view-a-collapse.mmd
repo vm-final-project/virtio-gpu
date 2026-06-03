@@ -1,49 +1,50 @@
 %% View A: The Collapse
 flowchart LR
   subgraph linux["Linux DRM guest"]
-    linux_virtgpu_ioctl["virtgpu_ioctl"]
-    linux_virtgpu_drv["virtgpu_drv"]
-    linux_virtgpu_plane["virtgpu_plane"]
-    linux_sub_VIRTIO_DMA_SHARED_BUFFER["VIRTIO_DMA_SHARED_BUFFER"]
     linux_gpu["gpu"]
-    linux_sub_DRM_GEM_SHMEM_HELPER["DRM_GEM_SHMEM_HELPER"]
-    linux_virtgpu_kms["virtgpu_kms"]
-    linux_virtio_gpu_ko["virtio-gpu.ko"]
-    linux_sub_VIRTIO["VIRTIO"]
-    linux_virtgpu_vq["virtgpu_vq"]
-    linux_virtgpu_submit["virtgpu_submit"]
-    linux_virtgpu_vram["virtgpu_vram"]
     linux_virtgpu_debugfs["virtgpu_debugfs"]
-    linux_sub_DRM_KMS_HELPER["DRM_KMS_HELPER"]
     linux_virtgpu_display["virtgpu_display"]
+    linux_sub_VIRTIO["VIRTIO"]
+    linux_virtgpu_trace_points["virtgpu_trace_points"]
+    linux_virtgpu_ioctl["virtgpu_ioctl"]
+    linux_virtgpu_vq["virtgpu_vq"]
     linux_virtgpu_prime["virtgpu_prime"]
+    linux_virtgpu_drv["virtgpu_drv"]
+    linux_sub_DRM["DRM"]
+    linux_sub_VIRTIO_DMA_SHARED_BUFFER["VIRTIO_DMA_SHARED_BUFFER"]
+    linux_sub_DRM_GEM_SHMEM_HELPER["DRM_GEM_SHMEM_HELPER"]
+    linux_virtgpu_submit["virtgpu_submit"]
+    linux_sub_DRM_CLIENT_SELECTION["DRM_CLIENT_SELECTION"]
     linux_virtgpu_object["virtgpu_object"]
+    linux_virtgpu_vram["virtgpu_vram"]
+    linux_sub_DRM_KMS_HELPER["DRM_KMS_HELPER"]
     linux_virtgpu_fence["virtgpu_fence"]
     linux_virtgpu_gem["virtgpu_gem"]
-    linux_sub_DRM_CLIENT_SELECTION["DRM_CLIENT_SELECTION"]
-    linux_virtgpu_trace_points["virtgpu_trace_points"]
-    linux_sub_DRM["DRM"]
+    linux_virtio_gpu_ko["virtio-gpu.ko"]
+    linux_virtgpu_kms["virtgpu_kms"]
+    linux_virtgpu_plane["virtgpu_plane"]
   end
   subgraph vogue["VOGUE guest"]
-    vogue_libukvenus["libukvenus"]
-    vogue_libukvk_icd["libukvk_icd"]
-    vogue_ext_LIBUKVENUS["LIBUKVENUS"]
-    vogue_ext_LIBUKVK_ICD["LIBUKVK_ICD"]
-    vogue_ext_LIBUKALLOC["LIBUKALLOC"]
-    vogue_ext_LIBVIRTIO_BUS["LIBVIRTIO_BUS"]
-    vogue_libukggml_vk["libukggml_vk"]
-    vogue_libukswrender["libukswrender"]
-    vogue_ext_LIBUKVIRTGPU_DRM["LIBUKVIRTGPU_DRM"]
-    vogue_libukdrm_compat["libukdrm_compat"]
-    vogue_libukvirtio_gpu["libukvirtio_gpu"]
     vogue_ext_LIBMUSL["LIBMUSL"]
     vogue_libukgbm_compat["libukgbm_compat"]
+    vogue_libukdrm_compat["libukdrm_compat"]
     vogue_libukvirtgpu_drm["libukvirtgpu_drm"]
-    vogue_ext_LIBUKVIRTIO_GPU["LIBUKVIRTIO_GPU"]
+    vogue_ext_LIBUKLOCK["LIBUKLOCK"]
+    vogue_libukggml_vk["libukggml_vk"]
     vogue_ext_LIBUKSGLIST["LIBUKSGLIST"]
     vogue_libukegl["libukegl"]
+    vogue_ext_LIBUKVIRTGPU_DRM["LIBUKVIRTGPU_DRM"]
+    vogue_libukswrender["libukswrender"]
+    vogue_ext_LIBVIRTIO_BUS["LIBVIRTIO_BUS"]
     vogue_ext_VIRTIO_DEVICE["VIRTIO_DEVICE"]
-    vogue_libukdma["libukdma"]
+    vogue_libukvirtio_gpu["libukvirtio_gpu"]
+    vogue_libukvk_icd["libukvk_icd"]
+    vogue_ext_LIBUKVENUS["LIBUKVENUS"]
+    vogue_libukvenus["libukvenus"]
+    vogue_ext_LIBUKLOCK_MUTEX["LIBUKLOCK_MUTEX"]
+    vogue_ext_LIBUKALLOC["LIBUKALLOC"]
+    vogue_ext_LIBUKVIRTIO_GPU["LIBUKVIRTIO_GPU"]
+    vogue_ext_LIBUKVK_ICD["LIBUKVK_ICD"]
   end
   subgraph seam["Protocol seam"]
     seam_venus_ring["Venus command ring"]
@@ -51,14 +52,17 @@ flowchart LR
   end
   vogue_libukdrm_compat -.->|select| vogue_libukvirtio_gpu
   vogue_libukegl -.->|select| vogue_libukvirtio_gpu
-  vogue_libukegl -.->|select| vogue_libukdma
+  vogue_libukegl -.->|select| vogue_ext_LIBUKSGLIST
+  vogue_libukegl -.->|select| vogue_ext_LIBUKALLOC
   vogue_libukegl -.->|select| vogue_libukswrender
   vogue_libukegl -.->|select| vogue_ext_LIBMUSL
-  vogue_libukgbm_compat -.->|select| vogue_libukdma
+  vogue_libukgbm_compat -.->|select| vogue_ext_LIBUKSGLIST
   vogue_libukggml_vk -.->|select| vogue_ext_LIBUKVENUS
   vogue_libukggml_vk -.->|select| vogue_libukvirtio_gpu
   vogue_libukggml_vk -.->|select| vogue_ext_LIBUKVIRTGPU_DRM
   vogue_libukggml_vk -.->|select| vogue_ext_LIBUKVK_ICD
+  vogue_libukggml_vk -.->|select| vogue_ext_LIBUKLOCK
+  vogue_libukggml_vk -.->|select| vogue_ext_LIBUKLOCK_MUTEX
   vogue_libukswrender -.->|select| vogue_ext_LIBMUSL
   vogue_libukvenus -.->|select| vogue_libukvirtio_gpu
   vogue_libukvirtgpu_drm -.->|select| vogue_libukvirtio_gpu
@@ -67,6 +71,8 @@ flowchart LR
   vogue_libukvirtio_gpu -.->|select| vogue_ext_LIBVIRTIO_BUS
   vogue_libukvirtio_gpu -.->|select| vogue_ext_LIBUKSGLIST
   vogue_libukvirtio_gpu -.->|select| vogue_ext_LIBUKALLOC
+  vogue_libukvirtio_gpu -.->|select| vogue_ext_LIBUKLOCK
+  vogue_libukvirtio_gpu -.->|select| vogue_ext_LIBUKLOCK_MUTEX
   vogue_libukvk_icd -.->|select| vogue_ext_LIBUKVIRTGPU_DRM
   vogue_libukegl -->|uk/gbm_compat.h| vogue_libukgbm_compat
   vogue_libukegl -->|uk/virtio_gpu.h| vogue_libukvirtio_gpu

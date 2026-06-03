@@ -64,8 +64,8 @@
       fill: pass-fill, stroke: solid, name: <core>),
 
     gnode((0,6),
-      lbl([libukdma],
-          [DMA alloc · scatter-gather descriptor — N2D PASS]),
+      lbl([uksglist / ukalloc],
+          [upstream scatter-gather + uk_posix_memalign backing — N2D PASS]),
       fill: pass-fill, stroke: solid, name: <dma>),
 
     gnode((0,7),

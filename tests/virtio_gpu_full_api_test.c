@@ -28,7 +28,8 @@ int main(void)
 		.offset = 0, .level = 0, .stride = 128, .layer_stride = 4096,
 	};
 	struct uk_gpu_rect rect = {0, 0, 64, 64};
-	struct uk_dma_sg sg = { .paddr_or_iova = 0x1000, .len = 4096 };
+	struct uk_sglist_seg sg_seg[1] = { { .ss_paddr = 0x1000, .ss_len = 4096 } };
+	struct uk_sglist sg = { .sg_segs = sg_seg, .sg_refs = 1, .sg_nseg = 1, .sg_maxseg = 1 };
 	uk_gpu_res_id res2d = 0, res3d = 0;
 	uk_gpu_fence_id fence = 0;
 	uint8_t uuid[16];
@@ -70,7 +71,7 @@ int main(void)
 	FAIL_IF(actual != sizeof(edid) || edid[1] != 0xff, 12);
 
 	FAIL_IF(uk_virtio_gpu_resource_create_2d(dev, 64, 64, 1, &res2d) != 0 || !res2d, 13);
-	FAIL_IF(uk_virtio_gpu_resource_attach_backing(dev, res2d, &sg, 1) != 0, 14);
+	FAIL_IF(uk_virtio_gpu_resource_attach_backing(dev, res2d, &sg) != 0, 14);
 	FAIL_IF(uk_virtio_gpu_gl_set_scanout(dev, 0, res2d, &rect) != 0, 15);
 	FAIL_IF(uk_virtio_gpu_transfer_to_host_2d(dev, res2d, &rect, &fence) != 0, 16);
 	FAIL_IF(uk_virtio_gpu_fence_wait(dev, fence, 1000000) != 0, 17);

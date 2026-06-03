@@ -1,5 +1,0 @@
-config LIBUKBUF
-	bool "libukbuf"
-	default n
-	help
-	  production libukbuf component.

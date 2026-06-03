@@ -12,7 +12,7 @@ rows and bounded kmscube virgl frame proof. It is not a full Mesa EGL/GLES stack
 ## Configuring applications to use `libukegl`
 
 Enable `CONFIG_LIBUKEGL` in the application `Kraftfile` or Kconfig. The library
-selects `LIBUKVIRTIO_GPU`, `LIBUKDMA`, `LIBUKSWRENDER`, and upstream `LIBMUSL`.
+selects `LIBUKVIRTIO_GPU`, `LIBUKSGLIST`, `LIBUKALLOC`, `LIBUKSWRENDER`, and upstream `LIBMUSL`.
 
 ```yaml
 unikraft:

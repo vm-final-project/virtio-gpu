@@ -7,8 +7,7 @@ unikraft:
   kconfig:
     CONFIG_APP_KMSCUBE: 'y'
     CONFIG_LIBMUSL: 'y'
-    CONFIG_LIBUKDMA: 'y'
-    CONFIG_LIBUKBUF: 'y'
+    CONFIG_LIBUKSGLIST: 'y'
     CONFIG_LIBUKVIRTIO_GPU: 'y'
     CONFIG_LIBUKVIRTIO_GPU_BACKEND_REAL: 'y'
     CONFIG_LIBUKVENUS: 'y'
@@ -23,10 +22,6 @@ targets:
 libraries:
   libmusl:
     source: ../lib-musl
-  libukdma:
-    source: ./libs/libukdma
-  libukbuf:
-    source: ./libs/libukdma_pool
   libukvirtio_gpu:
     source: ./libs/libukvirtio_gpu
   libukvenus:

@@ -1,23 +1,23 @@
 %% View C: Protocol Spine
 flowchart LR
   subgraph linux["Linux DRM guest"]
-    linux_virtgpu_vq["virtgpu_vq"]
     linux_virtgpu_submit["virtgpu_submit"]
+    linux_virtgpu_vq["virtgpu_vq"]
   end
   subgraph vogue["VOGUE guest"]
-    vogue_libukvenus["libukvenus"]
     vogue_libukvirtio_gpu["libukvirtio_gpu"]
-    vogue_libukvirtgpu_drm["libukvirtgpu_drm"]
     vogue_libukggml_vk["libukggml_vk"]
+    vogue_libukvirtgpu_drm["libukvirtgpu_drm"]
+    vogue_libukvenus["libukvenus"]
   end
   subgraph seam["Protocol seam"]
-    seam_ctrlq["VirtIO-GPU control/cursor queues"]
     seam_venus_ring["Venus command ring"]
+    seam_ctrlq["VirtIO-GPU control/cursor queues"]
   end
   subgraph qemu["QEMU host"]
-    qemu_virtio_gpu["virtio-gpu"]
-    qemu_ext_virglrenderer["virglrenderer"]
     qemu_virtio_gpu_virgl["virtio-gpu-virgl"]
+    qemu_ext_virglrenderer["virglrenderer"]
+    qemu_virtio_gpu["virtio-gpu"]
   end
   vogue_libukggml_vk ==>|vk cmd encode| vogue_libukvenus
   vogue_libukvenus ==>|VENUS ring submit| vogue_libukvirtio_gpu

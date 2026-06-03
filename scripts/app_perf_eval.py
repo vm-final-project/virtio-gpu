@@ -29,7 +29,8 @@ C_SOURCE = r'''
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <uk/dma.h>
+#include <uk/alloc.h>
+#include <uk/sglist.h>
 #include <uk/swrender.h>
 #include <uk/virtio_gpu.h>
 
@@ -65,13 +66,14 @@ static int run_one(const struct bench_cfg *cfg) {
     struct uk_virtio_gpu_dev *dev = NULL;
     struct uk_sw_framebuf fb = {0};
     struct uk_sw_cube_state cube;
-    struct uk_dma_buf dma = {0};
-    struct uk_dma_sg sg = {0};
+    struct uk_alloc *alloc = uk_alloc_get_default();
+    void *dma_vaddr = NULL;
+    struct uk_sglist sg;
+    struct uk_sglist_seg sg_seg[1];
     struct uk_gpu_rect rect = {0, 0, cfg->w, cfg->h};
     struct uk_virtio_gpu_metrics metrics;
     uk_gpu_res_id res = 0;
     uk_gpu_fence_id fence = 0;
-    size_t nr_sg = 0;
     size_t bytes = (size_t)cfg->w * cfg->h * 4u;
     uint32_t first_crc = 0, last_crc = 0;
     double t0, t1;
@@ -82,13 +84,14 @@ static int run_one(const struct bench_cfg *cfg) {
     uk_virtio_gpu_gl_metrics_reset(dev);
     rc = uk_sw_framebuf_alloc(&fb, cfg->w, cfg->h);
     if (rc) return 11;
-    rc = uk_dma_alloc(&dma, bytes, 4096, UK_DMA_F_CONTIGUOUS | UK_DMA_F_ZEROED);
-    if (rc) return 12;
-    rc = uk_dma_build_sg(&dma, &sg, 1, &nr_sg);
-    if (rc || nr_sg != 1) return 13;
+    rc = uk_posix_memalign(alloc, &dma_vaddr, 4096, bytes);
+    if (rc || !dma_vaddr) return 12;
+    uk_sglist_init(&sg, 1, sg_seg);
+    rc = uk_sglist_append(&sg, dma_vaddr, bytes);
+    if (rc || sg.sg_nseg != 1) return 13;
     rc = uk_virtio_gpu_resource_create_2d(dev, cfg->w, cfg->h, 1, &res);
     if (rc) return 14;
-    rc = uk_virtio_gpu_resource_attach_backing(dev, res, &sg, 1);
+    rc = uk_virtio_gpu_resource_attach_backing(dev, res, &sg);
     if (rc) return 15;
     rc = uk_virtio_gpu_gl_set_scanout(dev, 0, res, &rect);
     if (rc) return 16;
@@ -100,8 +103,7 @@ static int run_one(const struct bench_cfg *cfg) {
         uint32_t crc = strcmp(cfg->row, "gfx.kmscube.sw") == 0 ? uk_sw_framebuf_crc(&fb) : fnv1a32(fb.pixels, bytes);
         if (f == 0) first_crc = crc;
         last_crc = crc;
-        memcpy(dma.vaddr, fb.pixels, bytes);
-        uk_dma_sync_for_device(&dma, UK_DMA_TO_DEVICE);
+        memcpy(dma_vaddr, fb.pixels, bytes);
         fence = 0;
         rc = uk_virtio_gpu_transfer_to_host_2d(dev, res, &rect, &fence);
         if (rc) return 20;
@@ -128,7 +130,7 @@ static int run_one(const struct bench_cfg *cfg) {
            (unsigned long long)metrics.fence_waits,
            first_crc, last_crc);
 
-    uk_dma_free(&dma);
+    uk_free(alloc, dma_vaddr);
     uk_sw_framebuf_free(&fb);
     return 0;
 }
@@ -183,8 +185,8 @@ def compile_bench() -> Path:
     src.write_text(C_SOURCE)
     cmd = [
         "cc", "-O2", "-D_POSIX_C_SOURCE=200809L", "-std=c11", "-Wall", "-Wextra",
-        "-I", "libs/libukdma/include", "-I", "libs/libukvirtio_gpu/include", "-I", "libs/libukswrender/include",
-        str(src), "libs/libukdma/dma_alloc.c", "tests/virtio_gpu_fake.c", "libs/libukswrender/swrender.c",
+        "-I", "tests/shim", "-I", "libs/libukvirtio_gpu/include", "-I", "libs/libukswrender/include",
+        str(src), "tests/virtio_gpu_fake.c", "libs/libukswrender/swrender.c",
         "-lm", "-o", str(exe),
     ]
     proc = run(cmd)

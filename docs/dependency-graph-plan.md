@@ -84,10 +84,12 @@ External subsystem nodes pulled in by `Kconfig select`: `DRM`, `DRM_KMS_HELPER`,
 The transport node is `virtgpu_vq.c` (includes `linux/virtio_ring.h`,
 `virtio_config.h`).
 
-**Guest — VOGUE** (`virtio-gpu/libs/*`): 11 first-party libs — `libukvirtio_gpu`
+**Guest — VOGUE** (`virtio-gpu/libs/*`): 9 first-party libs — `libukvirtio_gpu`
 (frontend + virgl encoder), `libukvirtgpu_drm`, `libukvenus`, `libukvk_icd`,
-`libukggml_vk`, `libukdma`, `libukdma_pool`, `libukdrm_compat`, `libukgbm_compat`,
-`libukegl`, `libukswrender`. External Unikraft core nodes referenced via
+`libukggml_vk`, `libukdrm_compat`, `libukgbm_compat`,
+`libukegl`, `libukswrender`. Device-backing memory uses the upstream
+Unikraft `uksglist` + `ukalloc` libraries directly (no first-party DMA lib).
+External Unikraft core nodes referenced via
 `Config.uk select`: `VIRTIO_DEVICE`, `LIBVIRTIO_BUS`, `LIBUKSGLIST`,
 `LIBUKALLOC`, `LIBMUSL`. App sinks: `app-llama-upstream-vk`, `app-kmscube`,
 `app-glmark2`, `app-vulkan-smoke`, `app-vkmark`.
@@ -211,8 +213,8 @@ for the protocol/runtime semantics that justify the §4c runtime edges.
 **VOGUE `build` edges (`Config.uk select`/`depends`):**
 ```
 libukdrm_compat   -> libukvirtio_gpu
-libukegl          -> libukvirtio_gpu, libukdma, libukswrender, libmusl
-libukgbm_compat   -> libukdma
+libukegl          -> libukvirtio_gpu, LIBUKSGLIST, LIBUKALLOC, libukswrender, libmusl
+libukgbm_compat   -> LIBUKSGLIST
 libukggml_vk      -> libukvenus, libukvirtio_gpu, libukvirtgpu_drm, libukvk_icd
 libukswrender     -> libmusl
 libukvenus        -> libukvirtio_gpu

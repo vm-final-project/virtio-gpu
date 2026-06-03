@@ -35,8 +35,8 @@ TYPST ?= typst
 # ----------------------------------------------------------------------------
 LLAMA_ROOT             ?= $(realpath $(CURDIR)/../llama.cpp)
 VENUS_PROTOCOL_ROOT    ?= $(realpath $(CURDIR)/../venus-protocol)
-VULKAN_HEADERS_INCLUDE ?=
-SPIRV_HEADERS_INCLUDE  ?=
+VULKAN_HEADERS_INCLUDE ?= $(realpath $(CURDIR)/../Vulkan-Headers/include)
+SPIRV_HEADERS_INCLUDE  ?= $(realpath $(CURDIR)/../SPIRV-Headers/include)
 # Host Vulkan loader; only satisfies ggml-vulkan's find_package(Vulkan) during
 # the static cross-build. Symbols come from libukggml_vk at the unikernel link,
 # so this library is never pulled into the static archives.

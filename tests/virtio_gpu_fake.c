@@ -218,10 +218,10 @@ int uk_virtio_gpu_resource_create_2d(struct uk_virtio_gpu_dev *dev, uint32_t wid
 	return 0;
 }
 
-int uk_virtio_gpu_resource_attach_backing(struct uk_virtio_gpu_dev *dev, uk_gpu_res_id res, const struct uk_dma_sg *sg, size_t nr_sg)
+int uk_virtio_gpu_resource_attach_backing(struct uk_virtio_gpu_dev *dev, uk_gpu_res_id res, const struct uk_sglist *sg)
 {
 	struct fake_resource *r = find_res(dev, res);
-	if (!r || !sg || nr_sg == 0 || sg[0].len == 0)
+	if (!r || !sg || sg->sg_nseg == 0 || sg->sg_segs[0].ss_len == 0)
 		return -EINVAL;
 	r->backing_attached = 1;
 	dev->metrics.attach_calls++;

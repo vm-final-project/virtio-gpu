@@ -84,7 +84,7 @@ sibling checkouts (`../unikraft`, `../llama.cpp`, `../lib-musl`, `../lib-lwip`,
 
 | Directory | Function |
 |---|---|
-| `libs/` | **First-party Unikraft libraries** — the substrate under test. DMA & buffer pool (`libukdma`, `libukdma_pool`), VirtIO-GPU frontend + virgl encoder (`libukvirtio_gpu`), DRM virtgpu shim (`libukvirtgpu_drm`), Venus encoder/ring (`libukvenus`), Vulkan ICD (`libukvk_icd`), static ggml-vulkan dispatch (`libukggml_vk`), Linux-ABI shims (`libukdrm_compat`, `libukgbm_compat`, `libukegl`), software renderer (`libukswrender`). Each carries a `README.md` contract enforced by `make lib-readme-check`. |
+| `libs/` | **First-party Unikraft libraries** — the substrate under test. VirtIO-GPU frontend + virgl encoder (`libukvirtio_gpu`), DRM virtgpu shim (`libukvirtgpu_drm`), Venus encoder/ring (`libukvenus`), Vulkan ICD (`libukvk_icd`), static ggml-vulkan dispatch (`libukggml_vk`), Linux-ABI shims (`libukdrm_compat`, `libukgbm_compat`, `libukegl`), software renderer (`libukswrender`). Device-backing memory uses upstream Unikraft `uksglist` (scatter-gather) + `ukalloc` (`uk_posix_memalign`) directly — no first-party DMA library. Each carries a `README.md` contract enforced by `make lib-readme-check`. |
 | `apps/` | **Unikraft applications.** Graphics: `app-kmscube`, `app-glmark2`, `app-vulkan-smoke`, `app-vkmark`. llama.cpp: `app-llama-upstream` (CPU) and `app-llama-upstream-vk` (Vulkan), each with `bench.cpp` + `server.cpp`. Each app carries a `PORTING.md` (provenance, evidence rows, claim boundaries) enforced by `make app-port-check`. |
 | `kraft/` | One `Kraftfile.<name>` per single-purpose appliance (the *one image, one purpose* rule). The root `Kraftfile` is the kmscube graphics image. |
 | `tests/` | **Host-native deterministic C suite** against the fake VirtIO-GPU backend — no QEMU/GPU needed. The fast inner loop and primary CI gate. See `tests/README.md`. |
@@ -355,6 +355,23 @@ numbers:
   status columns in sync with `config/governance.json`.
 
 ---
+
+## VirtIO-GPU Venus/Vulkan v1 roadmap
+
+The API/ABI contract and gate traceability for the accelerated (Venus/Vulkan)
+path are pinned in two design specs, kept source-grounded against the vendored
+`linux-6.18`, `qemu-11.0`, `mesa`, and `venus-protocol` siblings and enforced by
+`make venus-check`:
+
+* `design/unikraft-virtio-gpu-spec-v1.md` — the Unikraft VirtIO-GPU Venus/Vulkan
+  API specification: required feature bits, capset IDs, library boundaries, and
+  the explicit **Out of scope** list.
+* `design/virtio-gpu-vulken-v1.md` — research-to-implementation traceability:
+  the gate ladder (`proto.api-contract` … `G8`), performance-evaluation plan
+  (submit latency p50/p95/p99), and its own **Out of scope** boundary.
+
+Backing memory for these paths uses upstream Unikraft `uksglist` + `ukalloc`
+directly; VOGUE ships no first-party DMA library.
 
 ## Key documents
 

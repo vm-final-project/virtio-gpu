@@ -21,7 +21,8 @@
 #include <GLES2/gl2.h>
 #include <gbm.h>
 #include <uk/virtio_gpu.h>
-#include <uk/dma.h>
+#include <uk/sglist.h>
+#include <uk/alloc.h>
 #include <uk/swrender.h>
 #include <uk/gbm_compat.h>
 #include <uk/drm_compat.h>
@@ -30,8 +31,10 @@
 
 struct uk_egl_surface {
 	struct uk_sw_framebuf  fb;      /* software framebuffer */
-	struct uk_dma_buf      dma;     /* DMA buffer for scanout */
-	struct uk_dma_sg       sg;      /* scatter-gather for DMA */
+	void                  *dma_vaddr; /* device-backing buffer for scanout */
+	size_t                 dma_len;   /* size of dma_vaddr in bytes */
+	struct uk_sglist       sg;        /* scatter-gather for backing memory */
+	struct uk_sglist_seg   sg_seg[1]; /* single-segment storage for sg */
 	uk_gpu_res_id          res;     /* virtio-gpu 2D resource */
 	uint32_t               width;
 	uint32_t               height;
@@ -206,12 +209,12 @@ static struct uk_egl_surface *surface_create(uint32_t w, uint32_t h)
 	if (uk_sw_framebuf_alloc(&s->fb, w, h) != 0) { free(s); return NULL; }
 
 	size_t pix = (size_t)w * h * 4u;
-	if (uk_dma_alloc(&s->dma, pix, 4096,
-	                 UK_DMA_F_CONTIGUOUS | UK_DMA_F_ZEROED) == 0) {
-		size_t nr = 0;
-		if (uk_dma_build_sg(&s->dma, &s->sg, 1, &nr) == 0 && nr == 1) {
+	if (uk_posix_memalign(uk_alloc_get_default(), &s->dma_vaddr, 4096, pix) == 0
+	    && s->dma_vaddr) {
+		s->dma_len = pix;
+		uk_sglist_init(&s->sg, 1, s->sg_seg);
+		if (uk_sglist_append(&s->sg, s->dma_vaddr, pix) == 0)
 			s->dma_ok = 1;
-		}
 	}
 
 	/* Create virtio-gpu 2D resource for this surface */
@@ -219,7 +222,7 @@ static struct uk_egl_surface *surface_create(uint32_t w, uint32_t h)
 		if (uk_virtio_gpu_resource_create_2d(g_ctx.gpu, w, h, 1, &s->res) == 0
 		    && s->res) {
 			if (uk_virtio_gpu_resource_attach_backing(g_ctx.gpu, s->res,
-			                                          &s->sg, 1) == 0)
+			                                          &s->sg) == 0)
 				s->res_ok = 1;
 		}
 	}
@@ -268,7 +271,7 @@ EGLBoolean eglDestroySurface(EGLDisplay dpy, EGLSurface surface)
 	struct uk_egl_surface *s = (struct uk_egl_surface *)surface;
 	if (!s) return EGL_TRUE;
 	uk_sw_framebuf_free(&s->fb);
-	if (s->dma_ok) uk_dma_free(&s->dma);
+	if (s->dma_ok) uk_free(uk_alloc_get_default(), s->dma_vaddr);
 	free(s);
 	return EGL_TRUE;
 }
@@ -287,11 +290,12 @@ EGLBoolean eglSwapBuffers(EGLDisplay dpy, EGLSurface surface)
 	struct uk_egl_surface *s = (struct uk_egl_surface *)surface;
 	if (!s || !s->fb.pixels) return EGL_TRUE;
 
-	/* Copy software framebuffer to DMA buffer and push to display */
+	/* Copy software framebuffer to device-backing buffer and push to display.
+	 * x86 guest memory is cache-coherent with the device, so no explicit DMA
+	 * sync is required after the copy. */
 	if (s->dma_ok) {
 		size_t pix = (size_t)s->width * s->height * 4u;
-		memcpy(s->dma.vaddr, s->fb.pixels, pix);
-		uk_dma_sync_for_device(&s->dma, UK_DMA_TO_DEVICE);
+		memcpy(s->dma_vaddr, s->fb.pixels, pix);
 	}
 
 	if (g_ctx.gpu && s->res_ok) {

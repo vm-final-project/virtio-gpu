@@ -85,7 +85,7 @@
 
     node(
       (2.5, 3.55),
-      box2([`libukswrender` + `libukdma`], [software rendering + frame buffers]),
+      box2([`libukswrender` + `uksglist`], [software rendering + scatter-gather backing]),
       name: <sw>,
       width: 52mm,
       fill: impl-fill,

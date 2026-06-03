@@ -15,7 +15,7 @@ Status: `pass`
 | `venus_blocker_recorded` | `pass` | results/venus/qemu_2d_probe.json; results/vogue_evaluation_matrix.json | QEMU Venus probe artifact recorded with a structured status |
 | `real_path_selected` | `pass` | results/venus/real_path_check.json | Production Kraft/config/build artifacts use the real VirtIO-GPU backend |
 | `stk_out_of_scope` | `pass` | design/unikraft-virtio-gpu-spec-v1.md | STK porting is documented as out of scope (plan.md §0.5) |
-| `library_readmes` | `pass` | libs=11 missing=[] | Every local library has Unikraft-style README docs |
+| `library_readmes` | `pass` | libs=9 missing=[] | Every local library has Unikraft-style README docs |
 | `paper_generated_tables` | `pass` | paper/generated/app-performance-table.typ; paper/generated/venus-stage-table.typ; paper/generated/current-stage-table.typ | Paper consumes generated benchmark/stage tables |
 | `paper_claim_boundaries` | `pass` | paper/sections/08-evaluation.typ; paper/sections/12-artifact-appendix.typ | Paper states current stage and claim boundaries |
 | `readme_current_stage` | `pass` | README.md | README exposes current-stage/evaluation commands and fix plan |

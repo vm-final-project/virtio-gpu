@@ -1,8 +1,8 @@
 {
   "status": "pass",
-  "written_at": "2026-06-02T15:25:08Z",
+  "written_at": "2026-06-03T07:41:44Z",
   "summary": {
-    "libraries": 11,
+    "libraries": 9,
     "eval_rows": 27,
     "benchmark_rows": 8,
     "qemu_status": "pass",
@@ -90,7 +90,7 @@
     {
       "id": "library_readmes",
       "status": "pass",
-      "evidence": "libs=11 missing=[]",
+      "evidence": "libs=9 missing=[]",
       "required": "Every local library has Unikraft-style README docs",
       "blocker": ""
     },
