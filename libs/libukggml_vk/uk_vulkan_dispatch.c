@@ -238,7 +238,8 @@ void uk_ggml_vulkan_dispatch_get_info(struct uk_ggml_vulkan_dispatch_info *out)
      * marker once the real driver records it; for now leave it zero so
      * the appliance reports an honest `hostmem_fixed=0` blocker. */
     out->hostmem_fixed     = 0;
-    /* Match scripts/gen_libukvenus.py WANTED_EXTENSIONS slice length. */
+    /* Reported diagnostic: size of the wanted-extension slice in
+     * scripts/venus/pin.json (the authoritative Venus generator slice config). */
     out->wanted_extensions = 8;
 }
 
