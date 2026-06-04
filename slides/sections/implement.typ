@@ -4,10 +4,9 @@
 #let layer-stack(..active) = {
   let layers = (
     ("App",    "kmscube / llama.cpp"),
-    ("Shim",   "libukegl / swrender"),
-    ("Venus",  "libukvenus / ggml_vk"),
-    ("VirtIO", "libukvirtio_gpu"),
-    ("Trans",  "PCI / virtio"),
+    ("Compat", "libukegl · swrender · ggml_vk"),
+    ("Venus",  "libukvenus"),
+    ("VirtIO", "libukvirtio_gpu → virtqueue"),
   )
   let active-set = active.pos()
   place(bottom + right, dy: -1.6em, dx: -1.6em,

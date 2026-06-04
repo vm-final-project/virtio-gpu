@@ -42,11 +42,10 @@ Replace DRM multiplexing with a *minimal exclusive-client driver*
   stroke: 0.5pt,
   align: (center + horizon, left + horizon),
   table.header([Layer], [Components]),
-  [Application], [kmscube / glmark2 / llama.cpp (*unmodified*)],
-  [Compat shim], [`libukegl` (EGL/GLES2/GBM shim) + `libukswrender` (264 LoC)],
-  [Venus / Vulkan], [`libukvenus` (Vulkan→Venus) + `libukggml_vk`],
-  [VirtIO frontend], [`libukvirtio_gpu` + `libukdma`],
-  [Transport], [Unikraft PCI / virtio (*reused*)],
+  [L1 Application], [kmscube / glmark2 / llama.cpp (*unmodified*)],
+  [L2 Compat], [`libukegl` + `libukswrender` (2D display) · `libukggml_vk` (Vulkan dispatch)],
+  [L3 Venus], [`libukvenus` (Vulkan → Venus binary)],
+  [L4 VirtIO], [`libukvirtio_gpu` + `libukdma` (→ Unikraft virtqueue → QEMU)],
 )
 
 #pause
@@ -57,7 +56,7 @@ Replace DRM multiplexing with a *minimal exclusive-client driver*
 
 #metadata((
   t: "Note",
-  v: "這張表是整個系統的地圖，每一層職責如下。\n L1（Application）：kmscube、glmark2、llama.cpp，上游原始碼完全不修改，直接 link 進 unikernel image。\n L2（Compat shim）：libukegl 提供 EGL/GLES2/GBM/DRM 的 API stub，讓 app 誤以為自己在 Linux 上；libukswrender 是 264 行的 CPU rasterizer，負責 2D 路徑的像素繪製。\n L3（Venus/Vulkan）：libukvenus 把 Vulkan API 呼叫序列化成 Venus binary stream（PACKED 格式）；libukggml_vk 提供靜態 Vulkan dispatch table 給 ggml，省掉 Vulkan loader 的動態載入。\n L4（VirtIO frontend）：libukvirtio_gpu 實作完整的 VirtIO-GPU 協議（1,650 LoC），把 2D display 命令和 Venus SUBMIT_3D 透過 virtqueue 送給 QEMU；libukdma 管理 DMA 記憶體配置。\n L5（Transport）：Unikraft 既有的 PCI/virtio 基礎設施，處理 virtqueue descriptor ring 的讀寫、doorbell 通知、PCI MMIO，完全不修改直接重用。點擊後：292 KB 和 10 毫秒是因為這五層全部編譯成單一 binary，沒有 kernel、沒有 init、沒有模組系統。",
+  v: "四層架構，每層精確定義如下。L1（Application）：上游原始碼不修改一行，直接編譯進 unikernel image；向下使用 EGL/GLES2（2D）、Vulkan（compute）或 virgl_encoder API（3D）。L2（Compat）：API 相容層，提供 app 在 Linux 上期待的 API surface，接進 VOGUE 實作；向上暴露 EGL/GLES2/Vulkan API，向下驅動 L3 或直接發 L4 命令；3D virgl 路徑不走這層（run_virgl_path 直接 include L4 的 virgl_encoder.h）；2D 用 libukegl + libukswrender，Vulkan compute 用 libukggml_vk。L3（Venus）：Vulkan 命令序列化層，把 Vulkan API 呼叫轉成 Venus PACKED binary stream；向上接受 libukggml_vk 發出的 Vulkan 呼叫，向下提交 Venus binary 給 L4 的 SUBMIT_3D；只存在於 Vulkan compute 路徑，2D 和 virgl 路徑跳過。L4（VirtIO）：VirtIO-GPU 協議的 guest 端實作，三條路徑的唯一交匯點；向上暴露 2D display 命令、SUBMIT_3D 和 virgl_encoder API，向下透過 Unikraft virtqueue 送命令給 QEMU；virtqueue 是其內部傳輸機制（LIBVIRTIO_BUS），不另立層。點擊後：292 KB 和 10 ms 是因為這四層全部編譯成單一 binary，無 kernel 模組、無 init、無動態載入。",
 )) <pdfpc>
 
 == VOGUE vs Linux: Layer by Layer
@@ -86,25 +85,20 @@ Replace DRM multiplexing with a *minimal exclusive-client driver*
   align: (right + horizon, left, center + horizon, left),
   [], text(weight: "bold")[Linux VM], [], text(weight: "bold")[VOGUE Unikraft],
   ll(1, "App"), lbox("app", "kmscube / llama.cpp"), [≡], vbox("app", "unmodified upstream"),
-  ll(2, "Shim"),
-  lbox("libEGL + libgbm + libdrm", "real Linux platform APIs"),
+  ll(2, "Compat"),
+  lbox("libEGL + libgbm + libdrm + Vulkan loader", "real Linux platform APIs"),
   [→],
-  vbox("libukegl + libukswrender", "264 LoC shim"),
+  vbox("libukegl · libukswrender · libukggml_vk", "stub + CPU render + static Vk dispatch"),
 
   ll(3, "Venus"),
-  lbox("Vulkan loader + Mesa Venus", "dynamic ICD, Vulkan→Venus"),
+  lbox("Mesa Venus driver", "dynamic, Vulkan→Venus encoding"),
   [→],
-  vbox("libukggml_vk + libukvenus", "static dispatch + same encoding"),
+  vbox("libukvenus", "same encoding, no Mesa"),
 
   ll(4, "VirtIO"),
-  lbox("Linux virtio-gpu driver", "/dev/dri ioctl → kernel"),
+  lbox("virtio-gpu + kernel virtio/PCI", "/dev/dri ioctl → kernel → virtqueue"),
   [→],
   vbox("libukvirtio_gpu", "direct virtqueue, no ioctl"),
-
-  ll(5, "Trans"),
-  lbox("kernel virtio / PCI", "reused unchanged"),
-  [≡],
-  vbox("Unikraft PCI / virtio", "reused unchanged"),
 )
 
 #v(0.3em)
@@ -117,7 +111,7 @@ Replace DRM multiplexing with a *minimal exclusive-client driver*
 
 #metadata((
   t: "Note",
-  v: "這張圖把五層架構和 Linux 的對應一起展示。L1（App）完全不動。L2（Shim）：Linux 用真實的 libEGL/libgbm/libdrm，VOGUE 改用 264 行的 shim 來模擬這些 API，讓 app 誤以為自己在 Linux 上。L3（Venus/Vulkan）：Linux 用 Vulkan loader 動態載入 ICD，VOGUE 改用靜態 dispatch table（libukggml_vk）；Venus 編碼本身邏輯等價（libukvenus ≡ Mesa Venus driver）。L4（VirtIO frontend）：Linux 透過 /dev/dri ioctl 進 kernel，VOGUE 直接操作 virtqueue，省掉 ioctl overhead。L5（Transport）：Unikraft PCI/virtio 直接重用，不修改。Host 端（QEMU、virglrenderer、host GPU driver）完全不動，這就是為什麼 VOGUE 能跟現有 hypervisor 直接相容。",
+  v: "這張圖把四層架構和 Linux 的對應一起展示。L1（App）完全不動。L2（Compat）：Linux 有真實的 libEGL/libgbm/libdrm 和 Vulkan loader（runtime dlopen ICD）；VOGUE 改用 libukegl/libukswrender（264 LoC display stub + CPU renderer）和靜態 dispatch table libukggml_vk，省掉動態載入。L3（Venus）：Linux 的 Mesa Venus driver 把 Vulkan 序列化成 Venus binary；VOGUE 的 libukvenus 邏輯等價，只是不依賴 Mesa。L4（VirtIO）：Linux 透過 /dev/dri ioctl 進 kernel 再到 virtqueue；VOGUE 直接操作 Unikraft virtqueue，省掉 ioctl overhead；virtqueue 本身是 libukvirtio_gpu 的內部機制，不另立層。Host 端（QEMU、virglrenderer、host GPU driver）完全不動，這就是為什麼 VOGUE 能跟現有 hypervisor 直接相容。",
 )) <pdfpc>
 
 == Three Execution Paths
@@ -148,10 +142,10 @@ Replace DRM multiplexing with a *minimal exclusive-client driver*
   abox("app", "kmscube virgl"),
   abox("app", "llama.cpp"),
 
-  ll(2, "Shim"),
+  ll(2, "Compat"),
   abox("libukswrender", "CPU rasterizer"),
-  abox("libukegl", "EGL/GLES stubs"),
-  nbox("—", "no display needed"),
+  nbox("—", "direct virgl_encoder call"),
+  abox("libukggml_vk", "static Vk dispatch"),
 
   ll(3, "Venus"),
   nbox("—", "no Vulkan, CPU path only"),
@@ -163,20 +157,15 @@ Replace DRM multiplexing with a *minimal exclusive-client driver*
   abox("SUBMIT_3D", "virgl_encoder.c in L4"),
   abox("SUBMIT_3D", "Venus payload"),
 
-  ll(5, "Trans"),
-  abox("virtqueue", ""),
-  abox("virtqueue", ""),
-  abox("virtqueue", ""),
-
   rl("GPU"),
   nbox("none", "CPU only"),
-  gbox("host GPU", "→ screen"),
+  gbox("host GPU", "→ buffer"),
   gbox("host GPU", "→ buffer (no display)"),
 )
 
 #metadata((
   t: "Note",
-  v: "這頁並排三條執行路徑，讓觀眾看清楚每條路徑走哪些層、有沒有 GPU、輸出是什麼。2D display：CPU 用 libukswrender（L2）畫像素到記憶體，再透過 VirtIO-GPU 的 2D display 命令（L4）推送給 QEMU 顯示，整條路徑完全不涉及 GPU。3D rendering（virgl）：kmscube 呼叫 EGL/GLES API，由 libukegl（L2）的 stub 接住；virgl 命令的序列化由 libukvirtio_gpu 內的 virgl_encoder.c（L4）負責——注意這是 L4 的工作，不在 L3；最後透過 SUBMIT_3D 送給 virglrenderer，host GPU 渲染後輸出畫面。Vulkan compute（llama.cpp）：llama.cpp 直接呼叫 Vulkan API，不需要 EGL/顯示，所以不走 L2；libukggml_vk 提供靜態 dispatch table，libukvenus（L3）把 Vulkan 呼叫序列化成 Venus binary，透過 SUBMIT_3D 送給 virglrenderer，host GPU 執行矩陣運算，結果寫回 buffer，不產生任何畫面。L3 是 Venus-only 的設計決策：virgl（OpenGL）路徑的 encoding 放在 L4，避免 L3 膨脹；VOGUE 的主要 GPU 目標是 Vulkan compute，Venus 就夠了。",
+  v: "這頁並排三條執行路徑，說明四層架構下每條路徑走哪些層、有沒有 GPU、輸出是什麼。2D display：CPU 用 libukswrender（L2）畫像素到記憶體，再透過 VirtIO-GPU 的 2D display 命令（L4）推送給 QEMU 顯示，整條路徑完全不涉及 GPU。3D rendering（virgl）：L2 和 L3 都是灰色的「—」，各有獨立的設計理由。為何不走 L2（Compat）：Gallium command stream 是 Mesa 的內部概念，不是公開 API——不像 Vulkan 有 vkCreateDevice 等乾淨的 function 邊界可攔截，app 直接產生 Gallium binary，Compat 層沒有立足點，所以 run_virgl_path 直接 include L4 的 virgl_encoder.h。為何不走 L3（Venus）：virgl 走的是 Gallium 協議，不是 Venus 協議，L3 的 libukvenus 只處理 Vulkan 序列化，完全不適用；此外 VOGUE 的 virgl encoding 故意最小化（virgl_encoder.c 只實作 create_surface、set_framebuffer、clear 共 3 個命令），這點程式碼放在 L4 就夠，建完整的 virgl L3 需要覆蓋整個 OpenGL 狀態機，違反 DG2，且 evidence 目標（gfx.kmscube.submit / gfx.kmscube.frame）只需要傳輸層證明，不需要完整 OpenGL 實作。因此這條路徑從 L1 直跳 L4，host GPU 渲染後輸出 buffer。Vulkan compute（llama.cpp）：libukggml_vk（L2）提供靜態 Vulkan dispatch table，libukvenus（L3）把 Vulkan 呼叫序列化成 Venus binary，透過 SUBMIT_3D 送給 virglrenderer，host GPU 執行矩陣運算，結果寫回 buffer，不產生畫面。",
 )) <pdfpc>
 
 == Design Goals
