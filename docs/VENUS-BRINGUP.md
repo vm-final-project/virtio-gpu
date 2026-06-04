@@ -81,7 +81,7 @@ real Venus (`-device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true`,
 `-display egl-headless,gl=on`, 9pfs model). Observed, end-to-end:
 
 1. Guest boots, mounts the GGUF over 9pfs.
-2. `ggml-vulkan` initialises through `libukggml_vulkan → libukvenus`, creates a
+2. `ggml-vulkan` initialises through `libvulkan → libukvulkan_venus`, creates a
    **real Venus context** on the host (`virgl_render_server: ... context 1
    (ggml-vulkan-uk) with a valid instance`), and **enumerates a Venus device**
    (`ggml_vulkan: 0 = ...`), registering the Vulkan backend.
@@ -138,14 +138,14 @@ coverage:
 
 This is the sequenced, source-grounded plan to turn `libs/libukggml_vk/uk_vulkan_dispatch.c`
 from a fabricating dispatch into a real Venus ICD. References are to the checked-out
-trees (`../mesa`, `../virglrenderer`, `libs/libukvenus`).
+trees (`../mesa`, `../virglrenderer`, `libs/libukvulkan_venus`).
 
 **Reply protocol** (authoritative: `mesa/src/virtio/vulkan/vn_ring.c:vn_ring_submit_command`
 + `vn_ring_set_reply_shmem_locked`; host writer
 `virglrenderer/src/venus/venus-protocol/vn_protocol_renderer_*.h:vn_encode_*_reply`):
 
 1. Allocate a host-visible **reply blob** (reuse `uk_virtio_gpu_gl_blob_create_with_ctx`
-   + `_blob_map` as the ring does in `libukvenus/venus_init.c`), attached to the **same**
+   + `_blob_map` as the ring does in `libukvulkan_venus/venus_init.c`), attached to the **same**
    Venus context the dispatch uses (`g_ctx` in the dispatch). The dispatch currently has
    **no ring** — add `uk_venus_ring_create/register` on `g_ctx` during
    `uk_ggml_vulkan_dispatch_init()`.

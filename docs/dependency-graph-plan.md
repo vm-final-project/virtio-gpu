@@ -85,7 +85,7 @@ The transport node is `virtgpu_vq.c` (includes `linux/virtio_ring.h`,
 `virtio_config.h`).
 
 **Guest — VOGUE** (`virtio-gpu/libs/*`): 9 first-party libs — `libukvirtio_gpu`
-(frontend + virgl encoder), `libukvirtgpu_drm`, `libukvenus`, `libukvk_icd`,
+(frontend + virgl encoder), `libukvirtgpu_drm`, `libukvulkan_venus`, `libukvk_icd`,
 `libukggml_vk`, `libukdrm_compat`, `libukgbm_compat`,
 `libukegl`, `libukswrender`. Device-backing memory uses the upstream
 Unikraft `uksglist` + `ukalloc` libraries directly (no first-party DMA lib).
@@ -139,7 +139,7 @@ in order, each producing `{src, dst, kind, repo}` records:
 Not machine-extractable from includes. Encode as a small **curated, cited**
 table inside the script (`RUNTIME_EDGES`), each row annotated with the
 source file + symbol that justifies it (e.g. the virtqueue `kick`/`add_buf`
-site in `libukvirtio_gpu`, the Venus ring submit in `libukvenus`). Treating
+site in `libukvirtio_gpu`, the Venus ring submit in `libukvulkan_venus`). Treating
 runtime edges as *reviewed data with citations* rather than guesses is what
 keeps the graph honest and governance-checkable.
 
@@ -169,13 +169,13 @@ A single guest→seam→host stack where the **same logical dependency** is draw
 three times with the three edge kinds overlaid (build dashed, compile thin,
 runtime bold-colored). Reveals where build wiring and runtime flow *diverge* —
 e.g. `libukggml_vk` build-`select`s four libs, but its runtime hot path only
-traverses `libukvenus → libukvirtio_gpu → virtqueue`. Surfaces dead-on-the-
+traverses `libukvulkan_venus → libukvirtio_gpu → virtqueue`. Surfaces dead-on-the-
 hot-path build deps and is genuinely hard to see in code.
 
 ### View C — "The invariant spine" (cross-boundary contract map)
 Center column = the VirtIO-GPU/Venus protocol opcodes. Left = the guest
 producers of each opcode (Linux `virtgpu_vq.c` *and* VOGUE `libukvirtio_gpu`/
-`libukvenus`), right = the QEMU consumers (`virtio-gpu.c` dispatch,
+`libukvulkan_venus`), right = the QEMU consumers (`virtio-gpu.c` dispatch,
 `virtio-gpu-virgl.c`, host Venus in virglrenderer). Edges are labeled with the
 actual `VIRTIO_GPU_CMD_*` / Venus ring opcode. This proves the seam is a real
 shared contract — both guests are interchangeable against the same host — and
@@ -215,9 +215,9 @@ for the protocol/runtime semantics that justify the §4c runtime edges.
 libukdrm_compat   -> libukvirtio_gpu
 libukegl          -> libukvirtio_gpu, LIBUKSGLIST, LIBUKALLOC, libukswrender, libmusl
 libukgbm_compat   -> LIBUKSGLIST
-libukggml_vk      -> libukvenus, libukvirtio_gpu, libukvirtgpu_drm, libukvk_icd
+libukggml_vk      -> libvulkan, libukvirtio_gpu, libukvirtgpu_drm, libukvk_icd
 libukswrender     -> libmusl
-libukvenus        -> libukvirtio_gpu
+libukvulkan_venus -> libukvirtio_gpu
 libukvirtgpu_drm  -> libukvirtio_gpu
 libukvirtio_gpu   -> VIRTIO_DEVICE, LIBVIRTIO_BUS, LIBUKSGLIST, LIBUKALLOC  (REAL backend)
 libukvk_icd       -> libukvirtgpu_drm
@@ -225,7 +225,7 @@ libukvk_icd       -> libukvirtgpu_drm
 **VOGUE `compile` edges (cross-lib `#include <uk/...>`):**
 ```
 libukggml_vk -> uk/venus.h, uk/virtio_gpu.h, uk/drm_virtgpu.h
-libukvenus   -> uk/virtio_gpu.h
+libukvulkan_venus   -> uk/virtio_gpu.h
 libukvirtgpu_drm -> uk/virtio_gpu.h, drm/virtgpu_drm.h
 libukvk_icd  -> uk/drm_virtgpu.h, uk/virtio_gpu.h, drm/virtgpu_drm.h
 libukegl     -> uk/drm_compat.h, uk/gbm_compat.h, uk/swrender.h, uk/virtio_gpu.h

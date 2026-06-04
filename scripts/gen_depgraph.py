@@ -102,10 +102,10 @@ def extract_vogue(g: Graph) -> None:
                        "select")
     # compile edges: cross-lib `#include <uk/...>`
     hdr2dir = {
-        "uk/virtio_gpu.h": "libukvirtio_gpu", "uk/venus.h": "libukvenus",
+        "uk/virtio_gpu.h": "libukvirtio_gpu", "uk/venus.h": "libukvulkan_venus",
+        "uk/vulkan_venus.h": "libukvulkan_venus", "uk/vulkan.h": "libvulkan",
         "uk/drm_virtgpu.h": "libukvirtgpu_drm", "uk/swrender.h": "libukswrender",
         "uk/drm_compat.h": "libukdrm_compat", "uk/gbm_compat.h": "libukgbm_compat",
-        "uk/ggml_vulkan.h": "libukggml_vk",
     }
     for d in sorted(p.name for p in LIBS.iterdir() if p.is_dir()):
         seen: set[str] = set()
@@ -203,15 +203,15 @@ def extract_qemu(g: Graph) -> None:
 # Not derivable from #include; each row cites the source site that justifies it.
 RUNTIME_EDGES = [
     # (src, dst, opcode/label, citation)
-    ("vogue:libukggml_vk", "vogue:libukvenus", "vk cmd encode",
-     "libukggml_vk static dispatch -> libukvenus encoder"),
-    ("vogue:libukvenus", "vogue:libukvirtio_gpu", "VENUS ring submit",
-     "libukvenus ring -> virtqueue kick"),
+    ("vogue:libvulkan", "vogue:libukvulkan_venus", "vk cmd encode",
+     "libvulkan vk* dispatch -> libukvulkan_venus Venus driver"),
+    ("vogue:libukvulkan_venus", "vogue:libukvirtio_gpu", "VENUS ring submit",
+     "libukvulkan_venus ring -> virtqueue kick"),
     ("vogue:libukvirtgpu_drm", "vogue:libukvirtio_gpu", "EXECBUFFER ioctl",
      "drm shim -> virtio_gpu frontend"),
     ("vogue:libukvirtio_gpu", "seam:ctrlq", "VIRTIO_GPU_CMD_*",
      "control queue add_buf/kick"),
-    ("vogue:libukvenus", "seam:venus-ring", "VK command stream",
+    ("vogue:libukvulkan_venus", "seam:venus-ring", "VK command stream",
      "Venus ring shared buffer"),
     ("linux:virtgpu_vq", "seam:ctrlq", "VIRTIO_GPU_CMD_*",
      "virtgpu_vq.c virtqueue_add/kick"),
@@ -335,8 +335,8 @@ def build_views(g: Graph, out: Path) -> dict:
     write_dot(out / "view-a-collapse.dot", g, a, "View A: The Collapse (Linux tower vs VOGUE dispatch)")
     write_mermaid(out / "view-a-collapse.mmd", g, a, "View A: The Collapse")
     # View B: edge-kind overlay on the VOGUE Vulkan hot path + seam
-    hot = {"vogue:libukggml_vk", "vogue:libukvenus", "vogue:libukvirtio_gpu",
-           "vogue:libukvirtgpu_drm", "vogue:libukvk_icd", "seam:ctrlq", "seam:venus-ring"}
+    hot = {"vogue:libvulkan", "vogue:libukvulkan_venus", "vogue:libukvirtio_gpu",
+           "vogue:libukvirtgpu_drm", "seam:ctrlq", "seam:venus-ring"}
     b = [x for x in e if x["src"] in hot and (x["dst"] in hot or x["dst"].startswith("seam:"))]
     write_dot(out / "view-b-edge-kinds.dot", g, b, "View B: Three Kinds of One Edge")
     write_mermaid(out / "view-b-edge-kinds.mmd", g, b, "View B: Edge Kinds")

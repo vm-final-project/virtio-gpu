@@ -119,7 +119,7 @@ def normalize(data: dict) -> dict:
         "checks_passed": passed,
         "checks_failed": int(dispatch.get("checks_failed") or 0),
         "expected_checks": total,
-        "claim_allowed": f"{passed}/{total} checks pass in libukggml_vulkan host-native dispatch regression; no QEMU or token-throughput claim.",
+        "claim_allowed": f"{passed}/{total} checks pass in libvulkan host-native dispatch regression; no QEMU or token-throughput claim.",
         "claim_forbidden": "Real GPU throughput, llama.cpp token output, or Unikraft runtime success.",
         "note": f"Host-only test; no QEMU needed. Fake VirtIO-GPU backend used. Config: bench_env.yaml n3_dispatch.expected_checks={total}, timeout_s=30.",
     }

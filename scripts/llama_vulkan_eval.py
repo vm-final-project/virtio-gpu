@@ -2,7 +2,7 @@
 """Concise llama.cpp / ggml-vulkan evidence collector.
 
 Supported gates intentionally mirror the minimized codebase:
-- n3-dispatch: host-native regression for libukggml_vulkan static Vulkan/Venus dispatch.
+- n3-dispatch: host-native regression for libvulkan static Vulkan/Venus dispatch.
 - upstream-cpu: structured runtime artifact for the true upstream llama.cpp CPU appliance.
 - upstream-vk: structured runtime artifact for the true upstream llama.cpp Vulkan/Venus appliance.
 - linux-baseline/probe/build/run/bench: reference-baseline placeholders that preserve claim
@@ -73,7 +73,7 @@ def n3_dispatch() -> int:
         "checks_failed": failed,
         "checks_total": total,
         "stdout_tail": out[-4000:],
-        "claim_allowed": "Pinned upstream ggml-vulkan Vulkan C ABI dispatch works through libukggml_vulkan native regression tests.",
+        "claim_allowed": "Pinned upstream ggml-vulkan Vulkan C ABI dispatch works through libvulkan native regression tests.",
         "claim_forbidden": "QEMU/Venus runtime success, token generation, or throughput.",
     })
     print(f"vk.ggml-dispatch {status} passed={passed} failed={failed} total={total}")

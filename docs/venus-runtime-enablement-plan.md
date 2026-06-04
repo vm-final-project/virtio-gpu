@@ -179,10 +179,10 @@ Result, verified on real QEMU 11.0.1 + virglrenderer Venus:
   memory: `uk-venus: ring registered resource=4 size=65536`, `ring flush ok`,
   `venus_ring_protocol=pass` — over the real backend, not just native tests.
 
-This clears `libukvenus`'s `blocked:host-visible-missing` wall, the prerequisite
+This clears `libukvulkan_venus`'s `blocked:host-visible-missing` wall, the prerequisite
 for every Venus Vulkan-runtime row. The remaining gap to `host.vk.probe` is the
 `vkCreateInstance`→`vkEnumeratePhysicalDevices`→`vkGetPhysicalDeviceProperties`
-reply round-trip (encoders exist in `libukvenus`; needs reply-buffer wiring and
+reply round-trip (encoders exist in `libukvulkan_venus`; needs reply-buffer wiring and
 virglrenderer Venus acceptance), then ggml-vulkan compute dispatch for the
 token rows.
 
@@ -192,7 +192,7 @@ Traced from the **host** source (`virglrenderer/src/venus/vkr_ring.c`): the ring
 has regions head/tail/status/buffer **and `extra`**; the host writes reply
 values into the `extra` region via `vkr_ring_write_extra()` ("Mesa always sets
 offset to 0"). The exact guest-side gap is one line:
-`libs/libukvenus/venus_cs.c:391` encodes `vkCreateRingMESA` with **`extraSize =
+`libs/libukvulkan_venus/venus_cs.c:391` encodes `vkCreateRingMESA` with **`extraSize =
 0`** — i.e. no reply region — so the host has nowhere to write sync-command
 replies (device count, `deviceName`, `apiVersion`).
 

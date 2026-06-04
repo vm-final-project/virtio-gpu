@@ -1,0 +1,25 @@
+menuconfig LIBVULKAN
+	bool "libvulkan: application-facing Vulkan ABI/runtime (compute-first subset)"
+	default n
+	select LIBUKVULKAN_VENUS
+	select LIBUKVIRTIO_GPU
+	select LIBUKLOCK
+	select LIBUKLOCK_MUTEX
+	help
+	  Application-facing Vulkan ABI/runtime boundary for Unikraft. libvulkan
+	  owns the exported vk* symbols, vkGetInstanceProcAddr/vkGetDeviceProcAddr,
+	  the Vulkan-Hpp DispatchLoaderDynamic storage/init glue, and the common
+	  Vulkan runtime state needed by the supported compute-first subset. It
+	  dispatches the public Vulkan entry points to a statically linked Vulkan
+	  driver implementation.
+
+	  The current driver is the Unikraft-native Venus driver
+	  (CONFIG_LIBUKVULKAN_VENUS), which libvulkan selects. The dispatch bootstrap
+	  opens the VirtIO-GPU/Venus context through that driver's native
+	  libukvirtio_gpu path (no Linux virtgpu DRM UAPI); libvulkan does NOT
+	  own the Venus wire format, VirtIO-GPU probing, Linux DRM compatibility, or
+	  any ggml/GGUF/llama runtime logic.
+
+	  This is a compute-first Vulkan API subset (the slice required by upstream
+	  ggml-vulkan.cpp); it is not full Vulkan and not Vulkan conformance. See
+	  README.md for the claim boundary.

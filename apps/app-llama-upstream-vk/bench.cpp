@@ -77,8 +77,8 @@ int main(void)
     double tg_ms = (now_sec() - t0) * 1000.0;
     double tg128 = (n_tg / tg_ms) * 1000.0;
 
-    struct uk_ggml_vulkan_dispatch_info info;
-    uk_ggml_vulkan_dispatch_get_info(&info);
+    struct uk_vulkan_info info;
+    uk_vulkan_get_info(&info);
     uk_printf("uk-llama-upstream-vk: config threads=%d n_ctx=%d n_batch=%d n_ubatch=%d batch_enabled=%d ring_enabled=%d hostmem_fixed=%d\n",
               CONFIG_APP_LLAMA_UPSTREAM_VK_THREADS,
               cparams.n_ctx,

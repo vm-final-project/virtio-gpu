@@ -1,4 +1,0 @@
-uk_vulkan_icd_init
-uk_vulkan_icd_get_device_info
-uk_vulkan_icd_close
-uk_vulkan_icd_capset_name

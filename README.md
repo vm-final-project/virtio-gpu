@@ -24,13 +24,22 @@ through one-line include shims.
 
 ```text
 upstream llama.cpp bench / server      (apps/app-llama-upstream[-vk])
-  └─ libukggml_vk      static Vulkan/Venus dispatch for ggml-vulkan
-       └─ libukvenus        guest-side Venus encoder + ring protocol
-            └─ libukvirtgpu_drm   DRM virtgpu shim (Linux ABI)
-                 └─ libukvirtio_gpu    VirtIO-GPU frontend
+  └─ upstream ggml-vulkan.cpp           (built in-tree by app-llama-upstream-vk)
+       └─ libvulkan          app-facing vk* ABI + Vulkan-Hpp dispatch
+            └─ libukvulkan_venus   Unikraft-native Venus Vulkan driver
+                 └─ libukvirtio_gpu    VirtIO-GPU frontend (SUBMIT_3D, blobs, fences)
                       └─ QEMU virtio-gpu-gl-pci,blob=true,venus=true
                            └─ host Vulkan driver (e.g. NVIDIA V100)
 ```
+
+The Vulkan layering follows the Khronos loader/driver split: `libvulkan` owns
+the application-facing `vk*` ABI and dispatch (a compute-first subset), and
+`libukvulkan_venus` is the statically linked Venus driver. The driver's
+device-open/Venus-context bootstrap is **native** — it calls `libukvirtio_gpu`
+directly, with no Linux virtgpu DRM UAPI. The DRM shim (`libukvirtgpu_drm`) is
+therefore optional (`CONFIG_LIBUKVULKAN_VENUS_USE_DRM_COMPAT`, default `n`); the
+former `libukvk_icd` bootstrap shim has been retired and the upstream
+ggml-vulkan stack is built in-tree by `app-llama-upstream-vk`.
 
 The graphics appliances (kmscube, glmark2) use the lower half of the same stack
 through the Linux-ABI shims (`libukdrm_compat`, `libukgbm_compat`, `libukegl`).
@@ -88,7 +97,7 @@ sibling checkouts (`../unikraft`, `../llama.cpp`, `../lib-musl`, `../lib-lwip`,
 
 | Directory | Function |
 |---|---|
-| `libs/` | **First-party Unikraft libraries** — the substrate under test. VirtIO-GPU frontend + virgl encoder (`libukvirtio_gpu`), DRM virtgpu shim (`libukvirtgpu_drm`), Venus encoder/ring (`libukvenus`), Vulkan ICD (`libukvk_icd`), static ggml-vulkan dispatch (`libukggml_vk`), Linux-ABI shims (`libukdrm_compat`, `libukgbm_compat`, `libukegl`), software renderer (`libukswrender`). Device-backing memory uses upstream Unikraft `uksglist` (scatter-gather) + `ukalloc` (`uk_posix_memalign`) directly — no first-party DMA library. Each carries a `README.md` contract enforced by `make lib-readme-check`. |
+| `libs/` | **First-party Unikraft libraries** — the substrate under test. VirtIO-GPU frontend + virgl encoder (`libukvirtio_gpu`), app-facing Vulkan ABI/dispatch (`libvulkan`), Venus Vulkan driver with native device-open bootstrap (`libukvulkan_venus`), optional DRM virtgpu shim (`libukvirtgpu_drm`), Linux-ABI shims (`libukdrm_compat`, `libukgbm_compat`, `libukegl`), software renderer (`libukswrender`). Device-backing memory uses upstream Unikraft `uksglist` (scatter-gather) + `ukalloc` (`uk_posix_memalign`) directly — no first-party DMA library. Each carries a `README.md` contract enforced by `make lib-readme-check`. |
 | `apps/` | **Unikraft applications.** Graphics: `app-kmscube`, `app-glmark2`, `app-vulkan-smoke`, `app-vkmark`. llama.cpp: `app-llama-upstream` (CPU) and `app-llama-upstream-vk` (Vulkan), each with `bench.cpp` + `server.cpp`. Each app carries a `PORTING.md` (provenance, evidence rows, claim boundaries) enforced by `make app-port-check`. |
 | `kraft/` | One `Kraftfile.<name>` per single-purpose appliance (the *one image, one purpose* rule). The root `Kraftfile` is the kmscube graphics image. |
 | `tests/` | **Host-native deterministic C suite** against the fake VirtIO-GPU backend — no QEMU/GPU needed. The fast inner loop and primary CI gate. See `tests/README.md`. |
@@ -136,10 +145,9 @@ enforces each library's `README.md` contract.
 | Library | Role | Used by |
 |---|---|---|
 | `libukvirtio_gpu` | VirtIO-GPU frontend + Gallium virgl encoder + fake backend | Graphics **and** Vulkan/llama (all GPU appliances) |
-| `libukvenus` | Venus wire encoder + ring protocol; `uk_venus_encode_*` delegate to the encoders generated from `../venus-protocol` | Vulkan/llama |
-| `libukvirtgpu_drm` | Mesa/Linux virtgpu DRM-ioctl shim (`vk.drm-shim`) | Vulkan/llama |
-| `libukvk_icd` | Vulkan ICD bootstrap shim (`vk.icd`) | Vulkan/llama |
-| `libukggml_vk` | Static ggml-vulkan dispatch (`CONFIG_LIBUKGGML_VULKAN`) | Vulkan/llama |
+| `libvulkan` | App-facing Vulkan `vk*` ABI + Vulkan-Hpp dispatch (`CONFIG_LIBVULKAN`); compute-first subset, routes to the Venus driver | Vulkan/llama |
+| `libukvulkan_venus` | Unikraft-native Venus Vulkan driver: Venus wire encode/decode + ring protocol; `uk_venus_encode_*` delegate to encoders generated from `../venus-protocol` | Vulkan/llama |
+| `libukvirtgpu_drm` | Mesa/Linux virtgpu DRM-ioctl shim (`vk.drm-shim`); now optional (`CONFIG_LIBUKVULKAN_VENUS_USE_DRM_COMPAT`, default `n`) | Vulkan/llama |
 | `libukswrender` | Deterministic CPU software renderer | Graphics |
 | `libukegl` | EGL/GLES2/GBM/DRM ABI shim for upstream GL apps | Graphics |
 | `libukdrm_compat` | DRM struct/ioctl compatibility facade | Graphics |
@@ -153,9 +161,10 @@ enforces each library's `README.md` contract.
 |---|---|
 | Understand the big picture | `docs/ARCHITECTURE.md`, then this file's *Project Architecture*. |
 | Find **VirtIO-GPU frontend / virgl** logic | `libs/libukvirtio_gpu/` (`virgl_encoder.c`, `virtio_gpu_proto.h`). |
-| Find **Venus encoder / ring protocol** | `libs/libukvenus/` (`venus_cs.c`, `venus_init.c`, `venus_compute.c`). The `uk_venus_encode_*` entry points delegate to driver encoders generated from the pinned `../venus-protocol` (`make gen-libukvenus`; pin in `scripts/venus/pin.json`, command set in `config/venus_command_manifest.json`; workflow in `GENERATOR.md`). |
-| Find the **Vulkan ICD / DRM virtgpu shim** | `libs/libukvk_icd/` and `libs/libukvirtgpu_drm/`. |
-| Find **3D rendering / GPU dispatch for ggml** | `libs/libukggml_vk/` (`uk_vulkan_dispatch.c`). |
+| Find the **Venus Vulkan driver / ring protocol** | `libs/libukvulkan_venus/` (`venus_driver.c`, `venus_cs.c`, `venus_init.c`, `venus_compute.c`). The `uk_venus_encode_*` entry points delegate to driver encoders generated from the pinned `../venus-protocol` (`make gen-libukvenus`; pin in `scripts/venus/pin.json`, command set in `config/venus_command_manifest.json`; workflow in `GENERATOR.md`). |
+| Find the **Vulkan ABI / dispatch** | `libs/libvulkan/` (`uk_vulkan_dispatch.c`, `vk_hpp_loader.cpp`). Owns the exported `vk*` symbols and the Vulkan-Hpp dispatcher. |
+| Find the **native device-open bootstrap** | `libs/libukvulkan_venus/venus_driver.c` (`uk_vulkan_venus_open` → `libukvirtio_gpu`). The optional Linux DRM shim is `libs/libukvirtgpu_drm/`. |
+| Find the **ggml-vulkan build glue** | `apps/app-llama-upstream-vk/Makefile.uk` (compiles upstream `ggml-vulkan.cpp` + SPIR-V blobs in-tree; the `vk*` ABI lives in `libvulkan`). |
 | Find **2D/KMS graphics (kmscube)** | `apps/app-kmscube/` + shims `libs/libukdrm_compat/`, `libs/libukgbm_compat/`. |
 | Find the **llama.cpp app entrypoints** | `apps/app-llama-upstream{,-vk}/{bench,server}.cpp` + `common.h`. |
 | Understand the **HTTP server / networking** | `apps/app-llama-upstream-vk/server.cpp`, `kraft/Kraftfile.llama-upstream-vk-server` (lwIP/netdev Kconfig), `scripts/llama_server_vk_capture.py` (boot + HTTP probe), `scripts/llm_server_vk_check.py` (gate). |
@@ -227,7 +236,7 @@ The root `Makefile` is the single entry point; it delegates the C suite to
 | `make perf-check` / `image-size-check` / `boot-time-check` / `model-load-time-check` | Performance & resource budgets. |
 | `make current-stage-check` | Assert the documented current-stage report. |
 | `make paper` / `paper-check` | Build / consistency-check the Typst paper. |
-| `make clean` | Remove generated test/paper outputs. (The committed `libs/libukvenus/generated/` Venus headers are not touched — regenerate with `make gen-libukvenus`.) |
+| `make clean` | Remove generated test/paper outputs. (The committed `libs/libukvulkan_venus/generated/` Venus headers are not touched — regenerate with `make gen-libukvenus`.) |
 
 ### Artifact bundles
 
@@ -344,8 +353,8 @@ Venus path reaches ~89 % of bare-metal prefill and matches/exceeds its decode
 **Venus para-virtualisation transport is not the main bottleneck** — a mature
 guest stack rides it at near-native speed. The Unikraft port currently reaches
 **~45 % of the Linux-guest prefill and ~50 % of its decode**; that remaining gap
-lives in **VOGUE's own guest-side stack** (the `libukvenus` encoder + the
-`libukggml_vk` static dispatch vs Mesa's mature Venus ICD, plus the single guest
+lives in **VOGUE's own guest-side stack** (the `libukvulkan_venus` driver + the
+`libvulkan` static dispatch vs Mesa's mature Venus ICD, plus the single guest
 vCPU), which is real optimisation headroom — not an unavoidable virtualisation
 tax. Within the Unikraft image, the **server decode rate (120.8 t/s) is 75 % of
 its own bench (160.2)**, so the HTTP request path itself is efficient; the work
@@ -363,7 +372,7 @@ The guest→host gap above lives in VOGUE's transport, not the Venus para-virtua
 device. The per-inference-step hot path was reduced from **3 virtqueue kicks +
 3 mallocs** (one each for `vkEndCommandBuffer`, `vkQueueSubmit`,
 `vkWaitForFences`) toward Mesa's streaming model. Four changes, all on the
-`libukggml_vk → libukvenus → libukvirtio_gpu` path:
+`libvulkan → libukvulkan_venus → libukvirtio_gpu` path:
 
 | # | Optimization | Mechanism | Effect |
 |---|---|---|---|
@@ -477,7 +486,7 @@ directly; VOGUE ships no first-party DMA library.
 * `docs/ARCHITECTURE.md` — the big picture and library boundaries.
 * `docs/GOVERNANCE.md` — the gate catalogue and ownership rules.
 * `docs/VENUS-BRINGUP.md` — Venus enablement walkthrough.
-* `libs/libukvenus/GENERATOR.md` — Venus encoder autogeneration from
+* `libs/libukvulkan_venus/GENERATOR.md` — Venus encoder autogeneration from
   `../venus-protocol`.
 * `plan-optimize.md` / `plan-fix.md` — perf levers and current blockers.
 * `tests/README.md` — the host-native test suite guide.

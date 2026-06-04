@@ -1,0 +1,50 @@
+################################################################################
+# libvulkan — application-facing Vulkan ABI/runtime (compute-first subset)
+#
+# Owns the exported vk* entry points + Vulkan-Hpp dispatcher glue, and routes
+# the supported command subset into the statically linked Venus driver
+# (libukvulkan_venus). It does NOT compile any ggml/llama runtime code.
+################################################################################
+$(eval $(call addlib,libvulkan))
+
+ifeq ($(CONFIG_LIBVULKAN),y)
+
+# Vulkan-Hpp headers come from the pinned Khronos Vulkan-Headers checkout
+# (config/external_paths.json: VULKAN_HEADERS_INCLUDE). Default derives from the
+# sibling checkout; override on the make command line if needed.
+VULKAN_HEADERS_INCLUDE ?= $(LIBVULKAN_BASE)/../../../Vulkan-Headers/include
+CLANG_RESOURCE_DIR     ?= $(shell clang -print-resource-dir 2>/dev/null)
+
+# ── Sources ───────────────────────────────────────────────────────────────────
+# uk_vulkan_dispatch.c : exported vk* ABI + static dispatch state (C; uses its
+#                        own minimal Vk handle typedefs, no Vulkan headers).
+# vk_hpp_loader.cpp     : VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE +
+#                        dispatcher init from the static proc-addr table (C++).
+# uk_stdcxx_compat.cpp  : libstdc++ ABI compat shims for the in-tree C++ link.
+LIBVULKAN_SRCS-y += $(LIBVULKAN_BASE)/uk_vulkan_dispatch.c
+LIBVULKAN_SRCS-y += $(LIBVULKAN_BASE)/vk_hpp_loader.cpp
+LIBVULKAN_SRCS-y += $(LIBVULKAN_BASE)/uk_stdcxx_compat.cpp
+
+# ── Public + dependency headers for the dispatch TU ──────────────────────────
+# The dispatch opens the device through the native Venus driver
+# (libukvulkan_venus -> libukvirtio_gpu); no DRM UAPI / ICD headers needed.
+LIBVULKAN_CINCLUDES-y   += -I$(LIBVULKAN_BASE)/include
+LIBVULKAN_CINCLUDES-y   += -I$(LIBUKVIRTIO_GPU_BASE)/include
+LIBVULKAN_CINCLUDES-y   += -I$(LIBUKVULKAN_VENUS_BASE)/include
+
+# ── Vulkan-Hpp loader (C++) ──────────────────────────────────────────────────
+# Khronos headers first so <vulkan/vulkan.h> resolves to the pinned checkout;
+# the libvulkan forwarding shim (include/vulkan/vulkan.h) only forwards.
+LIBVULKAN_CXXFLAGS-y += -I$(VULKAN_HEADERS_INCLUDE)
+LIBVULKAN_CXXINCLUDES-y += -I$(LIBVULKAN_BASE)/include
+LIBVULKAN_CXXFLAGS-y += -std=c++17
+LIBVULKAN_CXXFLAGS-y += -DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1
+LIBVULKAN_CXXFLAGS-y += -I$(CLANG_RESOURCE_DIR)/include
+
+# musl does not provide glibc fortified helpers; force _FORTIFY_SOURCE off to
+# match the rest of the in-tree C/C++ build.
+LIBVULKAN_CFLAGS-y   += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0
+LIBVULKAN_CXXFLAGS-y += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0
+LIBVULKAN_CFLAGS-y   += -I$(CLANG_RESOURCE_DIR)/include
+
+endif # CONFIG_LIBVULKAN

@@ -63,7 +63,7 @@
     "gfx.glmark2.sw":       "glmark2 scene-clear substrate.",
     "gfx.vkmark":           "vkmark Vulkan substrate.",
     "vk.drm-shim":          "libukvirtgpu_drm DRM ioctl replay shim.",
-    "vk.icd":               "libukvk_icd ICD bootstrap layer.",
+    "vk.icd":               "Native Venus driver bootstrap (libukvulkan_venus).",
     "vk.smoke":             "Host Vulkan smoke + Venus capset detection.",
     "vk.readiness":         "Venus readiness/performance gate.",
     "vk.ggml-dispatch":     "Static Venus-backed Vulkan ICD dispatch for upstream ggml-vulkan.",

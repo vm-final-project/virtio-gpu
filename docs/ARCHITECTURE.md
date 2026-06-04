@@ -45,8 +45,8 @@ flowchart LR
     linux_virtgpu_submit["virtgpu_submit"]
   end
   subgraph vogue["VOGUE guest"]
-    vogue_libukggml_vk["libukggml_vk"]
-    vogue_libukvenus["libukvenus"]
+    vogue_libvulkan["libvulkan"]
+    vogue_libukvulkan_venus["libukvulkan_venus"]
     vogue_libukvirtgpu_drm["libukvirtgpu_drm"]
     vogue_libukvirtio_gpu["libukvirtio_gpu"]
   end
@@ -59,11 +59,11 @@ flowchart LR
     qemu_virtio_gpu_virgl["virtio-gpu-virgl"]
     qemu_ext_virglrenderer["virglrenderer"]
   end
-  vogue_libukggml_vk ==>|vk cmd encode| vogue_libukvenus
-  vogue_libukvenus ==>|VENUS ring submit| vogue_libukvirtio_gpu
+  vogue_libvulkan ==>|vk cmd encode| vogue_libukvulkan_venus
+  vogue_libukvulkan_venus ==>|VENUS ring submit| vogue_libukvirtio_gpu
   vogue_libukvirtgpu_drm ==>|EXECBUFFER ioctl| vogue_libukvirtio_gpu
   vogue_libukvirtio_gpu ==>|VIRTIO_GPU_CMD_*| seam_ctrlq
-  vogue_libukvenus ==>|VK command stream| seam_venus_ring
+  vogue_libukvulkan_venus ==>|VK command stream| seam_venus_ring
   linux_virtgpu_vq ==>|VIRTIO_GPU_CMD_*| seam_ctrlq
   linux_virtgpu_submit ==>|EXECBUFFER| seam_venus_ring
   seam_ctrlq ==>|cmd dispatch| qemu_virtio_gpu
@@ -78,8 +78,9 @@ Regenerate with `make depgraph`; `make depgraph-check` is the drift gate.
 | Class | Surface | Purpose | Evidence status |
 |---|---|---|---|
 | CPU single-app | `apps/app-llama-upstream`, `kraft/Kraftfile.llama-upstream-bench`, `kraft/Kraftfile.llama-upstream-server` | Unmodified upstream llama.cpp bench-only or server-only Unikraft image. | `llm.bench.cpu` pass or structured blocker. |
-| Vulkan single-app | `apps/app-llama-upstream-vk`, `kraft/Kraftfile.llama-upstream-vk` | Unmodified upstream llama.cpp Vulkan path through `libukggml_vulkan` and Venus. | `llm.bench.vk` / `llm.bench.vk.real` pass or structured blocker. |
-| Minimal local support | `libs/libukggml_vk` | Static Vulkan loader/dispatch, Venus bridge, and SPIR-V shader-object wiring for upstream `ggml-vulkan.cpp`. | `vk.ggml-dispatch` PASS. |
+| Vulkan single-app | `apps/app-llama-upstream-vk`, `kraft/Kraftfile.llama-upstream-vk` | Unmodified upstream llama.cpp Vulkan path through `libvulkan` (vk* ABI) → `libukvulkan_venus` (Venus driver). | `llm.bench.vk` / `llm.bench.vk.real` pass or structured blocker. |
+| Vulkan ABI / driver | `libs/libvulkan`, `libs/libukvulkan_venus` | `libvulkan` owns the app-facing `vk*` ABI + Vulkan-Hpp dispatch (compute-first subset); `libukvulkan_venus` is the statically linked Venus driver. | `vk.ggml-dispatch` PASS. |
+| ggml-vulkan build glue | `apps/app-llama-upstream-vk/Makefile.uk` | Builds upstream `ggml-vulkan.cpp` + ggml core + SPIR-V shader blobs in-tree (the former `libukggml_vk` helper was retired); resolves the `vk*` ABI against `libvulkan`. | `vk.ggml-dispatch` PASS. |
 | Environment matrix | `config/llama_env_matrix.json` | Baremetal/QEMU/Unikraft CPU/Vulkan/CUDA runs with explicit threads and args. | Dry-run/execute artifacts under `results/llama-env/`. |
 
 Synthetic local llama libraries and apps were removed: no local GGUF framework,

@@ -4,7 +4,7 @@
 
 This repository is VOGUE, a Unikraft VirtIO-GPU/Venus/Vulkan research artifact. Keep first-party work inside this tree; sibling directories such as `../unikraft`, `../llama.cpp`, `../mesa`, and `../venus-protocol` are external inputs referenced by configuration.
 
-- `libs/`: project Unikraft libraries such as `libukvirtio_gpu`, `libukvenus`, DRM/GBM/EGL shims, and `libukggml_vk`.
+- `libs/`: project Unikraft libraries such as `libukvirtio_gpu`, `libvulkan`, `libukvulkan_venus`, and DRM/GBM/EGL shims.
 - `apps/`: single-purpose Unikraft appliances, including KMSCube, Vulkan smoke tests, and llama.cpp CPU/Vulkan bench/server images.
 - `kraft/`: Kraftfiles for appliance builds.
 - `tests/`: host-native deterministic C tests against the fake VirtIO-GPU backend.

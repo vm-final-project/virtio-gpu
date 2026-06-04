@@ -5,7 +5,7 @@ virtio-gpu-gl Venus, then prove it actually serves HTTP.
 The single-application server appliance (apps/app-llama-upstream-vk/server.cpp,
 MODE_SERVER) boots directly into one entrypoint — no shell, no fork/exec
 launcher — mounts the GGUF over 9pfs, initialises the real Venus dispatch chain
-(libukggml_vk -> libukvenus SUBMIT_3D -> virtio-gpu-gl venus=true), loads the
+(in-tree ggml-vulkan -> libvulkan -> libukvulkan_venus SUBMIT_3D -> virtio-gpu-gl venus=true), loads the
 model on the host GPU and prints:
 
   uk-llama-upstream-vk-server: READY ... slots=N ctx_per_slot=M ...
@@ -140,7 +140,7 @@ def _emit(status: str, *, extra: dict | None = None, ready: dict | None = None,
         "image": str(IMAGE.relative_to(ROOT)) if IMAGE.exists() else None,
         "host": platform.platform(),
         "serial_log": str(SERIAL_LOG.relative_to(ROOT)) if SERIAL_LOG.exists() else None,
-        "transport": "virtio-gpu-gl venus=true; libukggml_vk -> libukvenus SUBMIT_3D -> host virglrenderer Venus",
+        "transport": "virtio-gpu-gl venus=true; in-tree ggml-vulkan -> libvulkan -> libukvulkan_venus SUBMIT_3D -> host virglrenderer Venus",
         "network": "virtio-net-pci -> libuknetdev -> lwIP TCP/IP; QEMU user-mode hostfwd to guest 8080",
         "claim_allowed": ("Single-application llama.cpp Vulkan server appliance boots directly "
                           "into one entrypoint (no shell, no fork/exec), reaches model-loaded "

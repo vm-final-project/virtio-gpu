@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace VOGUE's hand-written Venus wire encoders (`libs/libukvenus/venus_cs.c` + `venus_compute.c` encode bodies) with code **deterministically generated** from the pinned upstream `../venus-protocol` Mako generator, sliced to exactly the Vulkan commands `ggml-vulkan`/llama.cpp uses, sitting on a thin Unikraft shim — while keeping the existing `libukvirtio_gpu` transport and `uk_venus_ring` submit path.
+**Goal:** Replace VOGUE's hand-written Venus wire encoders (`libs/libukvulkan_venus/venus_cs.c` + `venus_compute.c` encode bodies) with code **deterministically generated** from the pinned upstream `../venus-protocol` Mako generator, sliced to exactly the Vulkan commands `ggml-vulkan`/llama.cpp uses, sitting on a thin Unikraft shim — while keeping the existing `libukvirtio_gpu` transport and `uk_venus_ring` submit path.
 
 **Architecture:** The upstream generator (`../venus-protocol/vn_protocol.py`) emits per-object-type guest-side encoder headers (`vn_protocol_driver_*.h`). Those headers depend on a tiny, **explicitly documented** interface (`vn_cs.h`, `vn_ring.h`). We provide those two headers as a Unikraft adapter mapping onto `struct uk_venus_encoder` / `struct uk_venus_ring`. The generated headers are committed verbatim (byte-identical to upstream output) with a provenance lock; every `vn_encode_*`/`vn_submit_*`/`vn_call_*` not referenced by ggml is dropped by compile-time dead-code elimination (they are all `static inline`). "Only the functions ggml needs" is therefore achieved by extension-slicing + DCE, not by editing generated files. A byte-for-byte parity test gates the cutover from the hand-written encoders.
 
@@ -32,7 +32,7 @@ These were confirmed by inspecting the trees on 2026-06-03; re-verify if the che
 5. **Handle-id convention.** Encoders read/write the guest id via `vn_cs_handle_load_id((const void **)&handle, VK_OBJECT_TYPE_*)` / `vn_cs_handle_store_id(...)`. VOGUE already treats handles as bare `uint64_t` ids, so the shim is `id == (uintptr_t)handle`.
 6. **A `vn_submit_*` body's local-variable contract** (verified against `vn_submit_vkCreateBuffer`): uses `VN_SUBMIT_LOCAL_CMD_SIZE` (generated define), `malloc`/`free` (musl), `vn_sizeof_*`, then `init → vn_encode_* → submit`. A `vn_call_*` body adds `vn_ring_get_command_reply → vn_decode_*_reply → vn_ring_free_command_reply`.
 7. **Transport already exists.** `mesa/.../vn_renderer_virtgpu.c` (open `/dev/dri/renderD128`, `ioctl(DRM_IOCTL_VIRTGPU_*)`, `mmap`) is **not generatable** — it is OS glue and is already replaced by `libukvirtio_gpu` + `libukvirtgpu_drm`. This plan does **not** regenerate it; Appendix A documents the op-for-op mapping and a test that locks it.
-8. **Native test harness** (`tests/Makefile`) compiles libukvenus `.c` files directly against `VK_INC ?= $(realpath ../../venus-protocol/include)`. Existing targets: `make -C tests venus-cs`, `venus-compute`. Existing Make targets `gen-libukvenus{,-plan,-check}` at `Makefile:497-504` shell into `scripts/gen_libukvenus.py`.
+8. **Native test harness** (`tests/Makefile`) compiles libukvulkan_venus `.c` files directly against `VK_INC ?= $(realpath ../../venus-protocol/include)`. Existing targets: `make -C tests venus-cs`, `venus-compute`. Existing Make targets `gen-libukvenus{,-plan,-check}` at `Makefile:497-504` shell into `scripts/gen_libukvenus.py`.
 
 ---
 
@@ -41,22 +41,22 @@ These were confirmed by inspecting the trees on 2026-06-03; re-verify if the che
 **Created:**
 - `scripts/extract_ggml_vk_commands.py` — deterministic scan of `ggml-vulkan.cpp` → canonical command/extension manifest. One responsibility: derive "what ggml needs".
 - `config/venus_command_manifest.json` — generated artifact (committed): sorted command list + required extension list + source provenance. The single source of truth consumed by the generator slice and the coverage test.
-- `libs/libukvenus/include/uk/vn_cs.h` — encoder/decoder/handle-id shim onto `struct uk_venus_encoder`. (Filename `vn_cs.h` is mandatory: the generated headers `#include "vn_cs.h"`.)
-- `libs/libukvenus/include/uk/vn_ring.h` — 4-function ring shim onto `struct uk_venus_ring`.
-- `libs/libukvenus/vn_ring_shim.c` — implementation of the four `vn_ring_*` functions.
-- `libs/libukvenus/generated/` — committed verbatim generator output + `GENERATED.lock` provenance file.
+- `libs/libukvulkan_venus/include/uk/vn_cs.h` — encoder/decoder/handle-id shim onto `struct uk_venus_encoder`. (Filename `vn_cs.h` is mandatory: the generated headers `#include "vn_cs.h"`.)
+- `libs/libukvulkan_venus/include/uk/vn_ring.h` — 4-function ring shim onto `struct uk_venus_ring`.
+- `libs/libukvulkan_venus/vn_ring_shim.c` — implementation of the four `vn_ring_*` functions.
+- `libs/libukvulkan_venus/generated/` — committed verbatim generator output + `GENERATED.lock` provenance file.
 - `tests/venus_generated_compile_test.c` — compile + smoke gate for generated headers through the shim.
 - `tests/venus_parity_test.c` — byte-for-byte legacy-vs-generated encoder parity gate.
 - `scripts/venus/` — generator pin + pytest suite (`pin.json`, `test_pin.py`, `test_extract.py`, `test_manifest.py`, `test_generate.py`, `test_coverage.py`).
 
 **Modified:**
-- `scripts/gen_libukvenus.py` — turn the scaffold into a real, reproducible generator (`generate`/`verify` subcommands writing into `libs/libukvenus/generated/`).
-- `libs/libukvenus/venus_cs.c`, `libs/libukvenus/venus_compute.c` — re-implement the public `uk_venus_encode_*` bodies to build real `Vk*` structs and call the generated `vn_encode_*`; delete hand-rolled byte-pushing once parity is green.
-- `libs/libukvenus/venus_init.c`, `libs/libukvenus/include/uk/venus.h` — add the transport thunk used by the ring shim.
-- `libs/libukvenus/Makefile.uk`, `Config.uk` — add `generated/` to include path; add the new source file.
+- `scripts/gen_libukvenus.py` — turn the scaffold into a real, reproducible generator (`generate`/`verify` subcommands writing into `libs/libukvulkan_venus/generated/`).
+- `libs/libukvulkan_venus/venus_cs.c`, `libs/libukvulkan_venus/venus_compute.c` — re-implement the public `uk_venus_encode_*` bodies to build real `Vk*` structs and call the generated `vn_encode_*`; delete hand-rolled byte-pushing once parity is green.
+- `libs/libukvulkan_venus/venus_init.c`, `libs/libukvulkan_venus/include/uk/venus.h` — add the transport thunk used by the ring shim.
+- `libs/libukvulkan_venus/Makefile.uk`, `Config.uk` — add `generated/` to include path; add the new source file.
 - `tests/Makefile` — add the two new test targets and wire them into `test-venus`.
 - `Makefile` — add `gen-libukvenus-verify`; fold it into `governance-check`.
-- `libs/libukvenus/GENERATOR.md`, `libs/libukvenus/README.md`, `config/governance.json`, README status columns, `report-porting.md` — provenance + claim discipline.
+- `libs/libukvulkan_venus/GENERATOR.md`, `libs/libukvulkan_venus/README.md`, `config/governance.json`, README status columns, `report-porting.md` — provenance + claim discipline.
 
 ---
 
@@ -348,7 +348,7 @@ git commit -m "venus-gen: freeze ggml-vulkan command manifest"
 import json, subprocess, sys, pathlib, hashlib
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 GEN = ROOT / "scripts/gen_libukvenus.py"
-OUTDIR = ROOT / "libs/libukvenus/generated"
+OUTDIR = ROOT / "libs/libukvulkan_venus/generated"
 
 def gen():
     subprocess.check_call([sys.executable, str(GEN), "generate"])
@@ -396,7 +396,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PIN = json.loads((ROOT / "scripts/venus/pin.json").read_text())
 VENUS_PROTOCOL = (ROOT / PIN["checkout"]).resolve()
-OUTDIR = ROOT / "libs/libukvenus/generated"
+OUTDIR = ROOT / "libs/libukvulkan_venus/generated"
 
 def _run_upstream(dest: Path) -> None:
     dest.mkdir(parents=True, exist_ok=True)
@@ -449,13 +449,13 @@ Register `verify` next to `plan/check/generate` in `main()`:
 - [ ] **Step 4: Generate, then run the tests**
 
 Run: `python3 scripts/gen_libukvenus.py generate && python3 -m pytest scripts/venus/test_generate.py -v`
-Expected: `gen_libukvenus: PASS wrote libs/libukvenus/generated` then 3 passed.
+Expected: `gen_libukvenus: PASS wrote libs/libukvulkan_venus/generated` then 3 passed.
 
 - [ ] **Step 5: Commit (generated tree + lock are committed verbatim)**
 
 ```bash
 git add scripts/gen_libukvenus.py scripts/venus/test_generate.py \
-        libs/libukvenus/generated/
+        libs/libukvulkan_venus/generated/
 git commit -m "venus-gen: real reproducible generator + committed driver headers"
 ```
 
@@ -470,7 +470,7 @@ git commit -m "venus-gen: real reproducible generator + committed driver headers
 # scripts/venus/test_coverage.py
 import json, pathlib, re
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-OUTDIR = ROOT / "libs/libukvenus/generated"
+OUTDIR = ROOT / "libs/libukvulkan_venus/generated"
 MANIFEST = json.loads((ROOT / "config/venus_command_manifest.json").read_text())
 
 def test_every_ggml_command_has_an_encoder():
@@ -499,13 +499,13 @@ git commit -m "venus-gen: assert generated encoders cover the ggml manifest"
 ### Task 3.1: `vn_cs.h` — encoder/decoder/handle-id adapter
 
 **Files:**
-- Create: `libs/libukvenus/include/uk/vn_cs.h`
+- Create: `libs/libukvulkan_venus/include/uk/vn_cs.h`
 - Test: covered by the compile gate (Task 4.1) and parity test (Task 5.1).
 
 - [ ] **Step 1: Write the shim**
 
 ```c
-/* libs/libukvenus/include/uk/vn_cs.h
+/* libs/libukvulkan_venus/include/uk/vn_cs.h
  *
  * Unikraft adapter satisfying the interface documented in the upstream
  * venus-protocol driver_cs.h template. Maps the generated vn_encode_* /
@@ -605,21 +605,21 @@ The signatures above are taken from the upstream `driver_cs.h` template usage. T
 - [ ] **Step 3: Commit**
 
 ```bash
-git add libs/libukvenus/include/uk/vn_cs.h
+git add libs/libukvulkan_venus/include/uk/vn_cs.h
 git commit -m "venus-gen: vn_cs.h encoder/decoder/handle shim onto uk_venus_encoder"
 ```
 
 ### Task 3.2: `vn_ring.h` + implementation — 4-function ring adapter
 
 **Files:**
-- Create: `libs/libukvenus/include/uk/vn_ring.h`
-- Create: `libs/libukvenus/vn_ring_shim.c`
-- Modify: `libs/libukvenus/venus_init.c`, `libs/libukvenus/include/uk/venus.h`
+- Create: `libs/libukvulkan_venus/include/uk/vn_ring.h`
+- Create: `libs/libukvulkan_venus/vn_ring_shim.c`
+- Modify: `libs/libukvulkan_venus/venus_init.c`, `libs/libukvulkan_venus/include/uk/venus.h`
 
 - [ ] **Step 1: Write the header**
 
 ```c
-/* libs/libukvenus/include/uk/vn_ring.h
+/* libs/libukvulkan_venus/include/uk/vn_ring.h
  *
  * Satisfies the vn_submit_* / vn_call_* wrappers in the generated headers.
  * Surface (verified against the generated tree) is exactly four functions and
@@ -666,7 +666,7 @@ void vn_ring_free_command_reply(struct vn_ring *ring,
 - [ ] **Step 2: Implement the four functions**
 
 ```c
-/* libs/libukvenus/vn_ring_shim.c */
+/* libs/libukvulkan_venus/vn_ring_shim.c */
 #include <uk/vn_ring.h>
 
 struct vn_cs_encoder *
@@ -718,8 +718,8 @@ Add `uk_venus_ring_bind_current(struct uk_virtio_gpu_dev *dev, struct uk_virtio_
 - [ ] **Step 4: Commit**
 
 ```bash
-git add libs/libukvenus/include/uk/vn_ring.h libs/libukvenus/vn_ring_shim.c \
-        libs/libukvenus/venus_init.c libs/libukvenus/include/uk/venus.h
+git add libs/libukvulkan_venus/include/uk/vn_ring.h libs/libukvulkan_venus/vn_ring_shim.c \
+        libs/libukvulkan_venus/venus_init.c libs/libukvulkan_venus/include/uk/venus.h
 git commit -m "venus-gen: vn_ring.h 4-function shim onto uk_venus_ring transport"
 ```
 
@@ -768,10 +768,10 @@ int main(void)
 
 ```make
 $(BUILD)/venus_generated_compile_test: venus_generated_compile_test.c \
-	../libs/libukvenus/venus_cs.c ../libs/libukvenus/venus_init.c \
-	../libs/libukvenus/venus_compute.c ../libs/libukvenus/vn_ring_shim.c \
+	../libs/libukvulkan_venus/venus_cs.c ../libs/libukvulkan_venus/venus_init.c \
+	../libs/libukvulkan_venus/venus_compute.c ../libs/libukvulkan_venus/vn_ring_shim.c \
 	./virtio_gpu_fake.c | $(BUILD)
-	$(CC) $(CFLAGS) -I../libs/libukvenus/generated $^ -o $@
+	$(CC) $(CFLAGS) -I../libs/libukvulkan_venus/generated $^ -o $@
 
 venus-gen-compile: $(BUILD)/venus_generated_compile_test
 	./$(BUILD)/venus_generated_compile_test
@@ -799,7 +799,7 @@ git commit -m "venus-gen: compile gate for generated headers through the shim"
 ### Task 5.1: Byte-for-byte legacy-vs-generated parity
 
 **Files:**
-- Modify: `libs/libukvenus/venus_cs.c`, `libs/libukvenus/venus_compute.c` (temporarily expose legacy bodies under `__legacy` suffix)
+- Modify: `libs/libukvulkan_venus/venus_cs.c`, `libs/libukvulkan_venus/venus_compute.c` (temporarily expose legacy bodies under `__legacy` suffix)
 - Create: `tests/venus_parity_test.c`
 - Modify: `tests/Makefile`
 
@@ -869,7 +869,7 @@ int main(void)
 
 - [ ] **Step 3: Add target + run**
 
-Add a `venus-parity` target to `tests/Makefile` (same compile recipe as Task 4.1, with `-I../libs/libukvenus/generated`).
+Add a `venus-parity` target to `tests/Makefile` (same compile recipe as Task 4.1, with `-I../libs/libukvulkan_venus/generated`).
 Run: `make -C tests venus-parity`
 Expected: `venus_parity_test: PASS`.
 **If a command mismatches:** the generated encoder is authoritative. Record the divergence in `report-porting.md`, fix the *caller's* struct construction (not the generated header), and if the legacy encoder was wrong, note it as a bug the port fixes.
@@ -878,7 +878,7 @@ Expected: `venus_parity_test: PASS`.
 
 ```bash
 git add tests/venus_parity_test.c tests/shim/venus_legacy.h tests/Makefile \
-        libs/libukvenus/venus_cs.c libs/libukvenus/venus_compute.c
+        libs/libukvulkan_venus/venus_cs.c libs/libukvulkan_venus/venus_compute.c
 git commit -m "venus-gen: byte-for-byte parity gate legacy vs generated encoders"
 ```
 
@@ -889,7 +889,7 @@ git commit -m "venus-gen: byte-for-byte parity gate legacy vs generated encoders
 ### Task 6.1: Reimplement public `uk_venus_encode_*` on generated encoders
 
 **Files:**
-- Modify: `libs/libukvenus/venus_cs.c`, `libs/libukvenus/venus_compute.c`
+- Modify: `libs/libukvulkan_venus/venus_cs.c`, `libs/libukvulkan_venus/venus_compute.c`
 
 - [ ] **Step 1: Reimplement one encoder body via the generated path**
 
@@ -929,7 +929,7 @@ Expected: full deterministic suite PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add libs/libukvenus tests/Makefile
+git add libs/libukvulkan_venus tests/Makefile
 git commit -m "venus-gen: route uk_venus_encode_* through generated encoders; drop hand-written wire code"
 ```
 
@@ -940,7 +940,7 @@ git commit -m "venus-gen: route uk_venus_encode_* through generated encoders; dr
 ### Task 7.1: Wire the include path + verify gate
 
 **Files:**
-- Modify: `libs/libukvenus/Makefile.uk`, `libs/libukvenus/Config.uk`, `Makefile`
+- Modify: `libs/libukvulkan_venus/Makefile.uk`, `libs/libukvulkan_venus/Config.uk`, `Makefile`
 
 - [ ] **Step 1:** Add `LIBUKVENUS_CINCLUDES-y += -I$(LIBUKVENUS_BASE)/generated` to `Makefile.uk` (mirror the existing `include/` line). Add `vn_ring_shim.c` to the built sources.
 - [ ] **Step 2:** Add a Make target:
@@ -957,17 +957,17 @@ Expected: `gen_libukvenus verify: PASS committed tree matches upstream regen`.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add libs/libukvenus/Makefile.uk libs/libukvenus/Config.uk Makefile
+git add libs/libukvulkan_venus/Makefile.uk libs/libukvulkan_venus/Config.uk Makefile
 git commit -m "venus-gen: wire generated includes + gen-libukvenus-verify gate"
 ```
 
 ### Task 7.2: Governance + docs
 
 **Files:**
-- Modify: `libs/libukvenus/GENERATOR.md`, `libs/libukvenus/README.md`, `config/governance.json`, `README.md` status, `report-porting.md`
+- Modify: `libs/libukvulkan_venus/GENERATOR.md`, `libs/libukvulkan_venus/README.md`, `config/governance.json`, `README.md` status, `report-porting.md`
 
 - [ ] **Step 1:** Rewrite `GENERATOR.md` "Workflow"/"Why not vendor" to describe the now-real flow: `pin.json` → `make gen-libukvenus` (commits verbatim driver headers + `GENERATED.lock`) → `vn_cs.h`/`vn_ring.h` shim → `gen-libukvenus-verify`. Document the manifest + coverage check and the "generated is source of truth" rule.
-- [ ] **Step 2:** Update `libs/libukvenus/README.md` source-lineage section: encoders are generated from venus-protocol `70991d4`; transport stays `libukvirtio_gpu`.
+- [ ] **Step 2:** Update `libs/libukvulkan_venus/README.md` source-lineage section: encoders are generated from venus-protocol `70991d4`; transport stays `libukvirtio_gpu`.
 - [ ] **Step 3:** Update `config/governance.json` + README status columns so `make governance-check lib-readme-check app-port-check` passes.
 - [ ] **Step 4:** Record outcomes (parity divergences found, commands hand-kept if any) in `report-porting.md`.
 - [ ] **Step 5: Run governance gates**
@@ -977,7 +977,7 @@ Expected: all PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add libs/libukvenus/GENERATOR.md libs/libukvenus/README.md \
+git add libs/libukvulkan_venus/GENERATOR.md libs/libukvulkan_venus/README.md \
         config/governance.json README.md report-porting.md
 git commit -m "venus-gen: governance + docs for deterministic encoder generation"
 ```

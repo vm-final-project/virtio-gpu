@@ -158,7 +158,7 @@ def run_vulkan_compute_test(reps: int) -> dict:
 
 
 def run_venus_ring_test() -> dict:
-    """Run libukvenus native ring/blob substrate test and parse microbench output."""
+    """Run libukvulkan_venus native ring/blob substrate test and parse microbench output."""
     build = subprocess.run(
         ["make", "-C", str(ROOT / "tests"), "venus-cs"],
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=30)
@@ -185,16 +185,16 @@ def vkmark_substrate_check() -> dict:
     g5_hdr = ROOT / "libs" / "libukvirtgpu_drm" / "include" / "uk" / "drm_virtgpu.h"
     g5_pass = g5_src.exists() and g5_hdr.exists()
 
-    # vk.icd gate: libukvk_icd Vulkan ICD shim
-    g6_src = ROOT / "libs" / "libukvk_icd" / "vulkan_icd.c"
-    g6_hdr = ROOT / "libs" / "libukvk_icd" / "include" / "uk" / "vulkan_icd.h"
+    # vk.icd gate: native Venus driver bootstrap (libukvulkan_venus)
+    g6_src = ROOT / "libs" / "libukvulkan_venus" / "venus_driver.c"
+    g6_hdr = ROOT / "libs" / "libukvulkan_venus" / "include" / "uk" / "vulkan_venus.h"
     g6_pass = g6_src.exists() and g6_hdr.exists()
 
     if g5_pass and g6_pass:
         status = "pass"
         blocked_by = []
         next_step = (
-            "Connect the libukvenus host-visible ring substrate to a full Mesa/Venus "
+            "Connect the libukvulkan_venus host-visible ring substrate to a full Mesa/Venus "
             "timeline/frame path, then run vkmark with venus=true for per-scene fps evidence."
         )
     elif g5_pass:
@@ -276,7 +276,7 @@ def write_artifacts(data: dict) -> None:
         "  )),",
         "  caption: [Vulkan/Venus performance evaluation. "
         "Host baselines from Khronos Vulkan Samples methodology. "
-        "vk.drm-shim (libukvirtgpu_drm), vk.icd (Vulkan ICD), and libukvenus ring gates PASS; "
+        "vk.drm-shim (libukvirtgpu_drm), vk.icd (Vulkan ICD), and libukvulkan_venus ring gates PASS; "
         "fps evidence requires same-run accelerated frame proof.]",
         ") <tab:vulkan-perf>",
         "",
@@ -308,7 +308,7 @@ def main() -> int:
         "vkmark_substrate": vkm,
         "claim_allowed": (
             "Host-side Vulkan API surface proof and baseline measurements. "
-            "vk.drm-shim (libukvirtgpu_drm), vk.icd (Vulkan ICD), and libukvenus host-visible ring substrate implemented and tested. "
+            "vk.drm-shim (libukvirtgpu_drm), vk.icd (Vulkan ICD), and libukvulkan_venus host-visible ring substrate implemented and tested. "
             "Venus/vkmark rendering still requires non-empty render payloads."
         ),
         "claim_forbidden": (

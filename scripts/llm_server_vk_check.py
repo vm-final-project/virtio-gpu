@@ -60,7 +60,7 @@ VK_SERVER_FLAGS = (
     "CONFIG_APP_LLAMA_UPSTREAM_VK_BATCH",
     "CONFIG_APP_LLAMA_UPSTREAM_VK_UBATCH",
     "CONFIG_APP_LLAMA_UPSTREAM_VK_PROMPT_CACHE",
-    "uk_ggml_vulkan_dispatch_get_info",
+    "uk_vulkan_get_info",
     "UK_GGML_VK_DISPATCH_BATCH",
     "llama_server(",
     "--host",
@@ -82,6 +82,7 @@ READY_LINE_RE = re.compile(
     r"ctx_per_slot=(?P<ctx>\d+) batch_size=(?P<batch>\d+) "
     r"ubatch_size=(?P<ubatch>\d+) prompt_cache=(?P<pc>\d) "
     r"batch_enabled=(?P<be>\d) "
+    r"(?:ring_enabled=\d+ )?"
     r"hostmem_fixed=(?P<hf>\d)"
 )
 

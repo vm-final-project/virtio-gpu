@@ -3,12 +3,12 @@
 Deterministic generation of libukvenus' Venus wire encoders from the pinned
 upstream `../../venus-protocol/` checkout. VOGUE never forks Mesa's `vk.xml`
 parsing or Mako templates — `scripts/gen_libukvenus.py` runs upstream
-`vn_protocol.py --outdir libs/libukvenus/generated/` (driver/guest variant) and
+`vn_protocol.py --outdir libs/libukvulkan_venus/generated/` (driver/guest variant) and
 records a sha256 `GENERATED.lock`. The driver headers are committed verbatim;
 `make gen-libukvenus-verify` regenerates to a temp dir and diffs, and gates
 `make governance-check`.
 
-See `libs/libukvenus/GENERATOR.md` for the full workflow and the parity-lock
+See `libs/libukvulkan_venus/GENERATOR.md` for the full workflow and the parity-lock
 source-of-truth model.
 
 ## Files

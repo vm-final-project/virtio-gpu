@@ -93,17 +93,17 @@ def venus_rows() -> list[Row]:
     # proto.venus-enc: Venus wire-format encoding correctness gate.
     # Evidence: vulkan_registry_check (command IDs) + venus_cs_test encoding layout assertions.
     reg_check = load_json(RESULTS / "vulkan" / "vulkan_registry_check.json")
-    venus_cs_src = ROOT / "libs" / "libukvenus" / "venus_cs.c"
+    venus_cs_src = ROOT / "libs" / "libukvulkan_venus" / "venus_cs.c"
     enc_src_present = venus_cs_src.exists()
     reg_pass = reg_check.get("status", "") == "pass" if reg_check else False
     enc_status = "pass" if (reg_pass or enc_src_present) else "missing"
     enc_evidence = ("results/vulkan/vulkan_registry_check.json;"
-                    "libs/libukvenus/venus_cs.c")
+                    "libs/libukvulkan_venus/venus_cs.c")
 
-    # proto.venus-ring: ring-buffer protocol implemented in libukvenus; native tests all pass.
+    # proto.venus-ring: ring-buffer protocol implemented in libukvulkan_venus; native tests all pass.
     # Source-tree check: all ring implementation files must exist.
-    venus_init = ROOT / "libs" / "libukvenus" / "venus_init.c"
-    venus_h    = ROOT / "libs" / "libukvenus" / "include" / "uk" / "venus.h"
+    venus_init = ROOT / "libs" / "libukvulkan_venus" / "venus_init.c"
+    venus_h    = ROOT / "libs" / "libukvulkan_venus" / "include" / "uk" / "venus.h"
     ring_src_present = venus_init.exists() and venus_cs_src.exists() and venus_h.exists()
     ring_native_pass = str(ring_probe.get("native_test_status", "")).startswith("all-pass") if ring_probe else ring_src_present
     ring_qemu_pass = ring_probe.get("status", "") == "pass" if ring_probe else False
@@ -140,7 +140,7 @@ def venus_rows() -> list[Row]:
             "Real Venus GPU performance unless xport.qemu-vgpu and Vulkan smoke pass.",
             f"Current acceleration_status={accel_status}; rerun after modern PCI/host-visible support."),
         Row("proto.venus-enc", "Venus command serialization wire-format correctness",
-            "libukvenus: PACKED encoding + uint32 array_size per Mesa vn_encode_array_size()",
+            "libukvulkan_venus: PACKED encoding + uint32 array_size per Mesa vn_encode_array_size()",
             enc_status,
             "vulkan_registry_check (9 command IDs vs vk.xml/Mesa/VK_EXT_command_serialization.xml); "
             "venus_cs_test encoding layout assertions for all bootstrap commands",
@@ -153,13 +153,13 @@ def venus_rows() -> list[Row]:
             "registry check validates IDs only, not runtime correctness.",
             "Keep as regression gate; rerun vulkan_registry_check after any venus.h ID changes."),
         Row("proto.venus-ring", "Venus ring-buffer protocol substrate",
-            "libukvenus: vkCreateRingMESA/vkNotifyRingMESA/vkDestroyRingMESA + circular ring",
+            "libukvulkan_venus: vkCreateRingMESA/vkNotifyRingMESA/vkDestroyRingMESA + circular ring",
             ring_status,
             "venus_cs_test ring_proto (24 checks) + ring_perf throughput pass; "
             "vkCreateRingMESA encoding, host-visible head/tail layout, circular write, flush, wait",
-            ring_evidence if ring_probe else "libs/libukvenus/venus_init.c;libs/libukvenus/venus_cs.c",
+            ring_evidence if ring_probe else "libs/libukvulkan_venus/venus_init.c;libs/libukvulkan_venus/venus_cs.c",
             "Mesa-compatible Venus ring-buffer protocol (vkCreateRingMESA / vkNotifyRingMESA) "
-            "is implemented in libukvenus and passes all native tests: "
+            "is implemented in libukvulkan_venus and passes all native tests: "
             "HEAD at offset 0, TAIL at offset 64, STATUS at offset 128, circular buffer at 192; "
             "power-of-2 buf_size, store-release tail, vkNotifyRingMESA notify, and "
             "spin-poll wait. All 24 ring_proto checks and ring_perf throughput pass.",
@@ -437,8 +437,8 @@ def llama_vulkan_rows() -> list[Row]:
             "Run scripts/llama_vulkan_linux_baseline.py once on the evaluation host."),
         Row("host.vk.probe",
             "Unikraft Vulkan loader/ICD enumerates a Venus device",
-            "app-vulkan-smoke or app-llama-upstream-vk: vkEnumeratePhysicalDevices via libukvk_icd "
-            "over libukvirtgpu_drm + libukvenus + virtio-gpu-gl with venus=true",
+            "app-vulkan-smoke or app-llama-upstream-vk: vkEnumeratePhysicalDevices via libvulkan "
+            "over libukvirtgpu_drm + libukvulkan_venus + virtio-gpu-gl with venus=true",
             probe_status,
             "Guest log line `vk: physical_device=<name> api=<version>` and capset(venus) detected "
             "in the same run; recorded in results/llama/vulkan_probe.json",
@@ -448,12 +448,12 @@ def llama_vulkan_rows() -> list[Row]:
             if probe_status == "pass" else
             f"No Unikraft Vulkan loader claim; current artifact status is {probe_status}.",
             "Vulkan compute execution, llama.cpp tokens, or any throughput claim.",
-            "Extend libukvk_icd to surface vkEnumeratePhysicalDevices/PhysicalDeviceProperties "
+            "Extend libvulkan to surface vkEnumeratePhysicalDevices/PhysicalDeviceProperties "
             "and run scripts/llama_vulkan_probe.py."),
         Row("bld.host.vk",
             "Unikraft image linking upstream ggml-vulkan with -DGGML_USE_VULKAN=1",
             "apps/app-llama-upstream-vk + Kraftfile.llama-upstream-vk: musl/libc++/pthread + upstream ggml-vulkan.cpp + "
-            "vulkan-shaders + libukvk_icd + libukvenus + libukvirtgpu_drm",
+            "vulkan-shaders + libvulkan + libukvulkan_venus",
             build_status,
             "kraft build emits vogue-llama-upstream-vk_qemu-x86_64; build log contains "
             "-DGGML_USE_VULKAN=1; nm reports ggml_vk_* symbols",
@@ -461,7 +461,7 @@ def llama_vulkan_rows() -> list[Row]:
             "The full llama.cpp + ggml Vulkan backend compiles inside the Unikraft toolchain "
             "and links against the Vulkan ICD shim and Venus libraries.",
             "Vulkan execution, llama tokens via GPU, or any throughput claim.",
-            "Use apps/app-llama-upstream-vk + Kraftfile.llama-upstream-vk + extended libukggml_vulkan "
+            "Use apps/app-llama-upstream-vk + Kraftfile.llama-upstream-vk + extended libvulkan "
             "compute subset and run scripts/llama_vulkan_build.py."),
         Row("host.bench.vk.run",
             "Unikraft llama-cli runs llama.cpp with -ngl 99 via Mesa Venus",
@@ -476,7 +476,7 @@ def llama_vulkan_rows() -> list[Row]:
             if run_status == "pass" else
             f"No Unikraft Vulkan runtime claim; current artifact status is {run_status}.",
             "Performance speedup unless host.bench.vk also passes against named baselines.",
-            "Extend libukvk_icd to the compute dispatch subset required by ggml-vulkan, "
+            "Extend libvulkan to the compute dispatch subset required by ggml-vulkan, "
             "then run scripts/llama_vulkan_run.py."),
         Row("host.bench.vk",
             "Unikraft Vulkan throughput compared against Linux-VM Venus / BM-Vulkan / BM-CUDA / Unikraft-CPU",
@@ -492,20 +492,20 @@ def llama_vulkan_rows() -> list[Row]:
             "Outright performance superiority claim; Unikraft Vulkan is expected to trail bare-metal.",
             "Once host.bench.vk.run passes, run scripts/llama_vulkan_bench.py and update paper/generated tables."),
         Row("vk.ggml-dispatch",
-            "Static Venus-backed Vulkan ICD dispatch layer (libukggml_vulkan): 82 Vulkan C ABI "
+            "Static Venus-backed Vulkan ICD dispatch layer (libvulkan): 82 Vulkan C ABI "
             "stubs wired to Venus encoder, no dlopen, no host libvulkan.so",
-            "libs/libukggml_vk/uk_vulkan_dispatch.c: vkGetInstanceProcAddr as real C symbol "
-            "returning Venus-backed stubs; uk_ggml_vulkan_dispatch_init() over vk.drm-shim DRM; "
-            f"tests/uk_ggml_vulkan_dispatch_test.c: {n3_total} checks across proc lookup, init, stub calls, "
+            "libs/libvulkan/uk_vulkan_dispatch.c: vkGetInstanceProcAddr as real C symbol "
+            "returning Venus-backed stubs; uk_vulkan_init() over vk.drm-shim DRM; "
+            f"tests/ggml_vk_dispatch_test.c: {n3_total} checks across proc lookup, init, stub calls, "
             "and 23-step compute bootstrap",
             n3_status,
-            f"{n3_passed}/{n3_total} checks pass in uk_ggml_vulkan_dispatch_test: proc lookup (80 functions), "
+            f"{n3_passed}/{n3_total} checks pass in ggml_vk_dispatch_test: proc lookup (80 functions), "
             "dispatch init via vk.drm-shim DRM fake backend, per-stub VK_SUCCESS + handle allocation, "
             "23-step full compute bootstrap sequence (CreateInstance→WaitForFences). "
             "Venus SUBMIT_3D encoding fires for every mutating call. "
             f"artifact written to {n3_evidence}",
             n3_evidence,
-            f"{n3_passed}/{n3_total} checks pass in uk_ggml_vulkan_dispatch_test: proc lookup (80 functions), "
+            f"{n3_passed}/{n3_total} checks pass in ggml_vk_dispatch_test: proc lookup (80 functions), "
             "dispatch init via vk.drm-shim DRM fake backend, per-stub VK_SUCCESS + handle allocation, "
             "23-step full compute bootstrap sequence (CreateInstance→WaitForFences). All Vulkan struct "
             "field accesses verified against Vulkan 1.3 spec byte offsets. Venus SUBMIT_3D encoding "
@@ -569,7 +569,7 @@ def upstream_llama_rows() -> list[Row]:
         Row("llm.bench.vk",
             "Upstream llama.cpp Vulkan bench-only appliance on Unikraft via Venus SUBMIT_3D",
             "apps/app-llama-upstream-vk/bench.cpp: upstream llama.cpp Vulkan via "
-            "libukggml_vulkan → libukvenus SUBMIT_3D → QEMU virtio-gpu-gl-pci,venus=true",
+            "in-tree ggml-vulkan → libvulkan → libukvulkan_venus SUBMIT_3D → QEMU virtio-gpu-gl-pci,venus=true",
             vk_status,
             f"pp512={vk_pp} t/s; evidence: results/llama/upstream_vk.json" if vk_pp else
             "Build or run blocked; see results/llama/upstream_vk.json",
@@ -601,7 +601,7 @@ def upstream_llama_rows() -> list[Row]:
             "Build kraft/Kraftfile.llama-upstream-vk-server; promote when same-run evidence exists."),
         Row("bld.uk.vk",
             "Upstream llama.cpp Vulkan Unikraft image build with ggml-vulkan + Venus libraries linked (W5)",
-            "kraft/Kraftfile.llama-upstream-vk: libukggml_vulkan + libukvenus + libukvk_icd + "
+            "kraft/Kraftfile.llama-upstream-vk: libvulkan + libukvulkan_venus + "
             "libukvirtgpu_drm compile and link into vogue-llama-vk_qemu-x86_64",
             n3b_status,
             f"Image builds: {n3b.get('image', 'n/a')}; evidence: results/llama/n3_build_passed.json"
@@ -636,9 +636,9 @@ def vulkan_rows() -> list[Row]:
     vkm = vk.get("vkmark_substrate", {})
     vk_evidence = "results/vulkan/vulkan_perf.json"
 
-    # vk.icd gate: libukvk_icd Vulkan ICD shim implemented
-    g6_src = ROOT / "libs" / "libukvk_icd" / "vulkan_icd.c"
-    g6_hdr = ROOT / "libs" / "libukvk_icd" / "include" / "uk" / "vulkan_icd.h"
+    # vk.icd gate: native Venus driver bootstrap (libukvulkan_venus) implemented
+    g6_src = ROOT / "libs" / "libukvulkan_venus" / "venus_driver.c"
+    g6_hdr = ROOT / "libs" / "libukvulkan_venus" / "include" / "uk" / "vulkan_venus.h"
     g6_pass = g6_src.exists() and g6_hdr.exists()
 
     # Pull substrate status from the vulkan_perf artifact (set by vulkan_perf_eval.py)
@@ -662,7 +662,7 @@ def vulkan_rows() -> list[Row]:
             vkm_status,
             "vk.drm-shim+vk.icd substrate implemented; vkmark port with 10 scenes and ICD init tested",
             vk_evidence,
-            "vkmark Unikraft port uses libukvk_icd (vk.icd) over libukvirtgpu_drm (vk.drm-shim); "
+            "vkmark Unikraft port uses native Venus driver (libukvulkan_venus) over libukvirtio_gpu; "
             "ICD init and Venus context creation PASS; 10 scenes documented with host "
             "llvmpipe/NVIDIA baselines. Rendering requires non-empty virgl/Venus render payloads.",
             "vkmark fps scores inside Unikraft, GPU acceleration claims.",

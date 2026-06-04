@@ -25,9 +25,8 @@ CFLAGS ?= -D_POSIX_C_SOURCE=200112L -std=c11 -Wall -Wextra \
 	-I../libs/libukdrm_compat/include \
 	-I../libs/libukgbm_compat/include \
 	-I../libs/libukvirtgpu_drm/include \
-	-I../libs/libukvk_icd/include \
-	-I../libs/libukvenus/include \
-	-I../libs/libukggml_vk/include \
+	-I../libs/libukvulkan_venus/include \
+	-I../libs/libvulkan/include \
 	-Ishim
 
 # Default to the sibling venus-protocol checkout; system loader on the host.
@@ -49,7 +48,7 @@ NATIVE_BINS := \
 	$(BUILD)/virtio_gpu_2d_render_test \
 	$(BUILD)/kmscube_compat_test \
 	$(BUILD)/virtgpu_drm_ioctl_test \
-	$(BUILD)/vk_icd_bootstrap_test \
+	$(BUILD)/venus_bootstrap_test \
 	$(BUILD)/venus_cs_test \
 	$(BUILD)/venus_compute_test \
 	$(BUILD)/virgl_encoder_test \
@@ -80,7 +79,7 @@ test-core:
 # Group 2: VirtIO-GPU 3D / Venus / virgl (vk.drm-shim, vk.icd, proto.venus-enc, proto.venus-ring)
 TEST_VENUS_BINS := \
 	$(BUILD)/virtgpu_drm_ioctl_test \
-	$(BUILD)/vk_icd_bootstrap_test \
+	$(BUILD)/venus_bootstrap_test \
 	$(BUILD)/venus_cs_test \
 	$(BUILD)/venus_compute_test \
 	$(BUILD)/virgl_encoder_test \
@@ -146,13 +145,13 @@ $(BUILD)/virtio_gpu_proto_abi_test: virtio_gpu_proto_abi_test.c $(PROTO_HDR) | $
 $(BUILD)/virtgpu_drm_ioctl_test: virtgpu_drm_ioctl_test.c ../libs/libukvirtgpu_drm/drm_virtgpu.c ./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(BUILD)/vk_icd_bootstrap_test: vk_icd_bootstrap_test.c ../libs/libukvk_icd/vulkan_icd.c ../libs/libukvirtgpu_drm/drm_virtgpu.c ./virtio_gpu_fake.c | $(BUILD)
+$(BUILD)/venus_bootstrap_test: venus_bootstrap_test.c ../libs/libukvulkan_venus/venus_driver.c ./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(BUILD)/venus_cs_test: venus_cs_test.c ../libs/libukvenus/venus_cs.c ../libs/libukvenus/venus_init.c ../libs/libukvenus/venus_compute.c ./virtio_gpu_fake.c | $(BUILD)
+$(BUILD)/venus_cs_test: venus_cs_test.c ../libs/libukvulkan_venus/venus_cs.c ../libs/libukvulkan_venus/venus_init.c ../libs/libukvulkan_venus/venus_compute.c ./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) $(GEN_CFLAGS) $^ -o $@
 
-$(BUILD)/venus_compute_test: venus_compute_test.c ../libs/libukvenus/venus_cs.c ../libs/libukvenus/venus_compute.c | $(BUILD)
+$(BUILD)/venus_compute_test: venus_compute_test.c ../libs/libukvulkan_venus/venus_cs.c ../libs/libukvulkan_venus/venus_compute.c | $(BUILD)
 	$(CC) $(CFLAGS) $(GEN_CFLAGS) $^ -o $@
 
 venus-compute: $(BUILD)/venus_compute_test
@@ -161,12 +160,12 @@ venus-compute: $(BUILD)/venus_compute_test
 # Generated-encoder includes: bare "vn_cs.h"/"vn_ring.h" live in include/uk;
 # the driver headers live in generated/; vulkan.h comes from VK_INC. The
 # generated code is upstream-shaped, so silence its stylistic warnings.
-GEN_CFLAGS := -I../libs/libukvenus/include/uk -I../libs/libukvenus/generated \
+GEN_CFLAGS := -I../libs/libukvulkan_venus/include/uk -I../libs/libukvulkan_venus/generated \
 	-I$(VK_INC) -Wno-unused-parameter -Wno-missing-field-initializers
 
 $(BUILD)/venus_generated_compile_test: venus_generated_compile_test.c \
-	../libs/libukvenus/venus_cs.c ../libs/libukvenus/venus_init.c \
-	../libs/libukvenus/venus_compute.c ../libs/libukvenus/vn_ring_shim.c \
+	../libs/libukvulkan_venus/venus_cs.c ../libs/libukvulkan_venus/venus_init.c \
+	../libs/libukvulkan_venus/venus_compute.c ../libs/libukvulkan_venus/vn_ring_shim.c \
 	./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) $(GEN_CFLAGS) $^ -o $@
 
@@ -174,8 +173,8 @@ venus-gen-compile: $(BUILD)/venus_generated_compile_test
 	./$(BUILD)/venus_generated_compile_test
 
 $(BUILD)/venus_parity_test: venus_parity_test.c \
-	../libs/libukvenus/venus_cs.c ../libs/libukvenus/venus_init.c \
-	../libs/libukvenus/venus_compute.c ../libs/libukvenus/vn_ring_shim.c \
+	../libs/libukvulkan_venus/venus_cs.c ../libs/libukvulkan_venus/venus_init.c \
+	../libs/libukvulkan_venus/venus_compute.c ../libs/libukvulkan_venus/vn_ring_shim.c \
 	./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) $(GEN_CFLAGS) $^ -o $@
 
@@ -183,8 +182,8 @@ venus-parity: $(BUILD)/venus_parity_test
 	./$(BUILD)/venus_parity_test
 
 $(BUILD)/venus_hotpath_bench: venus_hotpath_bench.c \
-	../libs/libukvenus/venus_cs.c ../libs/libukvenus/venus_init.c \
-	../libs/libukvenus/venus_compute.c ../libs/libukvenus/vn_ring_shim.c \
+	../libs/libukvulkan_venus/venus_cs.c ../libs/libukvulkan_venus/venus_init.c \
+	../libs/libukvulkan_venus/venus_compute.c ../libs/libukvulkan_venus/vn_ring_shim.c \
 	./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) $(GEN_CFLAGS) $^ -o $@
 
@@ -192,21 +191,20 @@ venus-hotpath: $(BUILD)/venus_hotpath_bench
 	./$(BUILD)/venus_hotpath_bench ../results/perf/venus_hotpath.json
 
 $(BUILD)/virgl_encoder_test: virgl_encoder_test.c ../libs/libukvirtio_gpu/virgl_encoder.c ./virtio_gpu_fake.c | $(BUILD)
-	$(CC) $(CFLAGS) -I../libs/libukvenus/include $^ -o $@
+	$(CC) $(CFLAGS) -I../libs/libukvulkan_venus/include $^ -o $@
 
 $(BUILD)/vulkan_compute_test: vulkan_compute_test.c | $(BUILD)
 	$(CC) -std=c11 -D_POSIX_C_SOURCE=199309L -Wall -Wno-missing-field-initializers -I$(VK_INC) $< $(VK_LIB) -lm -o $@
 
-# vk.ggml-dispatch: static Vulkan ICD dispatch layer test. Links uk_vulkan_dispatch.c against
-# the fake VirtIO-GPU backend and the full Venus/ICD/vk.drm-shim stack.
+# vk.ggml-dispatch: static Vulkan dispatch layer test. Links uk_vulkan_dispatch.c
+# against the fake VirtIO-GPU backend and the native Venus driver (no DRM/ICD).
 $(BUILD)/ggml_vk_dispatch_test: ggml_vk_dispatch_test.c \
-	../libs/libukggml_vk/uk_vulkan_dispatch.c \
-	../libs/libukvk_icd/vulkan_icd.c \
-	../libs/libukvirtgpu_drm/drm_virtgpu.c \
-	../libs/libukvenus/venus_init.c \
-	../libs/libukvenus/venus_cs.c \
-	../libs/libukvenus/venus_compute.c \
-	../libs/libukvenus/vn_ring_shim.c \
+	../libs/libvulkan/uk_vulkan_dispatch.c \
+	../libs/libukvulkan_venus/venus_driver.c \
+	../libs/libukvulkan_venus/venus_init.c \
+	../libs/libukvulkan_venus/venus_cs.c \
+	../libs/libukvulkan_venus/venus_compute.c \
+	../libs/libukvulkan_venus/vn_ring_shim.c \
 	./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) $(GEN_CFLAGS) $^ -o $@
 

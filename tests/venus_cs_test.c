@@ -1,5 +1,5 @@
 /*
- * venus_cs_test.c — Unit tests for libukvenus command-stream encoder.
+ * venus_cs_test.c — Unit tests for libukvulkan_venus command-stream encoder.
  *
  * Tests the Venus wire-format encoder without requiring a real VirtIO-GPU
  * device.  Validates:

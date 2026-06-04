@@ -23,7 +23,7 @@ Vulkan rendering and compute acceleration are not claimed — they require the c
 
 ## Unikraft build system
 
-- `Config.uk` — declares `CONFIG_APP_VULKAN_SMOKE` and selects `libukvk_icd` (vk.icd), `libukvirtgpu_drm` (vk.drm-shim), `libukvirtio_gpu`
+- `Config.uk` — declares `CONFIG_APP_VULKAN_SMOKE` and selects `libukvirtio_gpu` (and probes the Venus capset directly)
 - `Makefile.uk` — registers with `addlib`, uses `APPVULKAN_SMOKE_*` variables, lists `main.c`; Vulkan loader not vendored
 - `exportsyms.uk` — exports only `main`
 - No dedicated `kraft/Kraftfile.*` — the smoke binary is exercised through `make vulkan-check` and the host Vulkan/Venus probe scripts.

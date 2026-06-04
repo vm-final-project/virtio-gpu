@@ -214,7 +214,7 @@ def bench_vkmark() -> list[AppEnvResult]:
             app="app-vkmark", environment="Native substrate (vk.drm-shim+vk.icd ICD)", env_id="native",
             status=vkm.get("status", "missing"),
             claim_allowed=(
-                "vk.drm-shim (libukvirtgpu_drm) + vk.icd (libukvk_icd) ICD substrate: "
+                "vk.drm-shim (libukvirtgpu_drm) + Venus driver (libukvulkan_venus) substrate: "
                 f"{len(scenes)} scenes enumerated. Host baselines documented."
             ),
             claim_forbidden="vkmark FPS inside Unikraft, GPU acceleration, or rendering scores.",

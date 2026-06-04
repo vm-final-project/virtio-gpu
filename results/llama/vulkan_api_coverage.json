@@ -1,8 +1,8 @@
 {
   "status": "pass",
-  "generated_utc": "2026-06-03T17:31:39Z",
+  "generated_utc": "2026-06-04T10:21:03Z",
   "source": "/mydata/JerryT/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan.cpp",
-  "dispatch": "libs/libukggml_vk/uk_vulkan_dispatch.c",
+  "dispatch": "libs/libvulkan/uk_vulkan_dispatch.c",
   "required_count": 59,
   "supported_required_count": 59,
   "missing_required": [],

@@ -44,7 +44,7 @@ Every `libs/*` directory must have:
 - a boundary statement in both metadata and `libs/*/README.md`.
 
 Compatibility shims stay bounded. `libukvirtgpu_drm` must not become full Linux
-DRM, `libukvenus` must not leak into CPU-only paths, and llama/ggml libraries
+DRM, `libukvulkan_venus` must not leak into CPU-only paths, and llama/ggml libraries
 must not introduce a custom compute-remoting framework.
 
 

@@ -16,7 +16,7 @@ REPO = ROOT.parent
 # Resolve LLAMA_ROOT from env first, then sibling checkout; no personal path.
 _LLAMA_ROOT = Path(os.environ.get('LLAMA_ROOT') or (REPO / 'llama.cpp'))
 DEFAULT_GGML = _LLAMA_ROOT / 'ggml/src/ggml-vulkan/ggml-vulkan.cpp'
-DISPATCH = ROOT / 'libs/libukggml_vk/uk_vulkan_dispatch.c'
+DISPATCH = ROOT / 'libs/libvulkan/uk_vulkan_dispatch.c'
 
 METHOD_TO_VK = {
     'allocateCommandBuffers':'vkAllocateCommandBuffers',

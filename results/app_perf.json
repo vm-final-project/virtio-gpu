@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-04T00:29:11.591163Z",
+    "generated_utc": "2026-06-04T09:57:35.599739Z",
     "source": "scripts/app_perf_eval.py",
     "host": "Linux-6.18.33-x86_64-with-glibc2.39",
     "benchmark_scope": "native fake-backend software/substrate benchmark; not virgl/GPU acceleration",
@@ -16,10 +16,10 @@
       "width": 640,
       "height": 480,
       "bytes_per_frame": 1228800,
-      "total_ms": 131.695,
-      "avg_frame_ms": 2.195,
-      "fps": 455.6,
-      "memcpy_mib_s": 533.9,
+      "total_ms": 129.519,
+      "avg_frame_ms": 2.159,
+      "fps": 463.25,
+      "memcpy_mib_s": 542.88,
       "transfers": 60,
       "flushes": 60,
       "fences": 120,
@@ -37,10 +37,10 @@
       "width": 1280,
       "height": 800,
       "bytes_per_frame": 4096000,
-      "total_ms": 840.213,
-      "avg_frame_ms": 7.002,
-      "fps": 142.82,
-      "memcpy_mib_s": 557.89,
+      "total_ms": 690.183,
+      "avg_frame_ms": 5.752,
+      "fps": 173.87,
+      "memcpy_mib_s": 679.17,
       "transfers": 120,
       "flushes": 120,
       "fences": 240,
@@ -55,69 +55,69 @@
     "gfx.kmscube.sw": {
       "sample_count": 5,
       "selection_policy": "best_avg_frame_ms_for_noisy_smoke_gate",
-      "median_avg_frame_ms": 2.243,
-      "median_fps": 445.89,
+      "median_avg_frame_ms": 2.438,
+      "median_fps": 410.2,
       "samples": [
         {
-          "avg_frame_ms": 4.014,
-          "fps": 249.1,
-          "memcpy_mib_s": 291.92
+          "avg_frame_ms": 2.159,
+          "fps": 463.25,
+          "memcpy_mib_s": 542.88
         },
         {
-          "avg_frame_ms": 3.069,
-          "fps": 325.87,
-          "memcpy_mib_s": 381.87
+          "avg_frame_ms": 2.438,
+          "fps": 410.2,
+          "memcpy_mib_s": 480.7
         },
         {
-          "avg_frame_ms": 2.195,
-          "fps": 455.6,
-          "memcpy_mib_s": 533.9
+          "avg_frame_ms": 2.228,
+          "fps": 448.75,
+          "memcpy_mib_s": 525.87
         },
         {
-          "avg_frame_ms": 2.23,
-          "fps": 448.37,
-          "memcpy_mib_s": 525.43
+          "avg_frame_ms": 3.458,
+          "fps": 289.19,
+          "memcpy_mib_s": 338.89
         },
         {
-          "avg_frame_ms": 2.243,
-          "fps": 445.89,
-          "memcpy_mib_s": 522.53
+          "avg_frame_ms": 3.115,
+          "fps": 321.02,
+          "memcpy_mib_s": 376.2
         }
       ]
     },
     "gfx.glmark2.sw": {
       "sample_count": 5,
       "selection_policy": "best_avg_frame_ms_for_noisy_smoke_gate",
-      "median_avg_frame_ms": 9.003,
-      "median_fps": 111.07,
+      "median_avg_frame_ms": 6.595,
+      "median_fps": 151.64,
       "samples": [
         {
-          "avg_frame_ms": 10.201,
-          "fps": 98.03,
-          "memcpy_mib_s": 382.92
+          "avg_frame_ms": 6.595,
+          "fps": 151.64,
+          "memcpy_mib_s": 592.33
         },
         {
-          "avg_frame_ms": 10.112,
-          "fps": 98.89,
-          "memcpy_mib_s": 386.29
+          "avg_frame_ms": 6.107,
+          "fps": 163.74,
+          "memcpy_mib_s": 639.61
         },
         {
-          "avg_frame_ms": 7.729,
-          "fps": 129.38,
-          "memcpy_mib_s": 505.39
+          "avg_frame_ms": 5.752,
+          "fps": 173.87,
+          "memcpy_mib_s": 679.17
         },
         {
-          "avg_frame_ms": 7.002,
-          "fps": 142.82,
-          "memcpy_mib_s": 557.89
+          "avg_frame_ms": 10.414,
+          "fps": 96.02,
+          "memcpy_mib_s": 375.08
         },
         {
-          "avg_frame_ms": 9.003,
-          "fps": 111.07,
-          "memcpy_mib_s": 433.87
+          "avg_frame_ms": 10.676,
+          "fps": 93.67,
+          "memcpy_mib_s": 365.91
         }
       ]
     }
   },
-  "raw_output": "# run 1/5\nROW row=gfx.kmscube.sw app=kmscube mode=cube_software_render_plus_VirtIO_GPU_2D_fake_backend frames=60 width=640 height=480 bytes_per_frame=1228800 total_ms=240.863 avg_frame_ms=4.014 fps=249.10 memcpy_mib_s=291.92 transfers=60 flushes=60 fences=120 first_crc=0xe86f103d last_crc=0x49862651\nROW row=gfx.glmark2.sw app=glmark2_scene_clear mode=clear_plus_VirtIO_GPU_2D_fake_backend frames=120 width=1280 height=800 bytes_per_frame=4096000 total_ms=1224.131 avg_frame_ms=10.201 fps=98.03 memcpy_mib_s=382.92 transfers=120 flushes=120 fences=240 first_crc=0xa2b59dc5 last_crc=0x8140ddc5\n\n# run 2/5\nROW row=gfx.kmscube.sw app=kmscube mode=cube_software_render_plus_VirtIO_GPU_2D_fake_backend frames=60 width=640 height=480 bytes_per_frame=1228800 total_ms=184.125 avg_frame_ms=3.069 fps=325.87 memcpy_mib_s=381.87 transfers=60 flushes=60 fences=120 first_crc=0xe86f103d last_crc=0x49862651\nROW row=gfx.glmark2.sw app=glmark2_scene_clear mode=clear_plus_VirtIO_GPU_2D_fake_backend frames=120 width=1280 height=800 bytes_per_frame=4096000 total_ms=1213.460 avg_frame_ms=10.112 fps=98.89 memcpy_mib_s=386.29 transfers=120 flushes=120 fences=240 first_crc=0xa2b59dc5 last_crc=0x8140ddc5\n\n# run 3/5\nROW row=gfx.kmscube.sw app=kmscube mode=cube_software_render_plus_VirtIO_GPU_2D_fake_backend frames=60 width=640 height=480 bytes_per_frame=1228800 total_ms=131.695 avg_frame_ms=2.195 fps=455.60 memcpy_mib_s=533.90 transfers=60 flushes=60 fences=120 first_crc=0xe86f103d last_crc=0x49862651\nROW row=gfx.glmark2.sw app=glmark2_scene_clear mode=clear_plus_VirtIO_GPU_2D_fake_backend frames=120 width=1280 height=800 bytes_per_frame=4096000 total_ms=927.500 avg_frame_ms=7.729 fps=129.38 memcpy_mib_s=505.39 transfers=120 flushes=120 fences=240 first_crc=0xa2b59dc5 last_crc=0x8140ddc5\n\n# run 4/5\nROW row=gfx.kmscube.sw app=kmscube mode=cube_software_render_plus_VirtIO_GPU_2D_fake_backend frames=60 width=640 height=480 bytes_per_frame=1228800 total_ms=133.818 avg_frame_ms=2.230 fps=448.37 memcpy_mib_s=525.43 transfers=60 flushes=60 fences=120 first_crc=0xe86f103d last_crc=0x49862651\nROW row=gfx.glmark2.sw app=glmark2_scene_clear mode=clear_plus_VirtIO_GPU_2D_fake_backend frames=120 width=1280 height=800 bytes_per_frame=4096000 total_ms=840.213 avg_frame_ms=7.002 fps=142.82 memcpy_mib_s=557.89 transfers=120 flushes=120 fences=240 first_crc=0xa2b59dc5 last_crc=0x8140ddc5\n\n# run 5/5\nROW row=gfx.kmscube.sw app=kmscube mode=cube_software_render_plus_VirtIO_GPU_2D_fake_backend frames=60 width=640 height=480 bytes_per_frame=1228800 total_ms=134.563 avg_frame_ms=2.243 fps=445.89 memcpy_mib_s=522.53 transfers=60 flushes=60 fences=120 first_crc=0xe86f103d last_crc=0x49862651\nROW row=gfx.glmark2.sw app=glmark2_scene_clear mode=clear_plus_VirtIO_GPU_2D_fake_backend frames=120 width=1280 height=800 bytes_per_frame=4096000 total_ms=1080.402 avg_frame_ms=9.003 fps=111.07 memcpy_mib_s=433.87 transfers=120 flushes=120 fences=240 first_crc=0xa2b59dc5 last_crc=0x8140ddc5\n"
+  "raw_output": "# run 1/5\nROW row=gfx.kmscube.sw app=kmscube mode=cube_software_render_plus_VirtIO_GPU_2D_fake_backend frames=60 width=640 height=480 bytes_per_frame=1228800 total_ms=129.519 avg_frame_ms=2.159 fps=463.25 memcpy_mib_s=542.88 transfers=60 flushes=60 fences=120 first_crc=0xe86f103d last_crc=0x49862651\nROW row=gfx.glmark2.sw app=glmark2_scene_clear mode=clear_plus_VirtIO_GPU_2D_fake_backend frames=120 width=1280 height=800 bytes_per_frame=4096000 total_ms=791.371 avg_frame_ms=6.595 fps=151.64 memcpy_mib_s=592.33 transfers=120 flushes=120 fences=240 first_crc=0xa2b59dc5 last_crc=0x8140ddc5\n\n# run 2/5\nROW row=gfx.kmscube.sw app=kmscube mode=cube_software_render_plus_VirtIO_GPU_2D_fake_backend frames=60 width=640 height=480 bytes_per_frame=1228800 total_ms=146.270 avg_frame_ms=2.438 fps=410.20 memcpy_mib_s=480.70 transfers=60 flushes=60 fences=120 first_crc=0xe86f103d last_crc=0x49862651\nROW row=gfx.glmark2.sw app=glmark2_scene_clear mode=clear_plus_VirtIO_GPU_2D_fake_backend frames=120 width=1280 height=800 bytes_per_frame=4096000 total_ms=732.863 avg_frame_ms=6.107 fps=163.74 memcpy_mib_s=639.61 transfers=120 flushes=120 fences=240 first_crc=0xa2b59dc5 last_crc=0x8140ddc5\n\n# run 3/5\nROW row=gfx.kmscube.sw app=kmscube mode=cube_software_render_plus_VirtIO_GPU_2D_fake_backend frames=60 width=640 height=480 bytes_per_frame=1228800 total_ms=133.706 avg_frame_ms=2.228 fps=448.75 memcpy_mib_s=525.87 transfers=60 flushes=60 fences=120 first_crc=0xe86f103d last_crc=0x49862651\nROW row=gfx.glmark2.sw app=glmark2_scene_clear mode=clear_plus_VirtIO_GPU_2D_fake_backend frames=120 width=1280 height=800 bytes_per_frame=4096000 total_ms=690.183 avg_frame_ms=5.752 fps=173.87 memcpy_mib_s=679.17 transfers=120 flushes=120 fences=240 first_crc=0xa2b59dc5 last_crc=0x8140ddc5\n\n# run 4/5\nROW row=gfx.kmscube.sw app=kmscube mode=cube_software_render_plus_VirtIO_GPU_2D_fake_backend frames=60 width=640 height=480 bytes_per_frame=1228800 total_ms=207.476 avg_frame_ms=3.458 fps=289.19 memcpy_mib_s=338.89 transfers=60 flushes=60 fences=120 first_crc=0xe86f103d last_crc=0x49862651\nROW row=gfx.glmark2.sw app=glmark2_scene_clear mode=clear_plus_VirtIO_GPU_2D_fake_backend frames=120 width=1280 height=800 bytes_per_frame=4096000 total_ms=1249.729 avg_frame_ms=10.414 fps=96.02 memcpy_mib_s=375.08 transfers=120 flushes=120 fences=240 first_crc=0xa2b59dc5 last_crc=0x8140ddc5\n\n# run 5/5\nROW row=gfx.kmscube.sw app=kmscube mode=cube_software_render_plus_VirtIO_GPU_2D_fake_backend frames=60 width=640 height=480 bytes_per_frame=1228800 total_ms=186.904 avg_frame_ms=3.115 fps=321.02 memcpy_mib_s=376.20 transfers=60 flushes=60 fences=120 first_crc=0xe86f103d last_crc=0x49862651\nROW row=gfx.glmark2.sw app=glmark2_scene_clear mode=clear_plus_VirtIO_GPU_2D_fake_backend frames=120 width=1280 height=800 bytes_per_frame=4096000 total_ms=1281.061 avg_frame_ms=10.676 fps=93.67 memcpy_mib_s=365.91 transfers=120 flushes=120 fences=240 first_crc=0xa2b59dc5 last_crc=0x8140ddc5\n"
 }

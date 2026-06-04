@@ -36,7 +36,7 @@ The same targets exist on this component `Makefile` if you are working inside
 | Group | Target | Binaries | Evidence rows |
 |---|---|---|---|
 | Core | `test-core` | `dma_buf_test`, `virtio_gpu_full_api_test`, `virtio_gpu_2d_render_test`, `kmscube_compat_test` | `proto.real-driver`, `xport.qemu-vgpu`, `gfx.kmscube.sw`, `gfx.glmark2.sw` |
-| 3D / Venus | `test-venus` | `virtgpu_drm_ioctl_test`, `vk_icd_bootstrap_test`, `venus_cs_test`, `venus_compute_test`, `virgl_encoder_test` | `vk.drm-shim`, `vk.icd`, `proto.venus-enc`, `proto.venus-ring`, `vk.readiness` |
+| 3D / Venus | `test-venus` | `virtgpu_drm_ioctl_test`, `venus_bootstrap_test`, `venus_cs_test`, `venus_compute_test`, `virgl_encoder_test` | `vk.drm-shim`, `vk.icd`, `proto.venus-enc`, `proto.venus-ring`, `vk.readiness` |
 | ggml-vulkan dispatch | `test-dispatch` | `ggml_vk_dispatch_test` | `vk.ggml-dispatch` |
 | Conditional | `vulkan`, `proto-abi` | `vulkan_compute_test`, `virtio_gpu_proto_abi_test` | host Vulkan baseline, `proto.real-driver` |
 
@@ -73,13 +73,13 @@ virtio_gpu_full_api_test passed capsets=5 fences=7 submits_3d=1 blobs=1 bytes_to
 virtio_gpu_2d_render_test: PASS frames=3 transfers=3 flushes=3 fences=6
 kmscube_compat_test passed mode=1280x800 c0=0xcaac5505 c1=0xcbd70305
 virtgpu_drm_ioctl_test: all checks passed
-vk_icd_bootstrap_test: all checks passed
+venus_bootstrap_test: all checks passed
 venus_cs_test: all checks passed
 venus_compute_test: all checks PASS  (Venus compute dispatch encoded correctly)
 uk-venus-compute: PASS evidence_id=venus-compute-dispatch
 virgl_encoder_test: all checks passed
 ggml_vk_dispatch_test: all checks PASS
-uk-llama-vk-n3: PASS evidence_id=llama-vk-n3-dispatch gpu=1 venus=1 substrate=static-vk-icd
+uk-llama-vk-n3: PASS evidence_id=llama-vk-n3-dispatch gpu=1 venus=1 substrate=static-vk-dispatch
 virtio_gpu_proto_abi_test passed ctrl_hdr=24 display_info=408 edid=1056
 ```
 
@@ -94,9 +94,9 @@ The full `native` run ends with `Results: 164 passed, 0 failed`.
   override with `make -C tests native JOBS=1`), then runs them **serially** for
   stable output ordering.
 * **Library sources under test** — `drm_compat.c`/`gbm_compat.c` (Linux ABI shims), `drm_virtgpu.c`
-  (`libukvirtgpu_drm`), `vulkan_icd.c` (`libukvk_icd`), `venus_*.c`
-  (`libukvenus`), `virgl_encoder.c` (`libukvirtio_gpu`), and
-  `uk_vulkan_dispatch.c` (`libukggml_vk`).
+  (`libukvirtgpu_drm`), `venus_driver.c` (`libukvulkan_venus`), `venus_*.c`
+  (`libukvulkan_venus`), `virgl_encoder.c` (`libukvirtio_gpu`), and
+  `uk_vulkan_dispatch.c` (`libvulkan`).
 * **Host shims** — `shim/uk/*.h` (added to the include path via `-Ishim`) provide
   host-compilable stand-ins for the upstream Unikraft headers the guest sources
   use: `mutex.h` (no-op recursive lock), `sglist.h` (upstream `uksglist`

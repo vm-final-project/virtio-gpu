@@ -7,7 +7,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from _runner import run  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-OUTDIR = ROOT / "libs/libukvenus/generated"
+OUTDIR = ROOT / "libs/libukvulkan_venus/generated"
 MANIFEST = json.loads((ROOT / "config/venus_command_manifest.json").read_text())
 
 

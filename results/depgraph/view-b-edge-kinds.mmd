@@ -1,28 +1,24 @@
 %% View B: Edge Kinds
 flowchart LR
   subgraph vogue["VOGUE guest"]
-    vogue_libukvirtio_gpu["libukvirtio_gpu"]
-    vogue_libukvenus["libukvenus"]
-    vogue_libukggml_vk["libukggml_vk"]
     vogue_libukvirtgpu_drm["libukvirtgpu_drm"]
-    vogue_libukvk_icd["libukvk_icd"]
+    vogue_libukvulkan_venus["libukvulkan_venus"]
+    vogue_libukvirtio_gpu["libukvirtio_gpu"]
+    vogue_libvulkan["libvulkan"]
   end
   subgraph seam["Protocol seam"]
-    seam_venus_ring["Venus command ring"]
     seam_ctrlq["VirtIO-GPU control/cursor queues"]
+    seam_venus_ring["Venus command ring"]
   end
-  vogue_libukggml_vk -.->|select| vogue_libukvirtio_gpu
-  vogue_libukvenus -.->|select| vogue_libukvirtio_gpu
   vogue_libukvirtgpu_drm -.->|select| vogue_libukvirtio_gpu
-  vogue_libukggml_vk -->|uk/virtio_gpu.h| vogue_libukvirtio_gpu
-  vogue_libukggml_vk -->|uk/drm_virtgpu.h| vogue_libukvirtgpu_drm
-  vogue_libukggml_vk -->|uk/venus.h| vogue_libukvenus
-  vogue_libukvenus -->|uk/virtio_gpu.h| vogue_libukvirtio_gpu
+  vogue_libukvulkan_venus -.->|select| vogue_libukvirtio_gpu
+  vogue_libvulkan -.->|select| vogue_libukvirtio_gpu
   vogue_libukvirtgpu_drm -->|uk/virtio_gpu.h| vogue_libukvirtio_gpu
-  vogue_libukvk_icd -->|uk/drm_virtgpu.h| vogue_libukvirtgpu_drm
-  vogue_libukvk_icd -->|uk/virtio_gpu.h| vogue_libukvirtio_gpu
-  vogue_libukggml_vk ==>|vk cmd encode| vogue_libukvenus
-  vogue_libukvenus ==>|VENUS ring submit| vogue_libukvirtio_gpu
+  vogue_libukvulkan_venus -->|uk/virtio_gpu.h| vogue_libukvirtio_gpu
+  vogue_libvulkan -->|uk/virtio_gpu.h| vogue_libukvirtio_gpu
+  vogue_libvulkan -->|uk/vulkan_venus.h| vogue_libukvulkan_venus
+  vogue_libvulkan ==>|vk cmd encode| vogue_libukvulkan_venus
+  vogue_libukvulkan_venus ==>|VENUS ring submit| vogue_libukvirtio_gpu
   vogue_libukvirtgpu_drm ==>|EXECBUFFER ioctl| vogue_libukvirtio_gpu
   vogue_libukvirtio_gpu ==>|VIRTIO_GPU_CMD_*| seam_ctrlq
-  vogue_libukvenus ==>|VK command stream| seam_venus_ring
+  vogue_libukvulkan_venus ==>|VK command stream| seam_venus_ring

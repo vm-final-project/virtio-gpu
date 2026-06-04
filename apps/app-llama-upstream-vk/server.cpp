@@ -39,7 +39,7 @@ static int llama_server_main(void)
 
     /* Prove model-loaded readiness over the REAL virtio-gpu-gl Venus path
      * before signalling READY: load_model_vk() mounts the GGUF over 9pfs,
-     * initialises the Venus dispatch chain (libukggml_vk -> libukvenus
+     * initialises the Venus dispatch chain (libvulkan -> libukvulkan_venus
      * SUBMIT_3D), and loads all layers with n_gpu_layers=99 onto the host GPU.
      * This makes the READY line below an honest model-loaded-readiness signal,
      * not just a dispatch-init marker. */
@@ -50,8 +50,8 @@ static int llama_server_main(void)
         return 1;
     }
 
-    struct uk_ggml_vulkan_dispatch_info info;
-    uk_ggml_vulkan_dispatch_get_info(&info);
+    struct uk_vulkan_info info;
+    uk_vulkan_get_info(&info);
     uk_printf("uk-llama-upstream-vk-server: READY model=/mnt/model/model.gguf threads=%d backend=vulkan "
               "slots=%d ctx_per_slot=%d batch_size=%d ubatch_size=%d prompt_cache=%d "
               "batch_enabled=%d ring_enabled=%d hostmem_fixed=%d mode=single-app no_fork_exec=1\n",
