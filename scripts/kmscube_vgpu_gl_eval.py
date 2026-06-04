@@ -194,7 +194,7 @@ def classify(run_dir: Path) -> EvalResult:
         if renderer_field == "software" or "renderer=software" in run_text:
             return EvalResult("gfx.kmscube.sw", "pass", evidence,
                               "Unikraft kmscube software render + virtio-gpu 2D scanout (gfx.kmscube.sw). "
-                              "CPU rasterizer via libukswrender; display pipeline proved end-to-end.",
+                              "CPU rasterizer; display pipeline proved end-to-end.",
                               "GPU tensor acceleration, virgl rendering, Mesa compatibility, or K1 virgl claim. "
                               "gfx.kmscube.sw ≠ K1: K1 requires virgl encoder.",
                               "gfx.kmscube.sw is sufficient for software-render evidence. Implement virgl encoder for K1.",

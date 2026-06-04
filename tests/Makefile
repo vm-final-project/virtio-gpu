@@ -22,8 +22,6 @@
 CC ?= cc
 CFLAGS ?= -D_POSIX_C_SOURCE=200112L -std=c11 -Wall -Wextra \
 	-I../libs/libukvirtio_gpu/include \
-	-I../libs/libukdrm_compat/include \
-	-I../libs/libukgbm_compat/include \
 	-I../libs/libukvirtgpu_drm/include \
 	-I../libs/libukvulkan_venus/include \
 	-I../libs/libvulkan/include \
@@ -140,7 +138,7 @@ $(BUILD)/dma_buf_test: dma_buf_test.c | $(BUILD)
 $(BUILD)/virtio_gpu_full_api_test: virtio_gpu_full_api_test.c ./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(BUILD)/kmscube_compat_test: kmscube_compat_test.c ../libs/libukdrm_compat/drm_compat.c ../libs/libukgbm_compat/gbm_compat.c | $(BUILD)
+$(BUILD)/kmscube_compat_test: kmscube_compat_test.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(BUILD)/virtio_gpu_2d_render_test: virtio_gpu_2d_render_test.c ./virtio_gpu_fake.c | $(BUILD)

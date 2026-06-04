@@ -1,3 +1,0 @@
-$(eval $(call addlib,libukgbm_compat))
-CINCLUDES-$(CONFIG_LIBUKGBM_COMPAT) += -I$(LIBUKGBM_COMPAT_BASE)/include
-LIBUKGBM_COMPAT_SRCS-$(CONFIG_LIBUKGBM_COMPAT) += $(LIBUKGBM_COMPAT_BASE)/gbm_compat.c

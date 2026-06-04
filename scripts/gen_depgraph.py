@@ -104,8 +104,7 @@ def extract_vogue(g: Graph) -> None:
     hdr2dir = {
         "uk/virtio_gpu.h": "libukvirtio_gpu", "uk/venus.h": "libukvulkan_venus",
         "uk/vulkan_venus.h": "libukvulkan_venus", "uk/vulkan.h": "libvulkan",
-        "uk/drm_virtgpu.h": "libukvirtgpu_drm", "uk/swrender.h": "libukswrender",
-        "uk/drm_compat.h": "libukdrm_compat", "uk/gbm_compat.h": "libukgbm_compat",
+        "uk/drm_virtgpu.h": "libukvirtgpu_drm",
     }
     for d in sorted(p.name for p in LIBS.iterdir() if p.is_dir()):
         seen: set[str] = set()

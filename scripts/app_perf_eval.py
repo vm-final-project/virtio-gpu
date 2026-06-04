@@ -185,8 +185,8 @@ def compile_bench() -> Path:
     src.write_text(C_SOURCE)
     cmd = [
         "cc", "-O2", "-D_POSIX_C_SOURCE=200809L", "-std=c11", "-Wall", "-Wextra",
-        "-I", "tests/shim", "-I", "libs/libukvirtio_gpu/include", "-I", "libs/libukswrender/include",
-        str(src), "tests/virtio_gpu_fake.c", "libs/libukswrender/swrender.c",
+        "-I", "tests/shim", "-I", "libs/libukvirtio_gpu/include",
+        str(src), "tests/virtio_gpu_fake.c",
         "-lm", "-o", str(exe),
     ]
     proc = run(cmd)
