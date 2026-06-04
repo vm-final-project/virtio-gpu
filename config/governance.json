@@ -74,16 +74,6 @@
         "gfx.kmscube.frame"
       ]
     },
-    "app-glmark2": {
-      "status": "benchmark",
-      "purpose": "gfx.glmark2.sw software-substrate graphics benchmark port.",
-      "verification": [
-        "app-perf-check"
-      ],
-      "evidence_rows": [
-        "gfx.glmark2.sw"
-      ]
-    },
     "app-vulkan-smoke": {
       "status": "demo",
       "purpose": "Bounded Vulkan bootstrap/smoke proof for the compatibility substrate.",
@@ -156,38 +146,6 @@
         "include/uk/drm_virtgpu.h"
       ],
       "boundary": "Compatibility shim only; must not expand into full Linux DRM."
-    },
-    "libukdrm_compat": {
-      "owner": "DRM compatibility",
-      "api_stability": "bounded-unstable",
-      "public_headers": [
-        "include/uk/drm_compat.h"
-      ],
-      "boundary": "Only the port-required DRM surface is in scope."
-    },
-    "libukgbm_compat": {
-      "owner": "GBM compatibility",
-      "api_stability": "bounded-unstable",
-      "public_headers": [
-        "include/uk/gbm_compat.h"
-      ],
-      "boundary": "Only bounded GBM allocation/display hooks are in scope."
-    },
-    "libukegl": {
-      "owner": "EGL compatibility",
-      "api_stability": "bounded-unstable",
-      "public_headers": [
-        "include/EGL/egl.h"
-      ],
-      "boundary": "Bootstrap surface only; not a Mesa reimplementation."
-    },
-    "libukswrender": {
-      "owner": "software renderer",
-      "api_stability": "stable-small",
-      "public_headers": [
-        "include/uk/swrender.h"
-      ],
-      "boundary": "Software-render substrate only; not acceleration evidence."
     },
     "libvulkan": {
       "owner": "application-facing Vulkan ABI/runtime",
