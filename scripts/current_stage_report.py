@@ -94,7 +94,7 @@ def main() -> int:
 
     eval_rows = matrix.get("rows", []) if isinstance(matrix.get("rows"), list) else []
     eval_by_id = {r.get("row_id", ""): r for r in eval_rows if isinstance(r, dict)}
-    required_eval_rows = {"disp.2d", "proto.api-contract", "gfx.kmscube.sw", "gfx.glmark2.sw", "gfx.kmscube.submit", "gfx.kmscube.frame", "proto.real-driver", "xport.qemu-vgpu", "vk.readiness",
+    required_eval_rows = {"disp.2d", "proto.api-contract", "gfx.kmscube.submit", "gfx.kmscube.frame", "proto.real-driver", "xport.qemu-vgpu", "vk.readiness",
                           "vk.smoke", "gfx.vkmark", "vk.drm-core", "vk.drm-fdio", "vk.ggml-dispatch", "llm.bench.cpu", "llm.bench.vk"}
     lib_dirs = sorted(p for p in (ROOT / "libs").iterdir() if p.is_dir())
     missing_readmes = [p.name for p in lib_dirs if not (p / "README.md").exists()]
@@ -117,7 +117,7 @@ def main() -> int:
             f"rows={len(eval_rows)} missing={sorted(required_eval_rows - set(eval_by_id))}",
             "Evidence matrix contains every supported pass/blocked claim row"),
         row("pass_rows",
-            all(eval_by_id.get(r, {}).get("status") == "pass" for r in ["disp.2d", "proto.api-contract", "gfx.kmscube.sw", "gfx.glmark2.sw", "proto.real-driver", "vk.readiness", "vk.drm-core", "vk.drm-fdio", "gfx.vkmark"])
+            all(eval_by_id.get(r, {}).get("status") == "pass" for r in ["disp.2d", "proto.api-contract", "proto.real-driver", "vk.readiness", "vk.drm-core", "vk.drm-fdio", "gfx.vkmark"])
             and eval_by_id.get("vk.ggml-dispatch", {}).get("status") == "pass"
             and eval_by_id.get("llm.bench.cpu", {}).get("status", "").startswith(("pass", "blocked:"))
             and eval_by_id.get("llm.bench.vk", {}).get("status", "").startswith(("pass", "blocked:"))

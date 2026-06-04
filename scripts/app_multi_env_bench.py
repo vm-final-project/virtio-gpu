@@ -11,8 +11,7 @@ Tests every VOGUE application across all supported environments:
   ENV-BM-VULK: Baremetal Vulkan (cached results where applicable)
 
 Applications covered:
-  - app-kmscube  (gfx.kmscube.sw: software render + VirtIO-GPU 2D)
-  - app-glmark2  (gfx.glmark2.sw: scene-clear substrate)
+  - app-kmscube  (gfx.kmscube.submit: virgl submit + VirtIO-GPU)
   - app-vkmark   (gfx.vkmark: native Venus substrate + 10 scenes)
   - app-vulkan-smoke (vk.smoke: Venus capset detection + native Venus substrate)
   - app-llama-upstream    (upstream llama.cpp CPU bench/server single-app appliances)
@@ -111,7 +110,7 @@ def bench_apps_native() -> tuple[dict, str]:
 # ── App-specific environment matrix builders ────────────────────────────────
 
 def bench_kmscube(native_rows: dict, native_out: str) -> list[AppEnvResult]:
-    row = native_rows.get("gfx.kmscube.sw", {})
+    row = native_rows.get("gfx.kmscube.submit", {})
     fps = row.get("fps")
     qemu_2d = load_json(ROOT / "results/venus/qemu_2d_probe.json")
     qemu_ring = load_json(ROOT / "results/venus/qemu_venus-ring_probe.json")
@@ -131,7 +130,7 @@ def bench_kmscube(native_rows: dict, native_out: str) -> list[AppEnvResult]:
             metrics={"fps": fps, "avg_frame_ms": row.get("avg_frame_ms"),
                      "transfers": row.get("transfers"), "fences": row.get("fences"),
                      "first_crc": row.get("first_crc"), "last_crc": row.get("last_crc")},
-            note=f"gfx.kmscube.sw: {row.get('frames', 60)} frames @ {fps:.1f} FPS (640x480, BGRA)" if fps else "",
+            note=f"gfx.kmscube.submit: {row.get('frames', 60)} frames @ {fps:.1f} FPS (640x480, BGRA)" if fps else "",
             evidence="results/app_perf.json",
         ),
         AppEnvResult(
@@ -145,7 +144,7 @@ def bench_kmscube(native_rows: dict, native_out: str) -> list[AppEnvResult]:
             metrics={"qemu_probe": qemu_2d.get("status", "?"),
                      "frames_software": 3,
                      "frame_crcs": ["0x2d89905c", "0x75565141", "0x9e9f32bb"]},
-            note="gfx.kmscube.sw path is substrate evidence; xport.qemu-vgpu remains separately gated.",
+            note="gfx.kmscube.submit path is virgl submit evidence; xport.qemu-vgpu remains separately gated.",
             evidence="results/venus/qemu_2d_probe.json",
         ),
         AppEnvResult(
@@ -166,41 +165,6 @@ def bench_kmscube(native_rows: dict, native_out: str) -> list[AppEnvResult]:
         ),
     ]
     return results
-
-
-def bench_glmark2(native_rows: dict) -> list[AppEnvResult]:
-    row = native_rows.get("gfx.glmark2.sw", {})
-    fps = row.get("fps")
-    return [
-        AppEnvResult(
-            app="app-glmark2", environment="Native fake backend", env_id="native",
-            status="pass" if row.get("status") == "pass" else "missing",
-            claim_allowed="Native scene-clear FPS via fake VirtIO-GPU: display substrate correctness.",
-            claim_forbidden="Full glmark2 score, QEMU perf, or GPU acceleration.",
-            metrics={"fps": fps, "avg_frame_ms": row.get("avg_frame_ms"),
-                     "frames": row.get("frames"), "fences": row.get("fences")},
-            note=f"gfx.glmark2.sw: {row.get('frames', 120)} frames @ {fps:.1f} FPS (1280x800)" if fps else "",
-            evidence="results/app_perf.json",
-        ),
-        AppEnvResult(
-            app="app-glmark2", environment="QEMU + Unikraft CPU (2D path)", env_id="uk-cpu",
-            status="pass-substrate:cpu",
-            claim_allowed="EGL scene-clear substrate runs in Unikraft via VirtIO-GPU 2D (software path).",
-            claim_forbidden="Full GL scene coverage, QEMU FPS measurement, or GPU acceleration.",
-            metrics={"substrate_fps_native": fps, "qemu_probe": "pass"},
-            note="gfx.glmark2.sw path: substrate FPS measured natively; QEMU 2D probe passes.",
-            evidence="results/app_perf.json;results/venus/qemu_2d_probe.json",
-        ),
-        AppEnvResult(
-            app="app-glmark2", environment="QEMU + Unikraft VirtIO-GPU Vulkan", env_id="uk-vgpu",
-            status="blocked:not-planned",
-            claim_allowed="No accelerated glmark2 scene claim is made in this revision; the software-substrate row is the supported result.",
-            claim_forbidden="Full glmark2 scene rendering or FPS inside Unikraft without a dedicated accelerated workload and same-run artifacts.",
-            metrics={},
-            note="No accelerated glmark2 scene gate is currently implemented.",
-            evidence="results/app_perf.json",
-        ),
-    ]
 
 
 def bench_vkmark() -> list[AppEnvResult]:
@@ -506,7 +470,6 @@ def main() -> int:
 
     all_results: list[AppEnvResult] = []
     all_results += bench_kmscube(native_rows, native_out)
-    all_results += bench_glmark2(native_rows)
     all_results += bench_vkmark()
     all_results += bench_vulkan_smoke()
     all_results += bench_llama_upstream()

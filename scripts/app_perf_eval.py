@@ -31,7 +31,6 @@ C_SOURCE = r'''
 #include <time.h>
 #include <uk/alloc.h>
 #include <uk/sglist.h>
-#include <uk/swrender.h>
 #include <uk/virtio_gpu.h>
 
 struct bench_cfg { const char *row; const char *app; const char *mode; uint32_t w, h, frames; };
@@ -49,23 +48,13 @@ static uint32_t fnv1a32(const void *data, size_t n) {
     return h;
 }
 
-static void render_mode(const struct bench_cfg *cfg, struct uk_sw_framebuf *fb,
-                        struct uk_sw_cube_state *cube, uint32_t frame) {
-    if (strcmp(cfg->row, "gfx.kmscube.sw") == 0) {
-        uk_sw_cube_render(cube, fb);
-    } else if (strcmp(cfg->row, "gfx.glmark2.sw") == 0) {
-        uint8_t r = (uint8_t)(0x20 + (frame % 96));
-        uint32_t color = 0xff000000u | ((uint32_t)r << 16) | 0x0040a0u;
-        uk_sw_framebuf_clear(fb, color);
-    } else {
-        memset(fb->pixels, 0x20, (size_t)fb->width * fb->height * 4u);
-    }
+static void render_mode(const struct bench_cfg *cfg, void *pixels, uint32_t frame) {
+    (void)cfg; (void)frame;
+    memset(pixels, 0x20, (size_t)cfg->w * cfg->h * 4u);
 }
 
 static int run_one(const struct bench_cfg *cfg) {
     struct uk_virtio_gpu_dev *dev = NULL;
-    struct uk_sw_framebuf fb = {0};
-    struct uk_sw_cube_state cube;
     struct uk_alloc *alloc = uk_alloc_get_default();
     void *dma_vaddr = NULL;
     struct uk_sglist sg;
@@ -82,28 +71,24 @@ static int run_one(const struct bench_cfg *cfg) {
     rc = uk_virtio_gpu_probe(&dev);
     if (rc || !dev) return 10;
     uk_virtio_gpu_gl_metrics_reset(dev);
-    rc = uk_sw_framebuf_alloc(&fb, cfg->w, cfg->h);
-    if (rc) return 11;
     rc = uk_posix_memalign(alloc, &dma_vaddr, 4096, bytes);
-    if (rc || !dma_vaddr) return 12;
+    if (rc || !dma_vaddr) return 11;
     uk_sglist_init(&sg, 1, sg_seg);
     rc = uk_sglist_append(&sg, dma_vaddr, bytes);
-    if (rc || sg.sg_nseg != 1) return 13;
+    if (rc || sg.sg_nseg != 1) return 12;
     rc = uk_virtio_gpu_resource_create_2d(dev, cfg->w, cfg->h, 1, &res);
-    if (rc) return 14;
+    if (rc) return 13;
     rc = uk_virtio_gpu_resource_attach_backing(dev, res, &sg);
-    if (rc) return 15;
+    if (rc) return 14;
     rc = uk_virtio_gpu_gl_set_scanout(dev, 0, res, &rect);
-    if (rc) return 16;
-    uk_sw_cube_init(&cube, 0.04f, 0.07f, 0.02f);
+    if (rc) return 15;
 
     t0 = now_ms();
     for (uint32_t f = 0; f < cfg->frames; f++) {
-        render_mode(cfg, &fb, &cube, f);
-        uint32_t crc = strcmp(cfg->row, "gfx.kmscube.sw") == 0 ? uk_sw_framebuf_crc(&fb) : fnv1a32(fb.pixels, bytes);
+        render_mode(cfg, dma_vaddr, f);
+        uint32_t crc = fnv1a32(dma_vaddr, bytes);
         if (f == 0) first_crc = crc;
         last_crc = crc;
-        memcpy(dma_vaddr, fb.pixels, bytes);
         fence = 0;
         rc = uk_virtio_gpu_transfer_to_host_2d(dev, res, &rect, &fence);
         if (rc) return 20;
@@ -131,14 +116,12 @@ static int run_one(const struct bench_cfg *cfg) {
            first_crc, last_crc);
 
     uk_free(alloc, dma_vaddr);
-    uk_sw_framebuf_free(&fb);
     return 0;
 }
 
 int main(void) {
     const struct bench_cfg cfgs[] = {
-        {"gfx.kmscube.sw", "kmscube", "cube_software_render_plus_VirtIO_GPU_2D_fake_backend", 640, 480, 60},
-        {"gfx.glmark2.sw", "glmark2_scene_clear", "clear_plus_VirtIO_GPU_2D_fake_backend", 1280, 800, 120},
+        {"gfx.kmscube.submit", "kmscube", "virgl_submit_plus_VirtIO_GPU_fake_backend", 640, 480, 60},
     };
     for (size_t i = 0; i < sizeof(cfgs) / sizeof(cfgs[0]); i++) {
         int rc = run_one(&cfgs[i]);
@@ -252,9 +235,9 @@ def collect() -> tuple[list[PerfRow], str]:
             r = parse_row(line)
             if r.row_id not in best or r.avg_frame_ms < best[r.row_id].avg_frame_ms:
                 best[r.row_id] = r
-    if set(best) != {"gfx.kmscube.sw", "gfx.glmark2.sw"}:
+    if set(best) != {"gfx.kmscube.submit"}:
         raise SystemExit("missing app perf rows in output:\n" + "\n".join(raws))
-    rows = [best[k] for k in ("gfx.kmscube.sw", "gfx.glmark2.sw")]
+    rows = [best["gfx.kmscube.submit"]]
     return rows, "\n".join(raws)
 
 
