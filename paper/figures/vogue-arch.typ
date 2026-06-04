@@ -34,28 +34,28 @@
     // ── Graphics stack (column 0) ──────────────────────────────────────────
 
     gnode((0,0),
-      lbl([App ports — K1sw · G1sw · VKMARK PASS],
-          [kmscube · glmark2 · app-vkmark]),
+      lbl([Application ports],
+          [kmscube · glmark2 · vkmark]),
       fill: pass-fill, stroke: solid, name: <apps>),
 
     gnode((0,1),
       lbl([libukegl / libuksdl2\_shim],
-          [EGL · GLES2 · GBM · DRM shim · SDL2 surface — G3 compat PASS]),
+          [EGL · GLES2 · GBM · DRM shim · SDL2 surface]),
       fill: pass-fill, stroke: solid, name: <shim>),
 
     gnode((0,2),
       lbl([libukswrender],
-          [CPU BGRA rasterizer · 264 LoC · K1sw PASS]),
+          [CPU BGRA rasterizer · 264 LoC]),
       fill: pass-fill, stroke: solid, name: <swrender>),
 
     gnode((0,3),
-      lbl([G5: libukdrm\_virtgpu · G6: libukvolkan\_icd],
-          [DRM ioctls → VirtIO-GPU · Vulkan ICD bootstrap → G5 — PASS]),
+      lbl([libukvirtgpu\_drm · libukvk\_icd],
+          [DRM ioctl shim → VirtIO-GPU · Vulkan ICD bootstrap]),
       fill: pass-fill, stroke: solid, name: <g5g6>),
 
     gnode((0,4),
       lbl([libukvenus · virgl\_encoder.c],
-          [VENUS-RING PASS (ring\_proto 24) · VIRGL-ENC PASS (47) · VENUS-ENC PASS]),
+          [Venus encoder + ring · minimal virgl encoder]),
       fill: pass-fill, stroke: solid, name: <venus>),
 
     gnode((0,5),
@@ -65,12 +65,12 @@
 
     gnode((0,6),
       lbl([libukdma],
-          [DMA alloc · scatter-gather descriptor — N2D PASS]),
+          [DMA alloc · scatter-gather descriptor]),
       fill: pass-fill, stroke: solid, name: <dma>),
 
     gnode((0,7),
       lbl([Unikraft PCI / virtio],
-          [reused transport + modern VirtIO-PCI support; VQEMU PASS on eval host]),
+          [reused transport + modern VirtIO-PCI support]),
       fill: pass-fill, stroke: solid, name: <transport>),
 
     // ── LLAMA side chain (column 1.75) ────────────────────────────────────
@@ -82,34 +82,34 @@
 
     snode((1.75,1),
       lbl([libukmodel · libukggml],
-          [LLAMA0: GGUF parse · 70 chk PASS]),
+          [GGUF model parse + ggml]),
       fill: subst-fill, stroke: thin-solid, name: <llama-libs>),
 
     snode((1.75,2),
       lbl([libukllama + ggml CPU],
-          [LLAMA1/2: ~16–27 GFLOPS PASS]),
+          [CPU inference baseline]),
       fill: subst-fill, stroke: thin-solid, name: <llama-cpu>),
 
     snode((1.75,4),
-      lbl([ggml-vulkan over Mesa Venus],
-          [SUBMIT\_3D tensor offload → GPU PASS; optimize tg128]),
+      lbl([ggml-vulkan over Venus],
+          [SUBMIT\_3D tensor offload → host GPU]),
       fill: pass-fill, stroke: solid, name: <ggml-vgpu>),
 
     // ── QEMU host ─────────────────────────────────────────────────────────
 
     gnode((0,9),
       lbl([QEMU 11.0 virtio-gpu-gl-pci],
-          [current matrix: VQEMU PASS on eval host]),
+          [evaluation host]),
       fill: pass-fill, stroke: solid, name: <qemu>),
 
     gnode((0,10),
       lbl([virglrenderer + Venus host backend],
-          [virgl 3D · Vulkan/Venus host backend; ring/frame proof PASS]),
+          [virgl 3D · Vulkan/Venus host backend]),
       fill: pass-fill, stroke: solid, name: <virgl-host>),
 
     gnode((0,11),
-      lbl([K1 accelerated frame proof],
-          [PASS · same-run SUBMIT\_3D + pixel proof]),
+      lbl([accelerated frame output],
+          [same-run SUBMIT\_3D + pixel proof]),
       fill: pass-fill, stroke: solid, name: <k1>),
 
     // ── Edges: graphics stack ─────────────────────────────────────────────
@@ -124,14 +124,14 @@
     // ── Edges: LLAMA side chain ───────────────────────────────────────────
     edge(<llama-apps>, <llama-libs>, "->"),
     edge(<llama-libs>, <llama-cpu>,  "->"),
-    edge(<llama-cpu>,  <ggml-vgpu>,  "-->", stroke: dashed),
-    edge(<ggml-vgpu.west>, <core.east>, "-->", stroke: dashed,
-         label: text(size: 5.5pt)[future Vulkan/Venus], label-side: right),
+    edge(<llama-cpu>,  <ggml-vgpu>,  "->"),
+    edge(<ggml-vgpu.west>, <core.east>, "->",
+         label: text(size: 5.5pt)[Vulkan / Venus], label-side: right),
 
     // ── Edges: host ───────────────────────────────────────────────────────
     edge(<transport>,   <qemu>,       "<|-|>"),
     edge(<qemu>,        <virgl-host>, "->"),
-    edge(<virgl-host>,  <k1>,         "-->", stroke: dashed),
+    edge(<virgl-host>,  <k1>,         "->"),
 
     // ── Boundary boxes ────────────────────────────────────────────────────
     bnd_node(
@@ -148,6 +148,6 @@
   )
   ],
   caption: [
-    VOGUE software stack (current state). *Green-tinted* nodes are fully validated (solid border). *Near-white dashed* nodes are future scope. Left column: 2D display path (fully PASS: N2D→K1sw→G1sw) and the Vulkan/Venus acceleration substrate (G5+G6+libukvenus+virgl\_encoder all PASS; K1 frame proof follows the current evidence matrix). Right column: LLAMA compute side-chain, including real QEMU/Venus GPU inference on the evaluation host. Both paths share `libukvirtio_gpu` and the Unikraft PCI/virtio transport.
+    The VOGUE guest software stack. The left column is the 2D display path (CPU software render through `libukswrender`) together with the Vulkan/Venus acceleration substrate; the right column is the `llama.cpp` compute side-chain that reaches real GPU inference on the host. Both paths converge on `libukvirtio_gpu` and the Unikraft PCI/virtio transport, then cross to the shared host bridge (QEMU `virtio-gpu-gl-pci` → virglrenderer → host GPU driver).
   ],
 ) <fig:vogue-arch>

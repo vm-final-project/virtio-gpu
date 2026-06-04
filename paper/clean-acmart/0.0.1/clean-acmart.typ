@@ -331,7 +331,8 @@
   set place(clearance: 1em)
 
   // https://tex.stackexchange.com/a/540068
-  show raw: set text(font: "Inconsolata")
+  // Inconsolatazi4 is the static, ACM-acceptable Inconsolata packaging (vendored in paper/fonts).
+  show raw: set text(font: "Inconsolatazi4")
 
   // Color http/https hyperlink with blue
   show link: it => if type(it.dest) != str or not it.dest.starts-with("http") { it } else {

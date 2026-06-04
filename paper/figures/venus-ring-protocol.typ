@@ -111,6 +111,6 @@
     ],
   ),
   caption: [
-    Venus ring-buffer protocol (VENUS-RING = PASS). *Top*: The ring buffer header is allocated as a HOST3D\_GUEST blob in host-visible memory. Four 64-byte slots hold head, tail, status, and reserved fields; both guest and host access these directly for zero-copy synchronization. *Bottom*: Protocol command sequence. The guest calls `vkCreateRingMESA` (cmd 188) to register the ring, encodes Venus Vulkan commands into the circular data region, performs a store-release write to the tail, then calls `vkNotifyRingMESA` (cmd 190) to submit a `SUBMIT_3D` to virglrenderer. The host processes commands and advances the head; the guest spin-polls head until the sequence number is satisfied. `vkDestroyRingMESA` (cmd 189) unregisters the ring. All 24 `ring_proto` native checks pass.
+    The Venus ring-buffer protocol. *Top*: the ring header lives in a `HOST3D_GUEST` blob in host-visible memory; cache-line-separated slots hold head, tail, and status so guest and host can synchronise without false sharing, zero-copy. *Bottom*: the command sequence. The guest registers the ring with `vkCreateRingMESA` (cmd 188), encodes Venus commands into the circular data region, publishes a new tail with a store-release, and calls `vkNotifyRingMESA` (cmd 190) to trigger one `SUBMIT_3D`; the host advances head as it consumes commands while the guest spin-polls, and `vkDestroyRingMESA` (cmd 189) tears the ring down. Batching many commands per notification amortises the `SUBMIT_3D` cost.
   ],
 ) <fig:venus-ring>

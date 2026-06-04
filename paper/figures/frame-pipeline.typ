@@ -60,6 +60,6 @@
   )
   ],
   caption: [
-    Per-frame 2D display pipeline (K1sw path). Each frame traverses six steps: the application triggers `eglSwapBuffers()`, `libukswrender` rasterises the current rotation into a software framebuffer, the result is copied into a DMA-backed page, a `TRANSFER_TO_HOST_2D` command pushes the data into the host resource, a `RESOURCE_FLUSH` command (with completion fence) commits it to the scanout, and QEMU presents the virtual display. Steps 3–5 repeat every frame; step 1 is skipped for apps using VirtIO-GPU 3D or Vulkan paths.
+    The per-frame 2D display pipeline. `libukswrender` rasterises the frame into a DMA-backed buffer on the CPU; `TRANSFER_TO_HOST_2D` pushes it into the host resource, `SET_SCANOUT` binds the resource to the virtual display, and `RESOURCE_FLUSH` (carrying a completion fence) presents it. The guest waits on that one fence before starting the next frame, so it never overwrites a buffer QEMU is still reading. No GPU is involved on this path.
   ],
 ) <fig:frame-pipeline>

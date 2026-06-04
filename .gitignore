@@ -84,3 +84,6 @@ CMakeFiles/
 
 # VSCode
 .vscode/
+
+# Vendored ACM fonts for the Typst paper (regenerate with `make fonts`)
+/paper/fonts/

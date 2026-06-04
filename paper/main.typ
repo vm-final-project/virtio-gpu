@@ -28,17 +28,6 @@
   venue: [TBD],
 )
 #let doi = "https://doi.org/10.1145/0000000000"
-#let ccs = (
-  (
-    generic: [Software and its engineering],
-    specific: ([Virtual machines], [Virtual memory], ),
-  ),
-  (
-    generic: [Computer systems organization],
-    specific: ([Heterogeneous (hybrid) systems], ),
-  ),
-)
-#let keywords = ("unikernels", "VirtIO-GPU", "graphics virtualization", "library operating systems", )
 
 #show: acmart.with(
   title: title,
@@ -46,7 +35,8 @@
   affiliations: affiliations,
   conference: conference,
   doi: doi,
-  copyright: "cc",
+  // ACM copyright/permission block removed: not an ACM submission.
+  copyright: none,
   // Set review to submission ID for the review process or to "none" for the final version.
   review: [\#001],
   font-size: 10pt,
@@ -65,30 +55,19 @@
   inset: (x: 6pt, y: 4pt),
 )
 
+// Paper rewritten from the slide deck (slides/). Structure: Abstract,
+// Introduction, Background, Design, Implementation, Evaluation, Related Work,
+// Conclusion. The previous section set (00–13) is archived in legacy/sections/.
 #include "sections/00-abstract.typ"
 
-#acmart-ccs(ccs)
-#acmart-keywords(keywords)
-#acmart-ref(to-string(title), authors, conference, doi)
-
 #include "sections/01-introduction.typ"
-#include "sections/02-background-motivation.typ"
-#include "sections/03-design-goals-challenges.typ"
-#include "sections/04-system-overview.typ"
-#include "sections/05-virtio-gpu-frontend-design.typ"
-#include "sections/06-graphics-runtime-application-support.typ"
-#include "sections/07-implementation.typ"
-#include "sections/08-evaluation.typ"
-#include "sections/09-discussion-limitations.typ"
-#include "sections/10-related-work.typ"
-#include "sections/11-conclusion.typ"
+#include "sections/02-background.typ"
+#include "sections/03-design.typ"
+#include "sections/04-implementation.typ"
+#include "sections/05-evaluation.typ"
+#include "sections/06-related-work.typ"
+#include "sections/07-conclusion.typ"
 
 #bibliography("refs.bib", title: "References", style: "association-for-computing-machinery")
-
-#pagebreak()
-#include "sections/12-artifact-appendix.typ"
-
-#pagebreak()
-#include "sections/13-gpu-ecosystem-appendix.typ"
 
 

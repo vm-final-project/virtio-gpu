@@ -68,7 +68,7 @@ export LLAMA_ROOT VENUS_PROTOCOL_ROOT VULKAN_HEADERS_INCLUDE SPIRV_HEADERS_INCLU
         eval eval-check current-stage-check current-stage-refresh \
         app-perf-check perf-check image-size-check boot-time-check model-load-time-check llm-server-vk-check llm-server-vk-throughput-check \
         depgraph depgraph-check gen-libukvenus gen-libukvenus-plan gen-libukvenus-check \
-        paper paper-check clean
+        paper paper-check fonts clean
 
 # ============================================================================
 # Help (default goal)
@@ -103,7 +103,8 @@ help:
 	  '  make lib-readme-check   Validate every libs/*/README.md' \
 	  '  make eval-check         Regenerate the evidence matrix (blocked rows stay explicit)' \
 	  '  make llm-server-vk-check  llama.cpp Vulkan HTTP server contract + same-run HTTP probe' \
-	  '  make paper              Build the Typst paper PDF' \
+	  '  make paper              Build the Typst paper PDF (vendors fonts first)' \
+	  '  make fonts              Vendor ACM Libertine/Inconsolata fonts into paper/fonts' \
 	  '' \
 	  'Artifact bundles:  artifact-quick | artifact-check | artifact-full' \
 	  '  make clean              Remove generated test/paper/generator outputs'
@@ -512,8 +513,25 @@ depgraph-check:
 # ============================================================================
 # Paper
 # ============================================================================
-paper:
-	$(TYPST) compile paper/main.typ paper/vogue-paper.pdf
+# ACM acmart mandates the Libertine typeface family + Inconsolata for code.
+# These ship with TeX Live but typst does not scan its font tree, so we vendor
+# the required OTFs into paper/fonts/ (gitignored) and build with --font-path.
+TEXMF_FONTS  ?= /usr/share/texmf-dist/fonts/opentype/public
+PAPER_FONTS  := paper/fonts
+PAPER_FONT_FILES := \
+	LinLibertine_R.otf LinLibertine_RB.otf LinLibertine_RI.otf LinLibertine_RBI.otf \
+	LinBiolinum_R.otf LinBiolinum_RB.otf LinBiolinum_RI.otf
+
+fonts: $(PAPER_FONTS)/.stamp
+$(PAPER_FONTS)/.stamp:
+	@mkdir -p $(PAPER_FONTS)
+	cp $(addprefix $(TEXMF_FONTS)/libertine/,$(PAPER_FONT_FILES)) $(PAPER_FONTS)/
+	cp $(TEXMF_FONTS)/inconsolata/Inconsolatazi4-Regular.otf \
+	   $(TEXMF_FONTS)/inconsolata/Inconsolatazi4-Bold.otf $(PAPER_FONTS)/
+	@touch $@
+
+paper: fonts
+	$(TYPST) compile --font-path $(PAPER_FONTS) paper/main.typ paper/vogue-paper.pdf
 
 paper-check:
 	python3 scripts/paper_consistency_check.py
