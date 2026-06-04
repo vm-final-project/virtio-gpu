@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-03T17:01:51.170297Z",
+    "generated_utc": "2026-06-03T17:31:40.354404Z",
     "source": "scripts/image_size_check.py",
     "principle": "Unikraft single-purpose images carry only the linked-in source per Kconfig mode (see paper \u00a77)."
   },

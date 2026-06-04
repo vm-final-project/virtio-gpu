@@ -1,6 +1,6 @@
 # Unikraft Image Size
 
-Generated: `2026-06-03T17:01:51.170297Z`
+Generated: `2026-06-03T17:31:40.354404Z`
 
 | Appliance | Row | Image | Status | Size |
 |---|---|---|---|---|

@@ -7,11 +7,11 @@
   "g5_g6_substrate": "pass",
   "venus_ring_substrate": {
     "status": "pass",
-    "output_tail": "  destroy_ring:no_overflow\n  PASS  destroy_ring:cmd_type\n  PASS  destroy_ring:ring_id\n  PASS  notify_ring:no_overflow\n  PASS  notify_ring:cmd_type\n  PASS  notify_ring:ring_id\n  PASS  notify_ring:seqno\n  PASS  probe:null_dev_nonull\n  PASS  probe:null_dev_blocked\n  PASS  capset:null_dev\n  PASS  fakedev:probe_ok\n  PASS  fakedev:capset_get_ok\n  PASS  fakedev:wire_format_ver\n  PASS  fakedev:probe_pass\n  PASS  fakedev:ctx_create_ok\n  PASS  fakedev:ctx_id_nonzero\n  PASS  fakedev:enc_no_overflow\n  PASS  fakedev:submit_ok\n  PASS  ring:probe_ok\n  PASS  ring:status_pass\n  PASS  ring:create_null_dev\n  PASS  ring:create_zero_size\n  PASS  ring:create_ok\n  PASS  ring:ready\n  PASS  ring:ctx_blob_live\n  PASS  ring:enc_ready\n  PASS  ring:submit_ok\n  PASS  ring:fence_nonzero\n  PASS  ring:counters\n  PASS  ring:payload_copied\n  PASS  ring:write_ok\n  PASS  ring:write_copied\n  PASS  ring:overflow_enospc\n  PASS  ring:metrics_get\n  PASS  ring:metrics_blob\n  PASS  ring:metrics_ctx_submit\n  PASS  ring:destroy_zeroes\n  PASS  ring_proto:probe_ok\n  PASS  ring_proto:create_ok\n  PASS  ring_proto:size_correct\n  PASS  ring_proto:register_ok\n  PASS  ring_proto:protocol_ready\n  PASS  ring_proto:buf_size\n  PASS  ring_proto:buf_mask\n  PASS  ring_proto:ring_id\n  PASS  ring_proto:cur_tail\n  PASS  ring_proto:head_zero\n  PASS  ring_proto:tail_zero\n  PASS  ring_proto:enc_ok\n  PASS  ring_proto:cmd_write_ok\n  PASS  ring_proto:cur_tail_adv\n  PASS  ring_proto:data_correct\n  PASS  ring_proto:flush_ok\n  PASS  ring_proto:tail_stored\n  PASS  ring_proto:load_head\n  PASS  ring_proto:wait_ok\n  PASS  ring_proto:wrap_write_ok\n  PASS  ring_proto:unregister_ok\n  PASS  ring_proto:protocol_cleared\n  PASS  ring_proto:ring_id_cleared\n  PASS  ring_proto:double_unregister_ok\n  PASS  ring_perf:probe_ok\n  PASS  ring_perf:create_ok\n  PASS  ring_perf:writes_ok\nvenus_ring_perf: bytes=65536 writes=256 elapsed_ns=8278 throughput_mib_s=7550.13\nvenus_cs_test: all checks passed\nmake[1]: Leaving directory '/mydata/JerryT/virtio-gpu/tests'\n",
+    "output_tail": "  destroy_ring:no_overflow\n  PASS  destroy_ring:cmd_type\n  PASS  destroy_ring:ring_id\n  PASS  notify_ring:no_overflow\n  PASS  notify_ring:cmd_type\n  PASS  notify_ring:ring_id\n  PASS  notify_ring:seqno\n  PASS  probe:null_dev_nonull\n  PASS  probe:null_dev_blocked\n  PASS  capset:null_dev\n  PASS  fakedev:probe_ok\n  PASS  fakedev:capset_get_ok\n  PASS  fakedev:wire_format_ver\n  PASS  fakedev:probe_pass\n  PASS  fakedev:ctx_create_ok\n  PASS  fakedev:ctx_id_nonzero\n  PASS  fakedev:enc_no_overflow\n  PASS  fakedev:submit_ok\n  PASS  ring:probe_ok\n  PASS  ring:status_pass\n  PASS  ring:create_null_dev\n  PASS  ring:create_zero_size\n  PASS  ring:create_ok\n  PASS  ring:ready\n  PASS  ring:ctx_blob_live\n  PASS  ring:enc_ready\n  PASS  ring:submit_ok\n  PASS  ring:fence_nonzero\n  PASS  ring:counters\n  PASS  ring:payload_copied\n  PASS  ring:write_ok\n  PASS  ring:write_copied\n  PASS  ring:overflow_enospc\n  PASS  ring:metrics_get\n  PASS  ring:metrics_blob\n  PASS  ring:metrics_ctx_submit\n  PASS  ring:destroy_zeroes\n  PASS  ring_proto:probe_ok\n  PASS  ring_proto:create_ok\n  PASS  ring_proto:size_correct\n  PASS  ring_proto:register_ok\n  PASS  ring_proto:protocol_ready\n  PASS  ring_proto:buf_size\n  PASS  ring_proto:buf_mask\n  PASS  ring_proto:ring_id\n  PASS  ring_proto:cur_tail\n  PASS  ring_proto:head_zero\n  PASS  ring_proto:tail_zero\n  PASS  ring_proto:enc_ok\n  PASS  ring_proto:cmd_write_ok\n  PASS  ring_proto:cur_tail_adv\n  PASS  ring_proto:data_correct\n  PASS  ring_proto:flush_ok\n  PASS  ring_proto:tail_stored\n  PASS  ring_proto:load_head\n  PASS  ring_proto:wait_ok\n  PASS  ring_proto:wrap_write_ok\n  PASS  ring_proto:unregister_ok\n  PASS  ring_proto:protocol_cleared\n  PASS  ring_proto:ring_id_cleared\n  PASS  ring_proto:double_unregister_ok\n  PASS  ring_perf:probe_ok\n  PASS  ring_perf:create_ok\n  PASS  ring_perf:writes_ok\nvenus_ring_perf: bytes=65536 writes=256 elapsed_ns=6462 throughput_mib_s=9671.93\nvenus_cs_test: all checks passed\nmake[1]: Leaving directory '/mydata/JerryT/virtio-gpu/tests'\n",
     "bytes": 65536,
     "writes": 256,
-    "elapsed_ns": 8278,
-    "throughput_mib_s": 7550.13
+    "elapsed_ns": 6462,
+    "throughput_mib_s": 9671.93
   },
   "vulkaninfo": {
     "status": "pass",
@@ -60,9 +60,9 @@
     "passed": 3,
     "device": "llvmpipe (LLVM 20.1.2, 256 bits)",
     "physical_devices": 5,
-    "alloc_avg_us": 3,
-    "map_avg_us": 23,
-    "fence_avg_us": 20,
+    "alloc_avg_us": 6,
+    "map_avg_us": 52,
+    "fence_avg_us": 35,
     "device_extensions": 161,
     "khronos_samples_ref": "/mydata/JerryT/Vulkan-Samples",
     "khronos_samples_exists": true
@@ -120,6 +120,6 @@
   },
   "claim_allowed": "Host-side Vulkan API surface proof and baseline measurements. vk.drm-shim (libukvirtgpu_drm), vk.icd (Vulkan ICD), and libukvenus host-visible ring substrate implemented and tested. Venus/vkmark rendering still requires non-empty render payloads.",
   "claim_forbidden": "Vulkan rendering fps inside Unikraft, GPU acceleration, or vkmark scene scores without non-empty accelerated render-payload evidence.",
-  "written_at": "2026-06-03T17:01:50Z"
+  "written_at": "2026-06-03T17:31:39Z"
 }
 ```

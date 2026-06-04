@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-03T17:04:41.721144Z",
+    "generated_utc": "2026-06-03T17:32:21.452222Z",
     "source": "scripts/llm_server_vk_check.py",
     "principle": "plan-optimize.md Phase-2 verification gate"
   },
@@ -19,5 +19,5 @@
   "http_models_status": 200,
   "http_completion_status": 200,
   "http_completion_content": "8888888888888888",
-  "http_endpoint": "http://127.0.0.1:46723"
+  "http_endpoint": "http://127.0.0.1:59047"
 }

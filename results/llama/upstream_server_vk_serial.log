@@ -494,19 +494,19 @@ load_tensors:  Vulkan_Host model buffer size =   121.71 MiB
 load_all_data: using async uploads for device Vulkan0, buffer type Vulkan0, backend Vulkan0
 ........................................load_all_data: buffer type Vulkan_Host is not the default buffer type for device Vulkan0 for async uploads
 .
-uk-llama-upstream-vk-server: model_load path=/mnt/model/model.gguf use_mmap=0 huge_pages=0 elapsed_ms=10259.07
-uk-llama-upstream-vk-server: READY model=/mnt/model/model.gguf threads=4 backend=vulkan slots=4 ctx_per_slot=512 batch_size=2048 ubatch_size=512 prompt_cache=1 batch_enabled=1 hostmem_fixed=0 mode=single-app no_fork_exec=1
-[34m0.00.122.969[0m [32mI [0mlog_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
-[34m0.00.123.086[0m [32mI [0mdevice_info:
-[34m0.00.123.729[0m [32mI [0m  - Vulkan0 : Tesla V100-SXM2-16GB (16384 MiB, 16384 MiB free)
-[34m0.00.123.858[0m [32mI [0m  - CPU     : CPU (0 MiB, 0 MiB free)
-[34m0.00.126.071[0m [32mI [0msystem_info: n_threads = 4 (n_threads_batch = 4) / 1 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | 
-[34m0.00.130.235[0m [32mI [0msrv          init: using 8 threads for HTTP server
-[34m0.00.141.662[0m [32mI [0msrv         start: binding port with default address family
-[34m0.00.155.713[0m [32mI [0msrv  llama_server: loading model
-[34m0.00.155.967[0m [32mI [0msrv    load_model: loading model '/mnt/model/model.gguf'
-[34m0.00.159.335[0m [32mI [0mcommon_init_result: fitting params to device memory ...
-[34m0.00.159.381[0m [32mI [0mcommon_init_result: (for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on)
+uk-llama-upstream-vk-server: model_load path=/mnt/model/model.gguf use_mmap=0 huge_pages=0 elapsed_ms=8505.51
+uk-llama-upstream-vk-server: READY model=/mnt/model/model.gguf threads=4 backend=vulkan slots=4 ctx_per_slot=512 batch_size=2048 ubatch_size=512 prompt_cache=1 batch_enabled=1 ring_enabled=0 hostmem_fixed=0 mode=single-app no_fork_exec=1
+[34m0.00.114.102[0m [32mI [0mlog_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+[34m0.00.114.231[0m [32mI [0mdevice_info:
+[34m0.00.114.816[0m [32mI [0m  - Vulkan0 : Tesla V100-SXM2-16GB (16384 MiB, 16384 MiB free)
+[34m0.00.114.946[0m [32mI [0m  - CPU     : CPU (0 MiB, 0 MiB free)
+[34m0.00.117.181[0m [32mI [0msystem_info: n_threads = 4 (n_threads_batch = 4) / 1 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | 
+[34m0.00.121.386[0m [32mI [0msrv          init: using 8 threads for HTTP server
+[34m0.00.132.880[0m [32mI [0msrv         start: binding port with default address family
+[34m0.00.147.159[0m [32mI [0msrv  llama_server: loading model
+[34m0.00.147.433[0m [32mI [0msrv    load_model: loading model '/mnt/model/model.gguf'
+[34m0.00.150.788[0m [32mI [0mcommon_init_result: fitting params to device memory ...
+[34m0.00.150.828[0m [32mI [0mcommon_init_result: (for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on)
 VOGUE-DBG map_blob res=1 off=0x0 size=0x1000 hv_addr=0xc0000000 hv_size=0x20000000
 uk-ggml-vk: venus physical_device=Tesla V100-SXM2-16GB
 en1: Set IPv4 address 10.0.2.15 mask 255.255.255.0 gw 10.0.2.2
@@ -523,7 +523,7 @@ VOGUE-DBG map_blob res=5 off=0x7bbb000 size=0x101000 hv_addr=0xc0000000 hv_size=
 VOGUE-DBG allocMem type=9 size=1MB hostvis=1
 VOGUE-DBG map_blob res=6 off=0x7cbc000 size=0x101000 hv_addr=0xc0000000 hv_size=0x20000000
 VOGUE-DBG allocMem type=9 size=2MB hostvis=1
-VOGUE-DBG map_blob res=[34m0.12.700.182[0m [35mW load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+VOGUE-DBG map_blob res=[34m0.12.986.099[0m [35mW load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
 [0m7 off=0x7dbd000 size=0x252000 hv_addr=0xc0000000 hv_size=0x20000000
 VOGUE-DBG allocMem type=7 size=276MB hostvis=0
 VOGUE-DBG allocMem type=9 size=121MB hostvis=1
@@ -551,10 +551,10 @@ VOGUE-DBG createShaderModule h=0x2000000000164 codeSize=33080 encpos=133596 ovf=
 VOGUE-DBG createComputePipeline h=0x2000000000166 module=0x2000000000164 layout=0x2000000000165
 VOGUE-DBG createShaderModule h=0x2000000000169 codeSize=26336 encpos=162164 ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x200000000016b module=0x2000000000169 layout=0x200000000016a
-VOGUE-DBG createShaderModule h=0x200000000016e codeSize=67176 encpos=231036virgl_render_server[2165891]: failed to receive data: expected 259792 but received 264
-virgl_render_server[2165891]: failed to dispatch context op 5
-virgl_render_server[2165891]: vkr: destroying context 1 (ggml-vulkan-uk) with a valid instance
-virgl_render_server[2165891]: vkr: destroying device with valid objects
+VOGUE-DBG createShaderModule h=0x200000000016e codeSize=67176 encpos=231036virgl_render_server[2444386]: failed to receive data: expected 259792 but received 264
+virgl_render_server[2444386]: failed to dispatch context op 5
+virgl_render_server[2444386]: vkr: destroying context 1 (ggml-vulkan-uk) with a valid instance
+virgl_render_server[2444386]: vkr: destroying device with valid objects
  ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x2000000000170 module=0x200000000016e layout=0x200000000016f
 VOGUE-DBG createShaderModule h=0x2000000000171 codeSize=5880 encpos=238092 ovf=0 bufsz=2097152
@@ -589,20 +589,20 @@ VOGUE-DBG createShaderModule h=0x20000000002de codeSize=5444 encpos=31920 ovf=0 
 VOGUE-DBG createComputePipeline h=0x20000000002e0 module=0x20000000002de layout=0x20000000002df
 VOGUE-DBG createShaderModule h=0x20000000002e1 codeSize=30508 encpos=63604 ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x20000000002e3 module=0x20000000002e1 layout=0x20000000002e2
-VOGUE-DBG createShaderModule h=0x[34m0.15.068.779[0m [35mW llama_context: n_ctx_seq (512) < n_ctx_train (40960) -- the full capacity of the model will not be utilized
-[0m[34m0.15.229.879[0m [32mI [0mcommon_init_from_params: warming up the model with an empty run - please wait ... (--no-warmup to disable)
-[34m0.15.437.749[0m [32mI [0msrv    load_model: initializing slots, n_slots = 4
-[34m0.15.490.027[0m [35mW common_speculative_init: no implementations specified for speculative decoding
-[0m[34m0.15.490.263[0m [32mI [0mslot   load_model: id  0 | task -1 | new slot, n_ctx = 512
-[34m0.15.490.742[0m [32mI [0mslot   load_model: id  1 | task -1 | new slot, n_ctx = 512
-[34m0.15.490.768[0m [32mI [0mslot   load_model: id  2 | task -1 | new slot, n_ctx = 512
-[34m0.15.490.780[0m [32mI [0mslot   load_model: id  3 | task -1 | new slot, n_ctx = 512
-[34m0.15.492.286[0m [32mI [0msrv    load_model: prompt cache is enabled, size limit: 8192 MiB
-[34m0.15.492.335[0m [32mI [0msrv    load_model: use `--cache-ram 0` to disable the prompt cache
-[34m0.15.492.453[0m [32mI [0msrv    load_model: for more info see https://github.com/ggml-org/llama.cpp/pull/16391
-[34m0.15.492.511[0m [32mI [0msrv    load_model: context checkpoints enabled, max = 32, min spacing = 256
-[34m0.15.494.531[0m [35mW srv          init: --cache-idle-slots requires --kv-unified, disabling
-[0m[34m0.16.014.555[0m [32mI [0minit: chat template, example_format: '<|im_start|>system
+VOGUE-DBG createShaderModule h=0x[34m0.15.383.762[0m [35mW llama_context: n_ctx_seq (512) < n_ctx_train (40960) -- the full capacity of the model will not be utilized
+[0m[34m0.15.543.801[0m [32mI [0mcommon_init_from_params: warming up the model with an empty run - please wait ... (--no-warmup to disable)
+[34m0.15.770.747[0m [32mI [0msrv    load_model: initializing slots, n_slots = 4
+[34m0.15.834.796[0m [35mW common_speculative_init: no implementations specified for speculative decoding
+[0m[34m0.15.835.060[0m [32mI [0mslot   load_model: id  0 | task -1 | new slot, n_ctx = 512
+[34m0.15.835.550[0m [32mI [0mslot   load_model: id  1 | task -1 | new slot, n_ctx = 512
+[34m0.15.835.582[0m [32mI [0mslot   load_model: id  2 | task -1 | new slot, n_ctx = 512
+[34m0.15.835.605[0m [32mI [0mslot   load_model: id  3 | task -1 | new slot, n_ctx = 512
+[34m0.15.837.231[0m [32mI [0msrv    load_model: prompt cache is enabled, size limit: 8192 MiB
+[34m0.15.837.290[0m [32mI [0msrv    load_model: use `--cache-ram 0` to disable the prompt cache
+[34m0.15.837.425[0m [32mI [0msrv    load_model: for more info see https://github.com/ggml-org/llama.cpp/pull/16391
+[34m0.15.837.493[0m [32mI [0msrv    load_model: context checkpoints enabled, max = 32, min spacing = 256
+[34m0.15.839.559[0m [35mW srv          init: --cache-idle-slots requires --kv-unified, disabling
+[0m[34m0.16.360.289[0m [32mI [0minit: chat template, example_format: '<|im_start|>system
 You are a helpful assistant<|im_end|>
 <|im_start|>user
 Hello<|im_end|>
@@ -612,10 +612,10 @@ Hi there<|im_end|>
 How are you?<|im_end|>
 <|im_start|>assistant
 '
-[34m0.16.250.422[0m [32mI [0msrv          init: init: chat template, thinking = 1
-[34m0.16.252.563[0m [32mI [0msrv  llama_server: model loaded
-[34m0.16.252.786[0m [32mI [0msrv  llama_server: server is listening on http://0.0.0.0:8080
-[34m0.16.253.162[0m [32mI [0msrv  update_slots: all slots are idle
+[34m0.16.609.220[0m [32mI [0msrv          init: init: chat template, thinking = 1
+[34m0.16.611.525[0m [32mI [0msrv  llama_server: model loaded
+[34m0.16.611.780[0m [32mI [0msrv  llama_server: server is listening on http://0.0.0.0:8080
+[34m0.16.612.198[0m [32mI [0msrv  update_slots: all slots are idle
 20000000002e4 codeSize=33080 encpos=99420 ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x20000000002e6 module=0x20000000002e4 layout=0x20000000002e5
 VOGUE-DBG createShaderModule h=0x20000000002e7 codeSize=25340 encpos=126836 ovf=0 bufsz=2097152
@@ -627,16 +627,16 @@ VOGUE-DBG createComputePipeline h=0x20000000002f3 module=0x20000000002f1 layout=
 VOGUE-DBG createShaderModule h=0x20000000002f4 codeSize=11012 encpos=46224 ovf=0 bufsz=2097152
 VOGUE-DBG createComputePipeline h=0x20000000002f6 module=0x20000000002f4 layout=0x20000000002f5
 VOGUE-DBG createShaderModule h=0x20000000002f7 codeSize=11012 encpos=59636 ovf=0 bufsz=2097152
-VOGUE-DBG createComputePipeline h=0x[34m0.16.295.780[0m [32mI [0mslot get_availabl: id  3 | task -1 | selected slot by LRU, t_last = -1
-[34m0.16.295.845[0m [32mI [0msrv  get_availabl: updating prompt cache
-[34m0.16.296.178[0m [32mI [0msrv          load:  - looking for better prompt, base f_keep = -1.000, sim = 0.000
-[34m0.16.296.481[0m [32mI [0msrv        update:  - cache state: 0 prompts, 0.000 MiB (limits: 8192.000 MiB, 2048 tokens, 8589934592 est)
-[34m0.16.296.573[0m [32mI [0msrv  get_availabl: prompt cache update took 0.68 ms
-[34m0.16.297.223[0m [32mI [0mslot launch_slot_: id  3 | task 0 | processing task, is_child = 0
-[34m0.16.993.880[0m [32mI [0mslot print_timing: id  3 | task 0 | prompt eval time =      83.45 ms /    16 tokens (    5.22 ms per token,   191.73 tokens per second)
-[34m0.16.994.000[0m [32mI [0mslot print_timing: id  3 | task 0 |        eval time =     612.28 ms /    16 tokens (   38.27 ms per token,    26.13 tokens per second)
-[34m0.16.994.090[0m [32mI [0mslot print_timing: id  3 | task 0 |       total time =     695.73 ms /    32 tokens
-[34m0.16.994.266[0m [32mI [0mslot print_timing: id  3 | task 0 |    graphs reused =         15
-[34m0.16.996.511[0m [32mI [0mslot      release: id  3 | task 0 | stop processing: n_tokens = 31, truncated = 0
-[34m0.16.996.744[0m [32mI [0msrv  update_slots: all slots are idle
-qemu-system-x86_64: terminating on signal 15 from pid 2165839 (python3)
+VOGUE-DBG createComputePipeline h=0x[34m0.16.658.695[0m [32mI [0mslot get_availabl: id  3 | task -1 | selected slot by LRU, t_last = -1
+[34m0.16.658.778[0m [32mI [0msrv  get_availabl: updating prompt cache
+[34m0.16.659.141[0m [32mI [0msrv          load:  - looking for better prompt, base f_keep = -1.000, sim = 0.000
+[34m0.16.659.465[0m [32mI [0msrv        update:  - cache state: 0 prompts, 0.000 MiB (limits: 8192.000 MiB, 2048 tokens, 8589934592 est)
+[34m0.16.659.571[0m [32mI [0msrv  get_availabl: prompt cache update took 0.73 ms
+[34m0.16.660.299[0m [32mI [0mslot launch_slot_: id  3 | task 0 | processing task, is_child = 0
+[34m0.17.507.945[0m [32mI [0mslot print_timing: id  3 | task 0 | prompt eval time =      97.52 ms /    16 tokens (    6.10 ms per token,   164.07 tokens per second)
+[34m0.17.508.075[0m [32mI [0mslot print_timing: id  3 | task 0 |        eval time =     749.13 ms /    16 tokens (   46.82 ms per token,    21.36 tokens per second)
+[34m0.17.508.171[0m [32mI [0mslot print_timing: id  3 | task 0 |       total time =     846.65 ms /    32 tokens
+[34m0.17.508.351[0m [32mI [0mslot print_timing: id  3 | task 0 |    graphs reused =         15
+[34m0.17.510.549[0m [32mI [0mslot      release: id  3 | task 0 | stop processing: n_tokens = 31, truncated = 0
+[34m0.17.510.779[0m [32mI [0msrv  update_slots: all slots are idle
+qemu-system-x86_64: terminating on signal 15 from pid 2444338 (python3)
