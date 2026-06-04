@@ -188,11 +188,17 @@ int uk_venus_ring_create_on_ctx(struct uk_virtio_gpu_dev *dev,
 	ring->ctx = *ctx;
 	ring->borrowed_ctx = 1;
 
+	/* The ring buffer is a host-shmem blob. virglrenderer's Venus host-visible
+	 * path (Mesa virtgpu_init_shmem_blob_mem) allocates host shmem only for
+	 * HOST3D + MAPPABLE + blob_id 0; a non-zero blob_id is treated as an import
+	 * of an existing Venus object and fails closed (EIO). The caller's blob_id
+	 * is used as the ring_id at register time, not for the shmem allocation. */
+	(void)blob_id;
 	rc = uk_virtio_gpu_gl_blob_create_with_ctx(dev, ring->ctx.id,
 					  (uint64_t)size,
 					  UK_VIRTIO_GPU_BLOB_MEM_HOST3D,
 					  UK_VIRTIO_GPU_BLOB_FLAG_USE_MAPPABLE,
-					  blob_id,
+					  0 /* blob_id 0 = allocate host shmem */,
 					  &ring->blob);
 	if (rc) {
 		printf("uk-venus: ring(on_ctx) blob_create rc=%d ctx=%u blob_id=%llu size=%llu\n",
