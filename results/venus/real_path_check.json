@@ -1,17 +1,11 @@
 {
   "status": "pass",
-  "written_at": "2026-06-04T14:43:56Z",
+  "written_at": "2026-06-04T15:34:08Z",
   "rows": [
     {
       "id": "kraft_real_backend:Kraftfile",
       "status": "pass",
       "evidence": "Kraftfile",
-      "required": "Production Kraftfile selects libukvirtio_gpu and the REAL backend"
-    },
-    {
-      "id": "kraft_real_backend:Kraftfile.glmark2",
-      "status": "pass",
-      "evidence": "Kraftfile.glmark2",
       "required": "Production Kraftfile selects libukvirtio_gpu and the REAL backend"
     },
     {

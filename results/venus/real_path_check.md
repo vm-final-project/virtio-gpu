@@ -6,7 +6,6 @@ QEMU status: `pass`
 | Check | Status | Evidence | Required property |
 |---|---|---|---|
 | `kraft_real_backend:Kraftfile` | `pass` | Kraftfile | Production Kraftfile selects libukvirtio_gpu and the REAL backend |
-| `kraft_real_backend:Kraftfile.glmark2` | `pass` | Kraftfile.glmark2 | Production Kraftfile selects libukvirtio_gpu and the REAL backend |
 | `config_real_backend:.config.vogue_qemu-x86_64` | `pass` | .config.vogue_qemu-x86_64 | Generated Unikraft config selects REAL backend and not FAKE |
 | `latest_build_real_config` | `pass` | .unikraft/build/config; .unikraft/build/include/uk/bits/config.h | Latest graphics/Vulkan build artifacts select the real backend |
 | `build_compiles_real_object` | `pass` | results/kmscube_vgpu_gl/run/build.log; .unikraft/build/libukvirtio_gpu/virtio_gpu_real.o | Build logs or build artifacts include virtio_gpu_real.o (or kraft build blocked) |

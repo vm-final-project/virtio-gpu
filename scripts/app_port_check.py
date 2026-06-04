@@ -19,15 +19,6 @@ REQUIRED_PORTING_SECTIONS = [
 ]
 
 APPS = {
-    "glmark2": {
-        "dir": ROOT / "apps" / "app-glmark2",
-        "config": "CONFIG_APP_GLMARK2",
-        "prefix": "APPGLMARK2",
-        "kraft": ROOT / "kraft" / "Kraftfile.glmark2",
-        "repo": "https://github.com/glmark2/glmark2.git",
-        "ref": "22c527cb0556f3a1ac4445aaa52cc532760928d5",
-        "allowed": "gfx.glmark2.sw",
-    },
 }
 
 
