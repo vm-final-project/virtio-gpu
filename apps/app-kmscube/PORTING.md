@@ -3,50 +3,49 @@
 ## Upstream provenance
 
 - **Repository**: <https://gitlab.freedesktop.org/mesa/kmscube>
-- **Vendored subset**: `upstream/cube-smooth.c`, `upstream/esTransform.c`, `upstream/esUtil.h`, and a Unikraft-compatible `upstream/common.h`
-- **Local glue**: `uk_glue.c` supplies the bounded EGL/GBM/DRM compatibility hooks used by the vendored source.
+- **Vendored subset**: removed — `upstream/` (cube-smooth.c, esTransform.c, esUtil.h, common.h) and `uk_glue.c` have been deleted as part of the virgl-only refactor.
+- **Local glue**: none — the app calls libukvirtio_gpu virgl APIs directly from `main.c`.
 - **License**: follows the vendored kmscube source headers and project license notices.
 
 ## Evidence
 
 | Row | Status | Claim |
 |-----|--------|-------|
-| `gfx.kmscube.sw` | `pass` | software-rendered cube frames flow through the Unikraft VirtIO-GPU 2D/display substrate |
 | `gfx.kmscube.submit` | `pass` on the evaluation host | virgl submit proof with same-run QEMU and real VirtIO-GPU evidence |
 | `gfx.kmscube.frame` | `pass` on the evaluation host | colour-band frame proof from same-run QEMU screendump/pixel evidence |
 
-Current stage: all kmscube rows pass on the evaluation host. On hosts without
+Current stage: virgl rows pass on the evaluation host. On hosts without
 QEMU GL/Venus scanout read-back, the QEMU rows must remain structured
 `blocked:*` rows and cannot be promoted from native software evidence alone.
 
 ## Porting boundary
 
-This app is the canonical VOGUE graphics proof harness. It compiles the bounded
-kmscube source subset against Unikraft compatibility shims, then boots directly
-into one appliance entrypoint. The default supported proof is the CPU
-`libukswrender` cube path backed by VirtIO-GPU 2D scanout; the virgl path is a
-probe and remains claim-gated by `kmscube-check` artifacts.
+This app is the canonical VOGUE graphics proof harness. It boots directly
+into one appliance entrypoint and exercises the virgl command-stream path
+through libukvirtio_gpu. The software-render path (`libukswrender`) has been
+removed; `uk_glue.c` and `upstream/` (cube-smooth.c, esTransform.c) no longer
+exist in this tree.
 
-The port does not import Mesa, Linux DRM/KMS, a shell, or a native window-system
-launcher into the guest. Full virgl/GLES acceleration is not implied by the
-software-render pass.
+The app does not require libukegl, libukswrender, libukdrm_compat, or
+libukgbm_compat. The port does not import Mesa, Linux DRM/KMS, a shell, or a
+native window-system launcher into the guest.
 
 ## Unikraft build system
 
-- `Config.uk` — declares `CONFIG_APP_KMSCUBE` and selects the bounded VOGUE graphics libraries
-- `Makefile.uk` — registers `appkmscube`, compiles `main.c`, `uk_glue.c`, and the vendored kmscube subset
+- `Config.uk` — declares `CONFIG_APP_KMSCUBE` and selects libukvirtio_gpu
+- `Makefile.uk` — registers `appkmscube`, compiles `main.c` only
 - `exportsyms.uk` — exports only `main`
-- `Kraftfile` and `kraft/Kraftfile.kmscube-vgpu-gl` — select `app-kmscube` for reviewer-facing images
+- `Kraftfile` and `kraft/Kraftfile.kmscube-vgpu-gl` — select `app-kmscube` for reviewer-facing images; only libmusl and libukvirtio_gpu are required
 
 ## Claim boundaries
 
-**Allowed**: `gfx.kmscube.sw` software-render/display-substrate evidence, plus
+**Allowed**: `gfx.kmscube.submit` and `gfx.kmscube.frame` virgl evidence, plus
 structured `blocked:*` rows for QEMU/virgl/frame prerequisites when the gate exits
 zero under existing policy.
 
 **Forbidden**: claiming Mesa compatibility, full kmscube GLES acceleration,
-Unikraft GPU fps, or K1/virgl frame success without same-run `kmscube-check`
-PASS artifacts.
+Unikraft GPU fps, K1/virgl frame success without same-run `kmscube-check`
+PASS artifacts, or `gfx.kmscube.sw` software-render evidence (path no longer exists).
 
 ## Verification
 

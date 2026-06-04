@@ -9,13 +9,13 @@ Status: `pass`
 | `unikraft_alignment` | `pass` | results/stage/unikraft_alignment.json | Unikraft design-rule alignment gate passes |
 | `stage_audit` | `pass` | results/stage/stage_audit.json | Current-stage audit passes |
 | `benchmark_summary` | `pass` | rows=8 results/benchmarks/benchmark_summary.json | Benchmark summary exists with native app and Venus readiness rows |
-| `evaluation_matrix` | `pass` | rows=28 missing=[] | Evidence matrix contains every supported pass/blocked claim row |
+| `evaluation_matrix` | `pass` | rows=26 missing=[] | Evidence matrix contains every supported pass/blocked claim row |
 | `pass_rows` | `pass` | results/vogue_evaluation_matrix.json | Core supported rows pass; upstream llama.cpp rows accept structured blockers for missing QEMU/Venus images |
 | `blocked_rows_are_explicit` | `pass` | gfx.kmscube.submit+gfx.kmscube.frame present in matrix; STK porting out of scope | K1 transport/frame rows are present; STK porting explicitly dropped |
 | `venus_blocker_recorded` | `pass` | results/venus/qemu_2d_probe.json; results/vogue_evaluation_matrix.json | QEMU Venus probe artifact recorded with a structured status |
 | `real_path_selected` | `pass` | results/venus/real_path_check.json | Production Kraft/config/build artifacts use the real VirtIO-GPU backend |
 | `stk_out_of_scope` | `pass` | design/unikraft-virtio-gpu-spec-v1.md | STK porting is documented as out of scope (plan.md §0.5) |
-| `library_readmes` | `pass` | libs=8 missing=[] | Every local library has Unikraft-style README docs |
+| `library_readmes` | `pass` | libs=4 missing=[] | Every local library has Unikraft-style README docs |
 | `paper_generated_tables` | `pass` | paper/generated/app-performance-table.typ; paper/generated/venus-stage-table.typ; paper/generated/current-stage-table.typ | Paper consumes generated benchmark/stage tables |
 | `paper_claim_boundaries` | `pass` | paper/sections/08-evaluation.typ; paper/sections/12-artifact-appendix.typ | Paper states current stage and claim boundaries |
 | `readme_current_stage` | `pass` | README.md | README exposes current-stage/evaluation commands and fix plan |

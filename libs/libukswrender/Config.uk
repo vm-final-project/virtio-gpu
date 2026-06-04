@@ -1,7 +1,0 @@
-config LIBUKSWRENDER
-	bool "libukswrender: software 3D rasterizer"
-	default n
-	select LIBMUSL
-	help
-	  Minimal software rasterizer for rotating-cube and benchmark scenes.
-	  Produces B8G8R8X8 pixel buffers for virtio-gpu 2D scanout (no Mesa).

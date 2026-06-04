@@ -35,7 +35,7 @@ The same targets exist on this component `Makefile` if you are working inside
 
 | Group | Target | Binaries | Evidence rows |
 |---|---|---|---|
-| Core | `test-core` | `dma_buf_test`, `virtio_gpu_full_api_test`, `virtio_gpu_2d_render_test`, `kmscube_compat_test` | `proto.real-driver`, `xport.qemu-vgpu`, `gfx.kmscube.sw`, `gfx.glmark2.sw` |
+| Core | `test-core` | `dma_buf_test`, `virtio_gpu_full_api_test`, `virtio_gpu_2d_render_test` | `proto.real-driver`, `xport.qemu-vgpu` |
 | 3D / Venus | `test-venus` | `virtgpu_drm_ioctl_test`, `virtgpu_drm_fdio_test`, `venus_bootstrap_test`, `venus_cs_test`, `venus_compute_test`, `virgl_encoder_test` | `vk.drm-core`, `vk.drm-fdio`, `proto.venus-enc`, `proto.venus-ring`, `vk.readiness` |
 | ggml-vulkan dispatch | `test-dispatch` | `ggml_vk_dispatch_test` | `vk.ggml-dispatch` |
 | Conditional | `vulkan`, `proto-abi` | `vulkan_compute_test`, `virtio_gpu_proto_abi_test` | host Vulkan baseline, `proto.real-driver` |
@@ -73,7 +73,6 @@ make -C tests build/dma_buf_test && tests/build/dma_buf_test
 dma_buf_test passed alignment=4096 sg=1 len=4096
 virtio_gpu_full_api_test passed capsets=5 fences=7 submits_3d=1 blobs=1 bytes_to_host=36864 bytes_from_host=4096
 virtio_gpu_2d_render_test: PASS frames=3 transfers=3 flushes=3 fences=6
-kmscube_compat_test passed mode=1280x800 c0=0xcaac5505 c1=0xcbd70305
 virtgpu_drm_ioctl_test: all checks passed
 venus_bootstrap_test: all checks passed
 venus_cs_test: all checks passed

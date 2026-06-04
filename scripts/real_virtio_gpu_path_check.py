@@ -19,7 +19,6 @@ OUT = ROOT / "results" / "venus"
 
 PRODUCTION_KRAFTFILES = [
     ("Kraftfile", ROOT),
-    ("Kraftfile.glmark2", ROOT / "kraft"),
 ]
 PRODUCTION_CONFIGS = [
     (".config.vogue_qemu-x86_64", ROOT / "config"),

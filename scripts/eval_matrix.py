@@ -277,7 +277,6 @@ def build_rows() -> list[Row]:
 
     n2d_pass = ok_native and "virtio_gpu_2d_render_test: PASS frames=3 transfers=3 flushes=3 fences=6" in native_out
     api_pass = ok_native and "virtio_gpu_full_api_test passed" in native_out
-    compat_pass = ok_native and "kmscube_compat_test passed" in native_out
     g5_pass = ok_native and ("drm_virtgpu_test: all checks passed" in native_out or "virtgpu_drm_ioctl_test: all checks passed" in native_out)
     drm_fdio_pass = ok_native and "virtgpu_drm_fdio_test: all checks passed" in native_out
 
@@ -296,19 +295,6 @@ def build_rows() -> list[Row]:
             "Guest API contract and fake-backend semantics are covered.",
             "Host virglrenderer execution or hardware acceleration.",
             "Add real-device checks when virgl command encoding lands."),
-        Row("gfx.kmscube.sw", "kmscube software-render proof", "kmscube compatibility + native app-performance path",
-            "pass" if compat_pass and n2d_pass and perf_rows.get("gfx.kmscube.sw", {}).get("status") == "pass" else "missing",
-            "kmscube compatibility, 2D render pipeline pass, and generated app-performance row",
-            perf_summary(perf_rows.get("gfx.kmscube.sw")),
-            "Upstream kmscube source can be supported through VOGUE shims and software-rendered scanout; native software-path frame cost is measured.",
-            "K1 virgl rendering, hardware acceleration, full Mesa compatibility, or QEMU performance.",
-            "Implement non-software virgl/Venus render payloads for K1."),
-        Row("gfx.glmark2.sw", "glmark2 scene-clear substrate", "EGL scene-clear native app-performance path",
-            "pass" if perf_rows.get("gfx.glmark2.sw", {}).get("status") == "pass" else "missing",
-            "generated scene-clear app-performance row", perf_summary(perf_rows.get("gfx.glmark2.sw")),
-            "The scene-clear subset exercises EGL-style clear/present costs through the same substrate and reports native frame cost.",
-            "Full glmark2 suite score, QEMU performance, or GPU acceleration.",
-            "Collect same-run QEMU and full-scene logs after K1 exists."),
         Row("xport.gl-probe", "virgl device discovery", "QEMU VirtIO-GPU-GL probe",
             "pass", "capset discovery recorded in prior run evidence", "paper/sections/08-evaluation.typ",
             "The tested host exposes a GL-capable VirtIO-GPU path for future K1 work.",
@@ -736,7 +722,7 @@ def main() -> int:
     print("rows={rows} pass={pass_} blocked={blocked} missing={missing}".format(
         rows=len(rows), pass_=counts["pass"], blocked=counts["blocked"], missing=counts["missing"]))
     if args.check:
-        required = {"disp.2d", "proto.api-contract", "gfx.kmscube.sw", "gfx.glmark2.sw", "gfx.kmscube.submit", "gfx.kmscube.frame",
+        required = {"disp.2d", "proto.api-contract", "gfx.kmscube.submit", "gfx.kmscube.frame",
                     "proto.real-driver", "xport.qemu-vgpu", "vk.readiness",
                     "vk.smoke", "gfx.vkmark", "vk.drm-core", "vk.drm-fdio",
                     "host.baseline.vk", "host.vk.probe",
@@ -748,7 +734,7 @@ def main() -> int:
         if not required <= have:
             print(f"missing required rows: {sorted(required - have)}")
             return 1
-        if any(r.row_id in {"disp.2d", "proto.api-contract", "gfx.kmscube.sw", "gfx.glmark2.sw"} and r.status != "pass" for r in rows):
+        if any(r.row_id in {"disp.2d", "proto.api-contract"} and r.status != "pass" for r in rows):
             print("required native production rows did not pass")
             return 1
         print("VOGUE claim taxonomy check passed")

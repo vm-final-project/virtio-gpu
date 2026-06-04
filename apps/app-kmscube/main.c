@@ -6,11 +6,6 @@
 #include <uk/virtio_gpu.h>
 #include <uk/virgl_encoder.h>
 #include <uk/venus.h>
-#include <uk/sglist.h>
-#include <uk/alloc.h>
-#include <uk/swrender.h>
-#include <uk/drm_compat.h>
-#include <uk/gbm_compat.h>
 #include <uk/plat/time.h>
 
 #if defined(__has_include)
@@ -119,94 +114,6 @@ out_unregister:
 	return rc;
 }
 
-/* Software-render path: CPU rasterises rotating cube → virtio-gpu 2D scanout.
- * This proves the display pipeline without Mesa/EGL/GLES.
- * Evidence row: gfx.kmscube.sw (not K1 — K1 requires virgl/EGL). */
-static int run_swrender_path(struct uk_virtio_gpu_dev *dev,
-                              uint32_t w, uint32_t h)
-{
-	struct uk_sw_framebuf   fb;
-	struct uk_sw_cube_state cube;
-	void                   *dma_vaddr = NULL;
-	struct uk_sglist        sg;
-	struct uk_sglist_seg    sg_seg[1];
-	struct uk_gpu_rect      rect = {0, 0, w, h};
-	uk_gpu_res_id           res[NFRAMES];
-	uk_gpu_fence_id         fence;
-	uint32_t                crcs[NFRAMES];
-	size_t                  pix_bytes = (size_t)w * h * 4u;
-	int                     rc;
-
-	printf("uk-kmscube: swrender_path w=%u h=%u frames=%u\n", w, h, NFRAMES);
-
-	rc = uk_sw_framebuf_alloc(&fb, w, h);
-	if (rc) { printf("uk-kmscube: BLOCKED framebuf_alloc rc=%d\n", rc); return rc; }
-
-	/* Allocate a device-backing buffer large enough for one frame. */
-	rc = uk_posix_memalign(uk_alloc_get_default(), &dma_vaddr, 4096, pix_bytes);
-	if (rc || !dma_vaddr) { uk_sw_framebuf_free(&fb);
-	          printf("uk-kmscube: BLOCKED dma_alloc rc=%d\n", rc); return rc ? rc : -1; }
-
-	uk_sglist_init(&sg, 1, sg_seg);
-	rc = uk_sglist_append(&sg, dma_vaddr, pix_bytes);
-	if (rc || sg.sg_nseg != 1) {
-		uk_free(uk_alloc_get_default(), dma_vaddr); uk_sw_framebuf_free(&fb);
-		printf("uk-kmscube: BLOCKED dma_build_sg rc=%d\n", rc);
-		return -1;
-	}
-
-	uk_sw_cube_init(&cube, 0.04f, 0.07f, 0.02f);
-
-	for (uint32_t f = 0; f < NFRAMES; f++) {
-		/* Render frame into software framebuffer. */
-		uk_sw_cube_render(&cube, &fb);
-		crcs[f] = uk_sw_framebuf_crc(&fb);
-
-		/* Copy pixels to the device-backing buffer. x86 guest memory is
-		 * cache-coherent with the device, so no explicit DMA sync. */
-		memcpy(dma_vaddr, fb.pixels, pix_bytes);
-
-		if (dev) {
-			/* Create a fresh 2D resource each frame (format=1 RGBX). */
-			res[f] = 0;
-			rc = uk_virtio_gpu_resource_create_2d(dev, w, h, 1, &res[f]);
-			if (rc) { printf("uk-kmscube: resource_create_2d rc=%d\n", rc); goto cleanup; }
-
-			rc = uk_virtio_gpu_resource_attach_backing(dev, res[f], &sg);
-			if (rc) { printf("uk-kmscube: attach_backing rc=%d\n", rc); goto cleanup; }
-
-			/* Coalesced submission: only the final flush carries a fence
-			 * (P1.1 plan). The VirtIO-GPU spec guarantees in-order command
-			 * completion so the single wait covers all three commands. */
-			rc = uk_virtio_gpu_transfer_to_host_2d(dev, res[f], &rect, NULL);
-			if (rc) { printf("uk-kmscube: transfer rc=%d\n", rc); goto cleanup; }
-
-			uk_virtio_gpu_gl_set_scanout(dev, 0, res[f], &rect);
-
-			fence = 0;
-			rc = uk_virtio_gpu_resource_flush(dev, res[f], &rect, &fence);
-			if (rc) { printf("uk-kmscube: flush rc=%d\n", rc); goto cleanup; }
-			uk_virtio_gpu_fence_wait(dev, fence, 1000000u);
-		}
-
-		printf("uk-kmscube: frame=%u crc=0x%08x\n", f, crcs[f]);
-	}
-
-	/* Verify distinct frames (rotation changes pixels each frame). */
-	for (uint32_t i = 0; i < NFRAMES; i++)
-		for (uint32_t j = i + 1; j < NFRAMES; j++)
-			if (crcs[i] == crcs[j]) {
-				printf("uk-kmscube: FAIL identical frames %u==%u\n", i, j);
-				rc = -1; goto cleanup;
-			}
-
-	rc = 0;
-cleanup:
-	uk_free(uk_alloc_get_default(), dma_vaddr);
-	uk_sw_framebuf_free(&fb);
-	return rc;
-}
-
 /* virgl render path: creates a 3D resource, binds it as a Gallium surface,
  * clears it with a rotating colour, and presents via SET_SCANOUT + FLUSH.
  * Requires a real virgl-capable QEMU device; returns non-zero on failure.
@@ -237,7 +144,7 @@ static int run_virgl_path(struct uk_virtio_gpu_dev *dev,
 		}
 	}
 	if (!found_virgl) {
-		printf("uk-kmscube: virgl capset not present; staying on swrender\n");
+		printf("uk-kmscube: virgl capset not present\n");
 		return -2;
 	}
 
@@ -362,24 +269,13 @@ out_ctx:
 
 int main(int argc, char **argv)
 {
-	struct uk_drm_compat_mode mode = {0};
 	struct uk_virtio_gpu_dev *gpu  = NULL;
 	struct uk_virtio_gpu_caps caps;
-	int rc;
 	uint32_t w = TARGET_W, h = TARGET_H;
 	int want_venus_ring = argv_has(argc, argv, "venus_ring_test=1");
 	int want_frame_hold = argv_has(argc, argv, "frame_proof_hold=1");
 
 	printf("uk-kmscube: booted kmscube_vgpu_gl proof harness\n");
-	printf("uk-kmscube: path=swrender+virtio-gpu-2d gles=disabled mesa=disabled\n");
-
-	/* DRM compat: query display mode (provides target resolution). */
-	if (uk_drm_compat_query_default_mode(&mode) == 0) {
-		w = mode.width;
-		h = mode.height;
-		printf("uk-kmscube: drm_compat mode=%ux%u refresh=%u scope=%s\n",
-		       w, h, mode.refresh_hz, uk_drm_compat_scope());
-	}
 
 	/* Try to get a real VirtIO-GPU device (NULL if no real driver linked). */
 	gpu = uk_virtio_gpu_default_dev();
@@ -403,7 +299,6 @@ int main(int argc, char **argv)
 	printf("uk-kmscube: fbdev count=%u\n", uk_fbdev_count());
 #endif
 
-	/* Try virgl (K1) first; fall back to swrender (gfx.kmscube.sw) if unavailable. */
 	uint32_t virgl_submits = 0;
 	int virgl_rc = run_virgl_path(gpu, w, h, &virgl_submits, want_frame_hold);
 	if (virgl_rc == 0) {
@@ -411,29 +306,15 @@ int main(int argc, char **argv)
 		       "submits_3d=%u evidence_id=virgl-clear-proof real_virtio_gpu=1 w=%u h=%u\n",
 		       NFRAMES, virgl_submits, w, h);
 	} else {
-		if (virgl_rc != -2)
-			printf("uk-kmscube: virgl path unavailable (rc=%d), falling back to swrender\n",
-			       virgl_rc);
-		rc = run_swrender_path(gpu, w, h);
-		if (rc) {
-			printf("uk-kmscube: BLOCKED kmscube_vgpu_gl status=blocked:swrender-fail rc=%d\n", rc);
-			return 0;
-		}
-		/* gfx.kmscube.sw PASS: software-render + virtio-gpu-2D display proof. */
-		printf("uk-kmscube: PASS kmscube_vgpu_gl frames=%u renderer=software "
-		       "path=virtio-gpu-2d real_virtio_gpu=%u w=%u h=%u\n",
-		       NFRAMES, uk_virtio_gpu_default_dev() ? 1u : 0u, w, h);
+		printf("uk-kmscube: BLOCKED kmscube_vgpu_gl status=blocked:virgl-unavailable rc=%d\n",
+		       virgl_rc);
 	}
 
 	if (want_venus_ring) {
-		rc = run_venus_ring_probe(gpu);
+		int rc = run_venus_ring_probe(gpu);
 		if (rc)
 			printf("uk-kmscube: BLOCKED venus_ring_protocol rc=%d\n", rc);
 	}
 
-	/* The virgl path holds internally (while its scanout is live); only the
-	 * swrender fallback needs the post-path hold here. */
-	if (want_frame_hold && virgl_rc != 0)
-		hold_for_qmp_screendump();
 	return 0;
 }

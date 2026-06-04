@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-04T14:43:58.154464Z",
+    "generated_utc": "2026-06-04T15:35:44.362328Z",
     "source": "scripts/eval_matrix.py",
     "paper": "paper/main.typ"
   },
@@ -26,28 +26,6 @@
       "claim_allowed": "Guest API contract and fake-backend semantics are covered.",
       "claim_forbidden": "Host virglrenderer execution or hardware acceleration.",
       "next_step": "Add real-device checks when virgl command encoding lands."
-    },
-    {
-      "row_id": "gfx.kmscube.sw",
-      "claim": "kmscube software-render proof",
-      "workload": "kmscube compatibility + native app-performance path",
-      "status": "pass",
-      "required_evidence": "kmscube compatibility, 2D render pipeline pass, and generated app-performance row",
-      "evidence": "results/app_perf.json; avg_frame_ms=2.201; fps=454.35; transfers=60; flushes=60; fences=120",
-      "claim_allowed": "Upstream kmscube source can be supported through VOGUE shims and software-rendered scanout; native software-path frame cost is measured.",
-      "claim_forbidden": "K1 virgl rendering, hardware acceleration, full Mesa compatibility, or QEMU performance.",
-      "next_step": "Implement non-software virgl/Venus render payloads for K1."
-    },
-    {
-      "row_id": "gfx.glmark2.sw",
-      "claim": "glmark2 scene-clear substrate",
-      "workload": "EGL scene-clear native app-performance path",
-      "status": "pass",
-      "required_evidence": "generated scene-clear app-performance row",
-      "evidence": "results/app_perf.json; avg_frame_ms=5.39; fps=185.52; transfers=120; flushes=120; fences=240",
-      "claim_allowed": "The scene-clear subset exercises EGL-style clear/present costs through the same substrate and reports native frame cost.",
-      "claim_forbidden": "Full glmark2 suite score, QEMU performance, or GPU acceleration.",
-      "next_step": "Collect same-run QEMU and full-scene logs after K1 exists."
     },
     {
       "row_id": "xport.gl-probe",

@@ -3,7 +3,6 @@ config APP_VULKAN_SMOKE
 	default n
 	select LIBUKVIRTIO_GPU
 	select LIBUKSGLIST
-	select LIBUKEGL
 	help
 	  Headless Vulkan smoke test for the VOGUE native Venus substrate.
 	  Validates Venus capset detection without claiming rendering or
