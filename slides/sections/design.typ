@@ -120,6 +120,65 @@ Replace DRM multiplexing with a *minimal exclusive-client driver*
   v: "這張圖把五層架構和 Linux 的對應一起展示。L1（App）完全不動。L2（Shim）：Linux 用真實的 libEGL/libgbm/libdrm，VOGUE 改用 264 行的 shim 來模擬這些 API，讓 app 誤以為自己在 Linux 上。L3（Venus/Vulkan）：Linux 用 Vulkan loader 動態載入 ICD，VOGUE 改用靜態 dispatch table（libukggml_vk）；Venus 編碼本身邏輯等價（libukvenus ≡ Mesa Venus driver）。L4（VirtIO frontend）：Linux 透過 /dev/dri ioctl 進 kernel，VOGUE 直接操作 virtqueue，省掉 ioctl overhead。L5（Transport）：Unikraft PCI/virtio 直接重用，不修改。Host 端（QEMU、virglrenderer、host GPU driver）完全不動，這就是為什麼 VOGUE 能跟現有 hypervisor 直接相容。",
 )) <pdfpc>
 
+== Three Execution Paths
+
+#let pbox(fill, stk, title, sub) = block(
+  fill: fill, stroke: stk, radius: 2pt,
+  inset: (x: 6pt, y: 4pt), width: 100%,
+)[*#title*#if sub != "" [\ #text(size: 0.65em, fill: luma(85), sub)]]
+
+#let abox(title, sub) = pbox(rgb("#fff9c4"), 0.5pt, title, sub)
+#let nbox(title, sub) = pbox(luma(245), 0.4pt, text(fill: luma(180), title), text(fill: luma(180), sub))
+#let gbox(title, sub) = pbox(rgb("#d4edda"), 0.4pt, title, sub)
+
+#let ll(n, name) = align(right, text(size: 0.62em, fill: luma(120))[L#n #name])
+#let rl(name)    = align(right, text(size: 0.62em, fill: luma(120))[#name])
+
+#grid(
+  columns: (4.5em, 1fr, 1fr, 1fr),
+  gutter: 8pt,
+  align: (right + horizon, left, left, left),
+  [],
+  text(weight: "bold")[2D Display],
+  text(weight: "bold")[3D Rendering],
+  text(weight: "bold")[Vulkan Compute],
+
+  ll(1, "App"),
+  abox("app", "kmscube SW · glmark2"),
+  abox("app", "kmscube virgl"),
+  abox("app", "llama.cpp"),
+
+  ll(2, "Shim"),
+  abox("libukswrender", "CPU rasterizer"),
+  abox("libukegl", "EGL/GLES stubs"),
+  nbox("—", "no display needed"),
+
+  ll(3, "Venus"),
+  nbox("—", "no Vulkan, CPU path only"),
+  nbox("—", "virgl has no L3 serializer"),
+  abox("libukvenus", "Vulkan → Venus binary"),
+
+  ll(4, "VirtIO"),
+  abox("TRANSFER_TO_HOST_2D", "SET_SCANOUT · FLUSH"),
+  abox("SUBMIT_3D", "virgl_encoder.c in L4"),
+  abox("SUBMIT_3D", "Venus payload"),
+
+  ll(5, "Trans"),
+  abox("virtqueue", ""),
+  abox("virtqueue", ""),
+  abox("virtqueue", ""),
+
+  rl("GPU"),
+  nbox("none", "CPU only"),
+  gbox("host GPU", "→ screen"),
+  gbox("host GPU", "→ buffer (no display)"),
+)
+
+#metadata((
+  t: "Note",
+  v: "這頁並排三條執行路徑，讓觀眾看清楚每條路徑走哪些層、有沒有 GPU、輸出是什麼。2D display：CPU 用 libukswrender（L2）畫像素到記憶體，再透過 VirtIO-GPU 的 2D display 命令（L4）推送給 QEMU 顯示，整條路徑完全不涉及 GPU。3D rendering（virgl）：kmscube 呼叫 EGL/GLES API，由 libukegl（L2）的 stub 接住；virgl 命令的序列化由 libukvirtio_gpu 內的 virgl_encoder.c（L4）負責——注意這是 L4 的工作，不在 L3；最後透過 SUBMIT_3D 送給 virglrenderer，host GPU 渲染後輸出畫面。Vulkan compute（llama.cpp）：llama.cpp 直接呼叫 Vulkan API，不需要 EGL/顯示，所以不走 L2；libukggml_vk 提供靜態 dispatch table，libukvenus（L3）把 Vulkan 呼叫序列化成 Venus binary，透過 SUBMIT_3D 送給 virglrenderer，host GPU 執行矩陣運算，結果寫回 buffer，不產生任何畫面。L3 是 Venus-only 的設計決策：virgl（OpenGL）路徑的 encoding 放在 L4，避免 L3 膨脹；VOGUE 的主要 GPU 目標是 Vulkan compute，Venus 就夠了。",
+)) <pdfpc>
+
 == Design Goals
 
 - *DG1* Standards-based: follow the OASIS VirtIO-GPU spec, compatible with QEMU / crosvm / cloud-hypervisor

@@ -65,7 +65,7 @@
 
 == VirtIO-GPU Venus: GPU Acceleration
 
-#layer-stack("Venus", "VirtIO", "Trans")
+#layer-stack("Venus", "VirtIO")
 
 *Venus extends VirtIO-GPU: Vulkan API calls serialized into binary → `SUBMIT_3D` → host GPU*
 
@@ -74,11 +74,11 @@
 *Two mechanisms working together:*
 
 #grid(columns: (1fr, 1fr), gutter: 1em,
-  textbox[*Shared memory*
+  textbox[*Shared memory (L4)*
   - Guest and host map the *same* physical memory
   - Guest writes, host reads — *zero copy*
   - No DMA transfer needed],
-  textbox[*Ring buffer*
+  textbox[*Ring buffer (L3)*
   - Vulkan calls batched in shared memory
   - Host notified *once* per batch
   - Amortizes `SUBMIT_3D` cost],
