@@ -23,3 +23,19 @@ menuconfig LIBVULKAN
 	  This is a compute-first Vulkan API subset (the slice required by upstream
 	  ggml-vulkan.cpp); it is not full Vulkan and not Vulkan conformance. See
 	  README.md for the claim boundary.
+
+if LIBVULKAN
+
+config LIBVULKAN_ENABLE_DRM_FD_COMPAT
+	bool "Enable Linux DRM fd compatibility provider"
+	default n
+	select LIBUKVIRTGPU_DRM
+	select LIBUKVIRTGPU_DRM_FDIO
+	help
+	  Opt-in compatibility path for Mesa/Linux-style Vulkan applications that
+	  expect /dev/dri/renderD128, DRM_IOCTL_VIRTGPU_* and mmap(fd, offset).
+	  Native VOGUE Vulkan/llama builds must leave this disabled; the default
+	  libvulkan path dispatches through libukvulkan_venus directly over
+	  libukvirtio_gpu and does not need Linux DRM UAPI state.
+
+endif

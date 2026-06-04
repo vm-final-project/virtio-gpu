@@ -26,10 +26,11 @@ config LIBUKVULKAN_VENUS_USE_DRM_COMPAT
 	depends on LIBUKVULKAN_VENUS
 	default n
 	select LIBUKVIRTGPU_DRM
+	select LIBUKVIRTGPU_DRM_FDIO
 	help
 	  Route the Venus driver's device-open/substrate bootstrap through the
-	  Linux virtgpu DRM UAPI compatibility shim (libukvirtgpu_drm) instead of
-	  calling libukvirtio_gpu directly.
+	  Linux virtgpu DRM UAPI fd compatibility shim (libukvirtgpu_drm) instead
+	  of calling libukvirtio_gpu directly.
 
 	  The default native Unikraft path is a direct libukvirtio_gpu transport
 	  call path: the Venus driver's device-open bootstrap (venus_driver.c)
