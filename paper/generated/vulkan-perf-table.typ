@@ -6,15 +6,15 @@
     align: (left, left, left),
     table.header([*Metric*], [*Value*], [*Interpretation*]),
     [Host Vulkan devices], [`5`], [NVIDIA RTX 4000 Ada + llvmpipe available],
-    [Alloc latency (llvmpipe)], [`6 µs avg`], [64 KiB VkBuffer alloc + bind, 32 reps],
-    [Map latency (llvmpipe)], [`52 µs avg`], [Host-coherent memory map+write+unmap],
-    [Fence latency (llvmpipe)], [`35 µs avg`], [Empty cmd submit + vkWaitForFences],
+    [Alloc latency (llvmpipe)], [`2 µs avg`], [64 KiB VkBuffer alloc + bind, 32 reps],
+    [Map latency (llvmpipe)], [`23 µs avg`], [Host-coherent memory map+write+unmap],
+    [Fence latency (llvmpipe)], [`21 µs avg`], [Empty cmd submit + vkWaitForFences],
     [Device extensions], [`161`], [llvmpipe VkDevice extension count],
-    [vkmark port (vk.drm-shim+vk.icd)], [`pass`], [Unikraft app-vkmark substrate: vk.drm-shim+vk.icd init, 10 scenes documented],
-    [Venus ring substrate], [`pass`], [host-visible blob copy 9671.93 MiB/s in native fake backend],
+    [vkmark port (native Venus)], [`pass`], [Unikraft app-vkmark substrate: native Venus init, 10 scenes documented],
+    [Venus ring substrate], [`pass`], [host-visible blob copy 11690.98 MiB/s in native fake backend],
     [vkmark clear baseline], [`~3,200 fps`], [llvmpipe host reference (not Unikraft)],
     [NVIDIA clear baseline], [`~85,000 fps`], [RTX 4000 Ada host reference (not Unikraft)],
     [Venus/Unikraft vkmark fps], [`blocked:no-render-payload`], [Requires non-empty render payloads plus frame proof; substrate is PASS],
   )),
-  caption: [Vulkan/Venus performance evaluation. Host baselines from Khronos Vulkan Samples methodology. vk.drm-shim (libukvirtgpu_drm), vk.icd (Vulkan ICD), and libukvenus ring gates PASS; fps evidence requires same-run accelerated frame proof.]
+  caption: [Vulkan/Venus performance evaluation. Host baselines from Khronos Vulkan Samples methodology. Native libvulkan dispatch, libukvulkan_venus driver, and Venus ring gates PASS; fps evidence requires same-run accelerated frame proof.]
 ) <tab:vulkan-perf>

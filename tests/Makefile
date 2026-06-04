@@ -40,7 +40,7 @@ PROTO_HDR := ../libs/libukvirtio_gpu/virtio_gpu_proto.h
 JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
 MAKEFLAGS += --no-print-directory
 
-.PHONY: native test-core test-venus test-dispatch test-n3 proto-abi vulkan g5 venus-cs venus-compute venus-gen-compile venus-parity venus-hotpath virgl-enc n3-dispatch clean
+.PHONY: native test-core test-venus test-dispatch test-n3 proto-abi vulkan g5 virtgpu-drm virtgpu-drm-fdio venus-cs venus-compute venus-gen-compile venus-parity venus-hotpath virgl-enc n3-dispatch clean
 
 NATIVE_BINS := \
 	$(BUILD)/dma_buf_test \
@@ -48,6 +48,7 @@ NATIVE_BINS := \
 	$(BUILD)/virtio_gpu_2d_render_test \
 	$(BUILD)/kmscube_compat_test \
 	$(BUILD)/virtgpu_drm_ioctl_test \
+	$(BUILD)/virtgpu_drm_fdio_test \
 	$(BUILD)/venus_bootstrap_test \
 	$(BUILD)/venus_cs_test \
 	$(BUILD)/venus_compute_test \
@@ -76,9 +77,10 @@ test-core:
 	+@$(MAKE) -j$(JOBS) $(TEST_CORE_BINS)
 	@for b in $(TEST_CORE_BINS); do ./$$b || exit $$?; done
 
-# Group 2: VirtIO-GPU 3D / Venus / virgl (vk.drm-shim, vk.icd, proto.venus-enc, proto.venus-ring)
+# Group 2: VirtIO-GPU 3D / Venus / virgl (vk.drm-core, vk.drm-fdio, proto.venus-enc, proto.venus-ring)
 TEST_VENUS_BINS := \
 	$(BUILD)/virtgpu_drm_ioctl_test \
+	$(BUILD)/virtgpu_drm_fdio_test \
 	$(BUILD)/venus_bootstrap_test \
 	$(BUILD)/venus_cs_test \
 	$(BUILD)/venus_compute_test \
@@ -105,6 +107,11 @@ virgl-enc: $(BUILD)/virgl_encoder_test
 
 g5: $(BUILD)/virtgpu_drm_ioctl_test
 	./$(BUILD)/virtgpu_drm_ioctl_test
+
+virtgpu-drm: g5
+
+virtgpu-drm-fdio: $(BUILD)/virtgpu_drm_fdio_test
+	./$(BUILD)/virtgpu_drm_fdio_test
 
 vulkan: | $(BUILD)
 	@if [ -f "$(VK_LIB)" ] && [ -d "$(VK_INC)" ]; then \
@@ -143,6 +150,9 @@ $(BUILD)/virtio_gpu_proto_abi_test: virtio_gpu_proto_abi_test.c $(PROTO_HDR) | $
 	$(CC) $(CFLAGS) $< -o $@
 
 $(BUILD)/virtgpu_drm_ioctl_test: virtgpu_drm_ioctl_test.c ../libs/libukvirtgpu_drm/drm_virtgpu.c ./virtio_gpu_fake.c | $(BUILD)
+	$(CC) $(CFLAGS) $^ -o $@
+
+$(BUILD)/virtgpu_drm_fdio_test: virtgpu_drm_fdio_test.c ../libs/libukvirtgpu_drm/drm_virtgpu_fdio.c ../libs/libukvirtgpu_drm/drm_virtgpu.c ./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(BUILD)/venus_bootstrap_test: venus_bootstrap_test.c ../libs/libukvulkan_venus/venus_driver.c ./virtio_gpu_fake.c | $(BUILD)

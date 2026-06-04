@@ -1,9 +1,10 @@
 ################################################################################
-# libukvirtgpu_drm — Mesa/Linux virtgpu UAPI shim (vk.drm-shim gate)
+# libukvirtgpu_drm — Mesa/Linux virtgpu UAPI shim (vk.drm-core/vk.drm-fdio)
 ################################################################################
 $(eval $(call addlib,libukvirtgpu_drm))
 
 LIBUKVIRTGPU_DRM_SRCS-y += $(LIBUKVIRTGPU_DRM_BASE)/drm_virtgpu.c
+LIBUKVIRTGPU_DRM_SRCS-$(CONFIG_LIBUKVIRTGPU_DRM_FDIO) += $(LIBUKVIRTGPU_DRM_BASE)/drm_virtgpu_fdio.c
 
 LIBUKVIRTGPU_DRM_CINCLUDES-y += -I$(LIBUKVIRTGPU_DRM_BASE)/include
 LIBUKVIRTGPU_DRM_CINCLUDES-y += -I$(LIBUKVIRTIO_GPU_BASE)/include

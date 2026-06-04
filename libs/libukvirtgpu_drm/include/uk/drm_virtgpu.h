@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * libukvirtgpu_drm — Mesa/Linux virtgpu UAPI shim for Unikraft (vk.drm-shim gate)
+ * libukvirtgpu_drm — Mesa/Linux virtgpu UAPI core shim for Unikraft
  *
  * Translates Linux DRM_IOCTL_VIRTGPU_* calls into VirtIO-GPU protocol
  * commands via libukvirtio_gpu. Provides the ioctl surface expected by
@@ -88,9 +88,17 @@ int uk_drm_virtgpu_resource_create_blob(struct uk_drm_virtgpu_dev *dev,
                                          uint64_t size,
                                          uint32_t *bo_handle_out,
                                          uint32_t *res_handle_out);
+int uk_drm_virtgpu_get_caps(struct uk_drm_virtgpu_dev *dev,
+                             uint32_t cap_set_id, uint32_t cap_set_ver,
+                             void *buf, size_t size);
+int uk_drm_virtgpu_resource_info(struct uk_drm_virtgpu_dev *dev,
+                                  uint32_t bo_handle,
+                                  struct drm_virtgpu_resource_info *info);
 int uk_drm_virtgpu_map(struct uk_drm_virtgpu_dev *dev,
                         uint32_t bo_handle, uint64_t *offset_out);
 int uk_drm_virtgpu_wait(struct uk_drm_virtgpu_dev *dev, uint32_t bo_handle);
+int uk_drm_virtgpu_gem_close(struct uk_drm_virtgpu_dev *dev,
+                              uint32_t bo_handle);
 
 /* Close and release all resources */
 void uk_drm_virtgpu_close(struct uk_drm_virtgpu_dev *dev);

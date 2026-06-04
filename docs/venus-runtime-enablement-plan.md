@@ -245,7 +245,7 @@ effort, and must not be promoted without same-run PASS artifacts:
 | Row | Real blocker (not the transport) |
 |---|---|
 | `gfx.kmscube.frame` | QEMU `egl-headless` GL-scanout `screendump` returns `no surface`; colour-band pixel proof needs host GL framebuffer readback. |
-| `host.vk.probe` | `libukvk_icd` must round-trip `vkEnumeratePhysicalDevices` through Venus and read back the reply (`vk: physical_device=…`). |
+| `host.vk.probe` | Native `libvulkan`/`libukvulkan_venus` must round-trip `vkEnumeratePhysicalDevices` through Venus and read back the reply (`vk: physical_device=…`). |
 | `host.bench.vk.run`, `host.bench.vk`, `llm.bench.vk`, `llm.bench.vk.real`, `llm.server.vk` | ggml-vulkan compute dispatch executing through Venus → host GPU with real token output; the static dispatch passes natively but the live ring-reply/compute path is unproven. |
 
 ## 6. Done this session (planning pass)

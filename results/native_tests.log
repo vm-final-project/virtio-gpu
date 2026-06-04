@@ -4,12 +4,14 @@ make[2]: 'build/virtio_gpu_full_api_test' is up to date.
 make[2]: 'build/virtio_gpu_2d_render_test' is up to date.
 make[2]: 'build/kmscube_compat_test' is up to date.
 make[2]: 'build/virtgpu_drm_ioctl_test' is up to date.
-make[2]: 'build/vk_icd_bootstrap_test' is up to date.
+make[2]: 'build/virtgpu_drm_fdio_test' is up to date.
+make[2]: 'build/venus_bootstrap_test' is up to date.
 make[2]: 'build/venus_cs_test' is up to date.
 make[2]: 'build/venus_compute_test' is up to date.
 make[2]: 'build/virgl_encoder_test' is up to date.
 make[2]: 'build/venus_generated_compile_test' is up to date.
 make[2]: 'build/venus_parity_test' is up to date.
+make[2]: 'build/venus_hotpath_bench' is up to date.
 make[2]: 'build/ggml_vk_dispatch_test' is up to date.
 dma_buf_test passed alignment=4096 sg=1 len=4096
 virtio_gpu_full_api_test passed capsets=5 fences=7 submits_3d=1 blobs=1 bytes_to_host=36864 bytes_from_host=4096
@@ -48,6 +50,10 @@ virtgpu_drm_ioctl_test: G5 ioctl replay against fake VirtIO-GPU backend
   PASS  resource_create_blob:zero_size returns EINVAL
   PASS  ioctl:RESOURCE_CREATE_BLOB
   PASS  ioctl:RESOURCE_CREATE_BLOB:bo_handle
+  PASS  ioctl:GET_CAPS:venus
+  PASS  ioctl:GET_CAPS:venus:data
+  PASS  ioctl:RESOURCE_INFO
+  PASS  ioctl:RESOURCE_INFO:metadata
   PASS  map:blob
   PASS  map:blob:offset non-zero
   PASS  map:blob:idempotent
@@ -62,13 +68,37 @@ virtgpu_drm_ioctl_test: G5 ioctl replay against fake VirtIO-GPU backend
   PASS  wait
   PASS  ioctl:WAIT
   PASS  ioctl:unknown returns ENOSYS
+  PASS  ioctl:PRIME_HANDLE_TO_FD returns ENOSYS
+  PASS  ioctl:SYNCOBJ_CREATE returns ENOSYS
+  PASS  gem_close:create_blob
+  PASS  ioctl:GEM_CLOSE
+  PASS  ioctl:GEM_CLOSE:resource_info returns ENOENT
   PASS  close:zeroed_state
 virtgpu_drm_ioctl_test: all checks passed
-vk_icd_bootstrap_test: G6 Vulkan ICD substrate against fake VirtIO-GPU backend
-  PASS  init:null_icd returns EINVAL
-  PASS  init
-  PASS  init:icd_initialized
-  PASS  init:drm._vdev non-null
+virtgpu_drm_fdio_test: fdio-style DRM render-node facade
+  PASS  render_node_path
+  PASS  open:f0
+  PASS  open:f1
+  PASS  file_ioctl:GETPARAM
+  PASS  file_ioctl:GETPARAM:value
+  PASS  file_ioctl:RESOURCE_CREATE_BLOB
+  PASS  file_ioctl:RESOURCE_CREATE_BLOB:bo
+  PASS  file_ioctl:MAP
+  PASS  file_ioctl:MAP:offset
+  PASS  file_ioctl:MAP:page_aligned_offset
+  PASS  file_mmap:resolve_same_fd
+  PASS  file_mmap:resolve_same_fd:pointer
+  PASS  file_mmap:cross_fd_offset returns ENOENT
+  PASS  file_mmap:unknown_offset returns ENOENT
+  PASS  file_ioctl:GEM_CLOSE
+  PASS  file_ioctl:GEM_CLOSE:map returns ENOENT
+  PASS  close
+virtgpu_drm_fdio_test: all checks passed
+venus_bootstrap_test: native Venus driver against fake VirtIO-GPU backend
+  PASS  open:null_dev returns EINVAL
+  PASS  open
+  PASS  open:opened
+  PASS  open:gpu non-null
   PASS  info:device_name
   PASS  info:capset_id == VENUS(4)
   PASS  info:venus_available
@@ -76,22 +106,22 @@ vk_icd_bootstrap_test: G6 Vulkan ICD substrate against fake VirtIO-GPU backend
   PASS  info:has_resource_blob
   PASS  info:has_context_init
   PASS  info:rendering_status == blocked:ring-buffer-frame-proof-missing
-  PASS  get_device_info
-  PASS  get_device_info:device_name
-  PASS  get_device_info:capset_id
-  PASS  get_device_info:venus_available
-  PASS  get_device_info:idempotent
-  PASS  get_device_info:idempotent:same_result
-  PASS  get_device_info:uninit returns EINVAL
-  PASS  get_device_info:null_icd returns EINVAL
-  PASS  get_device_info:null_info returns EINVAL
+  PASS  get_info
+  PASS  get_info:device_name
+  PASS  get_info:capset_id
+  PASS  get_info:venus_available
+  PASS  get_info:idempotent
+  PASS  get_info:idempotent:same_result
+  PASS  get_info:uninit returns EINVAL
+  PASS  get_info:null_dev returns EINVAL
+  PASS  get_info:null_info returns EINVAL
   PASS  capset_name:venus non-null
   PASS  capset_name:venus non-empty
-  PASS  ctx_initialized via G5
-  PASS  drm:capset_id == VENUS
+  PASS  ctx_ready
+  PASS  ctx:capset_id == VENUS
   PASS  close:zeroed_state
   PASS  close:null_safe
-vk_icd_bootstrap_test: all checks passed
+venus_bootstrap_test: all checks passed
 venus_cs_test:
   PASS  init:null_enc
   PASS  init:null_buf
@@ -209,7 +239,7 @@ venus_cs_test:
   PASS  ring_perf:probe_ok
   PASS  ring_perf:create_ok
   PASS  ring_perf:writes_ok
-venus_ring_perf: bytes=65536 writes=256 elapsed_ns=5790 throughput_mib_s=10794.47
+venus_ring_perf: bytes=65536 writes=256 elapsed_ns=7756 throughput_mib_s=8058.28
 venus_cs_test: all checks passed
 venus_compute_test: Venus compute dispatch wire-format tests
 ============================================================
@@ -377,6 +407,11 @@ venus_generated_compile_test: PASS
   PASS  vkResetFences (36 bytes)
   PASS  vkQueueWaitIdle (16 bytes)
 venus_parity_test: PASS (all parity checks identical)
+venus_hotpath_bench: steps=64 cmds_per_buf=8
+  A per-call SUBMIT_3D : submits_3d=640  (10.00 /step)
+  B batched SUBMIT_3D  : submits_3d=128  (2.00 /step)
+  C ring stream        : submits_3d=65  (1.02 /step)
+venus_hotpath_bench: PASS
 ggml_vk_dispatch_test: N3 static Vulkan ICD dispatch layer
 ================================================================
 
@@ -461,12 +496,15 @@ ggml_vk_dispatch_test: N3 static Vulkan ICD dispatch layer
   PASS  get_proc_addr_fn:non_null
   PASS  get_proc_addr_fn:finds_vkCreateInstance
 
-[B] Dispatch init — uk_ggml_vulkan_dispatch_init()
+[B] Dispatch init — uk_vulkan_init()
   PASS  init:returns_zero
   PASS  init:idempotent
+  PASS  info:initialized_set
+  PASS  info:driver_name_venus
+  PASS  info:claim_boundary_set
+  PASS  info:supported_command_count_nonzero
   PASS  info:batch_enabled_default_off
   PASS  info:hostmem_fixed_default_off
-  PASS  info:wanted_extensions_eq_8
   PASS  info:null_safe
 
 [C] Call stubs — VK_SUCCESS from each registered function
@@ -561,7 +599,7 @@ VOGUE-DBG createComputePipeline h=0x2000000000114 module=0x200000000010f layout=
   INFO  sequence: all 23 steps completed without device loss
 
 ================================================================
-Results: 164 passed, 0 failed
+Results: 167 passed, 0 failed
 ggml_vk_dispatch_test: all checks PASS
-uk-llama-vk-n3: PASS evidence_id=llama-vk-n3-dispatch gpu=1 venus=1 substrate=static-vk-icd
+uk-llama-vk-n3: PASS evidence_id=llama-vk-n3-dispatch gpu=1 venus=1 substrate=static-vk-dispatch
 make[1]: Leaving directory '/mydata/JerryT/virtio-gpu/tests'

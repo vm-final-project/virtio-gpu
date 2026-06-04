@@ -1,9 +1,9 @@
 {
   "status": "pass",
-  "written_at": "2026-06-03T08:01:58Z",
+  "written_at": "2026-06-04T14:43:58Z",
   "summary": {
-    "libraries": 9,
-    "eval_rows": 27,
+    "libraries": 8,
+    "eval_rows": 28,
     "benchmark_rows": 8,
     "qemu_status": "pass",
     "real_path_status": "pass",
@@ -48,7 +48,7 @@
     {
       "id": "evaluation_matrix",
       "status": "pass",
-      "evidence": "rows=27 missing=[]",
+      "evidence": "rows=28 missing=[]",
       "required": "Evidence matrix contains every supported pass/blocked claim row",
       "blocker": ""
     },
@@ -90,7 +90,7 @@
     {
       "id": "library_readmes",
       "status": "pass",
-      "evidence": "libs=9 missing=[]",
+      "evidence": "libs=8 missing=[]",
       "required": "Every local library has Unikraft-style README docs",
       "blocker": ""
     },

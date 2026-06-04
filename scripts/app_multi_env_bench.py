@@ -13,8 +13,8 @@ Tests every VOGUE application across all supported environments:
 Applications covered:
   - app-kmscube  (gfx.kmscube.sw: software render + VirtIO-GPU 2D)
   - app-glmark2  (gfx.glmark2.sw: scene-clear substrate)
-  - app-vkmark   (gfx.vkmark: Vulkan ICD substrate + 10 scenes)
-  - app-vulkan-smoke (vk.smoke: Venus capset detection + vk.drm-shim+vk.icd)
+  - app-vkmark   (gfx.vkmark: native Venus substrate + 10 scenes)
+  - app-vulkan-smoke (vk.smoke: Venus capset detection + native Venus substrate)
   - app-llama-upstream    (upstream llama.cpp CPU bench/server single-app appliances)
   - app-llama-upstream-vk (upstream llama.cpp Vulkan/Venus single-app appliance)
 
@@ -211,10 +211,10 @@ def bench_vkmark() -> list[AppEnvResult]:
     llvmpipe = vkm.get("host_baselines", {}).get("llvmpipe", {})
     return [
         AppEnvResult(
-            app="app-vkmark", environment="Native substrate (vk.drm-shim+vk.icd ICD)", env_id="native",
+            app="app-vkmark", environment="Native substrate (libvulkan + native Venus)", env_id="native",
             status=vkm.get("status", "missing"),
             claim_allowed=(
-                "vk.drm-shim (libukvirtgpu_drm) + Venus driver (libukvulkan_venus) substrate: "
+                "libvulkan + native Venus driver (libukvulkan_venus) substrate: "
                 f"{len(scenes)} scenes enumerated. Host baselines documented."
             ),
             claim_forbidden="vkmark FPS inside Unikraft, GPU acceleration, or rendering scores.",
@@ -264,7 +264,7 @@ def bench_vulkan_smoke() -> list[AppEnvResult]:
             app="app-vulkan-smoke", environment="Native substrate (Venus capset probe)", env_id="native",
             status=vk.get("status", "missing"),
             claim_allowed=(
-                "Venus capset id=4 detected; vk.drm-shim+vk.icd substrate implemented. "
+                "Venus capset id=4 detected; native libvulkan/libukvulkan_venus substrate implemented. "
                 f"Host devices: {len(devices)} (NVIDIA + llvmpipe)."
             ),
             claim_forbidden="Vulkan rendering inside Unikraft, GPU acceleration, or compute scores.",

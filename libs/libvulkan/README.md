@@ -41,6 +41,11 @@ ICD shim). Upstream Vulkan clients include the
 normal Vulkan headers and call `vk*`; they only need `<uk/vulkan.h>` for
 explicit boot-time `uk_vulkan_init()` / diagnostics.
 
+`CONFIG_LIBVULKAN_ENABLE_DRM_FD_COMPAT` is default `n` and exists only for
+future Mesa/Linux-style applications that require `/dev/dri/renderD128`,
+`DRM_IOCTL_VIRTGPU_*`, and `mmap(fd, offset)`. Do not enable it for native
+llama.cpp/ggml-vulkan builds.
+
 ## Public API
 
 ```c

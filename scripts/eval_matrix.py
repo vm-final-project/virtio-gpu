@@ -279,6 +279,7 @@ def build_rows() -> list[Row]:
     api_pass = ok_native and "virtio_gpu_full_api_test passed" in native_out
     compat_pass = ok_native and "kmscube_compat_test passed" in native_out
     g5_pass = ok_native and ("drm_virtgpu_test: all checks passed" in native_out or "virtgpu_drm_ioctl_test: all checks passed" in native_out)
+    drm_fdio_pass = ok_native and "virtgpu_drm_fdio_test: all checks passed" in native_out
 
     return [
         Row("disp.2d", "2D display pipeline", "native fake-backend render path",
@@ -338,15 +339,23 @@ def build_rows() -> list[Row]:
             "Land .bind=PIPE_BIND_RENDER_TARGET in app-kmscube/main.c, rebuild the "
             "appliance, rerun kmscube-run, and let kmscube_vgpu_gl_eval.py emit "
             "frame_pixel_proof.json from the real PPM."),
-        Row("vk.drm-shim", "libukvirtgpu_drm UAPI shim — DRM ioctl replay",
-            "drm_virtgpu_test: GETPARAM, CONTEXT_INIT, RESOURCE_CREATE_BLOB, MAP, EXECBUFFER, WAIT",
+        Row("vk.drm-core", "libukvirtgpu_drm core translator — DRM ioctl replay",
+            "virtgpu_drm_ioctl_test: GETPARAM, GET_CAPS, CONTEXT_INIT, RESOURCE_CREATE_BLOB, RESOURCE_INFO, MAP, EXECBUFFER, WAIT, GEM_CLOSE",
             "pass" if g5_pass else "missing",
-            "44 ioctl replay checks including Venus capset detection and host-coherent mapping",
+            "DRM ioctl replay including Venus capset detection, host-coherent mapping, GET_CAPS, RESOURCE_INFO, and GEM_CLOSE",
             rel(native_log),
-            "Mesa/Linux virtgpu DRM ioctl surface is translated to VirtIO-GPU protocol by the shim; "
+            "Mesa/Linux virtgpu DRM ioctl requests are translated to typed libukvirtio_gpu operations by the core shim; "
             "native test passes against fake backend with Venus (id=4) capset support.",
-            "Full Venus Vulkan rendering, vk.icd ICD, or hardware acceleration.",
-            "vk.icd (Vulkan ICD shim) requires vk.drm-shim to be passing first."),
+            "fd-compatible /dev/dri mmap behavior, full Mesa Vulkan apps, syncobj/PRIME, or hardware acceleration.",
+            "Keep as direct translator regression gate; fd compatibility is tracked by vk.drm-fdio."),
+        Row("vk.drm-fdio", "libukvirtgpu_drm fdio facade — render-node ioctl/mmap offsets",
+            "virtgpu_drm_fdio_test: per-open file state, ioctl callback, page-aligned MAP offset, mmap resolution, cross-fd isolation",
+            "pass" if drm_fdio_pass else "missing",
+            "fd-compatible DRM facade test against fake backend",
+            rel(native_log),
+            "The optional DRM fd compatibility path can model /dev/dri/renderD128 open/ioctl/mmap semantics with per-open BO and mmap-offset state.",
+            "Full Mesa Vulkan apps, syncobj/PRIME/dma-buf, kernel DRM events, or hardware acceleration.",
+            "Add syncobj/PRIME only when full Mesa compatibility becomes the target."),
     ] + venus_rows() + vulkan_rows() + llama_vulkan_rows()
 
 
@@ -495,18 +504,18 @@ def llama_vulkan_rows() -> list[Row]:
             "Static Venus-backed Vulkan ICD dispatch layer (libvulkan): 82 Vulkan C ABI "
             "stubs wired to Venus encoder, no dlopen, no host libvulkan.so",
             "libs/libvulkan/uk_vulkan_dispatch.c: vkGetInstanceProcAddr as real C symbol "
-            "returning Venus-backed stubs; uk_vulkan_init() over vk.drm-shim DRM; "
+            "returning Venus-backed stubs; uk_vulkan_init() over native libukvulkan_venus; "
             f"tests/ggml_vk_dispatch_test.c: {n3_total} checks across proc lookup, init, stub calls, "
             "and 23-step compute bootstrap",
             n3_status,
             f"{n3_passed}/{n3_total} checks pass in ggml_vk_dispatch_test: proc lookup (80 functions), "
-            "dispatch init via vk.drm-shim DRM fake backend, per-stub VK_SUCCESS + handle allocation, "
+            "dispatch init via native Venus fake backend, per-stub VK_SUCCESS + handle allocation, "
             "23-step full compute bootstrap sequence (CreateInstance→WaitForFences). "
             "Venus SUBMIT_3D encoding fires for every mutating call. "
             f"artifact written to {n3_evidence}",
             n3_evidence,
             f"{n3_passed}/{n3_total} checks pass in ggml_vk_dispatch_test: proc lookup (80 functions), "
-            "dispatch init via vk.drm-shim DRM fake backend, per-stub VK_SUCCESS + handle allocation, "
+            "dispatch init via native Venus fake backend, per-stub VK_SUCCESS + handle allocation, "
             "23-step full compute bootstrap sequence (CreateInstance→WaitForFences). All Vulkan struct "
             "field accesses verified against Vulkan 1.3 spec byte offsets. Venus SUBMIT_3D encoding "
             "fires for every mutating call. Static dispatch layer is sufficient to satisfy "
@@ -601,15 +610,15 @@ def upstream_llama_rows() -> list[Row]:
             "Build kraft/Kraftfile.llama-upstream-vk-server; promote when same-run evidence exists."),
         Row("bld.uk.vk",
             "Upstream llama.cpp Vulkan Unikraft image build with ggml-vulkan + Venus libraries linked (W5)",
-            "kraft/Kraftfile.llama-upstream-vk: libvulkan + libukvulkan_venus + "
-            "libukvirtgpu_drm compile and link into vogue-llama-vk_qemu-x86_64",
+            "kraft/Kraftfile.llama-upstream-vk: libvulkan + libukvulkan_venus compile and link into vogue-llama-vk_qemu-x86_64 without DRM compat",
             n3b_status,
             f"Image builds: {n3b.get('image', 'n/a')}; evidence: results/llama/n3_build_passed.json"
             if n3b_status == "pass" else
             "Build blocked; see results/llama/n3_build_passed.json",
             "results/llama/n3_build_passed.json",
             "Upstream llama.cpp Vulkan image builds with ggml-vulkan and Venus libraries linked. "
-            "Build-pass confirms toolchain compatibility between Unikraft clang and upstream ggml-vulkan."
+            "Build-pass confirms toolchain compatibility between Unikraft clang, libvulkan native dispatch, "
+            "and upstream ggml-vulkan."
             if n3b_status == "pass" else "Blocked; no build claim.",
             "GPU throughput, Vulkan execution, or any runtime claim.",
             "Run: make llama-upstream-vk-build"),
@@ -636,31 +645,31 @@ def vulkan_rows() -> list[Row]:
     vkm = vk.get("vkmark_substrate", {})
     vk_evidence = "results/vulkan/vulkan_perf.json"
 
-    # vk.icd gate: native Venus driver bootstrap (libukvulkan_venus) implemented
+    # Native Venus gate: driver bootstrap (libukvulkan_venus) implemented
     g6_src = ROOT / "libs" / "libukvulkan_venus" / "venus_driver.c"
     g6_hdr = ROOT / "libs" / "libukvulkan_venus" / "include" / "uk" / "vulkan_venus.h"
     g6_pass = g6_src.exists() and g6_hdr.exists()
 
     # Pull substrate status from the vulkan_perf artifact (set by vulkan_perf_eval.py)
     vkm_status = vkm.get("status", "blocked:g5-g6-missing")
-    # Also accept direct vk.icd evidence from source tree when artifact is stale
+    # Also accept direct native Venus evidence from source tree when artifact is stale
     if g6_pass and vkm_status == "blocked:g5-g6-missing":
         vkm_status = "pass"
 
     return [
-        Row("vk.smoke", "Vulkan smoke test substrate (vk.icd gate)",
-            "app-vulkan-smoke: Venus capset detection + vk.drm-shim+vk.icd substrate",
+        Row("vk.smoke", "Vulkan smoke test substrate (native Venus gate)",
+            "app-vulkan-smoke: Venus capset detection + native Venus substrate",
             "pass" if vk_status == "pass" else "blocked:vulkan-test-failed",
-            "Host Vulkan baseline + Venus capset detection + vk.drm-shim+vk.icd substrate documented",
+            "Host Vulkan baseline + Venus capset detection + native Venus substrate documented",
             vk_evidence,
             "Host-side Vulkan API surface proof (alloc, map, fence) and Venus capset detection. "
-            "vk.drm-shim (libukvirtgpu_drm) and vk.icd (Vulkan ICD) substrate implemented.",
+            "Native libvulkan/libukvulkan_venus substrate implemented; DRM compatibility is tracked separately.",
             "Vulkan rendering inside Unikraft, GPU acceleration, or compute scores.",
             "Implement non-empty virgl/Venus render payloads to unblock rendering."),
         Row("gfx.vkmark", "vkmark Vulkan benchmark port substrate",
-            "app-vkmark: vk.drm-shim+vk.icd ICD init + scene enumeration + host baselines",
+            "app-vkmark: native Venus init + scene enumeration + host baselines",
             vkm_status,
-            "vk.drm-shim+vk.icd substrate implemented; vkmark port with 10 scenes and ICD init tested",
+            "native Venus substrate implemented; vkmark port with 10 scenes and init tested",
             vk_evidence,
             "vkmark Unikraft port uses native Venus driver (libukvulkan_venus) over libukvirtio_gpu; "
             "ICD init and Venus context creation PASS; 10 scenes documented with host "
@@ -729,7 +738,7 @@ def main() -> int:
     if args.check:
         required = {"disp.2d", "proto.api-contract", "gfx.kmscube.sw", "gfx.glmark2.sw", "gfx.kmscube.submit", "gfx.kmscube.frame",
                     "proto.real-driver", "xport.qemu-vgpu", "vk.readiness",
-                    "vk.smoke", "gfx.vkmark", "vk.drm-shim",
+                    "vk.smoke", "gfx.vkmark", "vk.drm-core", "vk.drm-fdio",
                     "host.baseline.vk", "host.vk.probe",
                     "bld.host.vk", "host.bench.vk.run", "host.bench.vk",
                     "vk.ggml-dispatch",

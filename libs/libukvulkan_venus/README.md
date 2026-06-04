@@ -54,12 +54,11 @@ include paths. In normal builds `libvulkan` (`CONFIG_LIBVULKAN`) selects this
 driver; applications select `LIBVULKAN`, not this driver directly.
 
 The optional `CONFIG_LIBUKVULKAN_VENUS_USE_DRM_COMPAT` (default `n`) makes the
-*driver itself* additionally pull the Linux virtgpu DRM UAPI compatibility shim
-(`libukvirtgpu_drm`) for code that deliberately emulates the Linux/Mesa DRM
-virtgpu UAPI. The default is the native `libukvirtio_gpu` transport. Note that
-in the current llama.cpp Vulkan build the DRM shim is still pulled in
-indirectly, by the `libukvk_icd` bootstrap that `libvulkan` selects; this option
-governs whether the driver layer depends on the DRM UAPI directly.
+*driver itself* additionally pull the Linux virtgpu DRM fd compatibility shim
+(`libukvirtgpu_drm` + `LIBUKVIRTGPU_DRM_FDIO`) for code that deliberately
+emulates the Linux/Mesa DRM virtgpu UAPI. The default is the native
+`libukvirtio_gpu` transport. Current llama.cpp/ggml-vulkan builds use the native
+path and must not depend on the DRM shim.
 
 ## Public API
 

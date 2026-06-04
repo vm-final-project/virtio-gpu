@@ -75,7 +75,6 @@ unikraft:
     CONFIG_LIBUKSGLIST: 'y'
     CONFIG_LIBUKVIRTIO_GPU: 'y'
     CONFIG_LIBUKVIRTIO_GPU_BACKEND_REAL: 'y'
-    CONFIG_LIBUKVIRTGPU_DRM: 'y'
     CONFIG_LIBUKVULKAN_VENUS: 'y'
     CONFIG_LIBVULKAN: 'y'
     # posix-socket provides the socket()/bind()/listen()/accept() API the
@@ -135,8 +134,6 @@ libraries:
     source: ../lib-lwip
   libukvirtio_gpu:
     source: ./libs/libukvirtio_gpu
-  libukvirtgpu_drm:
-    source: ./libs/libukvirtgpu_drm
   libukvulkan_venus:
     source: ./libs/libukvulkan_venus
   libvulkan:

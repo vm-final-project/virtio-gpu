@@ -34,7 +34,25 @@ CHECKS = {
         "VirtIO-GPU Venus/Vulkan v1 roadmap",
         "design/unikraft-virtio-gpu-spec-v1.md",
         "design/virtio-gpu-vulken-v1.md",
+        "libvulkan -> libukvulkan_venus -> libukvirtio_gpu",
+        "CONFIG_LIBVULKAN_ENABLE_DRM_FD_COMPAT",
+        "future Mesa/Linux-style compatibility",
         "Out of scope",
+    ],
+    ROOT / "libs/libvulkan/README.md": [
+        "application-facing Vulkan ABI/runtime boundary",
+        "CONFIG_LIBVULKAN_ENABLE_DRM_FD_COMPAT",
+        "Do not enable it for native",
+        "llama.cpp/ggml-vulkan builds",
+    ],
+    ROOT / "libs/libukvulkan_venus/README.md": [
+        "llama.cpp/ggml-vulkan builds use the native",
+        "must not depend on the DRM shim",
+    ],
+    ROOT / "libs/libukvirtgpu_drm/README.md": [
+        "vk.drm-core",
+        "vk.drm-fdio",
+        "syncobj and PRIME/dma-buf remain explicitly unsupported",
     ],
 }
 

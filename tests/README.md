@@ -36,7 +36,7 @@ The same targets exist on this component `Makefile` if you are working inside
 | Group | Target | Binaries | Evidence rows |
 |---|---|---|---|
 | Core | `test-core` | `dma_buf_test`, `virtio_gpu_full_api_test`, `virtio_gpu_2d_render_test`, `kmscube_compat_test` | `proto.real-driver`, `xport.qemu-vgpu`, `gfx.kmscube.sw`, `gfx.glmark2.sw` |
-| 3D / Venus | `test-venus` | `virtgpu_drm_ioctl_test`, `venus_bootstrap_test`, `venus_cs_test`, `venus_compute_test`, `virgl_encoder_test` | `vk.drm-shim`, `vk.icd`, `proto.venus-enc`, `proto.venus-ring`, `vk.readiness` |
+| 3D / Venus | `test-venus` | `virtgpu_drm_ioctl_test`, `virtgpu_drm_fdio_test`, `venus_bootstrap_test`, `venus_cs_test`, `venus_compute_test`, `virgl_encoder_test` | `vk.drm-core`, `vk.drm-fdio`, `proto.venus-enc`, `proto.venus-ring`, `vk.readiness` |
 | ggml-vulkan dispatch | `test-dispatch` | `ggml_vk_dispatch_test` | `vk.ggml-dispatch` |
 | Conditional | `vulkan`, `proto-abi` | `vulkan_compute_test`, `virtio_gpu_proto_abi_test` | host Vulkan baseline, `proto.real-driver` |
 
@@ -48,6 +48,8 @@ Each binary has a one-shot target on the component `Makefile` (build + run):
 make -C tests venus-cs        # venus_cs_test
 make -C tests venus-compute   # venus_compute_test
 make -C tests virgl-enc       # virgl_encoder_test
+make -C tests virtgpu-drm     # virtgpu_drm_ioctl_test  (explicit DRM compatibility alias)
+make -C tests virtgpu-drm-fdio # virtgpu_drm_fdio_test  (fd ioctl/mmap facade)
 make -C tests g5              # virtgpu_drm_ioctl_test  (== root: make vk-drm-shim-check)
 make -C tests test-n3         # ggml_vk_dispatch_test   (legacy alias of test-dispatch)
 ```

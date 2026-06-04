@@ -64,7 +64,7 @@ export LLAMA_ROOT VENUS_PROTOCOL_ROOT VULKAN_HEADERS_INCLUDE SPIRV_HEADERS_INCLU
         llama-upstream-vk-server-build llama-upstream-check env10-real-check \
         multi-env-bench app-multi-env-bench linux-guest-vk-baseline \
         llama-env-list llama-env-check llama-env-bench llama-env-server \
-        governance-check lib-readme-check app-port-check naming-check claim-check \
+        governance-check lib-readme-check app-port-check naming-check native-vulkan-no-drm-check claim-check \
         eval eval-check current-stage-check current-stage-refresh \
         app-perf-check perf-check image-size-check boot-time-check model-load-time-check llm-server-vk-check llm-server-vk-throughput-check \
         depgraph depgraph-check gen-libukvenus gen-libukvenus-plan gen-libukvenus-check gen-libukvenus-verify gen-libukvenus-selftest \
@@ -115,7 +115,7 @@ help:
 all: native-tests vulkan-tests app-perf-check eval-check paper
 
 # test-fast: the daily inner-loop gate (no QEMU/GPU).
-test-fast: governance-check lib-readme-check app-port-check llama-env-check naming-check native-tests
+test-fast: governance-check lib-readme-check app-port-check llama-env-check naming-check native-vulkan-no-drm-check native-tests
 	$(MAKE) -C tests proto-abi
 
 # test-native: host-native suite + wire-ABI test.
@@ -429,6 +429,9 @@ app-port-check:
 
 naming-check:
 	python3 scripts/naming_check.py
+
+native-vulkan-no-drm-check:
+	python3 scripts/check_native_vulkan_no_drm.py
 
 # eval: regenerate the evidence matrix only (no upstream gate deps).
 eval:
