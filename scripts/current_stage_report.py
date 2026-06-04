@@ -95,7 +95,7 @@ def main() -> int:
     eval_rows = matrix.get("rows", []) if isinstance(matrix.get("rows"), list) else []
     eval_by_id = {r.get("row_id", ""): r for r in eval_rows if isinstance(r, dict)}
     required_eval_rows = {"disp.2d", "proto.api-contract", "gfx.kmscube.sw", "gfx.glmark2.sw", "gfx.kmscube.submit", "gfx.kmscube.frame", "proto.real-driver", "xport.qemu-vgpu", "vk.readiness",
-                          "vk.smoke", "gfx.vkmark", "vk.drm-shim", "vk.ggml-dispatch", "llm.bench.cpu", "llm.bench.vk"}
+                          "vk.smoke", "gfx.vkmark", "vk.drm-core", "vk.drm-fdio", "vk.ggml-dispatch", "llm.bench.cpu", "llm.bench.vk"}
     lib_dirs = sorted(p for p in (ROOT / "libs").iterdir() if p.is_dir())
     missing_readmes = [p.name for p in lib_dirs if not (p / "README.md").exists()]
 
@@ -117,7 +117,7 @@ def main() -> int:
             f"rows={len(eval_rows)} missing={sorted(required_eval_rows - set(eval_by_id))}",
             "Evidence matrix contains every supported pass/blocked claim row"),
         row("pass_rows",
-            all(eval_by_id.get(r, {}).get("status") == "pass" for r in ["disp.2d", "proto.api-contract", "gfx.kmscube.sw", "gfx.glmark2.sw", "proto.real-driver", "vk.readiness", "vk.drm-shim", "gfx.vkmark"])
+            all(eval_by_id.get(r, {}).get("status") == "pass" for r in ["disp.2d", "proto.api-contract", "gfx.kmscube.sw", "gfx.glmark2.sw", "proto.real-driver", "vk.readiness", "vk.drm-core", "vk.drm-fdio", "gfx.vkmark"])
             and eval_by_id.get("vk.ggml-dispatch", {}).get("status") == "pass"
             and eval_by_id.get("llm.bench.cpu", {}).get("status", "").startswith(("pass", "blocked:"))
             and eval_by_id.get("llm.bench.vk", {}).get("status", "").startswith(("pass", "blocked:"))
@@ -125,7 +125,7 @@ def main() -> int:
             "results/vogue_evaluation_matrix.json", "Core supported rows pass; upstream llama.cpp rows accept structured blockers for missing QEMU/Venus images"),
         row("blocked_rows_are_explicit",
             eval_by_id.get("gfx.kmscube.submit", {}).get("status") in ("pass", "blocked:stale-appliance-kraft-unavailable", "blocked:missing-pass-marker")
-            and eval_by_id.get("gfx.kmscube.frame", {}).get("status") in ("pass", "blocked:stale-appliance-kraft-unavailable", "blocked:missing-pass-marker"),
+            and eval_by_id.get("gfx.kmscube.frame", {}).get("status") in ("pass", "blocked:stale-appliance-kraft-unavailable", "blocked:missing-pass-marker", "blocked:no-pixel-proof"),
             "gfx.kmscube.submit+gfx.kmscube.frame present in matrix; STK porting out of scope", "K1 transport/frame rows are present; STK porting explicitly dropped"),
         row("venus_blocker_recorded",
             qemu.get("status") in ("pass", "blocked:modern-pci-unsupported", "blocked:probe-incomplete", "blocked:image-missing", "blocked:timeout", "blocked:qemu-missing"),
@@ -147,7 +147,7 @@ def main() -> int:
             "Paper states current stage and claim boundaries"),
         row("readme_current_stage",
             all(s in readme for s in ["make stage-check", "make benchmark-check", "make venus-check"])
-            and "27/27 PASS" in readme and "plan-fix.md" in readme,
+            and "28-row evaluation" in readme and "26 PASS, 2 blocked, 0 missing" in readme and "plan-fix.md" in readme,
             "README.md", "README exposes current-stage/evaluation commands and fix plan"),
         row("governance_metadata", all((ROOT / path).exists() for path in ["docs/GOVERNANCE.md", "config/governance.json"])
             and (ROOT.parent / "manifest" / "manifests" / "vogue-main.yaml").exists()

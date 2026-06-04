@@ -35,7 +35,7 @@ VULKAN_COMPUTE_BIN = ROOT / "tests" / "build" / "vulkan_compute_test"
 VK_LIB = pathlib.Path(os.environ.get("VK_LIB") or "/usr/lib/x86_64-linux-gnu/libvulkan.so.1")
 VK_INC = pathlib.Path(os.environ.get("VK_INC") or (_REPO / "venus-protocol" / "include"))
 
-# vkmark scene list — evaluation targets (blocked until vk.drm-shim+vk.icd done)
+# vkmark scene list — evaluation targets (blocked until native Venus render payloads land)
 VKMARK_SCENES = [
     "clear", "vertex", "texture", "shading", "desktop",
     "effect2d", "terrain", "shadow", "refract", "compute",
@@ -176,16 +176,16 @@ def run_venus_ring_test() -> dict:
     return perf
 
 def vkmark_substrate_check() -> dict:
-    """Check vkmark Unikraft port status (vk.drm-shim+vk.icd substrate)."""
+    """Check vkmark Unikraft port status over the native Venus substrate."""
     port_dir = ROOT / "apps" / "app-vkmark"
     smoke_dir = ROOT / "apps" / "app-vulkan-smoke"
 
-    # vk.drm-shim gate: libukvirtgpu_drm DRM ioctl shim
-    g5_src = ROOT / "libs" / "libukvirtgpu_drm" / "drm_virtgpu.c"
-    g5_hdr = ROOT / "libs" / "libukvirtgpu_drm" / "include" / "uk" / "drm_virtgpu.h"
+    # Native app-facing Vulkan gate: libvulkan dispatch surface
+    g5_src = ROOT / "libs" / "libvulkan" / "uk_vulkan_dispatch.c"
+    g5_hdr = ROOT / "libs" / "libvulkan" / "include" / "uk" / "vulkan.h"
     g5_pass = g5_src.exists() and g5_hdr.exists()
 
-    # vk.icd gate: native Venus driver bootstrap (libukvulkan_venus)
+    # Native Venus gate: driver bootstrap (libukvulkan_venus)
     g6_src = ROOT / "libs" / "libukvulkan_venus" / "venus_driver.c"
     g6_hdr = ROOT / "libs" / "libukvulkan_venus" / "include" / "uk" / "vulkan_venus.h"
     g6_pass = g6_src.exists() and g6_hdr.exists()
@@ -199,12 +199,12 @@ def vkmark_substrate_check() -> dict:
         )
     elif g5_pass:
         status = "blocked:g6-missing"
-        blocked_by = ["vk.icd:vulkan-icd"]
-        next_step = "Implement Vulkan ICD shim (vk.icd) over libukvirtgpu_drm."
+        blocked_by = ["native-venus-driver"]
+        next_step = "Implement native Venus driver bootstrap."
     else:
         status = "blocked:g5-g6-missing"
-        blocked_by = ["vk.drm-shim:libukvirtgpu_drm", "vk.icd:vulkan-icd"]
-        next_step = "Implement libukvirtgpu_drm UAPI shim (vk.drm-shim), then Vulkan ICD (vk.icd)."
+        blocked_by = ["libvulkan:dispatch", "native-venus-driver"]
+        next_step = "Implement libvulkan dispatch and native Venus driver bootstrap."
 
     return {
         "status": status,
@@ -249,8 +249,8 @@ def write_artifacts(data: dict) -> None:
          "Empty cmd submit + vkWaitForFences"),
         ("Device extensions", str(vk.get("device_extensions", "?")),
          "llvmpipe VkDevice extension count"),
-        ("vkmark port (vk.drm-shim+vk.icd)", vkm.get("status", "?"),
-         "Unikraft app-vkmark substrate: vk.drm-shim+vk.icd init, 10 scenes documented"),
+        ("vkmark port (native Venus)", vkm.get("status", "?"),
+         "Unikraft app-vkmark substrate: native Venus init, 10 scenes documented"),
         ("Venus ring substrate", data.get("venus_ring_substrate", {}).get("status", "?"),
          f"host-visible blob copy {data.get('venus_ring_substrate', {}).get('throughput_mib_s', '?')} MiB/s in native fake backend"),
         ("vkmark clear baseline", "~3,200 fps",
@@ -276,7 +276,7 @@ def write_artifacts(data: dict) -> None:
         "  )),",
         "  caption: [Vulkan/Venus performance evaluation. "
         "Host baselines from Khronos Vulkan Samples methodology. "
-        "vk.drm-shim (libukvirtgpu_drm), vk.icd (Vulkan ICD), and libukvulkan_venus ring gates PASS; "
+        "Native libvulkan dispatch, libukvulkan_venus driver, and Venus ring gates PASS; "
         "fps evidence requires same-run accelerated frame proof.]",
         ") <tab:vulkan-perf>",
         "",
@@ -308,7 +308,7 @@ def main() -> int:
         "vkmark_substrate": vkm,
         "claim_allowed": (
             "Host-side Vulkan API surface proof and baseline measurements. "
-            "vk.drm-shim (libukvirtgpu_drm), vk.icd (Vulkan ICD), and libukvulkan_venus host-visible ring substrate implemented and tested. "
+            "Native libvulkan dispatch, libukvulkan_venus driver, and host-visible ring substrate implemented and tested. "
             "Venus/vkmark rendering still requires non-empty render payloads."
         ),
         "claim_forbidden": (

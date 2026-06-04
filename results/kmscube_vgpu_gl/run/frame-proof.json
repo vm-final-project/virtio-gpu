@@ -18,5 +18,5 @@
   "marker": "uk-kmscube: frame_ready marker=qmp-screendump-hold",
   "run_log": "results/kmscube_vgpu_gl/run/run.log",
   "screendump": "results/kmscube_vgpu_gl/run/qmp-screendump.ppm",
-  "written_at": "2026-06-03T17:31:38Z"
+  "written_at": "2026-06-04T14:43:56Z"
 }
