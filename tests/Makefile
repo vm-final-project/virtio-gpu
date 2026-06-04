@@ -41,7 +41,7 @@ PROTO_HDR := ../libs/libukvirtio_gpu/virtio_gpu_proto.h
 JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
 MAKEFLAGS += --no-print-directory
 
-.PHONY: native test-core test-venus test-dispatch test-n3 proto-abi vulkan g5 venus-cs venus-compute venus-gen-compile venus-parity virgl-enc n3-dispatch clean
+.PHONY: native test-core test-venus test-dispatch test-n3 proto-abi vulkan g5 venus-cs venus-compute venus-gen-compile venus-parity venus-hotpath virgl-enc n3-dispatch clean
 
 NATIVE_BINS := \
 	$(BUILD)/dma_buf_test \
@@ -55,6 +55,7 @@ NATIVE_BINS := \
 	$(BUILD)/virgl_encoder_test \
 	$(BUILD)/venus_generated_compile_test \
 	$(BUILD)/venus_parity_test \
+	$(BUILD)/venus_hotpath_bench \
 	$(BUILD)/ggml_vk_dispatch_test
 
 # Full deterministic suite — primary CI gate. Two phases: parallel compile
@@ -84,7 +85,8 @@ TEST_VENUS_BINS := \
 	$(BUILD)/venus_compute_test \
 	$(BUILD)/virgl_encoder_test \
 	$(BUILD)/venus_generated_compile_test \
-	$(BUILD)/venus_parity_test
+	$(BUILD)/venus_parity_test \
+	$(BUILD)/venus_hotpath_bench
 test-venus:
 	+@$(MAKE) -j$(JOBS) $(TEST_VENUS_BINS)
 	@for b in $(TEST_VENUS_BINS); do ./$$b || exit $$?; done
@@ -179,6 +181,15 @@ $(BUILD)/venus_parity_test: venus_parity_test.c \
 
 venus-parity: $(BUILD)/venus_parity_test
 	./$(BUILD)/venus_parity_test
+
+$(BUILD)/venus_hotpath_bench: venus_hotpath_bench.c \
+	../libs/libukvenus/venus_cs.c ../libs/libukvenus/venus_init.c \
+	../libs/libukvenus/venus_compute.c ../libs/libukvenus/vn_ring_shim.c \
+	./virtio_gpu_fake.c | $(BUILD)
+	$(CC) $(CFLAGS) $(GEN_CFLAGS) $^ -o $@
+
+venus-hotpath: $(BUILD)/venus_hotpath_bench
+	./$(BUILD)/venus_hotpath_bench ../results/perf/venus_hotpath.json
 
 $(BUILD)/virgl_encoder_test: virgl_encoder_test.c ../libs/libukvirtio_gpu/virgl_encoder.c ./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) -I../libs/libukvenus/include $^ -o $@
