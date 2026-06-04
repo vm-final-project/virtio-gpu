@@ -44,7 +44,6 @@ NATIVE_BINS := \
 	$(BUILD)/dma_buf_test \
 	$(BUILD)/virtio_gpu_full_api_test \
 	$(BUILD)/virtio_gpu_2d_render_test \
-	$(BUILD)/kmscube_compat_test \
 	$(BUILD)/virtgpu_drm_ioctl_test \
 	$(BUILD)/virtgpu_drm_fdio_test \
 	$(BUILD)/venus_bootstrap_test \
@@ -65,12 +64,11 @@ native:
 	+@$(MAKE) -j$(JOBS) $(NATIVE_BINS)
 	@for b in $(NATIVE_BINS); do ./$$b || exit $$?; done
 
-# Group 1: VirtIO-GPU core, DMA, shims (proto.real-driver, gfx.kmscube.sw)
+# Group 1: VirtIO-GPU core, DMA, shims (proto.real-driver)
 TEST_CORE_BINS := \
 	$(BUILD)/dma_buf_test \
 	$(BUILD)/virtio_gpu_full_api_test \
-	$(BUILD)/virtio_gpu_2d_render_test \
-	$(BUILD)/kmscube_compat_test
+	$(BUILD)/virtio_gpu_2d_render_test
 test-core:
 	+@$(MAKE) -j$(JOBS) $(TEST_CORE_BINS)
 	@for b in $(TEST_CORE_BINS); do ./$$b || exit $$?; done
@@ -136,9 +134,6 @@ $(BUILD)/dma_buf_test: dma_buf_test.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(BUILD)/virtio_gpu_full_api_test: virtio_gpu_full_api_test.c ./virtio_gpu_fake.c | $(BUILD)
-	$(CC) $(CFLAGS) $^ -o $@
-
-$(BUILD)/kmscube_compat_test: kmscube_compat_test.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(BUILD)/virtio_gpu_2d_render_test: virtio_gpu_2d_render_test.c ./virtio_gpu_fake.c | $(BUILD)
