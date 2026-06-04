@@ -147,7 +147,7 @@ def main() -> int:
             "Paper states current stage and claim boundaries"),
         row("readme_current_stage",
             all(s in readme for s in ["make stage-check", "make benchmark-check", "make venus-check"])
-            and "28-row evaluation" in readme and "26 PASS, 2 blocked, 0 missing" in readme and "plan-fix.md" in readme,
+            and "26-row evaluation" in readme and "26 PASS, 0 blocked, 0 missing" in readme and "plan-fix.md" in readme,
             "README.md", "README exposes current-stage/evaluation commands and fix plan"),
         row("governance_metadata", all((ROOT / path).exists() for path in ["docs/GOVERNANCE.md", "config/governance.json"])
             and (ROOT.parent / "manifest" / "manifests" / "vogue-main.yaml").exists()

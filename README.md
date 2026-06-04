@@ -17,7 +17,7 @@ Reach the *same host-facing VirtIO-GPU / Venus contract that a Linux guest uses*
 through a **much thinner Unikraft library stack** (the paper calls this a
 *dependency collapse*). Local code stays small: first-party Unikraft libraries
 own the VirtIO-GPU / Venus / Vulkan glue, while upstream applications
-(llama.cpp, kmscube, glmark2) keep their own logic and are consumed unmodified
+(llama.cpp, kmscube) keep their own logic and are consumed unmodified
 through one-line include shims.
 
 ### The guest-to-host accelerated path
@@ -42,8 +42,7 @@ therefore optional (`CONFIG_LIBUKVULKAN_VENUS_USE_DRM_COMPAT` or
 `libukvk_icd` bootstrap shim has been retired and the upstream ggml-vulkan stack
 is built in-tree by `app-llama-upstream-vk`.
 
-The graphics appliances (kmscube, glmark2) use the lower half of the same stack
-through the Linux-ABI shims (`libukdrm_compat`, `libukgbm_compat`, `libukegl`).
+The kmscube graphics appliance renders via the virgl/Gallium path directly through `libukvirtio_gpu`.
 
 ### Design principles
 
@@ -62,8 +61,8 @@ through the Linux-ABI shims (`libukdrm_compat`, `libukgbm_compat`, `libukegl`).
 ### Current stage (2026-06-04)
 
 On the evaluation host (QEMU 11.0.1 `virtio-gpu-gl-pci,blob=true,venus=true`,
-Venus-enabled virglrenderer, Tesla V100 render node) the 28-row evaluation
-matrix is **26 PASS, 2 blocked, 0 missing** (`results/vogue_evaluation_matrix.md`).
+Venus-enabled virglrenderer, Tesla V100 render node) the 26-row evaluation
+matrix is **26 PASS, 0 blocked, 0 missing** (`results/vogue_evaluation_matrix.md`).
 Device-backing memory now flows through the upstream Unikraft `uksglist`
 (scatter-gather) + `ukalloc` (`uk_posix_memalign`) libraries directly — there is
 no first-party DMA library — and every appliance below was rebuilt and
@@ -98,8 +97,8 @@ sibling checkouts (`../unikraft`, `../llama.cpp`, `../lib-musl`, `../lib-lwip`,
 
 | Directory | Function |
 |---|---|
-| `libs/` | **First-party Unikraft libraries** — the substrate under test. VirtIO-GPU frontend + virgl encoder (`libukvirtio_gpu`), app-facing Vulkan ABI/dispatch (`libvulkan`), Venus Vulkan driver with native device-open bootstrap (`libukvulkan_venus`), optional DRM virtgpu shim (`libukvirtgpu_drm`), Linux-ABI shims (`libukdrm_compat`, `libukgbm_compat`, `libukegl`), software renderer (`libukswrender`). Device-backing memory uses upstream Unikraft `uksglist` (scatter-gather) + `ukalloc` (`uk_posix_memalign`) directly — no first-party DMA library. Each carries a `README.md` contract enforced by `make lib-readme-check`. |
-| `apps/` | **Unikraft applications.** Graphics: `app-kmscube`, `app-glmark2`, `app-vulkan-smoke`, `app-vkmark`. llama.cpp: `app-llama-upstream` (CPU) and `app-llama-upstream-vk` (Vulkan), each with `bench.cpp` + `server.cpp`. Each app carries a `PORTING.md` (provenance, evidence rows, claim boundaries) enforced by `make app-port-check`. |
+| `libs/` | **First-party Unikraft libraries** — the substrate under test. VirtIO-GPU frontend + virgl encoder (`libukvirtio_gpu`), app-facing Vulkan ABI/dispatch (`libvulkan`), Venus Vulkan driver with native device-open bootstrap (`libukvulkan_venus`), optional DRM virtgpu shim (`libukvirtgpu_drm`). Device-backing memory uses upstream Unikraft `uksglist` (scatter-gather) + `ukalloc` (`uk_posix_memalign`) directly — no first-party DMA library. Each carries a `README.md` contract enforced by `make lib-readme-check`. |
+| `apps/` | **Unikraft applications.** Graphics: `app-kmscube`, `app-vulkan-smoke`, `app-vkmark`. llama.cpp: `app-llama-upstream` (CPU) and `app-llama-upstream-vk` (Vulkan), each with `bench.cpp` + `server.cpp`. Each app carries a `PORTING.md` (provenance, evidence rows, claim boundaries) enforced by `make app-port-check`. |
 | `kraft/` | One `Kraftfile.<name>` per single-purpose appliance (the *one image, one purpose* rule). The root `Kraftfile` is the kmscube graphics image. |
 | `tests/` | **Host-native deterministic C suite** against the fake VirtIO-GPU backend — no QEMU/GPU needed. The fast inner loop and primary CI gate. See `tests/README.md`. |
 | `scripts/` | Python evidence generators and claim gates invoked by the `Makefile` (eval matrix, governance, perf, boot/model-load time, Venus/Vulkan probes, llama runners, the HTTP server capture/gate). |
@@ -128,7 +127,6 @@ this table by `make app-port-check` / `make governance-check`.
 | App | Status | Purpose | Evidence rows |
 |---|---|---|---|
 | `app-kmscube` | canonical | VirtIO-GPU 3D graphics via virgl over Venus | `gfx.kmscube.sw/.submit/.frame` |
-| `app-glmark2` | benchmark | OpenGL software-substrate benchmark | `gfx.glmark2.sw` |
 | `app-vulkan-smoke` | demo | Minimal Vulkan substrate smoke test | `vk.smoke` |
 | `app-vkmark` | experimental | Vulkan benchmark substrate | `gfx.vkmark` |
 | `app-llama-upstream` | canonical | Upstream llama.cpp CPU bench / server | `llm.bench.cpu`, `llm.server.cpu` |
@@ -136,10 +134,10 @@ this table by `make app-port-check` / `make governance-check`.
 
 ### Libraries & usage status
 
-All nine first-party libraries are in active use: each is selected (directly or
+All first-party libraries are in active use: each is selected (directly or
 via Kconfig `select`) by at least one buildable appliance. The two appliance
 families are the **Vulkan/llama** images (`llama-upstream-vk`,
-`llama-upstream-vk-server`) and the **graphics** images (`kmscube`, `glmark2`;
+`llama-upstream-vk-server`) and the **graphics** images (`kmscube`;
 the root `Kraftfile` is kmscube). `make governance-check lib-readme-check`
 enforces each library's `README.md` contract.
 
@@ -149,10 +147,6 @@ enforces each library's `README.md` contract.
 | `libvulkan` | App-facing Vulkan `vk*` ABI + Vulkan-Hpp dispatch (`CONFIG_LIBVULKAN`); compute-first subset, routes to the Venus driver | Vulkan/llama |
 | `libukvulkan_venus` | Unikraft-native Venus Vulkan driver: Venus wire encode/decode + ring protocol; `uk_venus_encode_*` delegate to encoders generated from `../venus-protocol` | Vulkan/llama |
 | `libukvirtgpu_drm` | Optional Mesa/Linux virtgpu DRM compatibility shim: direct translator (`vk.drm-core`) plus fd-style render-node facade (`vk.drm-fdio`) | Future Mesa/Linux-style apps |
-| `libukswrender` | Deterministic CPU software renderer | Graphics |
-| `libukegl` | EGL/GLES2/GBM/DRM ABI shim for upstream GL apps | Graphics |
-| `libukdrm_compat` | DRM struct/ioctl compatibility facade | Graphics |
-| `libukgbm_compat` | GBM buffer-object compatibility layer | Graphics |
 
 ---
 
@@ -166,7 +160,7 @@ enforces each library's `README.md` contract.
 | Find the **Vulkan ABI / dispatch** | `libs/libvulkan/` (`uk_vulkan_dispatch.c`, `vk_hpp_loader.cpp`). Owns the exported `vk*` symbols and the Vulkan-Hpp dispatcher. |
 | Find the **native device-open bootstrap** | `libs/libukvulkan_venus/venus_driver.c` (`uk_vulkan_venus_open` → `libukvirtio_gpu`). The optional Linux DRM shim is `libs/libukvirtgpu_drm/`. |
 | Find the **ggml-vulkan build glue** | `apps/app-llama-upstream-vk/Makefile.uk` (compiles upstream `ggml-vulkan.cpp` + SPIR-V blobs in-tree; the `vk*` ABI lives in `libvulkan`). |
-| Find **2D/KMS graphics (kmscube)** | `apps/app-kmscube/` + shims `libs/libukdrm_compat/`, `libs/libukgbm_compat/`. |
+| Find **2D/KMS graphics (kmscube)** | `apps/app-kmscube/`. |
 | Find the **llama.cpp app entrypoints** | `apps/app-llama-upstream{,-vk}/{bench,server}.cpp` + `common.h`. |
 | Understand the **HTTP server / networking** | `apps/app-llama-upstream-vk/server.cpp`, `kraft/Kraftfile.llama-upstream-vk-server` (lwIP/netdev Kconfig), `scripts/llama_server_vk_capture.py` (boot + HTTP probe), `scripts/llm_server_vk_check.py` (gate). |
 | Change which appliance is built | `kraft/Kraftfile.<name>` and the matching `make *-build` target. |

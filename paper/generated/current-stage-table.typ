@@ -9,7 +9,7 @@
     [Stage], [`pass`], [Real controlq driver present; QEMU blocker named],
     [Benchmarks], [`pass`], [8 generated benchmark/readiness rows],
     [Real path], [`pass`], [production Kraft/config/build evidence selects real backend],
-    [Evaluation], [`pass`], [28 evidence rows],
+    [Evaluation], [`pass`], [26 evidence rows],
     [Governance], [`pass`], [developer/release split plus external manifest ownership],
     [STK], [`out-of-scope`], [STK porting dropped per plan.md §0.5],
   )),
