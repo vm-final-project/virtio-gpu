@@ -5,93 +5,99 @@
 
 = Evaluation
 
-== What we can demonstrate today
-
-On a real GPU host (QEMU + Venus + Tesla V100), every capability below was
-#bred[reproduced live in the same run] — no numbers carried over from before.
-
-#pause
+== Evaluation host: one real GPU path
 
 #table(
   columns: (auto, 1fr),
-  [Capability], [Result],
+  [Layer], [Setup],
   table.hline(),
-  [2D display (kmscube)], [draws and flips real frames],
-  [OpenGL benchmark (glmark2)], [renders at 186 fps (software path)],
-  [Vulkan benchmark (vkmark)], [starts and loads 10 scenes],
-  [llama.cpp on the GPU], [generates text over Vulkan],
-  [llama.cpp HTTP server], [answers real web requests],
+  [VM monitor], [QEMU 11.0.1],
+  [GPU device], [`virtio-gpu-gl-pci, blob=true, venus=true`],
+  [Host bridge], [Venus-enabled virglrenderer],
+  [Host GPU], [Tesla V100-SXM2-16GB],
+  [Guest], [Unikraft appliance, one image per purpose],
+  [Rule], [same-run artifact or no claim],
   table.hline(),
 )
 
-#pause
+#textbox[
+  We evaluate the same bridge Linux uses, but with a much thinner Unikraft guest.
+]
 
-  - #red[Insight]: a result only counts when it reproduces #bred[in that run];
-    this rule is what stops a weak demo from being sold as a strong one
+== Current stage
 
-== Footprint and boot: the unikernel payoff
-
-#grid(
-  columns: (1.4fr, 1fr),
-  gutter: 0.8em,
-  [
-    #table(
-      columns: (auto, auto, auto),
-      [Image], [Size], [Boot time],
-      table.hline(),
-      [VOGUE graphics], [#bred[292 KB]], [#bred[~10 ms]],
-      [VOGUE GPU probe], [336 KB], [~250 ms],
-      [Linux VM (reference)], [10.5 MB], [~857 ms],
-      table.hline(),
-    )
-  ],
-  [
-    - #bred[~35×] smaller image
-    - #bred[~80×] faster to boot
-  ],
+#table(
+  columns: (auto, 1.25fr, 1.55fr),
+  [What we checked], [Goal], [Status today],
+  table.hline(),
+  [Graphics basics],
+  [graphics apps can open buffers and draw],
+  [virgl sends 3 real 3D submits in our small test],
+  [Vulkan basics],
+  [create devices, talk to Venus, and start a real app],
+  [DRM shim, ICD setup, Venus command path, and vkmark scene loading all run],
+  [llama.cpp GPU],
+  [upstream compute uses the real GPU through Venus],
+  [ggml-vulkan inference runs inside Unikraft on the Tesla V100],
+  [llama.cpp HTTP],
+  [GPU workload is usable as a service],
+  [endpoint `/health` lwIP],
+  table.hline(),
 )
 
-#pause
+== Graphics results today
 
-#v(0.3em)
-
-  - #red[Insight]: leaving Linux's graphics stack (DRM / KMS / Mesa) *out of the
-    guest* is not just tidy — it is #bred[why] the image is tiny and boots instantly
-
-== llama.cpp speed: where does the time go?
-
-#grid(
-  columns: (1.5fr, 1fr),
-  gutter: 0.8em,
-  [
-    #table(
-      columns: (auto, auto, auto),
-      [Same GPU, same model], [prefill], [generate],
-      table.hline(),
-      [Bare metal (no VM)], [5587], [239],
-      [Linux VM over Venus], [4948], [324],
-      [VOGUE unikernel], [2232], [160],
-      table.hline(),
-    )
-
-    #text(size: 0.8em)[(tokens / second)]
-  ],
-  [
-    - same GPU path for all three
-    - so we can isolate
-      *unikernel vs Linux*
-  ],
+#table(
+  columns: (auto, 1.3fr, 1fr),
+  [Workload], [Current number / result], [What we can say],
+  table.hline(),
+  [`glmark2.sw`], [142.82 fps in the 120-frame scene-clear run], [subset benchmark, not full suite],
+  [`kmscube` virgl], [3 virgl-submitted frames and 3 `SUBMIT_3D` commands], [one small clear-frame proof],
+  [`vkmark`], [10 startup scenes load through our Vulkan app path], [no Unikraft FPS yet],
+  table.hline(),
 )
 
-#pause
+#textbox[
+  Graphics already runs in our system, but we still separate software rendering,
+  app bring-up, and full benchmark claims.
+]
 
-#v(0.3em)
+== llama.cpp: compute works, performance gap remains
 
-#textbox(
-  [#bred[Key insight]
-
-  A normal Linux VM reaches \~89% of bare-metal over the *same* GPU bridge — so
-  the bridge (Venus) is #red[not] the bottleneck. Our remaining gap is VOGUE's own
-  young guest-side driver vs Linux's mature one, plus using only one guest CPU.
-  That is #bred[room to optimise], not an unavoidable cost of virtualisation.],
+#table(
+  columns: (1.4fr, auto, auto),
+  [Same model / GPU path], [Prefill pp512], [Generate tg128],
+  table.hline(),
+  [CPU Unikraft], [9.4], [7.4],
+  [VOGUE Unikraft + Venus], [2045.8], [139.3],
+  [Linux VM + Venus], [4948.17], [323.64],
+  [Bare-metal Vulkan], [5586.91], [239.16],
+  table.hline(),
 )
+
+#v(0.2em)
+#text(size: 0.78em)[`pp512` = 512-token prompt ingestion speed. `tg128` = 128-token decode speed. Units: tokens/s.]
+
+- GPU offload is a large jump over CPU-only Unikraft.
+- Linux VM over the same Venus bridge is still faster.
+- The remaining performance difference is in our Vulkan library and driver code.
+
+== The server works
+
+#table(
+  columns: (auto, 1fr),
+  [Server fact], [Current result],
+  table.hline(),
+  [HTTP liveness], [`/health`, `/v1/models`, `/completion` return 200],
+  [Slots configured], [4],
+  [Throughput run], [8 requests at concurrency 1],
+  [Prompt throughput], [146.14 tokens/s during prompt ingestion],
+  [Decode throughput], [25.53 tokens/s during token generation],
+  [TTFT], [4.98 s to first token],
+  [Request rate], [0.159 requests/s in this small burst test],
+  table.hline(),
+)
+
+#textbox[
+  The server now works. The next step is making it faster under real load.
+]

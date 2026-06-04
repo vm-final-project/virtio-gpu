@@ -37,10 +37,10 @@
 
 == Why we use virtio-gpu
 
-Two roads exist — GPU passthrough or para-virtual #bred[virtio-gpu]. We take
+Two roads exist for virtualizing GPUs: GPU passthrough or para-virtual #bred[virtio-gpu]. We take
 virtio-gpu, for two reasons that matter to a #bred[tiny unikernel] specifically:
 
-- A fit for tiny VMs:
+- A natural fit for tiny VMs:
   - one physical GPU #bred[shared] across many guests, especially for lightweight workloads like GUI apps
   - the guest needs only a #bred[thin frontend], so the image stays unikernel-tiny and migratable
 
@@ -78,7 +78,7 @@ virtio-gpu, for two reasons that matter to a #bred[tiny unikernel] specifically:
 
 #v(1.0em)
 
-- thin and close to the metal — the #bred[modern] path, and the one we target
+- the #bred[modern] path, and the one we target
 - the guest only #bred[emits commands] — the real GPU work happens host-side
 
 == What this costs a Linux guest: the tower
