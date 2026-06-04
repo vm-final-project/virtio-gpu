@@ -247,15 +247,24 @@ int uk_ggml_vulkan_dispatch_init(void)
     g_batch_recording = 0;
     uk_venus_encoder_init(&g_batch_enc, g_batch_buf, UK_DISPATCH_BUF_SIZE);
 
-    /* Ring stream model: enabled by default (UK_GGML_VK_DISPATCH_RING != "0").
-     * The ring itself is created LAZILY (uk_dispatch_ring_lazy_init) on the
-     * first command buffer, because the host (virglrenderer Venus) rejects a
-     * host-visible blob until the Venus VkInstance/VkDevice exist — which only
-     * happens after ggml calls vkCreateInstance/vkCreateDevice, well after
-     * this init. */
+    /* Ring stream model: OPT-IN (UK_GGML_VK_DISPATCH_RING=1).
+     *
+     * Measured finding (results/perf/optimization_multienv.md): on this
+     * QEMU 11 + virglrenderer Venus + single-vCPU stack the ring stream
+     * REGRESSES wall-clock throughput (~-84% decode) even though it reduces the
+     * virtqueue submit *count*. Each ring flush still issues a synchronous
+     * vkNotifyRingMESA SUBMIT_3D, and the host ring_thread drain latency
+     * dominates vs the batched SUBMIT_3D path that virglrenderer processes
+     * inline. So the production default is the batched path + the WaitForFences
+     * completed_fence poll + the pause busy-wait (both retained, both wins).
+     * The ring is kept opt-in for stacks where the host ring_thread is cheaper.
+     *
+     * The ring is created LAZILY (uk_dispatch_ring_lazy_init) on the first
+     * command buffer — the host rejects a host-visible blob until the Venus
+     * VkInstance/VkDevice exist (after ggml's vkCreateInstance/Device). */
     {
         const char *r = getenv("UK_GGML_VK_DISPATCH_RING");
-        g_ring_want = !(r && (*r == '0'));
+        g_ring_want = (r && (*r == '1'));
     }
     return 0;
 }
