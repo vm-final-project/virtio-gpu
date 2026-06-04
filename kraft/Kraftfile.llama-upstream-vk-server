@@ -4,7 +4,7 @@ name: vogue-llama-upstream-vk-server
 
 # Upstream llama.cpp Vulkan server-only single-application appliance
 # (llm.server.vk gate). Same Venus dispatch chain as the bench appliance
-# (libukggml_vulkan → libukvenus SUBMIT_3D → virtio-gpu-gl-pci,venus=true);
+# (in-tree ggml-vulkan → libvulkan → libukvulkan_venus SUBMIT_3D → virtio-gpu-gl-pci,venus=true);
 # the only difference is the Kconfig mode, which compiles server.cpp
 # instead of bench.cpp.
 #
@@ -76,9 +76,8 @@ unikraft:
     CONFIG_LIBUKVIRTIO_GPU: 'y'
     CONFIG_LIBUKVIRTIO_GPU_BACKEND_REAL: 'y'
     CONFIG_LIBUKVIRTGPU_DRM: 'y'
-    CONFIG_LIBUKVK_ICD: 'y'
-    CONFIG_LIBUKVENUS: 'y'
-    CONFIG_LIBUKGGML_VULKAN: 'y'
+    CONFIG_LIBUKVULKAN_VENUS: 'y'
+    CONFIG_LIBVULKAN: 'y'
     # posix-socket provides the socket()/bind()/listen()/accept() API the
     # upstream cpp-httplib server references; lwIP (below) is the TCP/IP backend
     # that registers the AF_INET socket family, so the upstream HTTP listener now
@@ -138,11 +137,9 @@ libraries:
     source: ./libs/libukvirtio_gpu
   libukvirtgpu_drm:
     source: ./libs/libukvirtgpu_drm
-  libukvk_icd:
-    source: ./libs/libukvk_icd
-  libukvenus:
-    source: ./libs/libukvenus
-  libukggml_vulkan:
-    source: ./libs/libukggml_vk
+  libukvulkan_venus:
+    source: ./libs/libukvulkan_venus
+  libvulkan:
+    source: ./libs/libvulkan
   app-llama-upstream-vk:
     source: ./apps/app-llama-upstream-vk

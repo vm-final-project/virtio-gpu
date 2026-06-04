@@ -102,7 +102,7 @@ custom compute-remoting ABI.
    - `uk_ggml_vk_loader.cpp`: static dispatcher hook for Vulkan-Hpp,
    - `uk_stdcxx_compat.cpp`: narrow compatibility shims for the Unikraft C++ link.
 3. Route Vulkan calls through existing Unikraft/VOGUE libraries:
-   `libukvenus` -> `libukvirtgpu_drm` -> `libukvirtio_gpu` -> QEMU
+   `libukvulkan_venus` -> `libukvirtgpu_drm` -> `libukvirtio_gpu` -> QEMU
    `virtio-gpu-gl-pci,blob=true,venus=true`.
 4. Do not reintroduce local GGUF/model/llama libraries; upstream llama.cpp owns
    those responsibilities.

@@ -11,7 +11,7 @@
 
 | Row | Status | Claim |
 |-----|--------|-------|
-| `gfx.vkmark` | `pass` | vkmark Unikraft port uses libukvk_icd (vk.icd) over libukvirtgpu_drm (vk.drm-shim); ICD init and Venus context creation PASS; 10 scenes documented with host llvmpipe/NVIDIA baselines |
+| `gfx.vkmark` | `pass` | vkmark Unikraft port uses the native Venus driver (libukvulkan_venus) over libukvirtio_gpu; Venus driver open and context creation PASS; 10 scenes documented with host llvmpipe/NVIDIA baselines |
 
 Current stage: the substrate row passes, but Unikraft-internal vkmark scene FPS
 is still not claimed. The next gate is a QEMU/Venus run with non-empty render
@@ -25,7 +25,7 @@ Full vkmark scene execution is not claimed because it requires the complete Mesa
 
 ## Unikraft build system
 
-- `Config.uk` — declares `CONFIG_APP_VKMARK` and selects `libukvk_icd` (vk.icd), `libukvirtgpu_drm` (vk.drm-shim)
+- `Config.uk` — declares `CONFIG_APP_VKMARK` and selects `libukvulkan_venus` (native Venus driver)
 - `Makefile.uk` — registers with `addlib`, uses `APPVKMARK_*` variables, lists `main.c`; vkmark meson build system is not reproduced
 - `exportsyms.uk` — exports only `main`
 - No dedicated `kraft/Kraftfile.*` — the substrate is exercised through `make vulkan-check` and `make app-multi-env-bench`.

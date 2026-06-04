@@ -10,7 +10,7 @@ without ever booting anything.  Here we actually boot the appliance with:
   -display egl-headless,gl=on                                    (host GPU/EGL)
   -device virtio-9p-pci ... mount_tag=model                      (GGUF delivery)
 
-and route ggml-vulkan -> libukggml_vulkan -> libukvenus SUBMIT_3D -> the host
+and route ggml-vulkan -> libvulkan -> libukvulkan_venus SUBMIT_3D -> the host
 virglrenderer Venus backend -> the host Vulkan driver (NVIDIA on this host).
 
 Honest outcomes (never faked):
@@ -23,7 +23,7 @@ Honest outcomes (never faked):
                                       ggml-vulkan enumerated a Venus device and
                                       reached the host render server, but a Venus
                                       command was rejected / model load failed
-                                      (the libukvk_icd reply-read ICD path is not
+                                      (the legacy reply-read ICD path is not
                                       complete).  Real host-side error retained.
   blocked:no-pass-line                booted past init but no PASS marker
 
@@ -185,7 +185,7 @@ def _emit(status: str, *, log_tail: str = "", extra: dict | None = None,
             "tg128": tg128,
             "accel": throughput.get("accel"),
             "run_log": "results/llama/upstream_vk.log",
-            "transport": "virtio-gpu-gl venus=true; ggml-vulkan -> libukggml_vk -> libukvenus SUBMIT_3D -> host virglrenderer Venus -> host Vulkan driver",
+            "transport": "virtio-gpu-gl venus=true; ggml-vulkan -> in-tree ggml-vulkan -> libvulkan -> libukvulkan_venus SUBMIT_3D -> host virglrenderer Venus -> host Vulkan driver",
             "claim_allowed": ("End-to-end Vulkan compute: the Unikraft guest's ggml-vulkan backend "
                               "offloaded all layers via Venus to the host driver and emitted real "
                               f"tokens for {throughput.get('model')} on {venus_device}."),
@@ -277,7 +277,7 @@ def _attempt(qemu: str, model: Path) -> tuple[str, dict]:
             "capset_venus": True,
             "transport": "virtio-gpu-gl venus=true; vkSetReplyCommandStreamMESA reply round-trip",
             "run_log": "results/llama/upstream_vk.log",
-            "claim_allowed": ("Unikraft libukvk_icd/libukggml_vulkan enumerated a real Venus "
+            "claim_allowed": ("Unikraft libvulkan/libukvulkan_venus enumerated a real Venus "
                               f"physical device ({real_name}) by reading the host reply over Venus."),
             "claim_forbidden": "Vulkan compute execution, llama.cpp tokens, or throughput.",
         })

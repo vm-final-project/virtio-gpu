@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "results" / "llama"
 IMAGE = ROOT / ".unikraft" / "build" / "vogue-llama-upstream-vk_qemu-x86_64"
 DBG = Path(str(IMAGE) + ".dbg")
-MAKEFILE_UK = ROOT / "libs" / "libukggml_vk" / "Makefile.uk"
+MAKEFILE_UK = ROOT / "apps" / "app-llama-upstream-vk" / "Makefile.uk"
 
 
 def _now() -> str:
@@ -68,7 +68,7 @@ def main() -> int:
         "ggml_vk_symbols": syms,
         "ggml_use_vulkan": uses_vulkan,
         "claim_allowed": (f"Upstream ggml Vulkan backend compiles inside the Unikraft clang toolchain and links "
-                          f"into the appliance against libukggml_vk/libukvenus/libukvirtgpu_drm: {syms} ggml_vk_* "
+                          f"into the appliance against in-tree ggml-vulkan/libvulkan/libukvulkan_venus: {syms} ggml_vk_* "
                           f"symbols present with -DGGML_USE_VULKAN=1."),
         "claim_forbidden": "Vulkan execution, llama tokens via GPU, or any throughput claim.",
         "next_step": "Boot under a venus-capable QEMU to advance llm.bench.vk.",

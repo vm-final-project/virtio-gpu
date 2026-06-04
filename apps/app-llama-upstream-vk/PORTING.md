@@ -7,17 +7,17 @@ server-mode entrypoint with `GGML_USE_VULKAN=1`. It does not start a shell or a
 
 ```
 upstream ggml-vulkan.cpp + generated SPIR-V (*.comp.cpp)
-  -> libs/libukggml_vk (static dispatch + loader)
-  -> libs/libukvk_icd (ICD bootstrap, Venus capset probe)
-  -> libs/libukvenus (Venus SUBMIT_3D / ring / wire format)
-  -> libs/libukvirtgpu_drm -> libs/libukvirtio_gpu
+  -> libs/libvulkan (vk* ABI + Vulkan-Hpp dispatch/loader)
+  -> libs/libukvulkan_venus (Venus driver: native device-open bootstrap +
+                             SUBMIT_3D / ring / wire format)
+  -> libs/libukvirtio_gpu
   -> QEMU virtio-gpu-gl-pci,blob=true,venus=true
 ```
 
 ## Upstream provenance
 
 Current stage: the Vulkan bench and server rows pass on the evaluation host.
-After enabling batched Venus submission in `libukggml_vk` and wiring explicit
+After enabling batched Venus submission in `libvulkan` and wiring explicit
 llama.cpp batch controls into the appliance, `llm.bench.vk` now reports
 `pp512=2232.1`, `tg128=160.2` on the latest same-run artifact, with three
 post-change runs under `results/llama/post_opt_runs/` showing a `tg128` median
@@ -47,7 +47,7 @@ cross-host/cross-model throughput claims.
 ```sh
 make llama-env-list                 # contains baremetal+vulkan, qemu+linux+vulkan, qemu+unikraft+vulkan
 make llama-upstream-cmake-vk        # build upstream libllama.a + libggml-vulkan.a with the Unikraft toolchain
-make llama-vulkan-api-coverage      # confirm libukggml_vk matches upstream ggml-vulkan API
+make llama-vulkan-api-coverage      # confirm libvulkan dispatch matches upstream ggml-vulkan API
 ```
 
 ## Stage 1 — Discovery only
@@ -85,8 +85,7 @@ Kraftfiles: `kraft/Kraftfile.llama-upstream-vk{,-server}`. Single entrypoint; no
 External libraries: `lib-musl`, `lib-libcxx`, `lib-libcxxabi`, `lib-libunwind`,
 `lib-compiler-rt`, `lib-pthread-embedded`.
 
-Local libraries (in dependency order): `libukvirtio_gpu`, `libukvirtgpu_drm`, `libukvk_icd`, `libukvenus`,
-`libukggml_vk`.
+Local libraries (in dependency order): `libukvirtio_gpu`, `libukvulkan_venus`, `libvulkan`.
 
 ## Stage 2b host requirement
 
@@ -110,7 +109,7 @@ and the matching `results/llama/upstream_vk.json`,
 ## Porting boundary
 
 - Vulkan/Venus appliance only; CPU work belongs to `app-llama-upstream`.
-- Vulkan calls go through `libukggml_vk` → `libukvk_icd` → `libukvenus`;
+- Vulkan calls go through `libvulkan` → `libukvulkan_venus` (native bootstrap);
   no host Vulkan loader inside the guest.
 - Single-purpose Vulkan bench OR server entrypoint, selected at Kconfig time.
 - No native Unikraft `fork()`/`exec()` supervision; ELF Loader remains
@@ -119,7 +118,7 @@ and the matching `results/llama/upstream_vk.json`,
 ## Unikraft build system
 
 - `Config.uk` declares `CONFIG_APP_LLAMA_UPSTREAM_VK` and selects the
-  Vulkan stack libraries (`libukggml_vk`, `libukvk_icd`, `libukvenus`).
+  Vulkan stack libraries (`libvulkan`, `libukvulkan_venus`) and builds ggml-vulkan in-tree.
 - `Makefile.uk` compiles upstream `ggml-vulkan.cpp` plus the generated
   SPIR-V `*.comp.cpp` blobs from `build-unikraft-vk/`.
 - `exportsyms.uk` exports only `main`.

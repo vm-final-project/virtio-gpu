@@ -19,12 +19,16 @@ LLAMA_COMMON := $(LLAMA_ROOT)/common
 LLAMA_SERVER := $(LLAMA_ROOT)/tools/server
 LLAMA_MTMD   := $(LLAMA_ROOT)/tools/mtmd
 COMPILER_DIR := $(shell clang -print-resource-dir)
+# Pre-generated SPIRV shader sources/header (from the cmake VK cross-build,
+# i.e. `make llama-upstream-cmake-vk` -> build-unikraft-vk) + SPIRV headers.
+GGML_VK_SHADERS ?= $(LLAMA_ROOT)/build-unikraft-vk/ggml/src/ggml-vulkan
+GGML_SPIRV_INC  ?= $(SPIRV_HEADERS_INCLUDE)
 
-# libukggml_vulkan provides: ggml.c, ggml-alloc.c, ggml-backend.cpp,
-# ggml-backend-meta.cpp, ggml-quants.c, ggml-threading.cpp, gguf.cpp,
-# ggml-vulkan.cpp, and all SPIRV shader blobs.
-# This app adds: ggml-cpu backend, ggml-backend-dl/reg, llama.cpp sources.
-# Do NOT duplicate any source that libukggml_vulkan already compiles.
+# This app builds the upstream ggml stack IN-TREE (the former libukggml_vk build
+# helper was retired): ggml core + ggml-vulkan.cpp + SPIRV shader blobs (below),
+# the ggml-cpu backend, ggml-backend-dl/reg, and the llama.cpp sources. The
+# application-facing vk* ABI is owned by libvulkan (CONFIG_LIBVULKAN), which
+# this app selects; ggml-vulkan.cpp resolves its vk* calls there at final link.
 
 # Include paths
 # compat/ provides Unikraft/musl build shims for upstream Linux-isms (e.g.
@@ -38,7 +42,8 @@ APPLLAMA_UPSTREAM_VK_CXXINCLUDES-y += -I$(LLAMA_ROOT)/include -I$(LLAMA_SRC) \
                                       -I$(LLAMA_SERVER) -I$(LLAMA_MTMD) \
                                       -I$(APPLLAMA_UPSTREAM_VK_BASE) \
                                       -I$(GGML_INC) -I$(GGML_SRC) -I$(GGML_SRC)/ggml-cpu \
-                                      -I$(APPLLAMA_UPSTREAM_VK_BASE)/../../libs/libukggml_vk/include
+                                      -I$(GGML_SRC)/ggml-vulkan -I$(GGML_SPIRV_INC) -I$(GGML_VK_SHADERS) \
+                                      -I$(APPLLAMA_UPSTREAM_VK_BASE)/../../libs/libvulkan/include
 
 # See apps/app-llama-upstream/Makefile.uk for the COLD / HOT flag rationale.
 # P2 (plan-optimize.md): explicit + overridable target CPU arch (see the CPU
@@ -77,9 +82,11 @@ APPLLAMA_UPSTREAM_VK_CXXFLAGS-$(CONFIG_APP_LLAMA_UPSTREAM_VK_MODE_SERVER) += -iq
 # where binutils rejects it for lacking an entry-point root.
 APPLLAMA_UPSTREAM_VK_LDFLAGS-y  += -Wl,--build-id=none -Wl,--hash-style=gnu
 
-# Per-file HOT overrides; same set as the CPU appliance plus ggml-vulkan, which
-# libukggml_vk pulls in. (libukggml_vk owns ggml-vulkan; flags there are
-# governed by its own Makefile.uk.)
+# Per-file HOT overrides; same set as the CPU appliance plus the ggml core and
+# ggml-vulkan compute sources now built in-tree by this app (GGML, GGML_QUANTS,
+# GGML_VULKAN).
+APPLLAMA_UPSTREAM_VK_GGML_FLAGS-y          += $(APPLLAMA_UPSTREAM_VK_HOT_FLAGS)
+APPLLAMA_UPSTREAM_VK_GGML_VULKAN_FLAGS-y   += $(APPLLAMA_UPSTREAM_VK_HOT_FLAGS)
 APPLLAMA_UPSTREAM_VK_GGML_CPU_FLAGS-y      += $(APPLLAMA_UPSTREAM_VK_HOT_FLAGS)
 APPLLAMA_UPSTREAM_VK_QUANTS_FLAGS-y        += $(APPLLAMA_UPSTREAM_VK_HOT_FLAGS)
 APPLLAMA_UPSTREAM_VK_BINARY_OPS_FLAGS-y    += $(APPLLAMA_UPSTREAM_VK_HOT_FLAGS)
@@ -108,7 +115,23 @@ APPLLAMA_UPSTREAM_VK_LLAMA_MODEL_FLAGS-y   += $(APPLLAMA_UPSTREAM_VK_HOT_FLAGS)
 APPLLAMA_UPSTREAM_VK_SRCS-$(CONFIG_APP_LLAMA_UPSTREAM_VK_MODE_BENCH)  += $(APPLLAMA_UPSTREAM_VK_BASE)/bench.cpp
 APPLLAMA_UPSTREAM_VK_SRCS-$(CONFIG_APP_LLAMA_UPSTREAM_VK_MODE_SERVER) += $(APPLLAMA_UPSTREAM_VK_BASE)/server.cpp
 
-# ── ggml-cpu backend (not provided by libukggml_vulkan) ───────────────────────
+# ── ggml core + Vulkan backend (formerly libukggml_vk, now built in-tree) ─────
+# Compiled IN-TREE with Unikraft's clang + libc++ to avoid ABI mismatches from
+# prebuilt GCC/libstdc++ archives. ggml.cpp (std::set_terminate handler) is
+# intentionally OMITTED — unused in Unikraft.
+APPLLAMA_UPSTREAM_VK_SRCS-y += $(GGML_SRC)/ggml.c
+APPLLAMA_UPSTREAM_VK_SRCS-y += $(GGML_SRC)/ggml-alloc.c
+APPLLAMA_UPSTREAM_VK_SRCS-y += $(GGML_SRC)/ggml-backend.cpp
+APPLLAMA_UPSTREAM_VK_SRCS-y += $(GGML_SRC)/ggml-backend-meta.cpp
+APPLLAMA_UPSTREAM_VK_SRCS-y += $(GGML_SRC)/ggml-quants.c
+APPLLAMA_UPSTREAM_VK_SRCS-y += $(GGML_SRC)/ggml-threading.cpp
+APPLLAMA_UPSTREAM_VK_SRCS-y += $(GGML_SRC)/gguf.cpp
+# Vulkan backend (in-tree — avoids libstdc++ vtable/typeinfo ABI mismatch).
+APPLLAMA_UPSTREAM_VK_SRCS-y += $(GGML_SRC)/ggml-vulkan/ggml-vulkan.cpp
+# Pre-compiled SPIRV shader blobs referenced by ggml-vulkan-shaders.hpp.
+APPLLAMA_UPSTREAM_VK_SRCS-y += $(wildcard $(GGML_VK_SHADERS)/*.comp.cpp)
+
+# ── ggml-cpu backend ──────────────────────────────────────────────────────────
 APPLLAMA_UPSTREAM_VK_SRCS-y += $(APPLLAMA_UPSTREAM_VK_BASE)/../../apps/app-llama-upstream/ggml-cpu-cpp.cpp
 APPLLAMA_UPSTREAM_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/ggml-cpu.c
 APPLLAMA_UPSTREAM_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/quants.c
@@ -124,7 +147,7 @@ APPLLAMA_UPSTREAM_VK_SRCS-y += $(APPLLAMA_UPSTREAM_VK_BASE)/../../apps/app-llama
 APPLLAMA_UPSTREAM_VK_SRCS-y += $(APPLLAMA_UPSTREAM_VK_BASE)/../../apps/app-llama-upstream/x86-repack.cpp
 APPLLAMA_UPSTREAM_VK_SRCS-y += $(APPLLAMA_UPSTREAM_VK_BASE)/../../apps/app-llama-upstream/x86-cpu-feats.cpp
 
-# ggml-opt and backend registry (omitted from libukggml_vulkan)
+# ggml-opt and backend registry (omitted from the in-tree ggml build above)
 APPLLAMA_UPSTREAM_VK_SRCS-y += $(GGML_SRC)/ggml-opt.cpp
 APPLLAMA_UPSTREAM_VK_SRCS-y += $(GGML_SRC)/ggml-backend-dl.cpp
 APPLLAMA_UPSTREAM_VK_SRCS-y += $(GGML_SRC)/ggml-backend-reg.cpp

@@ -9,7 +9,7 @@
     },
     "VENUS_PROTOCOL_ROOT": {
       "default": "../venus-protocol",
-      "description": "Sibling Mesa venus-protocol checkout. Used by scripts/gen_libukvenus.py to generate libukvenus encoders.",
+      "description": "Sibling Mesa venus-protocol checkout. Used by scripts/gen_libukvenus.py to generate libukvulkan_venus encoders.",
       "env": "VENUS_PROTOCOL_ROOT"
     },
     "VULKAN_HEADERS_INCLUDE": {

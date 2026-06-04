@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generator scaffold for libs/libukvenus, modeled on venus-protocol.
+"""Generator scaffold for libs/libukvulkan_venus, modeled on venus-protocol.
 
 `venus-protocol` (in this repository's sibling tree) walks `xmls/vk.xml` plus
 `VK_MESA_venus_protocol.xml` / `VK_EXT_command_serialization.xml`, then renders
@@ -17,9 +17,9 @@ needs to do to fully replace hand-written encoder code is:
   2. Symlink/copy the upstream `xmls/` into `scripts/venus/xmls/` so the
      generator can be re-run offline.
   3. Add Mako templates under `scripts/venus/templates/` that emit:
-         libs/libukvenus/include/uk/venus_protocol.h
-         libs/libukvenus/include/uk/venus_dispatch.h
-         libs/libukvenus/generated/venus_cs_encode.c
+         libs/libukvulkan_venus/include/uk/venus_protocol.h
+         libs/libukvulkan_venus/include/uk/venus_dispatch.h
+         libs/libukvulkan_venus/generated/venus_cs_encode.c
      Only Venus-encoder slices we actually use (instance/device/command-buffer/
      pipeline) should be enabled in `VK_XML_EXTENSION_LIST` to keep the
      resulting image minimal.
@@ -47,7 +47,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-LIBVENUS = ROOT / "libs" / "libukvenus"
+LIBVENUS = ROOT / "libs" / "libukvulkan_venus"
 OUTDIR = LIBVENUS / "generated"
 
 # The pinned upstream generator commit + slice config is the single source of
@@ -72,9 +72,9 @@ def cmd_plan(_args: argparse.Namespace) -> int:
             "selftest": "gen-libukvenus-selftest",
         },
         "notes": [
-            "Driver headers are committed verbatim under libs/libukvenus/generated/ "
+            "Driver headers are committed verbatim under libs/libukvulkan_venus/generated/ "
             "with a sha256 GENERATED.lock; gen-libukvenus-verify gates governance-check.",
-            "The in-image encoders in libs/libukvenus/{venus_cs,venus_compute}.c are "
+            "The in-image encoders in libs/libukvulkan_venus/{venus_cs,venus_compute}.c are "
             "byte-for-byte parity-locked to the generated reference (make -C tests "
             "venus-parity); they are not regenerated into the image. See GENERATOR.md.",
         ],

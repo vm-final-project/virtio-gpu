@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-03T12:27:44.183160Z",
+    "generated_utc": "2026-06-04T09:57:29.394947Z",
     "source": "scripts/model_load_time_check.py",
     "principle": "plan-optimize.md L1.4 \u2014 huge-page mmap loader gate; use_mmap=False until lib-9pfs grows mmap support."
   },
@@ -38,7 +38,7 @@
       "status": "pass",
       "use_mmap": false,
       "huge_pages": false,
-      "elapsed_ms": 5935.26,
+      "elapsed_ms": 8505.51,
       "model_path": "/mnt/model/model.gguf"
     }
   ]

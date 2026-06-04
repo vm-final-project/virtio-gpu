@@ -1,6 +1,6 @@
 /*
  * Shared helpers for the Vulkan/Venus bench and server single-purpose
- * appliances. Both modes route through libukggml_vk → libukvenus → QEMU
+ * appliances. Both modes route through libvulkan → libukvulkan_venus → QEMU
  * virtio-gpu-gl-pci,venus=true.
  */
 #pragma once
@@ -19,7 +19,7 @@ extern "C" {
 }
 
 #include "llama.h"
-#include <uk/ggml_vulkan.h>
+#include <uk/vulkan.h>
 
 #ifndef CONFIG_APP_LLAMA_UPSTREAM_VK_THREADS
 #define CONFIG_APP_LLAMA_UPSTREAM_VK_THREADS 1
@@ -66,7 +66,7 @@ static inline llama_model *load_model_vk(const char *model_path, const char *tag
         return nullptr;
     }
 
-    if (uk_ggml_vulkan_dispatch_init() != 0) {
+    if (uk_vulkan_init() != 0) {
         uk_printf("%s: FAIL dispatch_init failed\n", tag);
         return nullptr;
     }

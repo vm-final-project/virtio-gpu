@@ -10,7 +10,7 @@ from _runner import run  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 GEN = ROOT / "scripts/gen_libukvenus.py"
-OUTDIR = ROOT / "libs/libukvenus/generated"
+OUTDIR = ROOT / "libs/libukvulkan_venus/generated"
 
 
 def _gen():

@@ -1,18 +1,19 @@
 config APP_LLAMA_UPSTREAM_VK
 	bool "app-llama-upstream-vk: upstream llama.cpp Vulkan/Venus single-application appliance"
 	default n
-	select LIBUKGGML_VULKAN
+	select LIBVULKAN
 	select LIBMUSL
 	select LIBCXX
 	select LIBCXXABI
 	select LIBUNWIND
 	select LIBPTHREAD_EMBEDDED
 	help
-	  Upstream llama.cpp Vulkan path. Uses the VULKAN_HPP_DEFAULT_DISPATCHER
-	  wired via libukggml_vulkan, routes through libukvenus SUBMIT_3D → QEMU
-	  virtio-gpu-gl-pci,venus=true → host Vulkan ICD. Single-purpose: choose
-	  bench-only or server-only at Kconfig time; the unused source file is
-	  excluded from the build.
+	  Upstream llama.cpp Vulkan path. Builds the upstream ggml stack
+	  (ggml core + ggml-vulkan.cpp + SPIRV shader blobs) in-tree and uses the
+	  VULKAN_HPP_DEFAULT_DISPATCHER wired via libvulkan, routing through the
+	  libukvulkan_venus Venus driver SUBMIT_3D → QEMU virtio-gpu-gl-pci,venus=true
+	  → host Vulkan driver. Single-purpose: choose bench-only or server-only at
+	  Kconfig time; the unused source file is excluded from the build.
 
 choice
 	prompt "Rootfs transport"

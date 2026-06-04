@@ -38,7 +38,7 @@ VENUS_PROTOCOL_ROOT    ?= $(realpath $(CURDIR)/../venus-protocol)
 VULKAN_HEADERS_INCLUDE ?= $(realpath $(CURDIR)/../Vulkan-Headers/include)
 SPIRV_HEADERS_INCLUDE  ?= $(realpath $(CURDIR)/../SPIRV-Headers/include)
 # Host Vulkan loader; only satisfies ggml-vulkan's find_package(Vulkan) during
-# the static cross-build. Symbols come from libukggml_vk at the unikernel link,
+# the static cross-build. Symbols come from the in-tree ggml-vulkan build (in app-llama-upstream-vk)
 # so this library is never pulled into the static archives.
 VK_LIB                 ?= /usr/lib/x86_64-linux-gnu/libvulkan.so.1
 # Parallelism for the upstream llama.cpp cross-builds. Capped (not raw nproc):
@@ -493,7 +493,7 @@ llm-server-vk-throughput-check:
 # ============================================================================
 # Generators & dependency graph
 # ============================================================================
-# libukvenus encoder generator (delegates to ../venus-protocol/vn_protocol.py).
+# libukvulkan_venus encoder generator (delegates to ../venus-protocol/vn_protocol.py).
 gen-libukvenus-plan:
 	python3 scripts/gen_libukvenus.py plan
 
@@ -536,6 +536,6 @@ paper-check:
 clean:
 	$(MAKE) -C tests clean
 	rm -f paper/vogue-paper.pdf
-	# libs/libukvenus/generated/ is committed verbatim (sha256 GENERATED.lock,
+	# libs/libukvulkan_venus/generated/ is committed verbatim (sha256 GENERATED.lock,
 	# gated by gen-libukvenus-verify) — regenerate with `make gen-libukvenus`,
 	# never `clean`-delete it.

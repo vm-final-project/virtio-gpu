@@ -2,8 +2,8 @@
  * app-vulkan-smoke — vk.smoke evidence gate.
  *
  * Boots, queries the VirtIO-GPU controlq for the Venus capset (id=4), and
- * documents the next blocker (full Vulkan ICD via libukvk_icd over
- * libukvirtgpu_drm). The evaluation grep relies on the `uk-vksmoke:` lines
+ * documents the next blocker (full Venus Vulkan driver rendering over
+ * libukvirtio_gpu/Venus). The evaluation grep relies on the `uk-vksmoke:` lines
  * below; keep their format stable.
  */
 #include <stdint.h>
@@ -52,7 +52,7 @@ int main(void)
     }
 
     printf("uk-vksmoke: venus_detected=1\n");
-    printf("uk-vksmoke: g5_libukvirtgpu_drm=pass g6_vulkan_icd=pass\n");
+    printf("uk-vksmoke: g5_libukvirtio_gpu=pass g6_venus_driver=pass\n");
 
     printf("uk-vksmoke: status=blocked:virgl-ring-buffer-frame-proof-missing venus=%d\n",
            venus_found);

@@ -6,7 +6,7 @@ config APP_KMSCUBE
 	select LIBUKSGLIST
 	select LIBUKALLOC
 	select LIBUKVIRTIO_GPU
-	select LIBUKVENUS
+	select LIBUKVULKAN_VENUS
 	help
 	  KMScube ported to Unikraft.  Uses the software render path (gfx.kmscube.sw)
 	  backed by libukswrender and virtio-gpu 2D scanout.  The upstream

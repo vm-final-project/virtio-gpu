@@ -1,0 +1,24 @@
+$(eval $(call addlib,libukvulkan_venus))
+
+# Venus Vulkan driver implementation. venus_init.c is the driver
+# bootstrap/context/ring setup; venus_cs.c / venus_compute.c are the
+# generated-protocol bridges; vn_ring_shim.c is the Venus ring transport.
+LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/venus_driver.c
+LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/venus_cs.c
+LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/venus_init.c
+LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/venus_compute.c
+LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/vn_ring_shim.c
+
+LIBUKVULKAN_VENUS_CINCLUDES-y += -I$(LIBUKVULKAN_VENUS_BASE)/include
+LIBUKVULKAN_VENUS_CINCLUDES-y += -I$(LIBUKVIRTIO_GPU_BASE)/include
+
+# The in-image encoders route Vulkan calls through the driver headers generated
+# from the pinned ../venus-protocol (see GENERATOR.md). Those headers + the
+# vn_cs/vn_ring shim need the bare include dir, the generated dir, and stock
+# Vulkan headers (VULKAN_HEADERS_INCLUDE, the same set libvulkan uses).
+VULKAN_HEADERS_INCLUDE ?= $(LIBUKVULKAN_VENUS_BASE)/../../../Vulkan-Headers/include
+LIBUKVULKAN_VENUS_CINCLUDES-y += -I$(LIBUKVULKAN_VENUS_BASE)/include/uk
+LIBUKVULKAN_VENUS_CINCLUDES-y += -I$(LIBUKVULKAN_VENUS_BASE)/generated
+LIBUKVULKAN_VENUS_CINCLUDES-y += -I$(VULKAN_HEADERS_INCLUDE)
+# Generated encoders are upstream-shaped; silence their stylistic warnings.
+LIBUKVULKAN_VENUS_CFLAGS-y += -Wno-unused-parameter -Wno-missing-field-initializers

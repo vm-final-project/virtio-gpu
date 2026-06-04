@@ -25,7 +25,7 @@ _MESA_ROOT           = Path(os.environ.get('MESA_ROOT')           or (_REPO / 'm
 VULKAN_DOCS_XML    = _VULKAN_DOCS_ROOT / 'xml/vk.xml'
 MESA_VENUS_DEFINES = _MESA_ROOT / 'src/virtio/venus-protocol/vn_protocol_driver_defines.h'
 VENUS_PROTOCOL_XML = _VENUS_PROTOCOL_ROOT / 'xmls/VK_EXT_command_serialization.xml'
-HEADER = ROOT / 'libs/libukvenus/include/uk/venus.h'
+HEADER = ROOT / 'libs/libukvulkan_venus/include/uk/venus.h'
 OUT = ROOT / 'results/vulkan'
 
 COMMANDS = {

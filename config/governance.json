@@ -117,7 +117,7 @@
     },
     "app-llama-upstream-vk": {
       "status": "canonical",
-      "purpose": "Upstream llama.cpp Vulkan/Venus single-application appliance; uses libukggml_vulkan for static ggml-vulkan dispatch.",
+      "purpose": "Upstream llama.cpp Vulkan/Venus single-application appliance; builds upstream ggml-vulkan in-tree and dispatches through libvulkan + the libukvulkan_venus Venus driver.",
       "verification": [
         "llama-env-check",
         "llama-vulkan-api-coverage",
@@ -140,13 +140,14 @@
       ],
       "boundary": "Owns device protocol/controlq; must not expose backend-specific hacks as app API."
     },
-    "libukvenus": {
-      "owner": "Venus protocol",
+    "libukvulkan_venus": {
+      "owner": "Venus Vulkan driver implementation",
       "api_stability": "experimental",
       "public_headers": [
+        "include/uk/vulkan_venus.h",
         "include/uk/venus.h"
       ],
-      "boundary": "Must not be a dependency of CPU-only paths."
+      "boundary": "Unikraft-native Venus Vulkan driver behind libvulkan; owns Venus protocol encode/decode, queue/ring/reply and memory policy. Must not export the public vk* ABI (libvulkan owns it) or compile ggml/llama runtime. Must not be a dependency of CPU-only paths."
     },
     "libukvirtgpu_drm": {
       "owner": "DRM virtgpu shim",
@@ -180,14 +181,6 @@
       ],
       "boundary": "Bootstrap surface only; not a Mesa reimplementation."
     },
-    "libukvk_icd": {
-      "owner": "Vulkan ICD bootstrap",
-      "api_stability": "experimental",
-      "public_headers": [
-        "include/uk/vulkan_icd.h"
-      ],
-      "boundary": "Static ICD/bootstrap surface; not Vulkan conformance."
-    },
     "libukswrender": {
       "owner": "software renderer",
       "api_stability": "stable-small",
@@ -196,13 +189,14 @@
       ],
       "boundary": "Software-render substrate only; not acceleration evidence."
     },
-    "libukggml_vk": {
-      "owner": "upstream ggml-vulkan support",
+    "libvulkan": {
+      "owner": "application-facing Vulkan ABI/runtime",
       "api_stability": "experimental",
       "public_headers": [
-        "include/uk/ggml_vulkan.h"
+        "include/uk/vulkan.h",
+        "include/vulkan/vulkan.h"
       ],
-      "boundary": "Only static Vulkan/Venus dispatch and upstream ggml-vulkan/SPIR-V integration glue; no custom llama/ggml/model framework or throughput claim without runtime evidence."
+      "boundary": "Owns the exported vk* ABI, vkGet*ProcAddr, Vulkan-Hpp dispatcher glue, and common runtime state for a compute-first Vulkan API subset. Dispatches to the statically linked Venus driver (libukvulkan_venus). Must not own the Venus wire format, VirtIO-GPU probing, Linux DRM compatibility, or ggml/GGUF/llama runtime. Not full Vulkan and not Vulkan conformance."
     }
   },
   "release_claims": [

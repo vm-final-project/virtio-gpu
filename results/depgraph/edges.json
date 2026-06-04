@@ -3,27 +3,27 @@
   "provenance": {
     "linux": "83657f418",
     "qemu": "6e9a825c",
-    "vogue": "d2cab02"
+    "vogue": "c031922"
   },
   "counts": {
-    "nodes": 64,
-    "edges": 114,
-    "build": 52,
-    "compile": 52,
+    "nodes": 62,
+    "edges": 110,
+    "build": 51,
+    "compile": 49,
     "runtime": 10
   },
   "runtime_citations": [
     {
-      "src": "vogue:libukggml_vk",
-      "dst": "vogue:libukvenus",
+      "src": "vogue:libvulkan",
+      "dst": "vogue:libukvulkan_venus",
       "label": "vk cmd encode",
-      "cite": "libukggml_vk static dispatch -> libukvenus encoder"
+      "cite": "libvulkan vk* dispatch -> libukvulkan_venus Venus driver"
     },
     {
-      "src": "vogue:libukvenus",
+      "src": "vogue:libukvulkan_venus",
       "dst": "vogue:libukvirtio_gpu",
       "label": "VENUS ring submit",
-      "cite": "libukvenus ring -> virtqueue kick"
+      "cite": "libukvulkan_venus ring -> virtqueue kick"
     },
     {
       "src": "vogue:libukvirtgpu_drm",
@@ -38,7 +38,7 @@
       "cite": "control queue add_buf/kick"
     },
     {
-      "src": "vogue:libukvenus",
+      "src": "vogue:libukvulkan_venus",
       "dst": "seam:venus-ring",
       "label": "VK command stream",
       "cite": "Venus ring shared buffer"
@@ -112,50 +112,8 @@
       "role": "lib"
     },
     {
-      "id": "vogue:libukggml_vk",
-      "label": "libukggml_vk",
-      "repo": "vogue",
-      "role": "lib"
-    },
-    {
-      "id": "vogue:ext:LIBUKVENUS",
-      "label": "LIBUKVENUS",
-      "repo": "vogue",
-      "role": "ext"
-    },
-    {
-      "id": "vogue:ext:LIBUKVIRTGPU_DRM",
-      "label": "LIBUKVIRTGPU_DRM",
-      "repo": "vogue",
-      "role": "ext"
-    },
-    {
-      "id": "vogue:ext:LIBUKVK_ICD",
-      "label": "LIBUKVK_ICD",
-      "repo": "vogue",
-      "role": "ext"
-    },
-    {
-      "id": "vogue:ext:LIBUKLOCK",
-      "label": "LIBUKLOCK",
-      "repo": "vogue",
-      "role": "ext"
-    },
-    {
-      "id": "vogue:ext:LIBUKLOCK_MUTEX",
-      "label": "LIBUKLOCK_MUTEX",
-      "repo": "vogue",
-      "role": "ext"
-    },
-    {
       "id": "vogue:libukswrender",
       "label": "libukswrender",
-      "repo": "vogue",
-      "role": "lib"
-    },
-    {
-      "id": "vogue:libukvenus",
-      "label": "libukvenus",
       "repo": "vogue",
       "role": "lib"
     },
@@ -190,8 +148,38 @@
       "role": "ext"
     },
     {
-      "id": "vogue:libukvk_icd",
-      "label": "libukvk_icd",
+      "id": "vogue:ext:LIBUKLOCK",
+      "label": "LIBUKLOCK",
+      "repo": "vogue",
+      "role": "ext"
+    },
+    {
+      "id": "vogue:ext:LIBUKLOCK_MUTEX",
+      "label": "LIBUKLOCK_MUTEX",
+      "repo": "vogue",
+      "role": "ext"
+    },
+    {
+      "id": "vogue:libukvulkan_venus",
+      "label": "libukvulkan_venus",
+      "repo": "vogue",
+      "role": "lib"
+    },
+    {
+      "id": "vogue:ext:LIBUKVULKAN_VENUS",
+      "label": "LIBUKVULKAN_VENUS",
+      "repo": "vogue",
+      "role": "ext"
+    },
+    {
+      "id": "vogue:ext:LIBUKVIRTGPU_DRM",
+      "label": "LIBUKVIRTGPU_DRM",
+      "repo": "vogue",
+      "role": "ext"
+    },
+    {
+      "id": "vogue:libvulkan",
+      "label": "libvulkan",
       "repo": "vogue",
       "role": "lib"
     },
@@ -511,57 +499,8 @@
       "label": "select"
     },
     {
-      "src": "vogue:libukggml_vk",
-      "dst": "vogue:ext:LIBUKVENUS",
-      "kind": "build",
-      "repo": "vogue",
-      "label": "select"
-    },
-    {
-      "src": "vogue:libukggml_vk",
-      "dst": "vogue:libukvirtio_gpu",
-      "kind": "build",
-      "repo": "vogue",
-      "label": "select"
-    },
-    {
-      "src": "vogue:libukggml_vk",
-      "dst": "vogue:ext:LIBUKVIRTGPU_DRM",
-      "kind": "build",
-      "repo": "vogue",
-      "label": "select"
-    },
-    {
-      "src": "vogue:libukggml_vk",
-      "dst": "vogue:ext:LIBUKVK_ICD",
-      "kind": "build",
-      "repo": "vogue",
-      "label": "select"
-    },
-    {
-      "src": "vogue:libukggml_vk",
-      "dst": "vogue:ext:LIBUKLOCK",
-      "kind": "build",
-      "repo": "vogue",
-      "label": "select"
-    },
-    {
-      "src": "vogue:libukggml_vk",
-      "dst": "vogue:ext:LIBUKLOCK_MUTEX",
-      "kind": "build",
-      "repo": "vogue",
-      "label": "select"
-    },
-    {
       "src": "vogue:libukswrender",
       "dst": "vogue:ext:LIBMUSL",
-      "kind": "build",
-      "repo": "vogue",
-      "label": "select"
-    },
-    {
-      "src": "vogue:libukvenus",
-      "dst": "vogue:libukvirtio_gpu",
       "kind": "build",
       "repo": "vogue",
       "label": "select"
@@ -623,8 +562,50 @@
       "label": "select"
     },
     {
-      "src": "vogue:libukvk_icd",
+      "src": "vogue:libukvulkan_venus",
+      "dst": "vogue:libukvirtio_gpu",
+      "kind": "build",
+      "repo": "vogue",
+      "label": "select"
+    },
+    {
+      "src": "vogue:libukvulkan_venus",
+      "dst": "vogue:ext:LIBUKVULKAN_VENUS",
+      "kind": "build",
+      "repo": "vogue",
+      "label": "select"
+    },
+    {
+      "src": "vogue:libukvulkan_venus",
       "dst": "vogue:ext:LIBUKVIRTGPU_DRM",
+      "kind": "build",
+      "repo": "vogue",
+      "label": "select"
+    },
+    {
+      "src": "vogue:libvulkan",
+      "dst": "vogue:ext:LIBUKVULKAN_VENUS",
+      "kind": "build",
+      "repo": "vogue",
+      "label": "select"
+    },
+    {
+      "src": "vogue:libvulkan",
+      "dst": "vogue:libukvirtio_gpu",
+      "kind": "build",
+      "repo": "vogue",
+      "label": "select"
+    },
+    {
+      "src": "vogue:libvulkan",
+      "dst": "vogue:ext:LIBUKLOCK",
+      "kind": "build",
+      "repo": "vogue",
+      "label": "select"
+    },
+    {
+      "src": "vogue:libvulkan",
+      "dst": "vogue:ext:LIBUKLOCK_MUTEX",
       "kind": "build",
       "repo": "vogue",
       "label": "select"
@@ -658,34 +639,6 @@
       "label": "uk/drm_compat.h"
     },
     {
-      "src": "vogue:libukggml_vk",
-      "dst": "vogue:libukvirtio_gpu",
-      "kind": "compile",
-      "repo": "vogue",
-      "label": "uk/virtio_gpu.h"
-    },
-    {
-      "src": "vogue:libukggml_vk",
-      "dst": "vogue:libukvirtgpu_drm",
-      "kind": "compile",
-      "repo": "vogue",
-      "label": "uk/drm_virtgpu.h"
-    },
-    {
-      "src": "vogue:libukggml_vk",
-      "dst": "vogue:libukvenus",
-      "kind": "compile",
-      "repo": "vogue",
-      "label": "uk/venus.h"
-    },
-    {
-      "src": "vogue:libukvenus",
-      "dst": "vogue:libukvirtio_gpu",
-      "kind": "compile",
-      "repo": "vogue",
-      "label": "uk/virtio_gpu.h"
-    },
-    {
       "src": "vogue:libukvirtgpu_drm",
       "dst": "vogue:libukvirtio_gpu",
       "kind": "compile",
@@ -693,18 +646,25 @@
       "label": "uk/virtio_gpu.h"
     },
     {
-      "src": "vogue:libukvk_icd",
-      "dst": "vogue:libukvirtgpu_drm",
-      "kind": "compile",
-      "repo": "vogue",
-      "label": "uk/drm_virtgpu.h"
-    },
-    {
-      "src": "vogue:libukvk_icd",
+      "src": "vogue:libukvulkan_venus",
       "dst": "vogue:libukvirtio_gpu",
       "kind": "compile",
       "repo": "vogue",
       "label": "uk/virtio_gpu.h"
+    },
+    {
+      "src": "vogue:libvulkan",
+      "dst": "vogue:libukvirtio_gpu",
+      "kind": "compile",
+      "repo": "vogue",
+      "label": "uk/virtio_gpu.h"
+    },
+    {
+      "src": "vogue:libvulkan",
+      "dst": "vogue:libukvulkan_venus",
+      "kind": "compile",
+      "repo": "vogue",
+      "label": "uk/vulkan_venus.h"
     },
     {
       "src": "linux:virtgpu_drv",
@@ -1190,14 +1150,14 @@
       "label": "gated-by"
     },
     {
-      "src": "vogue:libukggml_vk",
-      "dst": "vogue:libukvenus",
+      "src": "vogue:libvulkan",
+      "dst": "vogue:libukvulkan_venus",
       "kind": "runtime",
       "repo": "seam",
       "label": "vk cmd encode"
     },
     {
-      "src": "vogue:libukvenus",
+      "src": "vogue:libukvulkan_venus",
       "dst": "vogue:libukvirtio_gpu",
       "kind": "runtime",
       "repo": "seam",
@@ -1218,7 +1178,7 @@
       "label": "VIRTIO_GPU_CMD_*"
     },
     {
-      "src": "vogue:libukvenus",
+      "src": "vogue:libukvulkan_venus",
       "dst": "seam:venus-ring",
       "kind": "runtime",
       "repo": "seam",

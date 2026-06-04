@@ -3,7 +3,7 @@ spec: v0.6
 name: vogue-llama-upstream-vk
 
 # Upstream llama.cpp Vulkan bench-only single-application appliance
-# (llm.bench.vk gate). Routes through libukggml_vulkan → libukvenus SUBMIT_3D
+# (llm.bench.vk gate). Routes through in-tree ggml-vulkan → libvulkan → libukvulkan_venus SUBMIT_3D
 # → QEMU virtio-gpu-gl-pci,venus=true.
 
 unikraft:
@@ -47,9 +47,8 @@ unikraft:
     CONFIG_LIBUKVIRTIO_GPU: 'y'
     CONFIG_LIBUKVIRTIO_GPU_BACKEND_REAL: 'y'
     CONFIG_LIBUKVIRTGPU_DRM: 'y'
-    CONFIG_LIBUKVK_ICD: 'y'
-    CONFIG_LIBUKVENUS: 'y'
-    CONFIG_LIBUKGGML_VULKAN: 'y'
+    CONFIG_LIBUKVULKAN_VENUS: 'y'
+    CONFIG_LIBVULKAN: 'y'
 
 targets:
   - qemu/x86_64
@@ -69,11 +68,9 @@ libraries:
     source: ./libs/libukvirtio_gpu
   libukvirtgpu_drm:
     source: ./libs/libukvirtgpu_drm
-  libukvk_icd:
-    source: ./libs/libukvk_icd
-  libukvenus:
-    source: ./libs/libukvenus
-  libukggml_vulkan:
-    source: ./libs/libukggml_vk
+  libukvulkan_venus:
+    source: ./libs/libukvulkan_venus
+  libvulkan:
+    source: ./libs/libvulkan
   app-llama-upstream-vk:
     source: ./apps/app-llama-upstream-vk

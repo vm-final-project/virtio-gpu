@@ -1,7 +1,7 @@
 /*
  * ggml_vk_dispatch_test.c — N3 static Vulkan ICD dispatch layer test.
  *
- * Tests the libukggml_vulkan static Vulkan dispatch layer that backs
+ * Tests the libvulkan static Vulkan dispatch layer that backs
  * ggml-vulkan.cpp inside Unikraft without dlopen/libvulkan.so.
  *
  * Test groups:
@@ -10,7 +10,7 @@
  *      non-NULL for every registered function; unknown names return NULL.
  *      No VirtIO-GPU device required.
  *
- *   B. Init          — uk_ggml_vulkan_dispatch_init() against the fake
+ *   B. Init          — uk_vulkan_init() against the fake
  *      VirtIO-GPU backend.  Idempotency and get_proc_addr_fn().
  *
  *   C. Call stubs    — Call each compute-path Vulkan function through the
@@ -40,8 +40,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <uk/ggml_vulkan.h>
-#include <uk/vulkan_icd.h>
+#include <uk/vulkan.h>
+#include <uk/vulkan_venus.h>
 #include <uk/virtio_gpu.h>
 
 /* ── Minimal Vulkan ABI types (must not include vulkan.h to avoid conflicts) */
@@ -208,12 +208,12 @@ static void test_proc_lookup(void)
     CHECK_NULL("devproc:unknown returns NULL",
                vkGetDeviceProcAddr((VkDevice)VK_NULL_HANDLE, "vkNoSuchFn"));
 
-    /* uk_ggml_vulkan_get_proc_addr_fn must return non-NULL */
+    /* uk_vulkan_get_instance_proc_addr_fn must return non-NULL */
     CHECK_NZ("get_proc_addr_fn:non_null",
-             uk_ggml_vulkan_get_proc_addr_fn());
+             uk_vulkan_get_instance_proc_addr_fn());
 
     /* The returned fn must itself find vkCreateInstance */
-    PFN_uk_vkGetInstanceProcAddr pfn = uk_ggml_vulkan_get_proc_addr_fn();
+    PFN_uk_vkGetInstanceProcAddr pfn = uk_vulkan_get_instance_proc_addr_fn();
     CHECK_NZ("get_proc_addr_fn:finds_vkCreateInstance",
              pfn ? pfn(VK_NULL_HANDLE, "vkCreateInstance") : NULL);
 }
@@ -221,27 +221,33 @@ static void test_proc_lookup(void)
 /* ── Group B: Dispatch init ────────────────────────────────────────────── */
 static void test_dispatch_init(void)
 {
-    printf("\n[B] Dispatch init — uk_ggml_vulkan_dispatch_init()\n");
+    printf("\n[B] Dispatch init — uk_vulkan_init()\n");
 
-    int rc = uk_ggml_vulkan_dispatch_init();
+    int rc = uk_vulkan_init();
     CHECK("init:returns_zero", rc == 0);
 
     /* Idempotent: second call must also succeed */
-    rc = uk_ggml_vulkan_dispatch_init();
+    rc = uk_vulkan_init();
     CHECK("init:idempotent", rc == 0);
 
-    /* plan-optimize.md L3.1/L3.4 — verify the info getter returns sane
-     * defaults: batching off, hostmem_fixed off (until a real host blob
-     * mapping lands), wanted_extensions matches scripts/gen_libukvenus.py. */
-    struct uk_ggml_vulkan_dispatch_info info = {0};
-    info.batch_enabled = -1; info.hostmem_fixed = -1; info.wanted_extensions = 0;
-    uk_ggml_vulkan_dispatch_get_info(&info);
+    /* plan-optimize.md L3.1/L3.4 + plan-redesign-vulkan.md — verify the info
+     * getter returns sane values: initialized set, the venus driver advertised,
+     * a non-empty supported command count, batching off, hostmem_fixed off. */
+    struct uk_vulkan_info info = {0};
+    info.batch_enabled = -1; info.hostmem_fixed = -1;
+    uk_vulkan_get_info(&info);
+    CHECK("info:initialized_set", info.initialized != 0);
+    CHECK("info:driver_name_venus",
+          info.driver_name && strcmp(info.driver_name, "venus") == 0);
+    CHECK("info:claim_boundary_set",
+          info.claim_boundary && info.claim_boundary[0] != '\0');
+    CHECK("info:supported_command_count_nonzero",
+          info.supported_command_count > 0u);
     CHECK("info:batch_enabled_default_off", info.batch_enabled == 0);
     CHECK("info:hostmem_fixed_default_off", info.hostmem_fixed == 0);
-    CHECK("info:wanted_extensions_eq_8",   info.wanted_extensions == 8u);
 
     /* NULL must not crash. */
-    uk_ggml_vulkan_dispatch_get_info(NULL);
+    uk_vulkan_get_info(NULL);
     CHECK("info:null_safe", 1);
 }
 
@@ -1037,7 +1043,7 @@ int main(void)
     if (g_fail == 0) {
         printf("ggml_vk_dispatch_test: all checks PASS\n");
         printf("uk-llama-vk-n3: PASS evidence_id=llama-vk-n3-dispatch "
-               "gpu=1 venus=1 substrate=static-vk-icd\n");
+               "gpu=1 venus=1 substrate=static-vk-dispatch\n");
     } else {
         printf("ggml_vk_dispatch_test: %d check(s) FAILED\n", g_fail);
     }

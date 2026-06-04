@@ -141,7 +141,7 @@ next measured win lives in **P0 (guest SMP)** and in **VOGUE's own guest-side
 Venus/dispatch stack**: the stock-Linux-guest-over-Venus baseline
 (`results/llama/vulkan_qemu_linux_baseline.json`, `make linux-guest-vk-baseline`)
 hits `pp512=4948 / tg128=323` over the *same* QEMU Venus device, i.e. ~2× the
-Unikraft bench — proving the gap is the `libukvenus` encoder + `libukggml_vk`
+Unikraft bench — proving the gap is the `libukvulkan_venus` driver + `libvulkan` dispatch
 dispatch (and the single vCPU), not the Venus transport. Prioritize those next.
 
 ### P0. Guest SMP and thread split
