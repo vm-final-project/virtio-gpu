@@ -24,15 +24,15 @@
   We evaluate the same bridge Linux uses, but with a much thinner Unikraft guest.
 ]
 
-== Current stage: all supported rows pass
+== Current stage
 
 #table(
   columns: (auto, 1.25fr, 1.55fr),
   [What we checked], [Goal], [Status today],
   table.hline(),
   [Graphics basics],
-  [stock graphics apps can open buffers and draw by software],
-  [kmscube flips frames; glmark2 scene-clear runs; virgl sends 3 real 3D submits in our small test],
+  [graphics apps can open buffers and draw],
+  [virgl sends 3 real 3D submits in our small test],
   [Vulkan basics],
   [create devices, talk to Venus, and start a real app],
   [DRM shim, ICD setup, Venus command path, and vkmark scene loading all run],
@@ -41,15 +41,9 @@
   [ggml-vulkan inference runs inside Unikraft on the Tesla V100],
   [llama.cpp HTTP],
   [GPU workload is usable as a service],
-  [`/health`, `/v1/models`, and `/completion` answer over lwIP],
-  [Full stage],
-  [show the full supported stage, not a few isolated demos],
-  [27 current-stage rows are covered on the evaluation host],
+  [endpoint `/health` lwIP],
   table.hline(),
 )
-
-- Each row means something different: graphics progress is not the same as GPU
-  compute or HTTP service readiness.
 
 == Graphics results today
 
@@ -57,7 +51,6 @@
   columns: (auto, 1.3fr, 1fr),
   [Workload], [Current number / result], [What we can say],
   table.hline(),
-  [`kmscube.sw`], [455.6 fps in the 60-frame native software-render run], [software path, not acceleration],
   [`glmark2.sw`], [142.82 fps in the 120-frame scene-clear run], [subset benchmark, not full suite],
   [`kmscube` virgl], [3 virgl-submitted frames and 3 `SUBMIT_3D` commands], [one small clear-frame proof],
   [`vkmark`], [10 startup scenes load through our Vulkan app path], [no Unikraft FPS yet],
@@ -87,9 +80,9 @@
 
 - GPU offload is a large jump over CPU-only Unikraft.
 - Linux VM over the same Venus bridge is still faster.
-- The next gap is in our Vulkan library and driver code.
+- The remaining performance difference is in our Vulkan library and driver code.
 
-== The server works; now it must scale
+== The server works
 
 #table(
   columns: (auto, 1fr),

@@ -16,8 +16,6 @@
   [P1], [Reduce time spent in our Vulkan call path], [Linux VM on the same Venus bridge is still faster],
   [P1], [Load the model with less copying], [today the model path still runs without `mmap` or huge pages],
   [P1], [Add matched Linux graphics baselines], [make graphics results a fair comparison],
-  [P2], [Run more `glmark2` and `vkmark` scenes], [move from one small check to broader benchmarks],
-  [P2], [Fuzz device and parser inputs], [test the safety benefit of the smaller guest codebase],
   table.hline(),
 )
 
@@ -47,9 +45,9 @@
 
 == Long-term: reusable GPU unikernel method
 
-- keep turning the VirtIO-GPU / Venus stack analysis into reusable guest libraries
-- keep the one-image-one-purpose app ports reproducible
-- extend from today's demos and llama.cpp server to more graphics and GPU workloads
+- Keep turning the VirtIO-GPU / Venus stack analysis into reusable guest libraries
+- Keep the one-image-one-purpose app ports reproducible
+- Extend from today's demos and llama.cpp server to more graphics and GPU workloads
 
 #textbox[
   The long-term value is not one benchmark number; it is a reusable way to
