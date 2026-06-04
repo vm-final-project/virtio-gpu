@@ -19,6 +19,6 @@
 #v(2em)
 
 #textbox[
-  Our contribution is not just one demo: we studied the GPU stack, built the
+  we studied the GPU stack, built the
   Unikraft libraries we needed, and ran real applications plus the llama.cpp server.
 ]
