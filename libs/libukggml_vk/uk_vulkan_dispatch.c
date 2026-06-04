@@ -153,10 +153,13 @@ static struct uk_venus_encoder g_batch_enc;
 static uint8_t              g_batch_buf[UK_DISPATCH_BUF_SIZE];
 
 /* Ring stream state (active when g_ring_enabled=1) */
+static int                  g_ring_want;         /* requested via env (default 1) */
+static int                  g_ring_tried;        /* lazy-init attempted */
 static int                  g_ring_enabled;
 static struct uk_venus_ring g_ring;
 static int                  g_ring_ready;        /* 1 after uk_venus_ring_register() */
 static int                  g_ring_recording;    /* in vkBegin..vkEnd ring window */
+static void                 uk_dispatch_ring_lazy_init(void);
 
 static inline int uk_dispatch_batch_active(void)
 {
@@ -244,46 +247,47 @@ int uk_ggml_vulkan_dispatch_init(void)
     g_batch_recording = 0;
     uk_venus_encoder_init(&g_batch_enc, g_batch_buf, UK_DISPATCH_BUF_SIZE);
 
-    /* Ring stream model: create + register a Venus command ring so that
-     * vkCmd* calls write directly into the circular buffer instead of
-     * triggering individual SUBMIT_3D virtqueue kicks. Enabled by default
-     * when UK_GGML_VK_DISPATCH_RING is unset or "1"; disable with "0" for
-     * native tests (which count submits_3d). */
+    /* Ring stream model: enabled by default (UK_GGML_VK_DISPATCH_RING != "0").
+     * The ring itself is created LAZILY (uk_dispatch_ring_lazy_init) on the
+     * first command buffer, because the host (virglrenderer Venus) rejects a
+     * host-visible blob until the Venus VkInstance/VkDevice exist — which only
+     * happens after ggml calls vkCreateInstance/vkCreateDevice, well after
+     * this init. */
     {
         const char *r = getenv("UK_GGML_VK_DISPATCH_RING");
-        int want_ring = !(r && (*r == '0'));
-        if (want_ring) {
-            /* Create the ring on the existing dispatch context g_ctx so the
-             * ring's vkCreateRingMESA/Notify commands and the Vulkan compute
-             * objects share one host-side Venus context. */
-            int rc = uk_venus_ring_create_on_ctx(g_gpu, &g_ring, g_ctx,
-                                          UK_VENUS_RING_CTRL_SIZE +
-                                          UK_VENUS_RING_DEFAULT_SIZE,
-                                          UK_VENUS_RING_DEFAULT_BLOB_ID + 1);
-            if (rc == 0) {
-                rc = uk_venus_ring_register(g_gpu, &g_ring,
-                                             UK_VENUS_RING_DEFAULT_BLOB_ID + 1);
-                if (rc == 0) {
-                    /* Bind transport thunk so vn_submit_* wrappers route here */
-                    uk_venus_ring_bind_current(g_gpu, g_ctx);
-                    g_ring_enabled = 1;
-                    g_ring_ready   = 1;
-                    printf("uk-ggml-vk: ring stream enabled (buf=%u B)\n",
-                           UK_VENUS_RING_DEFAULT_SIZE);
-                } else {
-                    uk_venus_ring_destroy(g_gpu, &g_ring);
-                    printf("uk-ggml-vk: ring register failed rc=%d, "
-                           "falling back to SUBMIT_3D\n", rc);
-                }
-            } else {
-                printf("uk-ggml-vk: ring create failed rc=%d, "
-                       "falling back to SUBMIT_3D\n", rc);
-            }
-        }
-        /* If ring is not active, fall back to batch/sync depending on
-         * UK_GGML_VK_DISPATCH_BATCH (already set above). */
+        g_ring_want = !(r && (*r == '0'));
     }
     return 0;
+}
+
+/* Lazily create + register the Venus command ring. Called once, after the
+ * Venus device is up (first vkBeginCommandBuffer). On any failure the ring
+ * stays disabled and the dispatch falls back to the SUBMIT_3D batch path. */
+static void uk_dispatch_ring_lazy_init(void)
+{
+    int rc;
+    if (!g_ring_want || g_ring_tried)
+        return;
+    g_ring_tried = 1;
+
+    rc = uk_venus_ring_create_on_ctx(g_gpu, &g_ring, g_ctx,
+                                     UK_VENUS_RING_CTRL_SIZE +
+                                     UK_VENUS_RING_DEFAULT_SIZE,
+                                     UK_VENUS_RING_DEFAULT_BLOB_ID + 1);
+    if (rc != 0) {
+        printf("uk-ggml-vk: ring create failed rc=%d, falling back to SUBMIT_3D\n", rc);
+        return;
+    }
+    rc = uk_venus_ring_register(g_gpu, &g_ring, UK_VENUS_RING_DEFAULT_BLOB_ID + 1);
+    if (rc != 0) {
+        uk_venus_ring_destroy(g_gpu, &g_ring);
+        printf("uk-ggml-vk: ring register failed rc=%d, falling back to SUBMIT_3D\n", rc);
+        return;
+    }
+    uk_venus_ring_bind_current(g_gpu, g_ctx);
+    g_ring_enabled = 1;
+    g_ring_ready   = 1;
+    printf("uk-ggml-vk: ring stream enabled (buf=%u B)\n", UK_VENUS_RING_DEFAULT_SIZE);
 }
 
 /* plan-optimize.md L3.4: surface the host-blob mapping state and the L3.1
@@ -1458,6 +1462,8 @@ static void stub_vkFreeCommandBuffers(VkDevice d, VkCommandPool p, uint32_t n,
 static VkResult stub_vkBeginCommandBuffer(VkCommandBuffer cb, const void *bi)
 {
     (void)bi;
+    /* Lazily bring up the Venus ring now that the device exists. */
+    uk_dispatch_ring_lazy_init();
     if (g_ring_enabled && g_ring_ready) {
         /* Ring mode: open ring write window; Begin command goes into ring. */
         g_ring_recording = 1;
