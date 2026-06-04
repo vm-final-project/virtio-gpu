@@ -37,9 +37,10 @@ the application-facing `vk*` ABI and dispatch (a compute-first subset), and
 `libukvulkan_venus` is the statically linked Venus driver. The driver's
 device-open/Venus-context bootstrap is **native** — it calls `libukvirtio_gpu`
 directly, with no Linux virtgpu DRM UAPI. The DRM shim (`libukvirtgpu_drm`) is
-therefore optional (`CONFIG_LIBUKVULKAN_VENUS_USE_DRM_COMPAT`, default `n`); the
-former `libukvk_icd` bootstrap shim has been retired and the upstream
-ggml-vulkan stack is built in-tree by `app-llama-upstream-vk`.
+therefore optional (`CONFIG_LIBUKVULKAN_VENUS_USE_DRM_COMPAT` or
+`CONFIG_LIBVULKAN_ENABLE_DRM_FD_COMPAT`, both default `n`); the former
+`libukvk_icd` bootstrap shim has been retired and the upstream ggml-vulkan stack
+is built in-tree by `app-llama-upstream-vk`.
 
 The graphics appliances (kmscube, glmark2) use the lower half of the same stack
 through the Linux-ABI shims (`libukdrm_compat`, `libukgbm_compat`, `libukegl`).
@@ -58,11 +59,11 @@ through the Linux-ABI shims (`libukdrm_compat`, `libukgbm_compat`, `libukegl`).
   in the same run; a `blocked:*` row is a documented blocker, never throughput
   or acceleration evidence (see *Evidence & Claim Discipline*).
 
-### Current stage (2026-06-03)
+### Current stage (2026-06-04)
 
 On the evaluation host (QEMU 11.0.1 `virtio-gpu-gl-pci,blob=true,venus=true`,
-Venus-enabled virglrenderer, Tesla V100 render node) the 27-row evaluation
-matrix is **27/27 PASS, 0 blocked** (`results/vogue_evaluation_matrix.md`).
+Venus-enabled virglrenderer, Tesla V100 render node) the 28-row evaluation
+matrix is **26 PASS, 2 blocked, 0 missing** (`results/vogue_evaluation_matrix.md`).
 Device-backing memory now flows through the upstream Unikraft `uksglist`
 (scatter-gather) + `ukalloc` (`uk_posix_memalign`) libraries directly — there is
 no first-party DMA library — and every appliance below was rebuilt and
@@ -147,7 +148,7 @@ enforces each library's `README.md` contract.
 | `libukvirtio_gpu` | VirtIO-GPU frontend + Gallium virgl encoder + fake backend | Graphics **and** Vulkan/llama (all GPU appliances) |
 | `libvulkan` | App-facing Vulkan `vk*` ABI + Vulkan-Hpp dispatch (`CONFIG_LIBVULKAN`); compute-first subset, routes to the Venus driver | Vulkan/llama |
 | `libukvulkan_venus` | Unikraft-native Venus Vulkan driver: Venus wire encode/decode + ring protocol; `uk_venus_encode_*` delegate to encoders generated from `../venus-protocol` | Vulkan/llama |
-| `libukvirtgpu_drm` | Mesa/Linux virtgpu DRM-ioctl shim (`vk.drm-shim`); now optional (`CONFIG_LIBUKVULKAN_VENUS_USE_DRM_COMPAT`, default `n`) | Vulkan/llama |
+| `libukvirtgpu_drm` | Optional Mesa/Linux virtgpu DRM compatibility shim: direct translator (`vk.drm-core`) plus fd-style render-node facade (`vk.drm-fdio`) | Future Mesa/Linux-style apps |
 | `libukswrender` | Deterministic CPU software renderer | Graphics |
 | `libukegl` | EGL/GLES2/GBM/DRM ABI shim for upstream GL apps | Graphics |
 | `libukdrm_compat` | DRM struct/ioctl compatibility facade | Graphics |
@@ -390,9 +391,10 @@ Unikraft via `virtio_pci_shm_region_get` (Unikraft 0.21), allocated with
 reports the active mode (`ring_enabled=`, `batch_enabled=`, `hostmem_fixed=`).
 
 Path difference vs Mesa: Mesa's `vn_renderer_virtgpu.c` reaches the ring through
-Linux `/dev/dri` `ioctl`/`mmap`; VOGUE's `libukvirtgpu_drm` + `libukvirtio_gpu`
-reach the same virtio-gpu ring through Unikraft's virtqueue + `posix-mmap`
-host-visible BAR directly, with no Linux DRM layer in the guest.
+Linux `/dev/dri` `ioctl`/`mmap`; VOGUE's native Vulkan path reaches the same
+virtio-gpu ring through `libvulkan -> libukvulkan_venus -> libukvirtio_gpu`,
+with no Linux DRM layer in the guest. The optional `libukvirtgpu_drm` fdio path
+is for future Mesa/Linux-style compatibility.
 
 #### Multi-environment evaluation — what the data actually shows
 

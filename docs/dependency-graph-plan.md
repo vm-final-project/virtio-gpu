@@ -84,10 +84,11 @@ External subsystem nodes pulled in by `Kconfig select`: `DRM`, `DRM_KMS_HELPER`,
 The transport node is `virtgpu_vq.c` (includes `linux/virtio_ring.h`,
 `virtio_config.h`).
 
-**Guest — VOGUE** (`virtio-gpu/libs/*`): 9 first-party libs — `libukvirtio_gpu`
-(frontend + virgl encoder), `libukvirtgpu_drm`, `libukvulkan_venus`, `libukvk_icd`,
-`libukggml_vk`, `libukdrm_compat`, `libukgbm_compat`,
-`libukegl`, `libukswrender`. Device-backing memory uses the upstream
+**Guest — VOGUE** (`virtio-gpu/libs/*`): first-party libs include
+`libukvirtio_gpu` (frontend + virgl encoder), `libvulkan`,
+`libukvulkan_venus`, optional `libukvirtgpu_drm`, `libukdrm_compat`,
+`libukgbm_compat`, `libukegl`, and `libukswrender`. Retired ggml/ICD helper
+libs are no longer part of the native Vulkan graph. Device-backing memory uses the upstream
 Unikraft `uksglist` + `ukalloc` libraries directly (no first-party DMA lib).
 External Unikraft core nodes referenced via
 `Config.uk select`: `VIRTIO_DEVICE`, `LIBVIRTIO_BUS`, `LIBUKSGLIST`,
@@ -215,19 +216,17 @@ for the protocol/runtime semantics that justify the §4c runtime edges.
 libukdrm_compat   -> libukvirtio_gpu
 libukegl          -> libukvirtio_gpu, LIBUKSGLIST, LIBUKALLOC, libukswrender, libmusl
 libukgbm_compat   -> LIBUKSGLIST
-libukggml_vk      -> libvulkan, libukvirtio_gpu, libukvirtgpu_drm, libukvk_icd
+libvulkan         -> libukvulkan_venus, libukvirtio_gpu
 libukswrender     -> libmusl
 libukvulkan_venus -> libukvirtio_gpu
-libukvirtgpu_drm  -> libukvirtio_gpu
+libukvirtgpu_drm  -> libukvirtio_gpu  (optional DRM core/fdio compatibility)
 libukvirtio_gpu   -> VIRTIO_DEVICE, LIBVIRTIO_BUS, LIBUKSGLIST, LIBUKALLOC  (REAL backend)
-libukvk_icd       -> libukvirtgpu_drm
 ```
 **VOGUE `compile` edges (cross-lib `#include <uk/...>`):**
 ```
-libukggml_vk -> uk/venus.h, uk/virtio_gpu.h, uk/drm_virtgpu.h
+libvulkan    -> uk/vulkan.h, uk/vulkan_venus.h
 libukvulkan_venus   -> uk/virtio_gpu.h
 libukvirtgpu_drm -> uk/virtio_gpu.h, drm/virtgpu_drm.h
-libukvk_icd  -> uk/drm_virtgpu.h, uk/virtio_gpu.h, drm/virtgpu_drm.h
 libukegl     -> uk/drm_compat.h, uk/gbm_compat.h, uk/swrender.h, uk/virtio_gpu.h
 ```
 **Linux `build`:** `Kconfig` selects `VIRTIO`, `DRM_KMS_HELPER`,

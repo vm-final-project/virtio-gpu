@@ -1,12 +1,11 @@
 config APP_VULKAN_SMOKE
-	bool "Vulkan smoke test application (vk.icd gate)"
+	bool "Vulkan smoke test application (native Venus substrate gate)"
 	default n
 	select LIBUKVIRTIO_GPU
 	select LIBUKSGLIST
 	select LIBUKEGL
 	help
-	  Headless Vulkan smoke test for the VOGUE vk.icd gate.
-	  Validates Venus capset detection and documents the vk.drm-shim/vk.icd
-	  blocked path (virgl encoder + Mesa virtgpu UAPI shim not
-	  yet implemented).  Based on Khronos Vulkan Samples patterns.
-	  Evidence row: vk.smoke (blocked until K1 virgl encoder is done).
+	  Headless Vulkan smoke test for the VOGUE native Venus substrate.
+	  Validates Venus capset detection without claiming rendering or
+	  acceleration.  Based on Khronos Vulkan Samples patterns.
+	  Evidence row: vk.smoke.

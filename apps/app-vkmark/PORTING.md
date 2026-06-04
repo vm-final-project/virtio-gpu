@@ -35,14 +35,15 @@ Full vkmark scene execution is not claimed because it requires the complete Mesa
 Host llvmpipe/NVIDIA scene-fps comparisons are tracked alongside same-run
 evidence in `results/llama-bench/` and the multi-environment table generated
 by `make app-multi-env-bench`; they do not live in this file so the port
-metadata stays small. Unikraft-internal fps requires the vk.drm-shim + vk.icd
-gates plus same-run frame proof and is not claimed in this revision.
+metadata stays small. Unikraft-internal fps requires native Venus render payload
+support plus same-run frame proof and is not claimed in this revision.
 
 ## Claim boundaries
 
 **Allowed**: `gfx.vkmark` — scene enumeration, build substrate, ICD init, Venus context creation, host baselines documented.
 
-**Forbidden**: vkmark fps scores inside Unikraft, GPU acceleration claims; full score requires K1 + vk.drm-shim + vk.icd gates and same-run frame proof.
+**Forbidden**: vkmark fps scores inside Unikraft, GPU acceleration claims; full
+score requires native Venus render payload gates and same-run frame proof.
 
 ## Verification
 
