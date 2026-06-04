@@ -7,9 +7,11 @@
  *   - open / GETPARAM truth table
  *   - CONTEXT_INIT (capset_id = VIRTGPU_CAPSET_VENUS = 4)
  *   - RESOURCE_CREATE_BLOB (guest + host3d)
+ *   - GET_CAPS / RESOURCE_INFO / GEM_CLOSE Mesa virtgpu coverage
  *   - MAP (host-coherent pointer)
  *   - EXECBUFFER (Venus command stream)
  *   - WAIT (synchronisation placeholder)
+ *   - Unsupported PRIME/syncobj requests return explicit ENOSYS
  *   - Generic ioctl dispatcher (struct wire encoding)
  *   - close / resource teardown
  */
@@ -75,9 +77,13 @@ int main(void)
 
     /* GETPARAM via ioctl dispatcher */
     {
-        struct drm_virtgpu_getparam gp = { .param = VIRTGPU_PARAM_CAPSET_QUERY_FIX, .value = 0 };
+        uint64_t gp_value = 0;
+        struct drm_virtgpu_getparam gp = {
+            .param = VIRTGPU_PARAM_CAPSET_QUERY_FIX,
+            .value = (uint64_t)(uintptr_t)&gp_value,
+        };
         CHECK("ioctl:GETPARAM", uk_drm_virtgpu_ioctl(&dev, DRM_IOCTL_VIRTGPU_GETPARAM, &gp));
-        CHECK_NZ("ioctl:GETPARAM value", gp.value);
+        CHECK_NZ("ioctl:GETPARAM value", gp_value);
     }
 
     /* Unknown param should return -EINVAL */
@@ -163,6 +169,33 @@ int main(void)
         CHECK_NZ("ioctl:RESOURCE_CREATE_BLOB:bo_handle", rb.bo_handle);
     }
 
+    /* Mesa Venus asks the virtgpu renderer for capset bytes via GET_CAPS. */
+    {
+        uint8_t caps[512] = {0};
+        struct drm_virtgpu_get_caps gc = {
+            .cap_set_id = VIRTGPU_CAPSET_VENUS,
+            .cap_set_ver = 1,
+            .addr = (uint64_t)(uintptr_t)caps,
+            .size = sizeof(caps),
+        };
+        CHECK("ioctl:GET_CAPS:venus",
+              uk_drm_virtgpu_ioctl(&dev, DRM_IOCTL_VIRTGPU_GET_CAPS, &gc));
+        CHECK_NZ("ioctl:GET_CAPS:venus:data", caps[0]);
+    }
+
+    /* RESOURCE_INFO must translate a GEM handle back to virtgpu metadata. */
+    {
+        struct drm_virtgpu_resource_info info = {
+            .bo_handle = bo_handle,
+        };
+        CHECK("ioctl:RESOURCE_INFO",
+              uk_drm_virtgpu_ioctl(&dev, DRM_IOCTL_VIRTGPU_RESOURCE_INFO, &info));
+        if (info.res_handle != res_handle) FAIL("ioctl:RESOURCE_INFO:res_handle", (int)info.res_handle);
+        if (info.size != 4096) FAIL("ioctl:RESOURCE_INFO:size", (int)info.size);
+        if (info.blob_mem != VIRTGPU_BLOB_MEM_GUEST) FAIL("ioctl:RESOURCE_INFO:blob_mem", (int)info.blob_mem);
+        PASS("ioctl:RESOURCE_INFO:metadata");
+    }
+
     /* ── MAP ───────────────────────────────────────────────────────────── */
     offset = 0;
     CHECK("map:blob", uk_drm_virtgpu_map(&dev, bo_handle, &offset));
@@ -236,6 +269,41 @@ int main(void)
         rc = uk_drm_virtgpu_ioctl(&dev, 0xFFFFFFFF, &gp);
         if (rc != -ENOSYS) FAIL("ioctl:unknown returns ENOSYS", rc);
         PASS("ioctl:unknown returns ENOSYS");
+    }
+
+    /* PRIME and syncobj are future Mesa/full-DRM work: classify explicitly. */
+    {
+        struct drm_prime_handle prime = { .handle = bo_handle };
+        rc = uk_drm_virtgpu_ioctl(&dev, DRM_IOCTL_PRIME_HANDLE_TO_FD, &prime);
+        if (rc != -ENOSYS) FAIL("ioctl:PRIME_HANDLE_TO_FD returns ENOSYS", rc);
+        PASS("ioctl:PRIME_HANDLE_TO_FD returns ENOSYS");
+    }
+    {
+        struct drm_syncobj_create sync = {0};
+        rc = uk_drm_virtgpu_ioctl(&dev, DRM_IOCTL_SYNCOBJ_CREATE, &sync);
+        if (rc != -ENOSYS) FAIL("ioctl:SYNCOBJ_CREATE returns ENOSYS", rc);
+        PASS("ioctl:SYNCOBJ_CREATE returns ENOSYS");
+    }
+
+    /* GEM_CLOSE releases a BO handle and makes later lookups fail. */
+    {
+        uint32_t close_bo = 0, close_res = 0;
+        struct drm_gem_close close_args;
+        struct drm_virtgpu_resource_info info;
+
+        CHECK("gem_close:create_blob",
+              uk_drm_virtgpu_resource_create_blob(&dev,
+                  VIRTGPU_BLOB_MEM_GUEST,
+                  VIRTGPU_BLOB_FLAG_USE_MAPPABLE,
+                  4096,
+                  &close_bo, &close_res));
+        close_args = (struct drm_gem_close){ .handle = close_bo };
+        CHECK("ioctl:GEM_CLOSE",
+              uk_drm_virtgpu_ioctl(&dev, DRM_IOCTL_GEM_CLOSE, &close_args));
+        info = (struct drm_virtgpu_resource_info){ .bo_handle = close_bo };
+        rc = uk_drm_virtgpu_ioctl(&dev, DRM_IOCTL_VIRTGPU_RESOURCE_INFO, &info);
+        if (rc != -ENOENT) FAIL("ioctl:GEM_CLOSE:resource_info returns ENOENT", rc);
+        PASS("ioctl:GEM_CLOSE:resource_info returns ENOENT");
     }
 
     /* ── close ─────────────────────────────────────────────────────────── */

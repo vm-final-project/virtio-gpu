@@ -1,9 +1,23 @@
 menuconfig LIBUKVIRTGPU_DRM
-	bool "libukvirtgpu_drm: Mesa/Linux virtgpu UAPI shim (vk.drm-shim)"
+	bool "libukvirtgpu_drm: Mesa/Linux virtgpu UAPI core shim (vk.drm-core)"
 	default n
 	select LIBUKVIRTIO_GPU
 	help
 	  Translates DRM_IOCTL_VIRTGPU_* calls into VirtIO-GPU protocol
 	  commands via libukvirtio_gpu. Provides the ioctl surface expected
 	  by Mesa's Venus guest driver (vn_renderer_virtgpu.c).
-	  Required for vk.drm-shim gate (Venus Vulkan ICD access from unikernel).
+	  Required for the vk.drm-core compatibility gate. Native Vulkan/llama
+	  paths do not select this library by default.
+
+if LIBUKVIRTGPU_DRM
+
+config LIBUKVIRTGPU_DRM_FDIO
+	bool "fdio/devfs-style render-node facade for virtgpu DRM"
+	default n
+	help
+	  Adds a per-open render-node facade for Linux/Mesa-style
+	  open("/dev/dri/renderD128") -> ioctl() -> mmap() compatibility.
+	  This path keeps DRM fd state and mmap offsets out of the native
+	  libvulkan/libukvulkan_venus fast path unless selected explicitly.
+
+endif
