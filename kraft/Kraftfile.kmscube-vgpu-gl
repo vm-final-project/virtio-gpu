@@ -10,10 +10,6 @@ unikraft:
     CONFIG_LIBUKSGLIST: 'y'
     CONFIG_LIBUKVIRTIO_GPU: 'y'
     CONFIG_LIBUKVIRTIO_GPU_BACKEND_REAL: 'y'
-    CONFIG_LIBUKSWRENDER: 'y'
-    CONFIG_LIBUKEGL: 'y'
-    CONFIG_LIBUKDRM_COMPAT: 'y'
-    CONFIG_LIBUKGBM_COMPAT: 'y'
 
 targets:
 - qemu/x86_64
@@ -23,13 +19,5 @@ libraries:
     source: ../lib-musl
   libukvirtio_gpu:
     source: ./libs/libukvirtio_gpu
-  libukswrender:
-    source: ./libs/libukswrender
-  libukegl:
-    source: ./libs/libukegl
-  libukdrm_compat:
-    source: ./libs/libukdrm_compat
-  libukgbm_compat:
-    source: ./libs/libukgbm_compat
   app-kmscube:
     source: ./apps/app-kmscube
