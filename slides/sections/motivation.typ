@@ -38,8 +38,8 @@ hypervisor.
 #v(0.3em)
 
 - every one of these wins comes from leaving things #red[out]
-  - no shell, no drivers, no user/kernel separation, no multi-process...
-- so unikernels live in the #bred[headless] world — network services, never the GPU
+  - no shell, no user/kernel separation, no multi-process...
+  - the ecosystem is still young; many drivers and features arn not ported yet
 
 == GPU workloads are real — Unikraft can't run them yet
 
