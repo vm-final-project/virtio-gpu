@@ -6,8 +6,6 @@
 #include <uk/virtio_gpu.h>
 #include <uk/virgl_encoder.h>
 #include <uk/venus.h>
-#include <uk/sglist.h>
-#include <uk/alloc.h>
 #include <uk/plat/time.h>
 
 #if defined(__has_include)
@@ -273,7 +271,6 @@ int main(int argc, char **argv)
 {
 	struct uk_virtio_gpu_dev *gpu  = NULL;
 	struct uk_virtio_gpu_caps caps;
-	int rc;
 	uint32_t w = TARGET_W, h = TARGET_H;
 	int want_venus_ring = argv_has(argc, argv, "venus_ring_test=1");
 	int want_frame_hold = argv_has(argc, argv, "frame_proof_hold=1");
@@ -314,7 +311,7 @@ int main(int argc, char **argv)
 	}
 
 	if (want_venus_ring) {
-		rc = run_venus_ring_probe(gpu);
+		int rc = run_venus_ring_probe(gpu);
 		if (rc)
 			printf("uk-kmscube: BLOCKED venus_ring_protocol rc=%d\n", rc);
 	}
