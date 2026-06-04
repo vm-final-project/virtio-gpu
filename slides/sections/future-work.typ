@@ -5,60 +5,53 @@
 
 = Future work
 
-== The question changed: from "does it run?" to "how fast?"
-
-#textbox(
-  [*Graphics side*
-
-  - compare fairly against Linux + Mesa
-  - run full `glmark2` scenes, not just one
-  - get real frame rates from `vkmark`],
-  [*LLM side*
-
-  - close the gap to the Linux VM
-  - measure the server under load
-  - load the model faster],
-)
-
-#pause
-
-#v(0.3em)
-
-  - #red[Insight]: we showed the slowdown lives in #bred[our own guest driver],
-    so the work targets that layer and the single-CPU limit — not the GPU bridge
-
-== What we will do next, and why
+== From working prototype to performance
 
 #table(
-  columns: (auto, 1fr, 1fr),
+  columns: (auto, 1.1fr, 1.35fr),
   [Priority], [Next step], [Why it matters],
   table.hline(),
-  [P0], [use more than one guest CPU], [one CPU caps generation speed today],
-  [P0], [measure the server under load], [it answers requests; we lack the numbers],
-  [P1], [memory-map the model file], [today it is copied first → slow start (~5 s)],
-  [P1], [run matched Linux baselines], [turns our ratios into fair comparisons],
-  [P2], [security: fuzz the device parser], [put a number on the attack-surface win],
+  [P0], [Add guest SMP and more vCPUs], [today we only measured the server at concurrency 1],
+  [P0], [Tune llama server threads and slots], [move from "it works" to "it can handle real load"],
+  [P1], [Reduce time spent in our Vulkan call path], [Linux VM on the same Venus bridge is still faster],
+  [P1], [Load the model with less copying], [today the model path still runs without `mmap` or huge pages],
+  [P1], [Add matched Linux graphics baselines], [make graphics results a fair comparison],
+  [P2], [Run more `glmark2` and `vkmark` scenes], [move from one small check to broader benchmarks],
+  [P2], [Fuzz device and parser inputs], [test the safety benefit of the smaller guest codebase],
   table.hline(),
 )
 
-#pause
+- These are not old bring-up blockers; they are the next performance and breadth targets.
 
-  - every step keeps the #bred[same rule]: a number is only reported once it has
-    been reproduced in a real run
+== Where the next speedup should come from
 
-== Upstreaming and long-term direction
-
-- give our reusable guest-side fixes back to the upstream projects
-- make the whole artifact easy for others to rebuild and reproduce
-- grow from #red[small, bounded demos] to broader GPU graphics on Unikraft
-
-#pause
-
-#v(0.4em)
-
-#textbox(
-  [#bred[The bigger idea]
-
-  Our step-by-step evidence ladder is reusable: it is a *method* for bringing any
-  unikernel into graphics and GPU territory without overclaiming along the way.],
+#table(
+  columns: (1.2fr, 1.25fr, 1.15fr),
+  [Bottleneck signal], [Current measurement], [Planned attack],
+  table.hline(),
+  [Linux VM + Venus beats VOGUE], [323.64 vs 139.3 `tg128` decode t/s], [reduce time spent in our Vulkan call path],
+  [server throughput is low], [25.53 decode t/s in the 8-request burst], [add SMP and split server threads],
+  [model loading copies too much],
+  [Vulkan server load is 5935.26 ms with `use_mmap=false`],
+  [add an mmap-capable model path],
+  [graphics lacks broad scene FPS],
+  [vkmark loads 10 scenes but has no Unikraft FPS],
+  [add small scene-render tests and frame checks],
+  table.hline(),
 )
+
+#textbox[
+  We now know where to look: in our own Vulkan and server code, not in a missing
+  GPU bridge.
+]
+
+== Long-term: reusable GPU unikernel method
+
+- keep turning the VirtIO-GPU / Venus stack analysis into reusable guest libraries
+- keep the one-image-one-purpose app ports reproducible
+- extend from today's demos and llama.cpp server to more graphics and GPU workloads
+
+#textbox[
+  The long-term value is not one benchmark number; it is a reusable way to
+  understand the GPU stack, port applications, and keep the guest small.
+]
