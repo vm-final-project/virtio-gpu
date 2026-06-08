@@ -8,8 +8,7 @@
 #
 #   * delegates the host-native C suite to tests/Makefile,
 #   * drives the Python evidence/governance/perf gates under scripts/,
-#   * wraps `kraft build` for each single-purpose appliance in kraft/,
-#   * builds the Typst paper.
+#   * wraps `kraft build` for each single-purpose appliance in kraft/.
 #
 # Run every target from inside virtio-gpu/. `make` with no target prints help.
 # Targets are grouped into clearly-labelled sections below; `make help` lists
@@ -25,7 +24,6 @@ SHELL := /bin/bash
 # ----------------------------------------------------------------------------
 KRAFT ?= $(if $(wildcard $(CURDIR)/.tools/kraftkit/kraft),$(CURDIR)/.tools/kraftkit/kraft,kraft)
 QEMU  ?= qemu-system-x86_64
-TYPST ?= typst
 
 # ----------------------------------------------------------------------------
 # External source roots
@@ -52,7 +50,7 @@ export LLAMA_ROOT VENUS_PROTOCOL_ROOT VULKAN_HEADERS_INCLUDE SPIRV_HEADERS_INCLU
 
 .PHONY: help all \
         test-fast test-native test-qemu test-gpu test tests verify \
-        artifact-smoke artifact-functional artifact-paper artifact-full artifact-quick artifact-check \
+        artifact-smoke artifact-functional artifact-full artifact-quick artifact-check \
         native-tests test-core test-venus test-dispatch proto-abi vulkan-tests vk-drm-shim-check ggml-vk-dispatch \
         kmscube-build kmscube-run kmscube-check glmark2-build \
         venus-check vulkan-check stage-check benchmark-check real-path-check \
@@ -68,7 +66,7 @@ export LLAMA_ROOT VENUS_PROTOCOL_ROOT VULKAN_HEADERS_INCLUDE SPIRV_HEADERS_INCLU
         eval eval-check current-stage-check current-stage-refresh \
         app-perf-check perf-check image-size-check boot-time-check model-load-time-check llm-server-vk-check llm-server-vk-throughput-check \
         depgraph depgraph-check gen-libukvenus gen-libukvenus-plan gen-libukvenus-check gen-libukvenus-verify gen-libukvenus-selftest \
-        paper paper-check clean
+        clean
 
 # ============================================================================
 # Help (default goal)
@@ -103,16 +101,15 @@ help:
 	  '  make lib-readme-check   Validate every libs/*/README.md' \
 	  '  make eval-check         Regenerate the evidence matrix (blocked rows stay explicit)' \
 	  '  make llm-server-vk-check  llama.cpp Vulkan HTTP server contract + same-run HTTP probe' \
-	  '  make paper              Build the Typst paper PDF' \
 	  '' \
 	  'Artifact bundles:  artifact-quick | artifact-check | artifact-full' \
-	  '  make clean              Remove generated test/paper/generator outputs'
+	  '  make clean              Remove generated test outputs'
 
 # ============================================================================
 # Aggregate gates
 # ============================================================================
 # all: the broadest "build everything reproducible without a GPU" convenience.
-all: native-tests vulkan-tests app-perf-check eval-check paper
+all: native-tests vulkan-tests app-perf-check eval-check
 
 # test-fast: the daily inner-loop gate (no QEMU/GPU).
 test-fast: governance-check lib-readme-check app-port-check llama-env-check naming-check native-vulkan-no-drm-check native-tests
@@ -136,16 +133,15 @@ test tests: native-tests vulkan-tests
 verify:
 	$(MAKE) native-tests vulkan-tests app-port-check app-perf-check naming-check
 	$(MAKE) kmscube-build kmscube-check venus-check stage-check benchmark-check
-	$(MAKE) vulkan-check eval-check paper paper-check lib-readme-check current-stage-check claim-check
+	$(MAKE) vulkan-check eval-check lib-readme-check current-stage-check claim-check
 	$(MAKE) gen-libukvenus-check image-size-check perf-check boot-time-check model-load-time-check llm-server-vk-check
 
 # Artifact bundles, increasing in scope.
-artifact-smoke:      test-fast llama-vulkan-api-coverage llama-ggml-vk-dispatch paper-check
+artifact-smoke:      test-fast llama-vulkan-api-coverage llama-ggml-vk-dispatch
 artifact-functional: artifact-smoke vulkan-tests app-perf-check eval-check current-stage-check gen-libukvenus-check image-size-check perf-check boot-time-check model-load-time-check llm-server-vk-check
-artifact-paper:      paper-check paper
-artifact-full:       artifact-functional venus-check vulkan-check llama-vulkan-check artifact-paper claim-check
-artifact-quick:      artifact-smoke artifact-paper
-artifact-check:      artifact-functional artifact-paper
+artifact-full:       artifact-functional venus-check vulkan-check llama-vulkan-check claim-check
+artifact-quick:      artifact-smoke
+artifact-check:      artifact-functional
 
 # ============================================================================
 # Host-native test groups  (thin wrappers over tests/Makefile)
@@ -440,14 +436,14 @@ eval:
 # eval-check: regenerate with all contributing gates, then assert key rows.
 eval-check: app-perf-check venus-check vulkan-check llama-check llama-vulkan-check
 	python3 scripts/eval_matrix.py --check
-	grep -n "gfx.kmscube.sw.*software\|K1 requires\|Claim Boundaries" results/vogue_evaluation_matrix.md paper/sections/08-evaluation.typ >/dev/null
+	grep -n "gfx.kmscube.submit\|xport.qemu-vgpu\|llm.server.vk" results/vogue_evaluation_matrix.md >/dev/null
 
 claim-check: eval-check
 	@# Reject abandoned custom compute-remoting vocabulary outside archival/design material.
 	@# This deliberately avoids broad tokens such as v6/v7 so Linux/kernel versions do not fail the gate.
 	@if grep -RIn --exclude-dir=.git --exclude-dir=.omx --exclude-dir=design \
 	     --exclude-dir=resource --exclude-dir=.unikraft --exclude-dir=rootfs \
-	     --exclude-dir=tests --exclude-dir=results --exclude-dir=paper/clean-acmart \
+	     --exclude-dir=tests --exclude-dir=results \
 	     --exclude='CLAUDE.md' --exclude='*.pdf' --exclude='cscope.out*' \
 	     --exclude='Makefile' --exclude='.env' \
 	     -E '\bAPIR\b|ggml-virtgpu|ggml-remoting|virtgpu-compute-backend|ggml_backend_virtgpu_reg' . ; then \
@@ -457,7 +453,7 @@ claim-check: eval-check
 current-stage-check:
 	python3 scripts/current_stage_report.py --check
 
-current-stage-refresh: stage-check benchmark-check eval-check paper-check lib-readme-check real-path-check current-stage-check
+current-stage-refresh: stage-check benchmark-check eval-check lib-readme-check real-path-check current-stage-check
 
 # ============================================================================
 # Performance & resource gates
@@ -525,20 +521,10 @@ depgraph-check:
 	python3 scripts/gen_depgraph.py --check
 
 # ============================================================================
-# Paper
-# ============================================================================
-paper:
-	$(TYPST) compile paper/main.typ paper/vogue-paper.pdf
-
-paper-check:
-	python3 scripts/paper_consistency_check.py
-
-# ============================================================================
 # Clean
 # ============================================================================
 clean:
 	$(MAKE) -C tests clean
-	rm -f paper/vogue-paper.pdf
 	# libs/libukvulkan_venus/generated/ is committed verbatim (sha256 GENERATED.lock,
 	# gated by gen-libukvenus-verify) — regenerate with `make gen-libukvenus`,
 	# never `clean`-delete it.

@@ -30,7 +30,7 @@ def main() -> int:
     venus_perf=load_json(ROOT/"results/venus/venus_perf.json")
     eval_matrix=load_json(ROOT/"results/vogue_evaluation_matrix.json")
     align=load_json(OUT/"unikraft_alignment.json")
-    required_docs=["design/unikraft-virtio-gpu-spec-v1.md","design/virtio-gpu-vulken-v1.md","README.md","paper/sections/08-evaluation.typ"]
+    required_docs=["design/unikraft-virtio-gpu-spec-v1.md","design/virtio-gpu-vulken-v1.md","README.md","docs/ARCHITECTURE.md"]
     doc_status={p:(ROOT/p).exists() for p in required_docs}
     stage="real-driver-controlq-implemented; qemu-venus-blocked-modern-pci" if qemu.get("status") == "blocked:modern-pci-unsupported" else qemu.get("status","unknown")
     ok=all(r["returncode"]==0 for r in runs) and all(doc_status.values()) and align.get("status") == "pass"
@@ -42,7 +42,7 @@ def main() -> int:
         "venus_perf_status":venus_perf.get("status"),
         "venus_acceleration_status":venus_perf.get("acceleration_status"),
         "eval_rows":[r.get("row_id")+":"+r.get("status") for r in eval_matrix.get("rows",[]) if isinstance(r,dict)],
-        "claim_boundary":"Native/static/design/paper gates pass. Real QEMU Venus acceleration remains blocked unless qemu_probe_status is pass.",
+        "claim_boundary":"Native/static/design gates pass. Real QEMU Venus acceleration remains blocked unless qemu_probe_status is pass.",
     }
     (OUT/"stage_audit.json").write_text(json.dumps(payload, indent=2)+"\n")
     md=["# VOGUE stage audit", "", f"Status: `{payload['status']}`", f"Stage: `{stage}`", "", "## Required artifacts", ""]

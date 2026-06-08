@@ -16,7 +16,7 @@ CHECKS = [
     ("fail_closed_host_visible", ROOT / "libs/libukvirtio_gpu/virtio_gpu_real.c", ["Current local Unikraft virtio-pci exposes no shared-memory BAR helper", "return -ENOTSUP"], "Host-visible blob mapping is truthfully blocked when the Unikraft transport lacks SHM BAR exposure."),
     ("stk_out_of_scope", ROOT / "design/unikraft-virtio-gpu-spec-v1.md", ["Out of scope"], "STK porting is explicitly documented as out of scope in the spec (plan.md §0.5)."),
     ("source_lineage", ROOT / "design/unikraft-virtio-gpu-spec-v1.md", ["Lineage transparency", "linux-version/linux-6.18", "qemu-version/qemu-11.0", "venus-protocol", "Unikraft"], "Spec records source lineage and non-reimplementation boundaries."),
-    ("paper_truthful_blocker", ROOT / "paper/sections/08-evaluation.typ", ["modern PCI", "0x1050", "BLOCKED"], "Paper evaluation reports current QEMU/Unikraft blocker instead of overclaiming."),
+    ("readme_truthful_stage", ROOT / "README.md", ["Current stage", "26 PASS, 0 blocked, 0 missing", "same-run PASS artifacts"], "README reports the current repo-facing stage and keeps claims tied to same-run evidence."),
 ]
 
 FORBIDDEN = [

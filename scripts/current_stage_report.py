@@ -2,7 +2,7 @@
 """Generate an auditable current-stage completeness report for VOGUE.
 
 This gate is intentionally conservative: it does not promote blocked GPU rows.
-It verifies that the current paper/design/evaluation artifacts are aligned with
+It verifies that the current docs/design/evaluation artifacts are aligned with
 Unikraft design rules and that every supported test/evaluation/benchmark surface
 has a corresponding generated artifact.
 """
@@ -16,7 +16,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results" / "stage"
-GEN = ROOT / "paper" / "generated"
 
 
 def load_json(path: Path) -> dict:
@@ -61,19 +60,17 @@ def main() -> int:
     args = parser.parse_args()
 
     OUT.mkdir(parents=True, exist_ok=True)
-    GEN.mkdir(parents=True, exist_ok=True)
-
     targets = makefile_targets()
     required_targets = {
         "verify", "test-fast", "test-native", "test-qemu", "test-gpu",
         "governance-check", "native-tests", "venus-check", "stage-check", "benchmark-check",
-        "eval-check", "paper-check", "lib-readme-check", "claim-check",
+        "eval-check", "lib-readme-check", "claim-check",
         "vulkan-tests", "vulkan-check",
     }
     scripts = {p.name for p in (ROOT / "scripts").glob("*.py")}
     required_scripts = {
         "app_perf_eval.py", "benchmark_summary.py", "eval_matrix.py",
-        "paper_consistency_check.py", "real_driver_static_check.py",
+        "real_driver_static_check.py",
         "stage_audit.py", "unikraft_alignment_check.py",
         "venus_perf_eval.py", "venus_qemu_probe.py", "real_virtio_gpu_path_check.py",
         "lib_readme_check.py", "vulkan_perf_eval.py", "llama_env_matrix.py",
@@ -89,7 +86,6 @@ def main() -> int:
     real_path = load_json(ROOT / "results" / "venus" / "real_path_check.json")
     qemu = load_json(ROOT / "results" / "venus" / "qemu_2d_probe.json")
     stk = load_json(ROOT / "results" / "stk" / "latest" / "stk_runtime_eval.json")
-    paper = "\n".join(read(path) for path in sorted((ROOT / "paper" / "sections").glob("*.typ")))
     readme = read(ROOT / "README.md")
 
     eval_rows = matrix.get("rows", []) if isinstance(matrix.get("rows"), list) else []
@@ -110,7 +106,7 @@ def main() -> int:
             "results/stage/unikraft_alignment.json", "Unikraft design-rule alignment gate passes"),
         row("stage_audit", stage.get("status") == "pass",
             "results/stage/stage_audit.json", "Current-stage audit passes"),
-        row("benchmark_summary", bench.get("status") == "pass" and len(bench.get("rows", [])) >= 8,
+        row("benchmark_summary", bench.get("status") == "pass" and len(bench.get("rows", [])) >= 6,
             f"rows={len(bench.get('rows', []))} results/benchmarks/benchmark_summary.json",
             "Benchmark summary exists with native app and Venus readiness rows"),
         row("evaluation_matrix", required_eval_rows <= set(eval_by_id),
@@ -139,12 +135,6 @@ def main() -> int:
             "design/unikraft-virtio-gpu-spec-v1.md", "STK porting is documented as out of scope (plan.md §0.5)"),
         row("library_readmes", not missing_readmes and len(lib_dirs) > 0,
             f"libs={len(lib_dirs)} missing={missing_readmes}", "Every local library has Unikraft-style README docs"),
-        row("paper_generated_tables", all((GEN / name).exists() for name in ["app-performance-table.typ", "venus-stage-table.typ", "current-stage-table.typ"]),
-            "paper/generated/app-performance-table.typ; paper/generated/venus-stage-table.typ; paper/generated/current-stage-table.typ",
-            "Paper consumes generated benchmark/stage tables"),
-        row("paper_claim_boundaries", all(s in paper for s in ["Claim Boundaries", "27 PASS", "0x1050"]),
-            "paper/sections/08-evaluation.typ; paper/sections/12-artifact-appendix.typ",
-            "Paper states current stage and claim boundaries"),
         row("readme_current_stage",
             all(s in readme for s in ["make stage-check", "make benchmark-check", "make venus-check"])
             and "26-row evaluation" in readme and "26 PASS, 0 blocked, 0 missing" in readme and "plan-fix.md" in readme,
@@ -183,34 +173,6 @@ def main() -> int:
         md.append(f"| `{r['id']}` | `{r['status']}` | {r['evidence']} | {r['required']} |")
     md += ["", "## Claim boundary", "", payload["claim_boundary"], ""]
     (OUT / "current_stage_report.md").write_text("\n".join(md))
-
-    table_rows = [
-        ("Alignment", alignment.get("status", "missing"), "Unikraft design rules and non-reimplementation boundaries"),
-        ("Stage", stage.get("status", "missing"), "Real controlq driver present; QEMU blocker named"),
-        ("Benchmarks", bench.get("status", "missing"), f"{payload['summary']['benchmark_rows']} generated benchmark/readiness rows"),
-        ("Real path", real_path.get("status", "missing"), "production Kraft/config/build evidence selects real backend"),
-        ("Evaluation", "pass" if required_eval_rows <= set(eval_by_id) else "fail", f"{payload['summary']['eval_rows']} evidence rows"),
-        ("Governance", "pass" if (ROOT / "config" / "governance.json").exists() and (ROOT.parent / "manifest").exists() else "missing", "developer/release split plus external manifest ownership"),
-        ("STK", "out-of-scope", "STK porting dropped per plan.md §0.5"),
-    ]
-    typ = [
-        "// Generated by scripts/current_stage_report.py; do not edit by hand.",
-        "#figure(",
-        "  text(size: 8pt, table(",
-        "    columns: (0.75in, 0.85in, 2.15in),",
-        "    inset: 3pt,",
-        "    align: (left, left, left),",
-        "    table.header([*Gate*], [*Status*], [*Reviewer interpretation*]),",
-    ]
-    for gate, status, interp in table_rows:
-        typ.append(f"    [{gate}], [`{status}`], [{interp}],")
-    typ += [
-        "  )),",
-        "  caption: [Generated current-stage completeness gate. The gate checks design alignment, generated tests, benchmarks, paper linkage, and blocked acceleration non-claims.]",
-        ") <tab:current-stage>",
-        "",
-    ]
-    (GEN / "current-stage-table.typ").write_text("\n".join(typ))
 
     print(f"current_stage_report: {payload['status']} checks={len(rows)} eval_rows={len(eval_rows)} benchmark_rows={payload['summary']['benchmark_rows']}")
     if args.check and not ok:

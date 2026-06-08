@@ -49,7 +49,7 @@
       ]
     },
     "verify": {
-      "purpose": "Release/artifact gate; broadest check before paper or README release claims are promoted.",
+      "purpose": "Release/artifact gate; broadest check before README/results release claims are promoted.",
       "required_targets": [
         "artifact-full"
       ]

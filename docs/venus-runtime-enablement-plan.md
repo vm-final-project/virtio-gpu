@@ -127,7 +127,6 @@ Gate every promotion on the existing Make targets; never hand-edit the matrix.
 | `llm.bench.vk` / `.real` | `make llama-vulkan-check` | same-run PASS line + pp512/tg128 vs `config/perf_baseline.json` |
 | `host.vk.probe` etc. | `make eval-check` | Unikraft-domain JSON with required `evidence_id`/schema (not host-baseline) |
 | Perf regression | `make perf-check` | best-of-N (`VOGUE_APP_PERF_REPS`) within baseline thresholds |
-| Paper | `make paper-check paper` | typst exits 0; tables synced to matrix JSON |
 | Full gate | `make verify` | all of the above |
 
 **Order of operations:** finish §4 → `make native-tests` (regression guard) →

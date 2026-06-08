@@ -135,7 +135,6 @@ make test-fast
 make eval-check
 python3 scripts/app_multi_env_bench.py
 make current-stage-check
-make paper-check
 ```
 
 ## Claim boundaries

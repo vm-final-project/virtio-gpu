@@ -99,4 +99,3 @@ custom ggml substrate, or llama runtime remains under `libs/` or `apps/`.
 - `make artifact-smoke`: quick no-QEMU structure/native/API/docs gate.
 - `make artifact-functional`: smoke + host Vulkan/app/eval/current-stage gates.
 - `make artifact-full`: functional + host-dependent QEMU/Venus/llama Vulkan gates.
-- `make artifact-paper`: paper consistency and PDF build.

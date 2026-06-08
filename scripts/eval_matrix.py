@@ -296,7 +296,7 @@ def build_rows() -> list[Row]:
             "Host virglrenderer execution or hardware acceleration.",
             "Add real-device checks when virgl command encoding lands."),
         Row("xport.gl-probe", "virgl device discovery", "QEMU VirtIO-GPU-GL probe",
-            "pass", "capset discovery recorded in prior run evidence", "paper/sections/08-evaluation.typ",
+            "pass", "capset discovery recorded in prior run evidence", "results/venus/qemu_2d_probe.json",
             "The tested host exposes a GL-capable VirtIO-GPU path for future K1 work.",
             "Rendering or acceleration without a virgl command stream.",
             "Tie future K1 runs to same-run capset, submit, and frame evidence."),
@@ -485,7 +485,7 @@ def llama_vulkan_rows() -> list[Row]:
             if bench_status == "pass" else
             f"No Unikraft Vulkan throughput comparison claim; current artifact status is {bench_status}.",
             "Outright performance superiority claim; Unikraft Vulkan is expected to trail bare-metal.",
-            "Once host.bench.vk.run passes, run scripts/llama_vulkan_bench.py and update paper/generated tables."),
+            "Once host.bench.vk.run passes, run scripts/llama_vulkan_bench.py and regenerate the benchmark/evaluation artifacts."),
         Row("vk.ggml-dispatch",
             "Static Venus-backed Vulkan ICD dispatch layer (libvulkan): 82 Vulkan C ABI "
             "stubs wired to Venus encoder, no dlopen, no host libvulkan.so",
@@ -674,7 +674,6 @@ def write_outputs(rows: list[Row], out_dir: Path | None) -> dict:
         "metadata": {
             "generated_utc": generated,
             "source": "scripts/eval_matrix.py",
-            "paper": "paper/main.typ",
         },
         "rows": [asdict(r) for r in rows],
     }

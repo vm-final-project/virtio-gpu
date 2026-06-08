@@ -249,15 +249,13 @@ included by every `.c`; `virtgpu_vq.c` is the transport (`virtio_ring.h`,
    regex/`select`/`meson`-parse path (no toolchain needed), `--precise` for clang.
 2. **Emit D1** `results/depgraph/edges.json` (namespaced nodes, kind-labeled edges).
 3. **Emit D2** per-repo `.dot` and **D3** the three §5 views; render `.svg` via
-   `dot`/`neato` (skip-with-warning if Graphviz absent, mirroring the `typst`
-   handling in the paper gate).
+   `dot`/`neato` (skip-with-warning if Graphviz is absent).
 4. **Curate** the §4c `RUNTIME_EDGES` table with file+symbol citations; reviewed,
    not guessed.
 5. **Wire `make depgraph`** + a `depgraph-check` that re-extracts and fails if
    `edges.json` drifts from the committed copy (so the graph can't silently rot).
    Register ownership in `config/governance.json`; run `make governance-check`.
-6. **Embed** View A and View C into `docs/ARCHITECTURE.md` and the paper
-   (`paper/`), with node/edge-delta captions.
+6. **Embed** View A and View C into `docs/ARCHITECTURE.md`, with node/edge-delta captions.
 7. **Validate** the seam: assert every `VIRTIO_GPU_CMD_*`/Venus opcode VOGUE
    emits has a QEMU consumer node (View C doubles as the test).
 

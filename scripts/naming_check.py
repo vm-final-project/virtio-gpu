@@ -14,7 +14,7 @@ MAP_FILE = ROOT / "config" / "row_id_map.json"
 
 ALLOWED_DIRS = (
     ".omx", ".git", ".unikraft", ".tools",
-    "results/.archive", "paper/clean-acmart", "paper/figures",
+    "results/.archive",
     "resource", "rootfs", "tests/build",
     "omx_wiki", "design",
 )

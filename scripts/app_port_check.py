@@ -109,13 +109,6 @@ def main() -> int:
         check_all_porting_docs()
         check_readme_app_statuses()
         read(ROOT / "README.md")
-        paper = "\n".join(read(p) for p in [
-            ROOT / "paper" / "sections" / "06-graphics-runtime-application-support.typ",
-            ROOT / "paper" / "sections" / "07-implementation.typ",
-            ROOT / "paper" / "sections" / "08-evaluation.typ",
-        ])
-        require("official-source" in paper or "official upstream" in paper,
-                "paper sections must describe official-source porting")
     except AssertionError as exc:
         print(f"app_port_check: FAIL {exc}")
         return 1

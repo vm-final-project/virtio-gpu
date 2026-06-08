@@ -2,7 +2,7 @@
 
 VOGUE is managed as a research-artifact monorepo. Governance is intentionally
 stricter than a normal library repo because apps, Unikraft libraries, generated
-results, and paper claims can otherwise drift apart.
+results, and README-facing claims can otherwise drift apart.
 
 ## Developer workflow split
 
@@ -15,7 +15,7 @@ Use the lightest target that proves the thing being changed:
 | QEMU | `make test-qemu` | VirtIO-GPU/QEMU probes; may return structured blockers on unsuitable hosts. | QEMU transport only when same-run PASS evidence exists. |
 | GPU/static | `make test-gpu` | Host Vulkan plus static Venus/ggml-vulkan dispatch checks. | Static/API coverage unless QEMU runtime also passes. |
 | Evaluation | `make eval-check` | Regenerate the evidence matrix. | Generated PASS/blocked rows only. |
-| Release | `make verify` or `make artifact-full` | Broad artifact gate before promoting paper/README claims. | Release claims only when linked to manifest-backed evidence. |
+| Release | `make verify` or `make artifact-full` | Broad artifact gate before promoting README/results claims. | Release claims only when linked to manifest-backed evidence. |
 
 Existing historical targets remain callable; the new names are reviewer-facing
 aliases that make the daily-vs-release split explicit.

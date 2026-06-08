@@ -9,7 +9,7 @@ This repository is VOGUE, a Unikraft VirtIO-GPU/Venus/Vulkan research artifact. 
 - `kraft/`: Kraftfiles for appliance builds.
 - `tests/`: host-native deterministic C tests against the fake VirtIO-GPU backend.
 - `scripts/`, `config/`, `results/`: evidence generation, governance metadata, and generated artifacts.
-- `docs/`, `design/`, `paper/`: architecture notes, design specs, and the Typst paper.
+- `docs/`, `design/`, `results/`: architecture notes, design specs, and generated evidence consumed by repo-local gates.
 
 ## Build, Test, and Development Commands
 
@@ -18,9 +18,9 @@ Run commands from the repository root:
 - `make help`: list supported reviewer and test targets.
 - `make test-fast`: daily gate for governance, docs, native tests, and protocol checks.
 - `make test-native` or `make -C tests native`: run host-native tests without QEMU/GPU/model dependencies.
-- `make artifact-quick`: fast artifact gate covering native tests, Vulkan API coverage, docs, and paper checks.
+- `make artifact-quick`: fast artifact gate covering native tests, Vulkan API coverage, docs, and generated evidence checks.
 - `make verify`: broad release gate; may require QEMU/Venus/GPU availability.
-- `make clean`: remove generated test and paper outputs.
+- `make clean`: remove generated test outputs.
 
 ## Coding Style & Naming Conventions
 
@@ -32,7 +32,7 @@ Add or update focused tests in `tests/` for library behavior. Test files general
 
 ## Commit & Pull Request Guidelines
 
-Recent history uses short, imperative subjects, sometimes with a scope prefix such as `docs:` or `slide:`. Keep commits focused and mention the evidence generated or intentionally not run. Pull requests should describe the claim boundary, changed paths, required external stack, and test results; include screenshots or result artifacts when graphics, paper, or benchmark output changes.
+Recent history uses short, imperative subjects, sometimes with a scope prefix such as `docs:` or `slide:`. Keep commits focused and mention the evidence generated or intentionally not run. Pull requests should describe the claim boundary, changed paths, required external stack, and test results; include screenshots or result artifacts when graphics or benchmark output changes.
 
 ## Security & Configuration Tips
 

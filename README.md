@@ -104,11 +104,10 @@ sibling checkouts (`../unikraft`, `../llama.cpp`, `../lib-musl`, `../lib-lwip`,
 | `scripts/` | Python evidence generators and claim gates invoked by the `Makefile` (eval matrix, governance, perf, boot/model-load time, Venus/Vulkan probes, llama runners, the HTTP server capture/gate). |
 | `config/` | Governance + environment metadata: `external_paths.json` (vendored sibling roots), `llama_env_matrix.json` (llama.cpp env/thread/backend selection), `governance.json` + `perf_baseline.json` (drive the gates). |
 | `cmake/` | `unikraft-clang.cmake` toolchain file used to cross-build upstream llama.cpp (`libllama.a`, ggml backends) for the unikernel. |
-| `results/` | Generated evidence consumed by the README, paper, and gates (`vogue_evaluation_matrix.md`, `llama/*.json`, `venus/`, `kmscube_vgpu_gl/`, …). |
+| `results/` | Generated evidence consumed by the README and repo-local gates (`vogue_evaluation_matrix.md`, `llama/*.json`, `venus/`, `kmscube_vgpu_gl/`, …). |
 | `docs/` | Long-form docs: `ARCHITECTURE.md`, `GOVERNANCE.md`, `VENUS-BRINGUP.md`, the llama.cpp porting plan, and the Venus runtime enablement plan. |
-| `paper/` | Typst paper + generated tables (`make paper`). |
 | `rootfs/` | Host-shared assets mounted into appliances over 9pfs (e.g. the llama model directory). |
-| `patches/`, `design/`, `idea/`, `resource/`, `slides/` | Supporting material: vendored patches, design notes, scratch ideas, figures, and presentation assets. Not part of the build/test path. |
+| `patches/`, `design/`, `idea/`, `resource/` | Supporting material: vendored patches, design notes, scratch ideas, and archival references. Not part of the build/test path. |
 
 Top-level reference files: `plan-optimize.md` (perf levers → gates),
 `plan-fix.md` (current blockers and their fixes), `unikraft-porting.md`,
@@ -171,8 +170,6 @@ enforces each library's `README.md` contract.
 | Regenerate the evidence matrix | `make eval-check` → `results/vogue_evaluation_matrix.md`. |
 | Add/verify a governance contract | `config/governance.json`, then `make governance-check lib-readme-check app-port-check`. |
 | Reproduce the HTTP llama server | `make llama-upstream-vk-server-build` → `python3 scripts/llama_server_vk_capture.py` → `make llm-server-vk-check`. |
-| Build the paper | `make paper` (PDF) / `make paper-check` (consistency). |
-
 ---
 
 ## Make Targets Summary
@@ -230,13 +227,12 @@ The root `Makefile` is the single entry point; it delegates the C suite to
 | `make linux-guest-vk-baseline` | Stock-Linux-guest + Venus Vulkan baseline (same QEMU path) for comparison. |
 | `make perf-check` / `image-size-check` / `boot-time-check` / `model-load-time-check` | Performance & resource budgets. |
 | `make current-stage-check` | Assert the documented current-stage report. |
-| `make paper` / `paper-check` | Build / consistency-check the Typst paper. |
-| `make clean` | Remove generated test/paper outputs. (The committed `libs/libukvulkan_venus/generated/` Venus headers are not touched — regenerate with `make gen-libukvenus`.) |
+| `make clean` | Remove generated test outputs. (The committed `libs/libukvulkan_venus/generated/` Venus headers are not touched — regenerate with `make gen-libukvenus`.) |
 
 ### Artifact bundles
 
 `make artifact-quick` (fast) · `make artifact-check` (functional) ·
-`make artifact-full` (broadest, including paper + claim discipline).
+`make artifact-full` (broadest, including host-dependent runtime checks + claim discipline).
 
 ---
 
