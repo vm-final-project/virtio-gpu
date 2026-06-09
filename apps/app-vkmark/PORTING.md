@@ -28,13 +28,13 @@ Full vkmark scene execution is not claimed because it requires the complete Mesa
 - `Config.uk` — declares `CONFIG_APP_VKMARK` and selects `libukvulkan_venus` (native Venus driver)
 - `Makefile.uk` — registers with `addlib`, uses `APPVKMARK_*` variables, lists `main.c`; vkmark meson build system is not reproduced
 - `exportsyms.uk` — exports only `main`
-- No dedicated `kraft/Kraftfile.*` — the substrate is exercised through `make vulkan-check` and `make app-multi-env-bench`.
+- No dedicated `kraft/Kraftfile.*`; the substrate is exercised through
+  `make vulkan-check`.
 
 ## Scene baselines
 
-Host llvmpipe/NVIDIA scene-fps comparisons are tracked alongside same-run
-evidence in `results/llama-bench/` and the multi-environment table generated
-by `make app-multi-env-bench`; they do not live in this file so the port
+Host llvmpipe/NVIDIA scene-fps comparisons belong in canonical Vulkan evidence;
+they do not live in this file so the port
 metadata stays small. Unikraft-internal fps requires native Venus render payload
 support plus same-run frame proof and is not claimed in this revision.
 

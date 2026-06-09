@@ -12,7 +12,7 @@
 #   HOST_GCC_LIB            host GCC runtime library dir (optional)
 #
 # Usage (from the project Makefile):
-#   cmake -S "$LLAMA_ROOT" -B "$LLAMA_ROOT/build-unikraft-cpu" \
+#   cmake -S "$LLAMA_ROOT" -B "$LLAMA_ROOT/build-unikraft-vk" \
 #         -DCMAKE_TOOLCHAIN_FILE=$(realpath cmake/unikraft-clang.cmake) ...
 
 set(CMAKE_SYSTEM_NAME Linux)

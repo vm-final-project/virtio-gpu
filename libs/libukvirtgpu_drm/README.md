@@ -117,4 +117,4 @@ make verify
 
 The evidence matrix splits DRM compatibility into `vk.drm-core` for the direct
 translator and `vk.drm-fdio` for the fd-compatible `ioctl`/`mmap` facade.
-`make verify` re-runs the gates and regenerates the evaluation matrix.
+`make verify` re-runs the deterministic and runtime gates.

@@ -6,9 +6,8 @@ self-checking binary that exercises them against a **fake VirtIO-GPU backend**
 (`virtio_gpu_fake.c`). The suite needs **no QEMU, Unikraft, GPU, model, CUDA, or
 EGL render node** — it is the fast inner loop and the primary CI gate.
 
-llama.cpp runtime/throughput coverage deliberately lives elsewhere (the upstream
-single-application appliances and `config/llama_env_matrix.json`); this suite
-only proves the support code.
+llama.cpp runtime coverage lives in the upstream single-application appliances;
+this suite only proves the support code.
 
 ## Quick start
 
@@ -25,8 +24,7 @@ make proto-abi          # VirtIO-GPU wire-ABI struct/feature check
 make vulkan-tests       # optional host Vulkan compute baseline (VK_LIB + VK_INC)
 ```
 
-`make test-fast` (root) bundles the native suite + `proto-abi` with the
-governance/doc gates for the daily developer check.
+`make test-fast` (root) bundles the native suite and `proto-abi`.
 
 The same targets exist on this component `Makefile` if you are working inside
 `tests/` directly (`make -C tests native`, `make -C tests test-core`, …).

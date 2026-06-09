@@ -1,0 +1,12 @@
+{
+  "status": "blocked:qemu-missing",
+  "generated_utc": "2026-06-09T11:29:16.215159Z",
+  "command": "/tmp/vogue-missing-qemu -machine accel=tcg -cpu max -m 3072 -no-reboot -kernel /Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu-refactor/.unikraft/build/vogue-llama-vk-server_qemu-x86_64 -display egl-headless,gl=on -vga none -device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true -append console=ttyS0 -serial mon:stdio -monitor none -netdev user,id=net0,hostfwd=tcp:127.0.0.1:0-10.0.2.15:8080 -device virtio-net-pci,netdev=net0",
+  "inputs": {
+    "mode": "server",
+    "model": "/tmp/vogue-missing.gguf",
+    "image": "/Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu-refactor/.unikraft/build/vogue-llama-vk-server_qemu-x86_64"
+  },
+  "metrics": {},
+  "error": "QEMU executable not found"
+}

@@ -10,7 +10,7 @@ currently the Unikraft-native Venus driver in `libukvulkan_venus`.
 This replaces the previous design where the `vk*` ABI and dispatch state lived
 inside the ggml-named `libukggml_vulkan` library. The Vulkan ABI now lives in a
 correctly named loader/runtime library; the upstream ggml-vulkan stack is built
-in-tree by `app-llama-upstream-vk` (the `libukggml_vk` helper was retired).
+in-tree by `app-llama-vk` (the `libukggml_vk` helper was retired).
 
 ## Architecture
 
