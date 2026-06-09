@@ -7,13 +7,13 @@ future virgl/GPU-render rows remain BLOCKED until matching run logs exist.
 from __future__ import annotations
 
 import argparse
-import csv
 import hashlib
 import json
 import subprocess
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
 from pathlib import Path
+
+from artifact_utils import load_json, rows_by_status, utc_now, write_json
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results"
@@ -70,13 +70,6 @@ def perf_summary(row: dict) -> str:
     return (f"results/app_perf.json; avg_frame_ms={row.get('avg_frame_ms')}; "
             f"fps={row.get('fps')}; transfers={row.get('transfers')}; "
             f"flushes={row.get('flushes')}; fences={row.get('fences')}")
-
-
-def load_json(path: Path) -> dict:
-    try:
-        return json.loads(path.read_text())
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {}
 
 
 def venus_rows() -> list[Row]:
@@ -143,7 +136,7 @@ def venus_rows() -> list[Row]:
             "libukvulkan_venus: PACKED encoding + uint32 array_size per Mesa vn_encode_array_size()",
             enc_status,
             "vulkan_registry_check (9 command IDs vs vk.xml/Mesa/VK_EXT_command_serialization.xml); "
-            "venus_encoder_test layout assertions for the retained bootstrap commands",
+            "venus_encoder_core_test layout assertions for the retained bootstrap commands",
             enc_evidence,
             "Venus encoder uses PACKED wire format (no inter-field alignment padding; uint64 not 8-byte "
             "aligned in stream); array presence fields are uint32 array_size per Mesa protocol, not "
@@ -155,7 +148,7 @@ def venus_rows() -> list[Row]:
         Row("proto.venus-ring", "Venus ring-buffer protocol substrate",
             "libukvulkan_venus: vkCreateRingMESA/vkNotifyRingMESA/vkDestroyRingMESA + circular ring",
             ring_status,
-            "venus_ring_test protocol checks; vkCreateRingMESA encoding, host-visible "
+            "venus_ring_core_test protocol checks; vkCreateRingMESA encoding, host-visible "
             "head/tail layout, circular write, flush, wait",
             ring_evidence if ring_probe else "libs/libukvulkan_venus/venus_init.c;libs/libukvulkan_venus/venus_cs.c",
             "Mesa-compatible Venus ring-buffer protocol (vkCreateRingMESA / vkNotifyRingMESA) "
@@ -277,8 +270,8 @@ def build_rows() -> list[Row]:
 
     n2d_pass = ok_native and "virtio_gpu_core_test: PASS" in native_out
     api_pass = ok_native and "virtio_gpu_core_test: PASS" in native_out
-    g5_pass = ok_native and "virtgpu_drm_test: PASS" in native_out
-    drm_fdio_pass = ok_native and "virtgpu_drm_test: PASS" in native_out
+    g5_pass = ok_native and "virtgpu_drm_compat_test: PASS" in native_out
+    drm_fdio_pass = ok_native and "virtgpu_drm_compat_test: PASS" in native_out
 
     return [
         Row("disp.2d", "2D display pipeline", "native fake-backend render path",
@@ -326,7 +319,7 @@ def build_rows() -> list[Row]:
             "appliance, rerun kmscube-run, and let kmscube_vgpu_gl_eval.py emit "
             "frame_pixel_proof.json from the real PPM."),
         Row("vk.drm-core", "libukvirtgpu_drm core translator — DRM ioctl replay",
-            "virtgpu_drm_test: direct DRM ioctl translator path",
+            "virtgpu_drm_compat_test: direct DRM ioctl translator path",
             "pass" if g5_pass else "missing",
             "DRM ioctl replay including Venus capset detection, host-coherent mapping, GET_CAPS, RESOURCE_INFO, and GEM_CLOSE",
             rel(native_log),
@@ -335,7 +328,7 @@ def build_rows() -> list[Row]:
             "fd-compatible /dev/dri mmap behavior, full Mesa Vulkan apps, syncobj/PRIME, or hardware acceleration.",
             "Keep as direct translator regression gate; fd compatibility is tracked by vk.drm-fdio."),
         Row("vk.drm-fdio", "libukvirtgpu_drm fdio facade — render-node ioctl/mmap offsets",
-            "virtgpu_drm_test: fdio render-node facade path",
+            "virtgpu_drm_compat_test: fdio render-node facade path",
             "pass" if drm_fdio_pass else "missing",
             "fd-compatible DRM facade test against fake backend",
             rel(native_log),
@@ -491,14 +484,14 @@ def llama_vulkan_rows() -> list[Row]:
             "diagnostic surface, and native init path",
             "libs/libvulkan/uk_vulkan_dispatch.c: vkGetInstanceProcAddr as real C symbol "
             "returning Venus-backed stubs; uk_vulkan_init() over native libukvulkan_venus; "
-            f"tests/vulkan_dispatch_test.c: {n3_total} retained checks across proc lookup, "
+            f"tests/vulkan_dispatch_core_test.c: {n3_total} retained checks across proc lookup, "
             "diagnostic info, and native init plumbing",
             n3_status,
-            f"{n3_passed}/{n3_total} retained checks pass in vulkan_dispatch_test: static proc lookup, "
+            f"{n3_passed}/{n3_total} retained checks pass in vulkan_dispatch_core_test: static proc lookup, "
             "dispatch info surface, and native Venus-backed init coverage. "
             f"artifact written to {n3_evidence}",
             n3_evidence,
-            f"{n3_passed}/{n3_total} retained checks pass in vulkan_dispatch_test: the libvulkan "
+            f"{n3_passed}/{n3_total} retained checks pass in vulkan_dispatch_core_test: the libvulkan "
             "dispatch table exposes the required entry points, the native Venus-backed init path "
             "is callable, and the exported diagnostic surface reports the intended claim boundary.",
             "Real GPU throughput, llama.cpp token output, ring-buffer reads, "
@@ -664,40 +657,31 @@ def vulkan_rows() -> list[Row]:
 def write_outputs(rows: list[Row], out_dir: Path | None) -> dict:
     if out_dir is not None:
         out_dir.mkdir(parents=True, exist_ok=True)
-    generated = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    row_dicts = [asdict(r) for r in rows]
+    counts = {
+        "pass": sum(1 for row in row_dicts if row["status"] == "pass"),
+        "blocked": sum(1 for row in row_dicts if str(row["status"]).startswith("blocked:")),
+        "missing": sum(1 for row in row_dicts if row["status"] == "missing"),
+        "fail": sum(1 for row in row_dicts if row["status"] == "fail"),
+    }
     payload = {
         "metadata": {
-            "generated_utc": generated,
+            "generated_utc": utc_now(),
             "source": "scripts/eval_matrix.py",
+            "version": 1,
         },
-        "rows": [asdict(r) for r in rows],
+        "summary": {
+            "total_rows": len(row_dicts),
+            "counts": counts,
+            "rows_by_status": rows_by_status(row_dicts),
+        },
+        "rows": row_dicts,
     }
-    latest_json = RESULTS / "vogue_evaluation_matrix.json"
-    latest_csv = RESULTS / "vogue_evaluation_matrix.csv"
-    latest_md = RESULTS / "vogue_evaluation_matrix.md"
-    json_paths = [latest_json]
+    json_paths = [RESULTS / "vogue_evaluation_matrix.json"]
     if out_dir is not None:
         json_paths.insert(0, out_dir / "vogue_evaluation_matrix.json")
     for path in json_paths:
-        path.write_text(json.dumps(payload, indent=2))
-    csv_paths = [latest_csv]
-    if out_dir is not None:
-        csv_paths.insert(0, out_dir / "vogue_evaluation_matrix.csv")
-    for path in csv_paths:
-        with path.open("w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=list(asdict(rows[0]).keys()), lineterminator="\n")
-            writer.writeheader(); writer.writerows(asdict(r) for r in rows)
-    lines = ["# VOGUE Evaluation Matrix", "", f"Generated: `{generated}`", "",
-             "| Row | Claim | Status | Evidence | Allowed | Forbidden |",
-             "|-----|-------|--------|----------|---------|-----------|"]
-    for r in rows:
-        lines.append(f"| `{r.row_id}` | {r.claim} | `{r.status}` | `{r.evidence}` | {r.claim_allowed} | {r.claim_forbidden} |")
-    text = "\n".join(lines) + "\n"
-    md_paths = [latest_md]
-    if out_dir is not None:
-        md_paths.insert(0, out_dir / "vogue_evaluation_matrix.md")
-    for path in md_paths:
-        path.write_text(text)
+        write_json(path, payload)
     return payload
 
 
@@ -709,12 +693,14 @@ def main() -> int:
     out_dir = Path(args.out_dir) if args.out_dir else None
     rows = build_rows()
     payload = write_outputs(rows, out_dir)
-    counts = {s: sum(1 for r in rows if r.status.startswith(s)) for s in ["pass", "blocked", "missing", "future"]}
     if out_dir is not None:
-        print(f"wrote {out_dir / 'vogue_evaluation_matrix.md'}")
-    print(f"wrote {RESULTS / 'vogue_evaluation_matrix.md'}")
+        print(f"wrote {out_dir / 'vogue_evaluation_matrix.json'}")
+    print(f"wrote {RESULTS / 'vogue_evaluation_matrix.json'}")
     print("rows={rows} pass={pass_} blocked={blocked} missing={missing}".format(
-        rows=len(rows), pass_=counts["pass"], blocked=counts["blocked"], missing=counts["missing"]))
+        rows=len(rows),
+        pass_=payload["summary"]["counts"]["pass"],
+        blocked=payload["summary"]["counts"]["blocked"],
+        missing=payload["summary"]["counts"]["missing"]))
     if args.check:
         required = {"disp.2d", "proto.api-contract", "gfx.kmscube.submit", "gfx.kmscube.frame",
                     "proto.real-driver", "xport.qemu-vgpu", "vk.readiness",

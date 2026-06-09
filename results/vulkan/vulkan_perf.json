@@ -1,10 +1,52 @@
 {
+  "metadata": {
+    "generated_utc": "2026-06-09T04:55:18.317156Z",
+    "source": "scripts/vulkan_perf_eval.py",
+    "version": 1
+  },
   "status": "blocked:vulkan-test-failed",
+  "summary": {
+    "headline": "Host Vulkan baseline and Venus substrate gate",
+    "counts": {
+      "repetitions": 1,
+      "physical_devices": 0
+    }
+  },
+  "artifacts": {
+    "result_json": "results/vulkan/vulkan_perf.json"
+  },
+  "checks": [
+    {
+      "id": "vulkaninfo",
+      "status": "pass"
+    },
+    {
+      "id": "vulkan_compute",
+      "status": "blocked:libvulkan-missing"
+    },
+    {
+      "id": "venus_ring_core",
+      "status": "pass"
+    },
+    {
+      "id": "vkmark_substrate",
+      "status": "pass"
+    }
+  ],
+  "rows": [],
+  "block": {
+    "reason": "blocked:vulkan-test-failed",
+    "stage": "host-env",
+    "claim_allowed": "Host Vulkan blocker recorded; no Unikraft Vulkan runtime or acceleration claim.",
+    "claim_forbidden": "Passing Vulkan runtime or vkmark rendering claim without a passing host Vulkan baseline.",
+    "next_step": "Install or expose the required host Vulkan loader/header/toolchain surface and rerun vulkan_perf_eval.py.",
+    "first_missing_dependency": "/usr/lib/x86_64-linux-gnu/libvulkan.so.1"
+  },
   "acceleration": "blocked:no-render-payload",
   "g5_g6_substrate": "pass",
   "venus_ring_substrate": {
     "status": "pass",
-    "output_tail": "./build/venus_ring_test\n  PASS  probe fake device\n  PASS  ring status pass\n  PASS  ring create rejects null dev\n  PASS  ring create rejects zero size\n  PASS  ring create works\n  PASS  ring ready\n  PASS  ring register\n  PASS  protocol ready\n  PASS  buffer size\n  PASS  buffer mask\n  PASS  head zero\n  PASS  tail zero\n  PASS  encoder init\n  PASS  encoder produced bytes\n  PASS  encoder no overflow\n  PASS  ring write\n  PASS  tail advanced\n  PASS  buffer payload copied\n  PASS  ring flush\n  PASS  shared tail stored\n  PASS  ring wait\n  PASS  ring unregister\n  PASS  protocol cleared\nvenus_ring_test: PASS checks=23\n"
+    "output_tail": "./build/venus_ring_core_test\n  PASS  probe fake device\n  PASS  ring status pass\n  PASS  ring create rejects null dev\n  PASS  ring create rejects zero size\n  PASS  ring create works\n  PASS  ring ready\n  PASS  ring register\n  PASS  protocol ready\n  PASS  buffer size\n  PASS  buffer mask\n  PASS  head zero\n  PASS  tail zero\n  PASS  encoder init\n  PASS  encoder produced bytes\n  PASS  encoder no overflow\n  PASS  ring write\n  PASS  tail advanced\n  PASS  buffer payload copied\n  PASS  ring flush\n  PASS  shared tail stored\n  PASS  ring wait\n  PASS  ring unregister\n  PASS  protocol cleared\nvenus_ring_core_test: PASS checks=23\n"
   },
   "vulkaninfo": {
     "status": "pass",
@@ -73,8 +115,5 @@
     "blocked_by": [],
     "rendering_status": "blocked:frame-proof-missing",
     "next_step": "Connect the libukvulkan_venus host-visible ring substrate to a full Mesa/Venus timeline/frame path, then run vkmark with venus=true for per-scene fps evidence."
-  },
-  "claim_allowed": "Host-side Vulkan API surface proof and baseline measurements. Native libvulkan dispatch, libukvulkan_venus driver, and host-visible ring substrate implemented and tested. Venus/vkmark rendering still requires non-empty render payloads.",
-  "claim_forbidden": "Vulkan rendering fps inside Unikraft, GPU acceleration, or vkmark scene scores without non-empty accelerated render-payload evidence.",
-  "written_at": "2026-06-09T04:04:22Z"
+  }
 }

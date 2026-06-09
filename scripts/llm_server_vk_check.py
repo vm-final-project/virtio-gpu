@@ -1,49 +1,36 @@
 #!/usr/bin/env python3
-"""End-to-end static/runtime gate for llama.cpp server appliances.
-
-Asserts the Unikraft single-application contract:
-  * CPU and Vulkan server images boot directly into one app entrypoint.
-  * Native server entrypoints do not use Linux-style fork/exec supervision.
-  * ELF Loader remains a documented discovery/prototype path, not the release
-    architecture.
-  * The Vulkan server still pins the plan-optimize.md L4.1/L4.2 QEMU flags and
-    surfaces L2.2/L2.3/L3.4 evidence hooks.
-
-Writes results/llama/server_vk_check.{json,md}. Hosts without the
-appliance image still pass static checks; missing same-run telemetry becomes a
-structured blocker row.
-"""
+"""End-to-end static/runtime gate for llama.cpp server appliances."""
 from __future__ import annotations
 
 import argparse
 import json
 import re
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
+
+from artifact_utils import blocked_artifact, make_artifact, write_json
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results" / "llama"
+SOURCE = "scripts/llm_server_vk_check.py"
 
-VK_KRAFTFILE    = ROOT / "kraft" / "Kraftfile.llama-upstream-vk-server"
-CPU_KRAFTFILE   = ROOT / "kraft" / "Kraftfile.llama-upstream-server"
-RUNSH           = ROOT / "scripts" / "run_llama_upstream_vk_server.sh"
-VK_SERVER_CPP   = ROOT / "apps" / "app-llama-upstream-vk" / "server.cpp"
-CPU_SERVER_CPP  = ROOT / "apps" / "app-llama-upstream" / "server.cpp"
-VK_CONFIG_UK    = ROOT / "apps" / "app-llama-upstream-vk" / "Config.uk"
-CPU_CONFIG_UK   = ROOT / "apps" / "app-llama-upstream" / "Config.uk"
-ENV_MATRIX      = ROOT / "config" / "llama_env_matrix.json"
-PORTING_PLAN    = ROOT / "docs" / "llama-cpp-unikraft-porting-plan.md"
-LLAMA_ROOT      = ROOT.parent / "llama.cpp"
+VK_KRAFTFILE = ROOT / "kraft" / "Kraftfile.llama-upstream-vk-server"
+CPU_KRAFTFILE = ROOT / "kraft" / "Kraftfile.llama-upstream-server"
+RUNSH = ROOT / "scripts" / "run_llama_upstream_vk_server.sh"
+VK_SERVER_CPP = ROOT / "apps" / "app-llama-upstream-vk" / "server.cpp"
+CPU_SERVER_CPP = ROOT / "apps" / "app-llama-upstream" / "server.cpp"
+VK_CONFIG_UK = ROOT / "apps" / "app-llama-upstream-vk" / "Config.uk"
+CPU_CONFIG_UK = ROOT / "apps" / "app-llama-upstream" / "Config.uk"
+ENV_MATRIX = ROOT / "config" / "llama_env_matrix.json"
+PORTING_PLAN = ROOT / "docs" / "llama-cpp-unikraft-porting-plan.md"
+LLAMA_ROOT = ROOT.parent / "llama.cpp"
 LLAMA_SERVER_MAIN = LLAMA_ROOT / "tools" / "server" / "main.cpp"
 LLAMA_SERVER_IMPL = LLAMA_ROOT / "tools" / "server" / "server.cpp"
-SERIAL_LOG      = ROOT / "results" / "llama" / "upstream_server_vk_serial.log"
+SERIAL_LOG = ROOT / "results" / "llama" / "upstream_server_vk_serial.log"
+SERVER_VK_RUNTIME = ROOT / "results" / "llama" / "upstream_server_vk.json"
 
 HOSTMEM_RE = re.compile(r"hostmem=(\S+).*blob=true.*venus=true")
-RUNSH_FLAGS = ("egl-headless", "blob=true", "venus=true", "hostmem=",
-               "hostfwd=", "virtio-net-pci")
-# lwIP/netdev wiring that turns the model-loaded-readiness appliance into a
-# real HTTP server (plan-fix.md "Full HTTP llama-server semantics").
+RUNSH_FLAGS = ("egl-headless", "blob=true", "venus=true", "hostmem=", "hostfwd=", "virtio-net-pci")
 VK_NET_KCONFIG = (
     "CONFIG_LIBVIRTIO_NET",
     "CONFIG_LIBUKNETDEV",
@@ -54,7 +41,6 @@ VK_NET_KCONFIG = (
     "CONFIG_LWIP_DHCP",
     "CONFIG_LIBUKRANDOM_DEVFS",
 )
-SERVER_VK_RUNTIME = ROOT / "results" / "llama" / "upstream_server_vk.json"
 VK_SERVER_FLAGS = (
     "CONFIG_APP_LLAMA_UPSTREAM_VK_PARALLEL",
     "CONFIG_APP_LLAMA_UPSTREAM_VK_BATCH",
@@ -87,33 +73,38 @@ READY_LINE_RE = re.compile(
 )
 
 
-def _check_static() -> dict:
+def read(path: Path) -> str:
+    try:
+        return path.read_text(errors="replace")
+    except FileNotFoundError:
+        return ""
+
+
+def check_static() -> list[str]:
     findings: list[str] = []
-    vk_kraft = VK_KRAFTFILE.read_text() if VK_KRAFTFILE.exists() else ""
-    cpu_kraft = CPU_KRAFTFILE.read_text() if CPU_KRAFTFILE.exists() else ""
-    runsh = RUNSH.read_text() if RUNSH.exists() else ""
-    vk_server = VK_SERVER_CPP.read_text() if VK_SERVER_CPP.exists() else ""
-    cpu_server = CPU_SERVER_CPP.read_text() if CPU_SERVER_CPP.exists() else ""
-    vk_config = VK_CONFIG_UK.read_text() if VK_CONFIG_UK.exists() else ""
-    cpu_config = CPU_CONFIG_UK.read_text() if CPU_CONFIG_UK.exists() else ""
-    env_matrix = ENV_MATRIX.read_text() if ENV_MATRIX.exists() else ""
-    porting_plan = PORTING_PLAN.read_text() if PORTING_PLAN.exists() else ""
-    llama_server_main = LLAMA_SERVER_MAIN.read_text() if LLAMA_SERVER_MAIN.exists() else ""
-    llama_server_impl = LLAMA_SERVER_IMPL.read_text() if LLAMA_SERVER_IMPL.exists() else ""
+    vk_kraft = read(VK_KRAFTFILE)
+    cpu_kraft = read(CPU_KRAFTFILE)
+    runsh = read(RUNSH)
+    vk_server = read(VK_SERVER_CPP)
+    cpu_server = read(CPU_SERVER_CPP)
+    vk_config = read(VK_CONFIG_UK)
+    cpu_config = read(CPU_CONFIG_UK)
+    env_matrix = read(ENV_MATRIX)
+    porting_plan = read(PORTING_PLAN)
+    llama_server_main = read(LLAMA_SERVER_MAIN)
+    llama_server_impl = read(LLAMA_SERVER_IMPL)
 
     if "int llama_server(int argc, char ** argv)" not in llama_server_main or "return llama_server(argc, argv);" not in llama_server_main:
         findings.append("upstream-llama: tools/server/main.cpp must delegate executable main() to llama_server(argc, argv)")
     if "int llama_server(int argc, char ** argv)" not in llama_server_impl:
         findings.append("upstream-llama: tools/server/server.cpp must expose reusable llama_server(argc, argv)")
-
     if not HOSTMEM_RE.search(vk_kraft):
         findings.append("L4.1: kraft/Kraftfile.llama-upstream-vk-server missing hostmem=…,blob=true,venus=true")
     for sym in VK_NET_KCONFIG:
         if sym not in vk_kraft:
             findings.append(f"http: kraft/Kraftfile.llama-upstream-vk-server missing {sym} (lwIP/netdev HTTP path)")
     if RUNSH.exists() and not all(flag in runsh for flag in RUNSH_FLAGS):
-        findings.append("L4.2: scripts/run_llama_upstream_vk_server.sh missing one of "
-                        + ", ".join(RUNSH_FLAGS))
+        findings.append("L4.2: scripts/run_llama_upstream_vk_server.sh missing required QEMU/Venus flags")
     for flag in VK_SERVER_FLAGS:
         if flag not in vk_server:
             findings.append(f"single-app/vk: server.cpp missing {flag}")
@@ -128,28 +119,22 @@ def _check_static() -> dict:
         findings.append("L2.2: Vulkan Config.uk missing APP_LLAMA_UPSTREAM_VK_UBATCH")
     if "APP_LLAMA_UPSTREAM_PARALLEL" not in cpu_config:
         findings.append("L2.2: CPU Config.uk missing APP_LLAMA_UPSTREAM_PARALLEL")
-
     for label, text in (("cpu-server.cpp", cpu_server), ("vk-server.cpp", vk_server)):
         for needle in FORBIDDEN_PROCESS_CALLS:
             if needle in text:
                 findings.append(f"single-app/{label}: forbidden Linux supervisor call {needle}")
-
     for required in ("qemu-unikraft-cpu-server", "qemu-unikraft-vulkan-server",
-                     "qemu-unikraft-llama-server-only",
-                     "qemu-unikraft-llama-vulkan-server-only"):
+                     "qemu-unikraft-llama-server-only", "qemu-unikraft-llama-vulkan-server-only"):
         if required not in env_matrix:
             findings.append(f"env-matrix: missing {required}")
-
     if not all(term in porting_plan for term in ("ELF Loader", "discovery", "native", "fork", "exec")):
         findings.append("porting-plan: must document ELF Loader as discovery-only and native no-fork/no-exec path")
     if "CONFIG_APP_LLAMA_UPSTREAM_MODE_SERVER" not in cpu_kraft:
         findings.append("cpu-kraftfile: missing server-mode Kconfig selection")
+    return findings
 
-    return {"static_findings": findings}
 
-
-def _read_http_proof() -> dict:
-    """Read the same-run HTTP proof recorded by llama_server_vk_capture.py."""
+def read_http_proof() -> dict:
     if not SERVER_VK_RUNTIME.exists():
         return {"http_status": "blocked:no-runtime-json"}
     try:
@@ -158,7 +143,7 @@ def _read_http_proof() -> dict:
         return {"http_status": "blocked:bad-runtime-json"}
     http = data.get("http") or {}
     health = http.get("health_status")
-    out = {
+    return {
         "http_status": "pass" if health == 200 else f"blocked:health={health}",
         "http_health": health,
         "http_models_status": http.get("models_status"),
@@ -166,30 +151,27 @@ def _read_http_proof() -> dict:
         "http_completion_content": http.get("completion_content"),
         "http_endpoint": http.get("endpoint"),
     }
-    return out
 
 
-def _check_runtime() -> dict:
+def check_runtime() -> dict:
     if not SERIAL_LOG.exists():
-        return {"runtime_status": "blocked:no-serial-log",
-                "runtime_log":    str(SERIAL_LOG.relative_to(ROOT))}
+        return {"runtime_status": "blocked:no-serial-log", "runtime_log": str(SERIAL_LOG.relative_to(ROOT))}
     text = SERIAL_LOG.read_text(errors="replace")
-    m = READY_LINE_RE.search(text)
-    if not m:
-        return {"runtime_status": "blocked:no-ready-line",
-                "runtime_log":    str(SERIAL_LOG.relative_to(ROOT))}
+    match = READY_LINE_RE.search(text)
+    if not match:
+        return {"runtime_status": "blocked:no-ready-line", "runtime_log": str(SERIAL_LOG.relative_to(ROOT))}
     out = {
         "runtime_status": "pass",
-        "runtime_log":    str(SERIAL_LOG.relative_to(ROOT)),
-        "slots":          int(m.group("slots")),
-        "ctx_per_slot":   int(m.group("ctx")),
-        "batch_size":     int(m.group("batch")),
-        "ubatch_size":    int(m.group("ubatch")),
-        "prompt_cache":   bool(int(m.group("pc"))),
-        "dispatch_batch_enabled": bool(int(m.group("be"))),
-        "hostmem_fixed":  bool(int(m.group("hf"))),
+        "runtime_log": str(SERIAL_LOG.relative_to(ROOT)),
+        "slots": int(match.group("slots")),
+        "ctx_per_slot": int(match.group("ctx")),
+        "batch_size": int(match.group("batch")),
+        "ubatch_size": int(match.group("ubatch")),
+        "prompt_cache": bool(int(match.group("pc"))),
+        "dispatch_batch_enabled": bool(int(match.group("be"))),
+        "hostmem_fixed": bool(int(match.group("hf"))),
     }
-    out.update(_read_http_proof())
+    out.update(read_http_proof())
     return out
 
 
@@ -199,46 +181,65 @@ def main(argv: list[str] | None = None) -> int:
                         help="non-zero exit if any static finding is unresolved")
     args = parser.parse_args(argv)
 
-    static = _check_static()
-    runtime = _check_runtime()
-    generated = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    payload = {
-        "metadata": {
-            "generated_utc": generated,
-            "source":        "scripts/llm_server_vk_check.py",
-            "principle":     "plan-optimize.md Phase-2 verification gate",
-        },
-        **static,
+    static_findings = check_static()
+    runtime = check_runtime()
+    runtime_status = runtime["runtime_status"]
+    http_status = runtime.get("http_status", "blocked:no-http-proof")
+    if static_findings:
+        status = "fail"
+    elif runtime_status.startswith("blocked:"):
+        status = runtime_status
+    elif http_status.startswith("blocked:"):
+        status = http_status
+    else:
+        status = "pass"
+
+    checks = [
+        {"id": "static_contract", "status": "pass" if not static_findings else "fail"},
+        {"id": "runtime_ready", "status": runtime_status},
+        {"id": "http_probe", "status": http_status},
+    ]
+    extra = {
+        "static_findings": static_findings,
         **runtime,
     }
-    OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "server_vk_check.json").write_text(json.dumps(payload, indent=2) + "\n")
-    md = ["# llm.server.vk Phase-2 gate", "",
-          f"Generated: `{generated}`", "",
-          "## Static",
-          ""]
-    if static["static_findings"]:
-        md.append("FAIL:")
-        for f in static["static_findings"]:
-            md.append(f"- {f}")
+    if status.startswith("blocked:"):
+        payload = blocked_artifact(
+            source=SOURCE,
+            status=status,
+            headline="Single-application Vulkan llama.cpp server contract",
+            stage="runtime",
+            first_missing_dependency=runtime.get("runtime_log"),
+            claim_allowed="Static single-application contract can still pass; runtime serving remains explicitly blocked.",
+            claim_forbidden="Passing Vulkan server runtime or HTTP serving claim without READY-line and same-run HTTP proof.",
+            next_step="Regenerate the Vulkan server runtime capture and rerun llm_server_vk_check.py.",
+            counts={"static_findings": 0},
+            artifacts={
+                "serial_log": str(SERIAL_LOG.relative_to(ROOT)),
+                "runtime_json": str(SERVER_VK_RUNTIME.relative_to(ROOT)),
+            },
+            checks=checks,
+            extra=extra,
+        )
     else:
-        md.append("PASS — CPU/Vulkan server artifacts carry the direct single-application contract; ../llama.cpp exposes llama_server(argc, argv); no forbidden fork/exec-style supervisor calls were found in app server entrypoints.")
-    md.extend(["", "## Runtime", "",
-               f"status = `{runtime['runtime_status']}` log = `{runtime.get('runtime_log','n/a')}`",
-               "", "## HTTP",
-               "",
-               f"status = `{runtime.get('http_status','n/a')}` "
-               f"health = `{runtime.get('http_health')}` "
-               f"models = `{runtime.get('http_models_status')}` "
-               f"completion = `{runtime.get('http_completion_status')}`"])
-    if runtime.get("http_completion_content"):
-        md.append(f"completion sample: `{runtime['http_completion_content']}`")
-    (OUT / "server_vk_check.md").write_text("\n".join(md) + "\n")
+        payload = make_artifact(
+            source=SOURCE,
+            status=status,
+            headline="Single-application Vulkan llama.cpp server contract",
+            counts={"static_findings": len(static_findings)},
+            artifacts={
+                "serial_log": str(SERIAL_LOG.relative_to(ROOT)),
+                "runtime_json": str(SERVER_VK_RUNTIME.relative_to(ROOT)),
+            },
+            checks=checks,
+            extra=extra,
+        )
 
-    for f in static["static_findings"]:
-        print(f"llm-server-vk: STATIC FAIL {f}")
-    print(f"llm-server-vk: runtime={runtime['runtime_status']} http={runtime.get('http_status','n/a')}")
-    if args.check and static["static_findings"]:
+    write_json(OUT / "server_vk_check.json", payload)
+    for finding in static_findings:
+        print(f"llm-server-vk: STATIC FAIL {finding}")
+    print(f"llm-server-vk: status={payload['status']} runtime={runtime_status} http={http_status}")
+    if args.check and static_findings:
         return 1
     return 0
 

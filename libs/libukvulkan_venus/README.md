@@ -88,8 +88,8 @@ claim-boundary test.
 ## Verification
 
 ```sh
-make -C tests venus-encoder
-make -C tests venus-ring
+make -C tests venus-encoder-core
+make -C tests venus-ring-core
 make llama-vulkan-api-coverage
 make llama-ggml-vk-dispatch
 make lib-readme-check

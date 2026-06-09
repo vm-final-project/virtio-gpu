@@ -1,7 +1,22 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-09T04:05:02.480003Z",
-    "source": "scripts/eval_matrix.py"
+    "generated_utc": "2026-06-09T04:55:56.586736Z",
+    "source": "scripts/eval_matrix.py",
+    "version": 1
+  },
+  "summary": {
+    "total_rows": 26,
+    "counts": {
+      "pass": 24,
+      "blocked": 2,
+      "missing": 0,
+      "fail": 0
+    },
+    "rows_by_status": {
+      "blocked:unikraft-image-missing": 1,
+      "blocked:vulkan-test-failed": 1,
+      "pass": 24
+    }
   },
   "rows": [
     {
@@ -62,7 +77,7 @@
     {
       "row_id": "vk.drm-core",
       "claim": "libukvirtgpu_drm core translator \u2014 DRM ioctl replay",
-      "workload": "virtgpu_drm_test: direct DRM ioctl translator path",
+      "workload": "virtgpu_drm_compat_test: direct DRM ioctl translator path",
       "status": "pass",
       "required_evidence": "DRM ioctl replay including Venus capset detection, host-coherent mapping, GET_CAPS, RESOURCE_INFO, and GEM_CLOSE",
       "evidence": "results/native_tests.log",
@@ -73,7 +88,7 @@
     {
       "row_id": "vk.drm-fdio",
       "claim": "libukvirtgpu_drm fdio facade \u2014 render-node ioctl/mmap offsets",
-      "workload": "virtgpu_drm_test: fdio render-node facade path",
+      "workload": "virtgpu_drm_compat_test: fdio render-node facade path",
       "status": "pass",
       "required_evidence": "fd-compatible DRM facade test against fake backend",
       "evidence": "results/native_tests.log",
@@ -119,7 +134,7 @@
       "claim": "Venus command serialization wire-format correctness",
       "workload": "libukvulkan_venus: PACKED encoding + uint32 array_size per Mesa vn_encode_array_size()",
       "status": "pass",
-      "required_evidence": "vulkan_registry_check (9 command IDs vs vk.xml/Mesa/VK_EXT_command_serialization.xml); venus_encoder_test layout assertions for the retained bootstrap commands",
+      "required_evidence": "vulkan_registry_check (9 command IDs vs vk.xml/Mesa/VK_EXT_command_serialization.xml); venus_encoder_core_test layout assertions for the retained bootstrap commands",
       "evidence": "results/vulkan/vulkan_registry_check.json;libs/libukvulkan_venus/venus_cs.c",
       "claim_allowed": "Venus encoder uses PACKED wire format (no inter-field alignment padding; uint64 not 8-byte aligned in stream); array presence fields are uint32 array_size per Mesa protocol, not uint64 pointer flags. Commands match vk.xml and Mesa vn_protocol_driver_defines.h. Encoding is parseable by virglrenderer's vkr_context_submit_cmd.",
       "claim_forbidden": "GPU acceleration, rendering, or Vulkan conformance; registry check validates IDs only, not runtime correctness.",
@@ -130,7 +145,7 @@
       "claim": "Venus ring-buffer protocol substrate",
       "workload": "libukvulkan_venus: vkCreateRingMESA/vkNotifyRingMESA/vkDestroyRingMESA + circular ring",
       "status": "pass",
-      "required_evidence": "venus_ring_test protocol checks; vkCreateRingMESA encoding, host-visible head/tail layout, circular write, flush, wait",
+      "required_evidence": "venus_ring_core_test protocol checks; vkCreateRingMESA encoding, host-visible head/tail layout, circular write, flush, wait",
       "evidence": "results/venus/qemu_venus-ring_probe.json",
       "claim_allowed": "Mesa-compatible Venus ring-buffer protocol (vkCreateRingMESA / vkNotifyRingMESA) is implemented in libukvulkan_venus and passes all native tests: HEAD at offset 0, TAIL at offset 64, STATUS at offset 128, circular buffer at 192; power-of-2 buf_size, store-release tail, vkNotifyRingMESA notify, and spin-poll wait. The focused ring test covers the retained substrate behavior.",
       "claim_forbidden": "GPU acceleration, non-empty Vulkan payload rendering, or generalized Vulkan correctness; the QMP frame proof is a deterministic transport/display proof, not a virgl render pass.",
@@ -216,11 +231,11 @@
     {
       "row_id": "vk.ggml-dispatch",
       "claim": "Static Venus-backed Vulkan dispatch layer (libvulkan): focused proc lookup, diagnostic surface, and native init path",
-      "workload": "libs/libvulkan/uk_vulkan_dispatch.c: vkGetInstanceProcAddr as real C symbol returning Venus-backed stubs; uk_vulkan_init() over native libukvulkan_venus; tests/vulkan_dispatch_test.c: 22 retained checks across proc lookup, diagnostic info, and native init plumbing",
+      "workload": "libs/libvulkan/uk_vulkan_dispatch.c: vkGetInstanceProcAddr as real C symbol returning Venus-backed stubs; uk_vulkan_init() over native libukvulkan_venus; tests/vulkan_dispatch_core_test.c: 22 retained checks across proc lookup, diagnostic info, and native init plumbing",
       "status": "pass",
-      "required_evidence": "22/22 retained checks pass in vulkan_dispatch_test: static proc lookup, dispatch info surface, and native Venus-backed init coverage. artifact written to results/llama/vulkan_n3_dispatch.json",
+      "required_evidence": "22/22 retained checks pass in vulkan_dispatch_core_test: static proc lookup, dispatch info surface, and native Venus-backed init coverage. artifact written to results/llama/vulkan_n3_dispatch.json",
       "evidence": "results/llama/vulkan_n3_dispatch.json",
-      "claim_allowed": "22/22 retained checks pass in vulkan_dispatch_test: the libvulkan dispatch table exposes the required entry points, the native Venus-backed init path is callable, and the exported diagnostic surface reports the intended claim boundary.",
+      "claim_allowed": "22/22 retained checks pass in vulkan_dispatch_core_test: the libvulkan dispatch table exposes the required entry points, the native Venus-backed init path is callable, and the exported diagnostic surface reports the intended claim boundary.",
       "claim_forbidden": "Real GPU throughput, llama.cpp token output, ring-buffer reads, or vkMapMemory coherency to host VRAM.",
       "next_step": "Implement Venus ring-buffer reads (uk_venus_ring_wait_reply) to unblock real device property queries; implement virtio_gpu_resource_flush for blob-memory write coherency."
     },
@@ -261,10 +276,10 @@
       "row_id": "llm.server.vk",
       "claim": "Upstream llama.cpp Vulkan HTTP server appliance on Unikraft via Venus SUBMIT_3D + lwIP",
       "workload": "apps/app-llama-upstream-vk/server.cpp: single-purpose Vulkan server image; no shell/fork/exec launcher; Venus dispatch chain identical to llm.bench.vk; in-guest TCP/IP (virtio-net -> libuknetdev -> lwIP) serves the upstream llama_server() listener; same-run /health + /v1/models + /completion proof",
-      "status": "pass",
-      "required_evidence": "Server boots over Venus and serves HTTP (/health 200, /completion 200); see results/llama/upstream_server_vk.json",
+      "status": "blocked:unikraft-image-missing",
+      "required_evidence": "Build or run blocked; see results/llama/upstream_server_vk.json",
       "evidence": "results/llama/upstream_server_vk.json",
-      "claim_allowed": "Upstream llama.cpp Vulkan server appliance boots directly into the Vulkan entrypoint (no shell), reaches model-loaded readiness over real Venus, and serves HTTP over an in-guest lwIP stack (same-run /health + one bounded /completion).",
+      "claim_allowed": "Blocked; no server-runtime claim. Vulkan runtime is gated on host EGL render-node availability.",
       "claim_forbidden": "Aggregate HTTP throughput / requests-per-second / TTFT, fork/exec launcher semantics, or any claim without same-run PASS evidence.",
       "next_step": "Build kraft/Kraftfile.llama-upstream-vk-server; promote when same-run evidence exists."
     },

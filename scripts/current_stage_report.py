@@ -11,8 +11,9 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import time
 from pathlib import Path
+
+from artifact_utils import make_artifact, utc_now, write_json
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results" / "stage"
@@ -65,17 +66,25 @@ def main() -> int:
         "verify", "test-fast", "test-native", "test-qemu", "test-gpu",
         "governance-check", "native-tests", "venus-check", "stage-check", "benchmark-check",
         "eval-check", "lib-readme-check", "claim-check",
-        "vulkan-tests", "vulkan-check",
+        "vulkan-tests", "vulkan-check", "test-core", "test-compat", "test-venus", "test-dispatch",
     }
     scripts = {p.name for p in (ROOT / "scripts").glob("*.py")}
     required_scripts = {
-        "app_perf_eval.py", "benchmark_summary.py", "eval_matrix.py",
-        "real_driver_static_check.py",
-        "stage_audit.py", "unikraft_alignment_check.py",
-        "venus_perf_eval.py", "venus_qemu_probe.py", "real_virtio_gpu_path_check.py",
-        "lib_readme_check.py", "vulkan_perf_eval.py", "llama_env_matrix.py",
-        "llama_vulkan_eval.py", "llama_vulkan_api_coverage.py",
-        "governance_check.py",
+        "eval_matrix.py",
+        "vulkan_perf_eval.py",
+        "venus_perf_eval.py",
+        "llama_vulkan_eval.py",
+        "llm_server_vk_check.py",
+        "llm_server_vk_throughput_check.py",
+        "current_stage_report.py",
+        "venus_qemu_probe.py",
+        "llama_vk_real_run.py",
+        "llama_cpu_real_run.py",
+        "llama_server_vk_capture.py",
+        "llama_server_cpu_capture.py",
+        "llama_vk_build_capture.py",
+        "linux_guest_vulkan_baseline.py",
+        "llama_vulkan_linux_baseline.py",
     }
 
     stage = load_json(OUT / "stage_audit.json")
@@ -136,9 +145,9 @@ def main() -> int:
         row("library_readmes", not missing_readmes and len(lib_dirs) > 0,
             f"libs={len(lib_dirs)} missing={missing_readmes}", "Every local library has Unikraft-style README docs"),
         row("readme_current_stage",
-            all(s in readme for s in ["make stage-check", "make benchmark-check", "make venus-check"])
-            and "26-row evaluation" in readme and "26 PASS, 0 blocked, 0 missing" in readme and "plan-fix.md" in readme,
-            "README.md", "README exposes current-stage/evaluation commands and fix plan"),
+            all(s in readme for s in ["make stage-check", "make benchmark-check", "make venus-check", "results/vogue_evaluation_matrix.json"])
+            and "blocked:*" in readme,
+            "README.md", "README exposes canonical commands and JSON-only evaluation artifacts"),
         row("governance_metadata", all((ROOT / path).exists() for path in ["docs/GOVERNANCE.md", "config/governance.json"])
             and (ROOT.parent / "manifest" / "manifests" / "vogue-main.yaml").exists()
             and "make test-fast" in readme and "make governance-check" in readme and "../manifest" in readme,
@@ -147,34 +156,38 @@ def main() -> int:
     ]
 
     ok = all(r["status"] == "pass" for r in rows)
-    payload = {
-        "status": "pass" if ok else "fail",
-        "written_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "summary": {
+    payload = make_artifact(
+        source="scripts/current_stage_report.py",
+        status="pass" if ok else "fail",
+        headline="Current-stage completeness report",
+        counts={
             "libraries": len(lib_dirs),
             "eval_rows": len(eval_rows),
             "benchmark_rows": len(bench.get("rows", [])) if isinstance(bench.get("rows"), list) else 0,
-            "qemu_status": qemu.get("status"),
-            "real_path_status": real_path.get("status"),
-            "stk_accelerated_runtime": stk.get("accelerated_runtime"),
         },
-        "rows": rows,
-        "claim_boundary": "Current supported rows pass on the evaluation host, including K1/xport.qemu-vgpu and llama.cpp Vulkan runtime rows. The same rows must not be promoted on other hosts without same-run pass artifacts. Governance metadata links release claims to ../manifest specs and marks unlinked claims non-release; STK porting is out of scope (plan.md §0.5).",
-    }
-    (OUT / "current_stage_report.json").write_text(json.dumps(payload, indent=2) + "\n")
+        rows=rows,
+        extra={
+            "generated_utc": utc_now(),
+            "summary": {
+                "headline": "Current-stage completeness report",
+                "counts": {
+                    "libraries": len(lib_dirs),
+                    "eval_rows": len(eval_rows),
+                    "benchmark_rows": len(bench.get("rows", [])) if isinstance(bench.get("rows"), list) else 0,
+                },
+                "qemu_status": qemu.get("status"),
+                "real_path_status": real_path.get("status"),
+                "stk_accelerated_runtime": stk.get("accelerated_runtime"),
+            },
+            "claim_boundary": "Current supported rows pass on the evaluation host only when backed by same-run JSON artifacts. Blocked rows remain explicit partial-progress states and are never promoted to passing evidence.",
+        },
+    )
+    write_json(OUT / "current_stage_report.json", payload)
 
-    md = [
-        "# Current-stage completeness report", "",
-        f"Status: `{payload['status']}`", "",
-        "| Check | Status | Evidence | Required property |",
-        "|---|---|---|---|",
-    ]
-    for r in rows:
-        md.append(f"| `{r['id']}` | `{r['status']}` | {r['evidence']} | {r['required']} |")
-    md += ["", "## Claim boundary", "", payload["claim_boundary"], ""]
-    (OUT / "current_stage_report.md").write_text("\n".join(md))
-
-    print(f"current_stage_report: {payload['status']} checks={len(rows)} eval_rows={len(eval_rows)} benchmark_rows={payload['summary']['benchmark_rows']}")
+    print(
+        f"current_stage_report: {payload['status']} checks={len(rows)} "
+        f"eval_rows={len(eval_rows)} benchmark_rows={payload['summary']['counts']['benchmark_rows']}"
+    )
     if args.check and not ok:
         for r in rows:
             if r["status"] != "pass":

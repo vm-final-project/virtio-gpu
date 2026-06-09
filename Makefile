@@ -51,7 +51,7 @@ export LLAMA_ROOT VENUS_PROTOCOL_ROOT VULKAN_HEADERS_INCLUDE SPIRV_HEADERS_INCLU
 .PHONY: help all \
         test-fast test-native test-qemu test-gpu test tests verify \
         artifact-smoke artifact-functional artifact-full artifact-quick artifact-check \
-        native-tests test-core test-venus test-dispatch proto-abi vulkan-tests vk-drm-shim-check ggml-vk-dispatch \
+        native-tests test-core test-compat test-venus test-dispatch proto-abi vulkan-tests vk-drm-shim-check ggml-vk-dispatch \
         kmscube-build kmscube-run kmscube-check glmark2-build \
         venus-check vulkan-check stage-check benchmark-check real-path-check \
         llama-check llama-vulkan-api-coverage llama-ggml-vk-dispatch llama-vulkan-check \
@@ -84,9 +84,10 @@ help:
 	  '' \
 	  'Host-native test groups (delegate to tests/Makefile):' \
 	  '  make native-tests       Full deterministic C suite (primary CI gate)' \
-	  '  make test-core          Group 1: VirtIO-GPU core / DMA / DRM+GBM shims' \
-	  '  make test-venus         Group 2: virtgpu ioctl / VK ICD / Venus / virgl' \
-	  '  make test-dispatch      Group 3: ggml-vulkan static dispatch' \
+	  '  make test-core          Deterministic substrate checks (virtio_gpu + virgl encoder)' \
+	  '  make test-compat        Compatibility / translator checks (virtgpu DRM facade)' \
+	  '  make test-venus         Venus protocol and ring checks' \
+	  '  make test-dispatch      Static Vulkan dispatch checks' \
 	  '  make proto-abi          VirtIO-GPU wire-ABI struct/feature check' \
 	  '  make vulkan-tests       Optional host Vulkan compute baseline (needs VK_LIB/VK_INC)' \
 	  '' \
@@ -154,6 +155,9 @@ native-tests:
 test-core:
 	$(MAKE) -C tests test-core
 
+test-compat:
+	$(MAKE) -C tests test-compat
+
 test-venus:
 	$(MAKE) -C tests test-venus
 
@@ -171,7 +175,7 @@ vulkan-tests:
 
 # Single-binary convenience: virtgpu DRM ioctl shim (vk.drm-shim).
 vk-drm-shim-check:
-	$(MAKE) -C tests virtgpu-drm
+	$(MAKE) -C tests virtgpu-drm-compat
 
 # ============================================================================
 # Graphics appliances (KraftKit)
@@ -436,7 +440,7 @@ eval:
 # eval-check: regenerate with all contributing gates, then assert key rows.
 eval-check: app-perf-check venus-check vulkan-check llama-check llama-vulkan-check
 	python3 scripts/eval_matrix.py --check
-	grep -n "gfx.kmscube.submit\|xport.qemu-vgpu\|llm.server.vk" results/vogue_evaluation_matrix.md >/dev/null
+	python3 -c 'import json, pathlib, sys; rows = json.loads(pathlib.Path("results/vogue_evaluation_matrix.json").read_text()).get("rows", []); have = {row.get("row_id") for row in rows}; sys.exit(0 if {"gfx.kmscube.submit", "xport.qemu-vgpu", "llm.server.vk"} <= have else 1)'
 
 claim-check: eval-check
 	@# Reject abandoned custom compute-remoting vocabulary outside archival/design material.

@@ -11,12 +11,13 @@
 # at the top level:
 #     make native-tests   ->  make -C tests native
 #     make test-core      ->  make -C tests test-core
+#     make test-compat    ->  make -C tests test-compat
 #     make test-venus     ->  make -C tests test-venus
 #     make test-dispatch  ->  make -C tests test-dispatch
 #     make proto-abi      ->  make -C tests proto-abi
 #     make vulkan-tests   ->  make -C tests vulkan
 # Use the targets here directly only to run a single binary (e.g. `make -C
-# tests venus-ring`). `make -C tests` defaults to the full `native` suite.
+# tests venus-ring-core`). `make -C tests` defaults to the full `native` suite.
 # ============================================================================
 
 CC ?= cc
@@ -38,17 +39,17 @@ PROTO_HDR := ../libs/libukvirtio_gpu/virtio_gpu_proto.h
 JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
 MAKEFLAGS += --no-print-directory
 
-.PHONY: native test-core test-venus test-dispatch proto-abi vulkan \
-	virtio-gpu-core virtgpu-drm venus-encoder venus-ring \
-	venus-gen-compile venus-parity venus-hotpath virgl-enc clean
+.PHONY: native test-core test-compat test-venus test-dispatch proto-abi vulkan \
+	virtio-gpu-core virtgpu-drm-compat venus-encoder-core venus-ring-core \
+	virgl-encoder-core vulkan-dispatch-core clean
 
 NATIVE_BINS := \
 	$(BUILD)/virtio_gpu_core_test \
-	$(BUILD)/virtgpu_drm_test \
-	$(BUILD)/venus_encoder_test \
-	$(BUILD)/venus_ring_test \
-	$(BUILD)/virgl_encoder_test \
-	$(BUILD)/vulkan_dispatch_test
+	$(BUILD)/virtgpu_drm_compat_test \
+	$(BUILD)/venus_encoder_core_test \
+	$(BUILD)/venus_ring_core_test \
+	$(BUILD)/virgl_encoder_core_test \
+	$(BUILD)/vulkan_dispatch_core_test
 
 # Full deterministic suite — primary CI gate. Two phases: parallel compile
 # (one job per CPU core) then serial run for deterministic output ordering.
@@ -59,41 +60,47 @@ native:
 	+@$(MAKE) -j$(JOBS) $(NATIVE_BINS)
 	@for b in $(NATIVE_BINS); do ./$$b || exit $$?; done
 
-# Group 1: VirtIO-GPU core, DMA, shims (proto.real-driver)
+# Group 1: deterministic core substrate checks.
 TEST_CORE_BINS := \
-	$(BUILD)/virtio_gpu_core_test
+	$(BUILD)/virtio_gpu_core_test \
+	$(BUILD)/virgl_encoder_core_test
 test-core:
 	+@$(MAKE) -j$(JOBS) $(TEST_CORE_BINS)
 	@for b in $(TEST_CORE_BINS); do ./$$b || exit $$?; done
 
-# Group 2: VirtIO-GPU 3D / Venus / virgl (vk.drm-core, vk.drm-fdio, proto.venus-enc, proto.venus-ring)
+# Group 2: compatibility / translator checks.
+test-compat: $(BUILD)/virtgpu_drm_compat_test
+	./$(BUILD)/virtgpu_drm_compat_test
+
+# Group 3: Venus protocol / ring checks.
 TEST_VENUS_BINS := \
-	$(BUILD)/virtgpu_drm_test \
-	$(BUILD)/venus_encoder_test \
-	$(BUILD)/venus_ring_test \
-	$(BUILD)/virgl_encoder_test
+	$(BUILD)/venus_encoder_core_test \
+	$(BUILD)/venus_ring_core_test
 test-venus:
 	+@$(MAKE) -j$(JOBS) $(TEST_VENUS_BINS)
 	@for b in $(TEST_VENUS_BINS); do ./$$b || exit $$?; done
 
-# Group 3: vk.ggml-dispatch static Vulkan dispatch for upstream ggml-vulkan (vk.ggml-dispatch)
-test-dispatch: $(BUILD)/vulkan_dispatch_test
-	./$(BUILD)/vulkan_dispatch_test
+# Group 4: static Vulkan dispatch surface.
+test-dispatch: $(BUILD)/vulkan_dispatch_core_test
+	./$(BUILD)/vulkan_dispatch_core_test
 
 virtio-gpu-core: $(BUILD)/virtio_gpu_core_test
 	./$(BUILD)/virtio_gpu_core_test
 
-virtgpu-drm: $(BUILD)/virtgpu_drm_test
-	./$(BUILD)/virtgpu_drm_test
+virtgpu-drm-compat: $(BUILD)/virtgpu_drm_compat_test
+	./$(BUILD)/virtgpu_drm_compat_test
 
-virgl-enc: $(BUILD)/virgl_encoder_test
-	./$(BUILD)/virgl_encoder_test
+virgl-encoder-core: $(BUILD)/virgl_encoder_core_test
+	./$(BUILD)/virgl_encoder_core_test
 
-venus-encoder: $(BUILD)/venus_encoder_test
-	./$(BUILD)/venus_encoder_test
+venus-encoder-core: $(BUILD)/venus_encoder_core_test
+	./$(BUILD)/venus_encoder_core_test
 
-venus-ring: $(BUILD)/venus_ring_test
-	./$(BUILD)/venus_ring_test
+venus-ring-core: $(BUILD)/venus_ring_core_test
+	./$(BUILD)/venus_ring_core_test
+
+vulkan-dispatch-core: $(BUILD)/vulkan_dispatch_core_test
+	./$(BUILD)/vulkan_dispatch_core_test
 
 vulkan: | $(BUILD)
 	@if [ -f "$(VK_LIB)" ] && [ -d "$(VK_INC)" ]; then \
@@ -122,18 +129,18 @@ $(BUILD)/virtio_gpu_core_test: virtio_gpu_core_test.c ./virtio_gpu_fake.c | $(BU
 $(BUILD)/virtio_gpu_proto_abi_test: virtio_gpu_proto_abi_test.c $(PROTO_HDR) | $(BUILD)
 	$(CC) $(CFLAGS) $< -o $@
 
-$(BUILD)/virtgpu_drm_test: virtgpu_drm_test.c \
+$(BUILD)/virtgpu_drm_compat_test: virtgpu_drm_compat_test.c \
 	../libs/libukvirtgpu_drm/drm_virtgpu.c \
 	../libs/libukvirtgpu_drm/drm_virtgpu_fdio.c \
 	./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(BUILD)/venus_encoder_test: venus_encoder_test.c \
+$(BUILD)/venus_encoder_core_test: venus_encoder_core_test.c \
 	../libs/libukvulkan_venus/venus_cs.c \
 	../libs/libukvulkan_venus/venus_compute.c | $(BUILD)
 	$(CC) $(CFLAGS) $(GEN_CFLAGS) $^ -o $@
 
-$(BUILD)/venus_ring_test: venus_ring_test.c \
+$(BUILD)/venus_ring_core_test: venus_ring_core_test.c \
 	../libs/libukvulkan_venus/venus_cs.c \
 	../libs/libukvulkan_venus/venus_init.c \
 	../libs/libukvulkan_venus/venus_compute.c \
@@ -147,34 +154,7 @@ GEN_CFLAGS := -I../libs/libukvulkan_venus/include/uk -I../libs/libukvulkan_venus
 	-I$(VK_INC) -Wno-unused-parameter -Wno-missing-field-initializers \
 	-Wno-uninitialized-const-pointer
 
-$(BUILD)/venus_generated_compile_test: venus_generated_compile_test.c \
-	../libs/libukvulkan_venus/venus_cs.c ../libs/libukvulkan_venus/venus_init.c \
-	../libs/libukvulkan_venus/venus_compute.c ../libs/libukvulkan_venus/vn_ring_shim.c \
-	./virtio_gpu_fake.c | $(BUILD)
-	$(CC) $(CFLAGS) $(GEN_CFLAGS) $^ -o $@
-
-venus-gen-compile: $(BUILD)/venus_generated_compile_test
-	./$(BUILD)/venus_generated_compile_test
-
-$(BUILD)/venus_parity_test: venus_parity_test.c \
-	../libs/libukvulkan_venus/venus_cs.c ../libs/libukvulkan_venus/venus_init.c \
-	../libs/libukvulkan_venus/venus_compute.c ../libs/libukvulkan_venus/vn_ring_shim.c \
-	./virtio_gpu_fake.c | $(BUILD)
-	$(CC) $(CFLAGS) $(GEN_CFLAGS) $^ -o $@
-
-venus-parity: $(BUILD)/venus_parity_test
-	./$(BUILD)/venus_parity_test
-
-$(BUILD)/venus_hotpath_bench: venus_hotpath_bench.c \
-	../libs/libukvulkan_venus/venus_cs.c ../libs/libukvulkan_venus/venus_init.c \
-	../libs/libukvulkan_venus/venus_compute.c ../libs/libukvulkan_venus/vn_ring_shim.c \
-	./virtio_gpu_fake.c | $(BUILD)
-	$(CC) $(CFLAGS) $(GEN_CFLAGS) $^ -o $@
-
-venus-hotpath: $(BUILD)/venus_hotpath_bench
-	./$(BUILD)/venus_hotpath_bench ../results/perf/venus_hotpath.json
-
-$(BUILD)/virgl_encoder_test: virgl_encoder_test.c ../libs/libukvirtio_gpu/virgl_encoder.c ./virtio_gpu_fake.c | $(BUILD)
+$(BUILD)/virgl_encoder_core_test: virgl_encoder_core_test.c ../libs/libukvirtio_gpu/virgl_encoder.c ./virtio_gpu_fake.c | $(BUILD)
 	$(CC) $(CFLAGS) -I../libs/libukvulkan_venus/include $^ -o $@
 
 $(BUILD)/vulkan_compute_test: vulkan_compute_test.c | $(BUILD)
@@ -182,7 +162,7 @@ $(BUILD)/vulkan_compute_test: vulkan_compute_test.c | $(BUILD)
 
 # vk.ggml-dispatch: static Vulkan dispatch layer test. Links uk_vulkan_dispatch.c
 # against the fake VirtIO-GPU backend and the native Venus driver (no DRM/ICD).
-$(BUILD)/vulkan_dispatch_test: vulkan_dispatch_test.c \
+$(BUILD)/vulkan_dispatch_core_test: vulkan_dispatch_core_test.c \
 	../libs/libvulkan/uk_vulkan_dispatch.c \
 	../libs/libukvulkan_venus/venus_driver.c \
 	../libs/libukvulkan_venus/venus_init.c \

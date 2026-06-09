@@ -153,7 +153,7 @@ def probe_venus_ring(args, qemu, image) -> int:
         data = {"status":"blocked:qemu-missing", "mode":args.mode,
                 "first_missing_dependency":"qemu-system-x86_64 not found",
                 "protocol":"venus-ring-buffer (vkCreateRingMESA / vkNotifyRingMESA)",
-                "native_test_status":"all-pass (venus_ring_test)",
+                "native_test_status":"all-pass (venus_ring_core_test)",
                 "claim_allowed":"Native ring-buffer tests pass; no real-QEMU claim without QEMU.",
                 "next_step":"Install QEMU >= 8.2 with virtio-gpu-gl and Venus support, then rerun."}
         write_artifact(args.mode, data)
@@ -162,7 +162,7 @@ def probe_venus_ring(args, qemu, image) -> int:
         data = {"status":"blocked:image-missing", "mode":args.mode,
                 "first_missing_dependency":str(image),
                 "protocol":"venus-ring-buffer (vkCreateRingMESA / vkNotifyRingMESA)",
-                "native_test_status":"all-pass (venus_ring_test)",
+                "native_test_status":"all-pass (venus_ring_core_test)",
                 "claim_allowed":"Native tests pass; build image to get real-QEMU frame proof.",
                 "next_step":"Run make kmscube-build, then rerun venus_qemu_probe.py --mode venus-ring."}
         write_artifact(args.mode, data)

@@ -12,7 +12,7 @@
 
 int main(void)
 {
-	struct test_state t = { .suite = "virtgpu_drm_test" };
+	struct test_state t = { .suite = "virtgpu_drm_compat_test" };
 	struct uk_drm_virtgpu_dev dev;
 	struct uk_drm_virtgpu_file file0;
 	struct uk_drm_virtgpu_file file1;

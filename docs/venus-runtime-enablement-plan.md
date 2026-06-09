@@ -31,7 +31,7 @@ The host is **fully Venus-capable**; all prerequisites verified present:
 ## 2. The problem
 
 These evaluation-matrix rows are `blocked:*` (see
-`results/vogue_evaluation_matrix.md`):
+`results/vogue_evaluation_matrix.json`):
 
 - `xport.qemu-vgpu` — QEMU VirtIO-GPU Venus probe
 - `gfx.kmscube.submit`, `gfx.kmscube.frame` — virgl SUBMIT_3D / pixel frame

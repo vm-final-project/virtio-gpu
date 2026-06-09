@@ -62,7 +62,7 @@ The kmscube graphics appliance renders via the virgl/Gallium path directly throu
 
 On the evaluation host (QEMU 11.0.1 `virtio-gpu-gl-pci,blob=true,venus=true`,
 Venus-enabled virglrenderer, Tesla V100 render node) the 26-row evaluation
-matrix is **26 PASS, 0 blocked, 0 missing** (`results/vogue_evaluation_matrix.md`).
+matrix is tracked in the canonical JSON artifact `results/vogue_evaluation_matrix.json`.
 Device-backing memory now flows through the upstream Unikraft `uksglist`
 (scatter-gather) + `ukalloc` (`uk_posix_memalign`) libraries directly — there is
 no first-party DMA library — and every appliance below was rebuilt and
@@ -104,7 +104,7 @@ sibling checkouts (`../unikraft`, `../llama.cpp`, `../lib-musl`, `../lib-lwip`,
 | `scripts/` | Python evidence generators and claim gates invoked by the `Makefile` (eval matrix, governance, perf, boot/model-load time, Venus/Vulkan probes, llama runners, the HTTP server capture/gate). |
 | `config/` | Governance + environment metadata: `external_paths.json` (vendored sibling roots), `llama_env_matrix.json` (llama.cpp env/thread/backend selection), `governance.json` + `perf_baseline.json` (drive the gates). |
 | `cmake/` | `unikraft-clang.cmake` toolchain file used to cross-build upstream llama.cpp (`libllama.a`, ggml backends) for the unikernel. |
-| `results/` | Generated evidence consumed by the README and repo-local gates (`vogue_evaluation_matrix.md`, `llama/*.json`, `venus/`, `kmscube_vgpu_gl/`, …). |
+| `results/` | Generated evidence consumed by the README and repo-local gates (`vogue_evaluation_matrix.json`, `llama/*.json`, `venus/`, `kmscube_vgpu_gl/`, …). |
 | `docs/` | Long-form docs: `ARCHITECTURE.md`, `GOVERNANCE.md`, `VENUS-BRINGUP.md`, the llama.cpp porting plan, and the Venus runtime enablement plan. |
 | `rootfs/` | Host-shared assets mounted into appliances over 9pfs (e.g. the llama model directory). |
 | `patches/`, `design/`, `idea/`, `resource/` | Supporting material: vendored patches, design notes, scratch ideas, and archival references. Not part of the build/test path. |
@@ -167,7 +167,7 @@ enforces each library's `README.md` contract.
 | Resolve a vendored sibling path | `config/external_paths.json`. |
 | **Run unit tests** | `make native-tests` (or `test-core` / `test-venus` / `test-dispatch`); details in `tests/README.md`. |
 | Run the daily gate before committing | `make test-fast`. |
-| Regenerate the evidence matrix | `make eval-check` → `results/vogue_evaluation_matrix.md`. |
+| Regenerate the evidence matrix | `make eval-check` → `results/vogue_evaluation_matrix.json`. |
 | Add/verify a governance contract | `config/governance.json`, then `make governance-check lib-readme-check app-port-check`. |
 | Reproduce the HTTP llama server | `make llama-upstream-vk-server-build` → `python3 scripts/llama_server_vk_capture.py` → `make llm-server-vk-check`. |
 ---

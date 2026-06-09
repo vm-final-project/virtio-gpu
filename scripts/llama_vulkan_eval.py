@@ -13,35 +13,29 @@ No synthetic local llama substrate evidence is emitted here.
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import subprocess
 import sys
-import time
 from pathlib import Path
+
+from artifact_utils import blocked_artifact, make_artifact, write_json
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results" / "llama"
 
 
-def write(name: str, payload: dict) -> dict:
-    RESULTS.mkdir(parents=True, exist_ok=True)
-    payload.setdefault("generated_utc", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
-    (RESULTS / f"{name}.json").write_text(json.dumps(payload, indent=2) + "\n")
-    return payload
-
-
 def blocker(name: str, reason: str, *, next_step: str = "") -> int:
-    payload = {
-        "schema": "llama/vulkan-eval.v2",
-        "evidence_id": name.replace("_", "-"),
-        "status": reason,
-        "claim_allowed": "Structured blocker recorded; no llama.cpp throughput claim.",
-        "claim_forbidden": "Token/s, GPU acceleration, or successful Unikraft runtime claim.",
-    }
-    if next_step:
-        payload["next_step"] = next_step
-    write(name, payload)
+    payload = blocked_artifact(
+        source="scripts/llama_vulkan_eval.py",
+        status=reason,
+        headline=f"llama.cpp Vulkan evidence gate: {name}",
+        stage="runtime",
+        claim_allowed="Structured blocker recorded; no llama.cpp throughput claim.",
+        claim_forbidden="Token/s, GPU acceleration, or successful Unikraft runtime claim.",
+        next_step=next_step,
+        extra={"evidence_id": name.replace("_", "-")},
+    )
+    write_json(RESULTS / f"{name}.json", payload)
     print(f"{name}: {reason}")
     return 0
 
@@ -60,7 +54,7 @@ def n3_dispatch() -> int:
             passed, failed = map(int, m2.groups())
             total = passed + failed
         else:
-            m3 = re.search(r"vulkan_dispatch_test:\s+PASS checks=(\d+)", out)
+            m3 = re.search(r"vulkan_dispatch_core_test:\s+PASS checks=(\d+)", out)
             if m3:
                 passed = int(m3.group(1))
                 failed = 0
@@ -70,18 +64,23 @@ def n3_dispatch() -> int:
                 failed = 0 if proc.returncode == 0 and "PASS" in out else 1
                 total = passed + failed
     status = "pass" if proc.returncode == 0 and failed == 0 else "blocked:dispatch-test-failed"
-    write("vulkan_n3_dispatch", {
-        "schema": "llama/vulkan-dispatch.v2",
-        "evidence_id": "llama-vk-n3-dispatch",
-        "status": status,
-        "pass": status == "pass",
-        "checks_passed": passed,
-        "checks_failed": failed,
-        "checks_total": total,
-        "stdout_tail": out[-4000:],
-        "claim_allowed": "Pinned upstream ggml-vulkan Vulkan C ABI dispatch works through libvulkan native regression tests.",
-        "claim_forbidden": "QEMU/Venus runtime success, token generation, or throughput.",
-    })
+    write_json(RESULTS / "vulkan_n3_dispatch.json", make_artifact(
+        source="scripts/llama_vulkan_eval.py",
+        status=status,
+        headline="llama.cpp Vulkan static dispatch regression",
+        counts={"checks_passed": passed, "checks_failed": failed, "checks_total": total},
+        checks=[{"id": "vulkan_dispatch_core_test", "status": status}],
+        extra={
+            "evidence_id": "llama-vk-n3-dispatch",
+            "pass": status == "pass",
+            "checks_passed": passed,
+            "checks_failed": failed,
+            "checks_total": total,
+            "stdout_tail": out[-4000:],
+            "claim_allowed": "Pinned upstream ggml-vulkan Vulkan C ABI dispatch works through libvulkan native regression tests.",
+            "claim_forbidden": "QEMU/Venus runtime success, token generation, or throughput.",
+        },
+    ))
     print(f"vk.ggml-dispatch {status} passed={passed} failed={failed} total={total}")
     return 0 if status == "pass" else 1
 
@@ -101,40 +100,43 @@ def upstream_runtime(kind: str) -> int:
         allowed = "Upstream llama.cpp Vulkan/Venus appliance runtime when same-run PASS marker exists."
         next_step = "run: make llama-upstream-vk-build && make llama-upstream-vk-run"
     if not image.exists():
-        write(name, {
-            "schema": "llama/upstream-runtime.v2",
-            "evidence_id": evidence,
-            "status": "blocked:unikraft-image-missing",
-            "pass": False,
-            "image": str(image.relative_to(ROOT)),
-            "claim_allowed": "Image blocker documented; no runtime or throughput claim.",
-            "claim_forbidden": "llama.cpp token/s or acceleration without a booted single-app image.",
-            "next_step": next_step,
-        })
+        write_json(RESULTS / f"{name}.json", blocked_artifact(
+            source="scripts/llama_vulkan_eval.py",
+            status="blocked:unikraft-image-missing",
+            headline=f"llama.cpp upstream runtime gate: {name}",
+            stage="artifact-missing",
+            first_missing_dependency=str(image.relative_to(ROOT)),
+            claim_allowed="Image blocker documented; no runtime or throughput claim.",
+            claim_forbidden="llama.cpp token/s or acceleration without a booted single-app image.",
+            next_step=next_step,
+            extra={"evidence_id": evidence, "pass": False, "image": str(image.relative_to(ROOT))},
+        ))
         if kind == "vk":
-            write("env10_real", {
-                "schema": "llama/env10-real.v2",
-                "evidence_id": "env10-real",
-                "status": "blocked:unikraft-image-missing",
-                "pass": False,
-                "claim_allowed": "ENV10 blocker documented; no real Venus throughput claim.",
-                "claim_forbidden": "Unikraft Vulkan throughput without same-run PASS evidence.",
-                "next_step": next_step,
-            })
+            write_json(RESULTS / "env10_real.json", blocked_artifact(
+                source="scripts/llama_vulkan_eval.py",
+                status="blocked:unikraft-image-missing",
+                headline="llama.cpp ENV10 real Venus runtime gate",
+                stage="artifact-missing",
+                first_missing_dependency=str(image.relative_to(ROOT)),
+                claim_allowed="ENV10 blocker documented; no real Venus throughput claim.",
+                claim_forbidden="Unikraft Vulkan throughput without same-run PASS evidence.",
+                next_step=next_step,
+                extra={"evidence_id": "env10-real", "pass": False},
+            ))
         print(f"LLAMA-UPSTREAM-{kind.upper()} blocked: image missing")
         return 0
     # Keep runtime non-invasive in CI: record that a bootable image exists and
     # the gate still needs a same-run serial PASS capture to promote throughput.
-    write(name, {
-        "schema": "llama/upstream-runtime.v2",
-        "evidence_id": evidence,
-        "status": "blocked:runtime-capture-required",
-        "pass": False,
-        "image": str(image.relative_to(ROOT)),
-        "claim_allowed": allowed,
-        "claim_forbidden": "Throughput claim until serial log contains the PASS evidence marker.",
-        "next_step": next_step,
-    })
+    write_json(RESULTS / f"{name}.json", blocked_artifact(
+        source="scripts/llama_vulkan_eval.py",
+        status="blocked:runtime-capture-required",
+        headline=f"llama.cpp upstream runtime gate: {name}",
+        stage="runtime",
+        claim_allowed=allowed,
+        claim_forbidden="Throughput claim until serial log contains the PASS evidence marker.",
+        next_step=next_step,
+        extra={"evidence_id": evidence, "pass": False, "image": str(image.relative_to(ROOT))},
+    ))
     print(f"LLAMA-UPSTREAM-{kind.upper()} blocked: runtime capture required")
     return 0
 

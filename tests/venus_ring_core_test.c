@@ -10,7 +10,7 @@
 
 int main(void)
 {
-	struct test_state t = { .suite = "venus_ring_test" };
+	struct test_state t = { .suite = "venus_ring_core_test" };
 	struct uk_virtio_gpu_dev *dev = NULL;
 	struct uk_venus_ring ring = { 0 };
 	struct uk_venus_encoder enc;
