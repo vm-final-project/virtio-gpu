@@ -136,12 +136,12 @@ APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/binary-ops.cpp
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/unary-ops.cpp
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/vec.cpp
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/ops.cpp
-APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_X86_64) += $(APPLLAMA_CPU_BASE)/x86-quants.c
-APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_X86_64) += $(APPLLAMA_CPU_BASE)/x86-repack.cpp
-APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_X86_64) += $(APPLLAMA_CPU_BASE)/x86-cpu-feats.cpp
-APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_ARM_64) += $(APPLLAMA_CPU_BASE)/arm-quants.c
-APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_ARM_64) += $(APPLLAMA_CPU_BASE)/arm-repack.cpp
-APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_ARM_64) += $(APPLLAMA_CPU_BASE)/arm-cpu-feats.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/quants.c
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/repack.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/cpu-feats.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/quants.c
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/repack.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/cpu-feats.cpp
 
 # ── llama.cpp high-level layer ────────────────────────────────────────────────
 APPLLAMA_CPU_SRCS-y += $(LLAMA_SRC)/llama.cpp

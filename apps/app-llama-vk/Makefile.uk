@@ -152,12 +152,12 @@ APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/binary-ops.cpp
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/unary-ops.cpp
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/vec.cpp
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/ops.cpp
-APPLLAMA_VK_SRCS-$(CONFIG_ARCH_X86_64) += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/x86-quants.c
-APPLLAMA_VK_SRCS-$(CONFIG_ARCH_X86_64) += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/x86-repack.cpp
-APPLLAMA_VK_SRCS-$(CONFIG_ARCH_X86_64) += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/x86-cpu-feats.cpp
-APPLLAMA_VK_SRCS-$(CONFIG_ARCH_ARM_64) += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/arm-quants.c
-APPLLAMA_VK_SRCS-$(CONFIG_ARCH_ARM_64) += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/arm-repack.cpp
-APPLLAMA_VK_SRCS-$(CONFIG_ARCH_ARM_64) += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/arm-cpu-feats.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/quants.c
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/repack.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/cpu-feats.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/quants.c
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/repack.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/cpu-feats.cpp
 
 # ggml-opt and backend registry (omitted from the in-tree ggml build above)
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-opt.cpp
