@@ -1,0 +1,56 @@
+spec: v0.6
+
+name: vogue-llama-cpu-bench
+
+# Bench-only upstream llama.cpp CPU single-application appliance.
+# Uses unmodified upstream llama.cpp linked as libllama.a via
+# cmake/unikraft-clang.cmake; upstream lib-musl supplies the POSIX surface.
+
+unikraft:
+  source: ../unikraft
+  kconfig:
+    CONFIG_APP_LLAMA_CPU: 'y'
+    CONFIG_APP_LLAMA_CPU_ROOTFS_9PFS: 'y'
+    CONFIG_APP_LLAMA_CPU_MODE_BENCH: 'y'
+    CONFIG_APP_LLAMA_CPU_THREADS: '1'
+    CONFIG_OPTIMIZE_DEADELIM: 'y'
+    CONFIG_LIBMUSL: 'y'
+    CONFIG_LIBCXX: 'y'
+    CONFIG_CXX_THREADS: 'y'
+    CONFIG_LIBCXXABI: 'y'
+    CONFIG_LIBUNWIND: 'y'
+    CONFIG_LIBCOMPILER_RT: 'y'
+    CONFIG_LIBPOSIX_TTY: 'y'
+    CONFIG_LIBPOSIX_TTY_STDIO: 'y'
+    CONFIG_LIBPOSIX_TTY_STDOUT_SERIAL: 'y'
+    CONFIG_LIBPOSIX_TTY_STDIN_NULL: 'y'
+    CONFIG_LIBPOSIX_PROCESS: 'y'
+    CONFIG_LIBPOSIX_TIME: 'y'
+    CONFIG_LIBPOSIX_MMAP: 'y'
+    CONFIG_LIBPOSIX_VFS: 'y'
+    CONFIG_LIBVFSCORE: 'y'
+    CONFIG_LIBRAMFS: 'y'
+    CONFIG_LIBVFSCORE_AUTOMOUNT_CI: 'y'
+    CONFIG_LIBVFSCORE_AUTOMOUNT_CI_RAMFS: 'y'
+    CONFIG_LIBUK9P: 'y'
+    CONFIG_LIBVIRTIO_9P: 'y'
+    CONFIG_LIB9PFS: 'y'
+    CONFIG_LIBPTHREAD_EMBEDDED: 'y'
+    CONFIG_LIBPOSIX_LIBDL: 'y'
+
+targets:
+  - qemu/x86_64
+
+libraries:
+  libmusl:
+    source: ../lib-musl
+  libcxx:
+    source: ../lib-libcxx
+  libcxxabi:
+    source: ../lib-libcxxabi
+  libunwind:
+    source: ../lib-libunwind
+  libcompiler-rt:
+    source: ../lib-compiler-rt
+  app-llama-cpu:
+    source: ./apps/app-llama-cpu

@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-09T05:09:26.721280Z",
+    "generated_utc": "2026-06-09T09:16:18.751521Z",
     "source": "scripts/current_stage_report.py",
     "version": 1
   },
@@ -14,7 +14,7 @@
     },
     "qemu_status": "pass",
     "vulkan_status": "blocked:vulkan-test-failed",
-    "server_status": "blocked:health=None"
+    "server_status": "blocked:no-ready-line"
   },
   "artifacts": {},
   "checks": [],
@@ -83,6 +83,6 @@
       "blocker": ""
     }
   ],
-  "generated_utc": "2026-06-09T05:09:26.721088Z",
+  "generated_utc": "2026-06-09T09:16:18.750783Z",
   "claim_boundary": "Current supported rows pass on the evaluation host only when backed by same-run JSON artifacts. Blocked rows remain explicit partial-progress states and are never promoted to passing evidence."
 }

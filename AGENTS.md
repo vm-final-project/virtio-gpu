@@ -9,7 +9,7 @@ This repository is VOGUE, a Unikraft VirtIO-GPU/Venus/Vulkan research artifact. 
 - `kraft/`: Kraftfiles for appliance builds.
 - `tests/`: host-native deterministic C tests against the fake VirtIO-GPU backend.
 - `scripts/`, `config/`, `results/`: evidence generation, governance metadata, and generated artifacts.
-- `docs/`, `design/`, `results/`: architecture notes, design specs, and generated evidence consumed by repo-local gates.
+- `docs/`, `results/`: architecture notes, design specs, and generated evidence consumed by repo-local gates.
 
 ## Build, Test, and Development Commands
 

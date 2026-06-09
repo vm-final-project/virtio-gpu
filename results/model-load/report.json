@@ -7,7 +7,7 @@
   "rows": [
     {
       "name": "llm.bench.cpu",
-      "log": "results/llama/upstream_cpu_serial.log",
+      "log": "results/llama/llama_cpu_serial.log",
       "status": "pass",
       "use_mmap": false,
       "huge_pages": false,
@@ -16,7 +16,7 @@
     },
     {
       "name": "llm.server.cpu",
-      "log": "results/llama/upstream_server_cpu_serial.log",
+      "log": "results/llama/llama_server_cpu_serial.log",
       "status": "pass",
       "use_mmap": false,
       "huge_pages": false,
@@ -25,7 +25,7 @@
     },
     {
       "name": "llm.bench.vk",
-      "log": "results/llama/upstream_vk_serial.log",
+      "log": "results/llama/llama_vk_serial.log",
       "status": "pass",
       "use_mmap": false,
       "huge_pages": false,
@@ -34,7 +34,7 @@
     },
     {
       "name": "llm.server.vk",
-      "log": "results/llama/upstream_server_vk_serial.log",
+      "log": "results/llama/llama_server_vk_serial.log",
       "status": "pass",
       "use_mmap": false,
       "huge_pages": false,

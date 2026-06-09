@@ -47,7 +47,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "results" / "llama"
-IMAGE = ROOT / ".unikraft" / "build" / "vogue-llama-upstream-vk_qemu-x86_64"
+IMAGE = ROOT / ".unikraft" / "build" / "vogue-llama-vk_qemu-x86_64"
 
 
 def _now() -> str:
@@ -124,7 +124,7 @@ def _emit(status: str, *, log_tail: str = "", extra: dict | None = None,
     passed = status == "pass"
     base = {
         "schema": "llama/upstream-runtime.v2",
-        "evidence_id": "llama-upstream-vk",
+        "evidence_id": "llama-vk",
         "status": status,
         "pass": passed,
         "generated_utc": _now(),
@@ -132,7 +132,7 @@ def _emit(status: str, *, log_tail: str = "", extra: dict | None = None,
         "host": platform.platform(),
         "venus_device": venus_device,
         "host_render_error": host_error,
-        "run_log": "results/llama/upstream_vk.log",
+        "run_log": "results/llama/llama_vk.log",
         "claim_allowed": (
             "Real boot of the upstream llama.cpp Vulkan appliance under "
             "QEMU virtio-gpu-gl venus=true; throughput only when status==pass."),
@@ -142,7 +142,7 @@ def _emit(status: str, *, log_tail: str = "", extra: dict | None = None,
         base.update(throughput)
     if extra:
         base.update(extra)
-    _write("upstream_vk", base)
+    _write("llama_vk", base)
     # ENV10 (llm.bench.vk.real) mirrors the same real run.
     env10 = dict(base)
     env10["schema"] = "llama/env10-real.v2"
@@ -184,7 +184,7 @@ def _emit(status: str, *, log_tail: str = "", extra: dict | None = None,
             "pp512": pp512,
             "tg128": tg128,
             "accel": throughput.get("accel"),
-            "run_log": "results/llama/upstream_vk.log",
+            "run_log": "results/llama/llama_vk.log",
             "transport": "virtio-gpu-gl venus=true; ggml-vulkan -> in-tree ggml-vulkan -> libvulkan -> libukvulkan_venus SUBMIT_3D -> host virglrenderer Venus -> host Vulkan driver",
             "claim_allowed": ("End-to-end Vulkan compute: the Unikraft guest's ggml-vulkan backend "
                               "offloaded all layers via Venus to the host driver and emitted real "
@@ -207,7 +207,7 @@ def _emit(status: str, *, log_tail: str = "", extra: dict | None = None,
                 {"env": "qemu-unikraft-vulkan", "test": "tg128", "t_s": tg128},
             ],
             "comparison": baseline,
-            "run_log": "results/llama/upstream_vk.log",
+            "run_log": "results/llama/llama_vk.log",
             "claim_allowed": ("Apples-to-apples Vulkan throughput: same upstream ggml-vulkan + GGUF as "
                               "host.baseline.vk, run inside Unikraft over the real virtio-gpu-gl Venus "
                               "path; comparison rows quote the same-host Linux Vulkan baseline."),
@@ -250,10 +250,10 @@ def _attempt(qemu: str, model: Path) -> tuple[str, dict]:
             out = ((e.stdout or "") if isinstance(e.stdout, str) else "") + \
                   ((e.stderr or "") if isinstance(e.stderr, str) else "")
 
-    (RESULTS / "upstream_vk.log").write_text(out)
+    (RESULTS / "llama_vk.log").write_text(out)
     # Mirror the runtime log under the *_serial.log name for the canonical
     # JSON consumers that track the latest same-run boot.
-    (RESULTS / "upstream_vk_serial.log").write_text(out)
+    (RESULTS / "llama_vk_serial.log").write_text(out)
     tail = out[-4000:]
 
     # Real Venus device enumerated by ggml-vulkan (line: "ggml_vulkan: 0 = <name>")
@@ -277,7 +277,7 @@ def _attempt(qemu: str, model: Path) -> tuple[str, dict]:
             "api_version": "1.2",
             "capset_venus": True,
             "transport": "virtio-gpu-gl venus=true; vkSetReplyCommandStreamMESA reply round-trip",
-            "run_log": "results/llama/upstream_vk.log",
+            "run_log": "results/llama/llama_vk.log",
             "claim_allowed": ("Unikraft libvulkan/libukvulkan_venus enumerated a real Venus "
                               f"physical device ({real_name}) by reading the host reply over Venus."),
             "claim_forbidden": "Vulkan compute execution, llama.cpp tokens, or throughput.",

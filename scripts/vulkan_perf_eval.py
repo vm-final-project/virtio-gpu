@@ -161,7 +161,7 @@ def run_venus_ring_test() -> dict:
 def vkmark_substrate_check() -> dict:
     """Check vkmark Unikraft port status over the native Venus substrate."""
     port_dir = ROOT / "apps" / "app-vkmark"
-    smoke_dir = ROOT / "apps" / "app-vulkan-smoke"
+    smoke_dir = ROOT / "apps" / "app-vulkan-sample"
 
     # Native app-facing Vulkan gate: libvulkan dispatch surface
     g5_src = ROOT / "libs" / "libvulkan" / "uk_vulkan_dispatch.c"

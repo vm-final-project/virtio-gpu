@@ -26,11 +26,11 @@ export LLAMA_ROOT VENUS_PROTOCOL_ROOT VULKAN_HEADERS_INCLUDE SPIRV_HEADERS_INCLU
 	venus-check vulkan-check eval eval-check current-stage-check \
 	llm-server-vk-check llm-server-vk-throughput-check linux-guest-vk-baseline \
 	kmscube-build \
-	llama-upstream-cmake llama-upstream-cmake-vk llama-upstream-cmake-vk-server \
-	llama-upstream-cpu-build llama-upstream-cpu-run \
-	llama-upstream-server-build llama-upstream-server-run \
-	llama-upstream-vk-build llama-upstream-vk-run \
-	llama-upstream-vk-server-build llama-upstream-vk-server-run \
+	llama-cmake llama-cmake-vk llama-cmake-vk-server \
+	llama-cpu-build llama-cpu-run \
+	llama-cpu-server-build llama-cpu-server-run \
+	llama-vk-build llama-vk-run \
+	llama-vk-server-build llama-vk-server-run \
 	clean
 
 help:
@@ -56,10 +56,10 @@ help:
 	  '' \
 	  'Build/run helpers:' \
 	  '  make kmscube-build' \
-	  '  make llama-upstream-cpu-build / -run' \
-	  '  make llama-upstream-server-build / -run' \
-	  '  make llama-upstream-vk-build / -run' \
-	  '  make llama-upstream-vk-server-build / -run' \
+	  '  make llama-cpu-build / -run' \
+	  '  make llama-cpu-server-build / -run' \
+	  '  make llama-vk-build / -run' \
+	  '  make llama-vk-server-build / -run' \
 	  '  make linux-guest-vk-baseline' \
 	  '' \
 	  'Aggregate gates:' \
@@ -120,7 +120,7 @@ eval-check: venus-check vulkan-check
 current-stage-check:
 	python3 scripts/current_stage_report.py --check
 
-llm-server-vk-check: llama-upstream-vk-server-run
+llm-server-vk-check: llama-vk-server-run
 	python3 scripts/llm_server_vk_check.py --check
 
 llm-server-vk-throughput-check:
@@ -134,7 +134,7 @@ kmscube-build:
 	COMPILER=clang $(KRAFT) build --no-prompt --log-type basic --no-update \
 		--target qemu/x86_64 --kraftfile Kraftfile .
 
-llama-upstream-cmake:
+llama-cmake:
 	@test -n "$(LLAMA_ROOT)" || { echo "LLAMA_ROOT not set; export it or pass make LLAMA_ROOT=/path/to/llama.cpp"; exit 2; }
 	@test -d "$(LLAMA_ROOT)" || { echo "LLAMA_ROOT=$(LLAMA_ROOT) is not a directory"; exit 2; }
 	mkdir -p results/llama
@@ -142,12 +142,12 @@ llama-upstream-cmake:
 	    -DCMAKE_TOOLCHAIN_FILE=$(CURDIR)/cmake/unikraft-clang.cmake \
 	    -DBUILD_SHARED_LIBS=OFF -DLLAMA_BUILD_TOOLS=OFF \
 	    -DLLAMA_BUILD_EXAMPLES=OFF -DGGML_NATIVE=OFF -DGGML_OPENMP=OFF \
-	    -DLLAMA_BUILD_SERVER=OFF > $(CURDIR)/results/llama/upstream_cmake.log 2>&1
+	    -DLLAMA_BUILD_SERVER=OFF > $(CURDIR)/results/llama/llama_cmake.log 2>&1
 	cd $(LLAMA_ROOT) && cmake --build build-unikraft-cpu \
 	    --target ggml-base ggml-cpu llama -j$(LLAMA_BUILD_JOBS) \
-	    >> $(CURDIR)/results/llama/upstream_cmake.log 2>&1
+	    >> $(CURDIR)/results/llama/llama_cmake.log 2>&1
 
-llama-upstream-cmake-vk:
+llama-cmake-vk:
 	@test -n "$(LLAMA_ROOT)" || { echo "LLAMA_ROOT not set; export it or pass make LLAMA_ROOT=/path/to/llama.cpp"; exit 2; }
 	@test -d "$(LLAMA_ROOT)" || { echo "LLAMA_ROOT=$(LLAMA_ROOT) is not a directory"; exit 2; }
 	mkdir -p results/llama
@@ -158,12 +158,12 @@ llama-upstream-cmake-vk:
 	    -DLLAMA_BUILD_SERVER=OFF -DGGML_VULKAN=ON \
 	    $(if $(VULKAN_HEADERS_INCLUDE),-DVulkan_INCLUDE_DIR=$(VULKAN_HEADERS_INCLUDE)) \
 	    -DVulkan_LIBRARY=$(VK_LIB) \
-	    >> $(CURDIR)/results/llama/upstream_cmake.log 2>&1
+	    >> $(CURDIR)/results/llama/llama_cmake.log 2>&1
 	cd $(LLAMA_ROOT) && cmake --build build-unikraft-vk \
 	    --target ggml-base ggml-cpu ggml-vulkan llama -j$(LLAMA_BUILD_JOBS) \
-	    >> $(CURDIR)/results/llama/upstream_cmake.log 2>&1
+	    >> $(CURDIR)/results/llama/llama_cmake.log 2>&1
 
-llama-upstream-cmake-vk-server:
+llama-cmake-vk-server:
 	@test -n "$(LLAMA_ROOT)" || { echo "LLAMA_ROOT not set; export it or pass make LLAMA_ROOT=/path/to/llama.cpp"; exit 2; }
 	@test -d "$(LLAMA_ROOT)" || { echo "LLAMA_ROOT=$(LLAMA_ROOT) is not a directory"; exit 2; }
 	mkdir -p results/llama
@@ -174,38 +174,38 @@ llama-upstream-cmake-vk-server:
 	    -DLLAMA_BUILD_SERVER=ON -DGGML_VULKAN=ON \
 	    $(if $(VULKAN_HEADERS_INCLUDE),-DVulkan_INCLUDE_DIR=$(VULKAN_HEADERS_INCLUDE)) \
 	    -DVulkan_LIBRARY=$(VK_LIB) \
-	    >> $(CURDIR)/results/llama/upstream_cmake.log 2>&1
+	    >> $(CURDIR)/results/llama/llama_cmake.log 2>&1
 	cd $(LLAMA_ROOT) && cmake --build build-unikraft-vk-server \
 	    --target ggml-base ggml-cpu ggml-vulkan llama llama-server-impl -j$(LLAMA_BUILD_JOBS) \
-	    >> $(CURDIR)/results/llama/upstream_cmake.log 2>&1
+	    >> $(CURDIR)/results/llama/llama_cmake.log 2>&1
 
-llama-upstream-cpu-build: llama-upstream-cmake
+llama-cpu-build: llama-cmake
 	COMPILER=clang $(KRAFT) build --no-prompt --log-type basic --no-update \
-		--target qemu/x86_64 --kraftfile kraft/Kraftfile.llama-upstream-cpu .
+		--target qemu/x86_64 --kraftfile kraft/Kraftfile.llama-cpu .
 
-llama-upstream-cpu-run: llama-upstream-cpu-build
+llama-cpu-run: llama-cpu-build
 	python3 scripts/llama_cpu_real_run.py
 
-llama-upstream-server-build: llama-upstream-cmake
+llama-cpu-server-build: llama-cmake
 	COMPILER=clang $(KRAFT) build --no-prompt --log-type basic --no-update \
-		--target qemu/x86_64 --kraftfile kraft/Kraftfile.llama-upstream-server .
+		--target qemu/x86_64 --kraftfile kraft/Kraftfile.llama-cpu-server .
 
-llama-upstream-server-run: llama-upstream-server-build
+llama-cpu-server-run: llama-cpu-server-build
 	python3 scripts/llama_server_cpu_capture.py
 
-llama-upstream-vk-build: llama-upstream-cmake-vk
+llama-vk-build: llama-cmake-vk
 	COMPILER=clang $(KRAFT) build --no-prompt --log-type basic --no-update \
-		--target qemu/x86_64 --kraftfile kraft/Kraftfile.llama-upstream-vk .
+		--target qemu/x86_64 --kraftfile kraft/Kraftfile.llama-vk .
 	python3 scripts/llama_vk_build_capture.py
 
-llama-upstream-vk-run: llama-upstream-vk-build
-	python3 scripts/llama_vulkan_eval.py upstream-vk
+llama-vk-run: llama-vk-build
+	python3 scripts/llama_vulkan_eval.py llama-vk
 
-llama-upstream-vk-server-build: llama-upstream-cmake-vk-server
+llama-vk-server-build: llama-cmake-vk-server
 	COMPILER=clang $(KRAFT) build --no-prompt --log-type basic --no-update \
-		--target qemu/x86_64 --kraftfile kraft/Kraftfile.llama-upstream-vk-server .
+		--target qemu/x86_64 --kraftfile kraft/Kraftfile.llama-vk-server .
 
-llama-upstream-vk-server-run: llama-upstream-vk-server-build
+llama-vk-server-run: llama-vk-server-build
 	python3 scripts/llama_server_vk_capture.py
 
 clean:

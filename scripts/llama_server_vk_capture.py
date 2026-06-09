@@ -2,13 +2,13 @@
 """Boot the upstream llama.cpp **Vulkan server** appliance under real QEMU
 virtio-gpu-gl Venus, then prove it actually serves HTTP.
 
-The single-application server appliance (apps/app-llama-upstream-vk/server.cpp,
+The single-application server appliance (apps/app-llama-vk/server.cpp,
 MODE_SERVER) boots directly into one entrypoint — no shell, no fork/exec
 launcher — mounts the GGUF over 9pfs, initialises the real Venus dispatch chain
 (in-tree ggml-vulkan -> libvulkan -> libukvulkan_venus SUBMIT_3D -> virtio-gpu-gl venus=true), loads the
 model on the host GPU and prints:
 
-  uk-llama-upstream-vk-server: READY ... slots=N ctx_per_slot=M ...
+  uk-llama-vk-server: READY ... slots=N ctx_per_slot=M ...
 
 It then hands control to the upstream cpp-httplib server, which binds
 0.0.0.0:8080 over the in-guest lwIP TCP/IP stack (virtio-net NIC -> libuknetdev
@@ -21,8 +21,8 @@ script can issue a real HTTP request from the host:
 
 A `pass` row now means model-loaded readiness over real Venus AND a same-run
 HTTP response from the in-guest llama.cpp server. Writes
-results/llama/upstream_server_vk.json (read by eval_matrix.py) and
-results/llama/upstream_server_vk_serial.log (read by llm_server_vk_check.py).
+results/llama/llama_server_vk.json (read by eval_matrix.py) and
+results/llama/llama_server_vk_serial.log (read by llm_server_vk_check.py).
 """
 from __future__ import annotations
 
@@ -43,15 +43,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "results" / "llama"
-IMAGE = ROOT / ".unikraft" / "build" / "vogue-llama-upstream-vk-server_qemu-x86_64"
-SERIAL_LOG = RESULTS / "upstream_server_vk_serial.log"
+IMAGE = ROOT / ".unikraft" / "build" / "vogue-llama-vk-server_qemu-x86_64"
+SERIAL_LOG = RESULTS / "llama_server_vk_serial.log"
 
 GUEST_IP = "10.0.2.15"
 GUEST_CIDR = "10.0.2.15/24"
 GUEST_GW = "10.0.2.2"
 
 READY_RE = re.compile(
-    r"uk-llama-upstream-vk-server: READY .*slots=(?P<slots>\d+) "
+    r"uk-llama-vk-server: READY .*slots=(?P<slots>\d+) "
     r"ctx_per_slot=(?P<ctx>\d+) batch_size=(?P<batch>\d+) "
     r"ubatch_size=(?P<ubatch>\d+) prompt_cache=(?P<pc>\d) "
     r"batch_enabled=(?P<be>\d) "
@@ -126,7 +126,7 @@ def _grant_render_nodes() -> None:
 def _write(payload: dict) -> None:
     RESULTS.mkdir(parents=True, exist_ok=True)
     payload.setdefault("generated_utc", _now())
-    (RESULTS / "upstream_server_vk.json").write_text(
+    (RESULTS / "llama_server_vk.json").write_text(
         json.dumps(payload, indent=2) + "\n")
 
 

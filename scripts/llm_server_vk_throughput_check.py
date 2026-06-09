@@ -12,7 +12,7 @@ from artifact_utils import blocked_artifact, load_required_json, make_artifact, 
 
 ROOT = Path(__file__).resolve().parent.parent
 CAPTURE = ROOT / "scripts" / "llama_server_vk_capture.py"
-SERVER_JSON = ROOT / "results" / "llama" / "upstream_server_vk.json"
+SERVER_JSON = ROOT / "results" / "llama" / "llama_server_vk.json"
 OUT = ROOT / "results" / "llama"
 SOURCE = "scripts/llm_server_vk_throughput_check.py"
 
@@ -34,7 +34,7 @@ def main(argv: list[str] | None = None) -> int:
         headline="Measured throughput for the Vulkan llama.cpp HTTP server",
         missing_status="blocked:no-server-json",
         bad_json_status="blocked:bad-runtime-json",
-        next_step="Rerun llama_server_vk_capture.py to regenerate results/llama/upstream_server_vk.json.",
+        next_step="Rerun llama_server_vk_capture.py to regenerate results/llama/llama_server_vk.json.",
     )
     if server.get("metadata"):
         payload = server
@@ -52,7 +52,7 @@ def main(argv: list[str] | None = None) -> int:
                     "ok": tput.get("ok"),
                     "failed": tput.get("failed"),
                 },
-                artifacts={"server_runtime_json": "results/llama/upstream_server_vk.json"},
+                artifacts={"server_runtime_json": "results/llama/llama_server_vk.json"},
                 checks=[
                     {"id": "server_runtime", "status": status},
                     {"id": "http_throughput", "status": "pass"},
@@ -91,9 +91,9 @@ def main(argv: list[str] | None = None) -> int:
                 stage="runtime",
                 claim_allowed="Throughput blocker recorded; no requests/s or tokens/s claim.",
                 claim_forbidden="Passing HTTP throughput claim while the server runtime is not in a serving state.",
-                next_step="Fix the Vulkan server runtime blocker in results/llama/upstream_server_vk.json, then rerun llm_server_vk_throughput_check.py.",
+                next_step="Fix the Vulkan server runtime blocker in results/llama/llama_server_vk.json, then rerun llm_server_vk_throughput_check.py.",
                 counts={"requests": args.requests},
-                artifacts={"server_runtime_json": "results/llama/upstream_server_vk.json"},
+                artifacts={"server_runtime_json": "results/llama/llama_server_vk.json"},
                 checks=[
                     {"id": "server_runtime", "status": status},
                     {"id": "http_throughput", "status": blocked},

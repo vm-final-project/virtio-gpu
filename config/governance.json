@@ -74,7 +74,7 @@
         "gfx.kmscube.frame"
       ]
     },
-    "app-vulkan-smoke": {
+    "app-vulkan-sample": {
       "status": "demo",
       "purpose": "Bounded Vulkan bootstrap/smoke proof for the compatibility substrate.",
       "verification": [
@@ -94,25 +94,25 @@
         "gfx.vkmark"
       ]
     },
-    "app-llama-upstream": {
+    "app-llama-cpu": {
       "status": "canonical",
       "purpose": "Upstream llama.cpp CPU single-application appliance with bench-only and server-only modes.",
       "verification": [
         "llama-env-check",
-        "llama-upstream-cpu-check"
+        "llama-cpu-build"
       ],
       "evidence_rows": [
         "llm.bench.cpu"
       ]
     },
-    "app-llama-upstream-vk": {
+    "app-llama-vk": {
       "status": "canonical",
       "purpose": "Upstream llama.cpp Vulkan/Venus single-application appliance; builds upstream ggml-vulkan in-tree and dispatches through libvulkan + the libukvulkan_venus Venus driver.",
       "verification": [
         "llama-env-check",
         "llama-vulkan-api-coverage",
         "llama-ggml-vk-dispatch",
-        "llama-upstream-vk-check"
+        "llama-vk-build"
       ],
       "evidence_rows": [
         "vk.ggml-dispatch",
@@ -177,10 +177,10 @@
       "experiment_spec": "../manifest/experiments/tests/smoke.yaml"
     },
     {
-      "id": "llama-upstream-vk-runtime",
+      "id": "llama-vk-runtime",
       "grade": "non-release",
-      "command": "make llama-upstream-vk-run",
-      "result_file": "results/llama/upstream_vk.json",
+      "command": "make llama-vk-run",
+      "result_file": "results/llama/llama_vk.json",
       "manifest": "../manifest/manifests/llama-vulkan.yaml",
       "rule": "GPU throughput or runtime success remains non-release while upstream llama.cpp Vulkan/Venus evidence is structured blocked.",
       "experiment_spec": "../manifest/experiments/tests/llama-vulkan.yaml"

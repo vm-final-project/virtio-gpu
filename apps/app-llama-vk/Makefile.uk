@@ -1,0 +1,230 @@
+$(eval $(call addlib,appllama_vk))
+
+# See apps/app-llama-cpu/Makefile.uk for the LLAMA_ROOT defaulting rule.
+# VULKAN_HEADERS_INCLUDE must be supplied via the environment (or via
+# config/external_paths.json); the build fails fast if it is missing so the
+# guest image cannot quietly miss a Vulkan-Hpp upgrade.
+LLAMA_ROOT             ?= $(realpath $(APPLLAMA_VK_BASE)/../../../llama.cpp)
+VULKAN_HEADERS_INCLUDE ?=
+ifeq ($(strip $(LLAMA_ROOT)),)
+$(error LLAMA_ROOT not set and ../llama.cpp sibling not found; export LLAMA_ROOT or set it in config/external_paths.json)
+endif
+ifeq ($(strip $(VULKAN_HEADERS_INCLUDE)),)
+$(error VULKAN_HEADERS_INCLUDE not set; export it or set it in config/external_paths.json)
+endif
+GGML_SRC     := $(LLAMA_ROOT)/ggml/src
+GGML_INC     := $(LLAMA_ROOT)/ggml/include
+LLAMA_SRC    := $(LLAMA_ROOT)/src
+LLAMA_COMMON := $(LLAMA_ROOT)/common
+LLAMA_SERVER := $(LLAMA_ROOT)/tools/server
+LLAMA_MTMD   := $(LLAMA_ROOT)/tools/mtmd
+COMPILER_DIR := $(shell clang -print-resource-dir)
+# Pre-generated SPIRV shader sources/header (from the cmake VK cross-build,
+# i.e. `make llama-upstream-cmake-vk` -> build-unikraft-vk) + SPIRV headers.
+GGML_VK_SHADERS ?= $(LLAMA_ROOT)/build-unikraft-vk/ggml/src/ggml-vulkan
+GGML_SPIRV_INC  ?= $(SPIRV_HEADERS_INCLUDE)
+
+# This app builds the upstream ggml stack IN-TREE (the former libukggml_vk build
+# helper was retired): ggml core + ggml-vulkan.cpp + SPIRV shader blobs (below),
+# the ggml-cpu backend, ggml-backend-dl/reg, and the llama.cpp sources. The
+# application-facing vk* ABI is owned by libvulkan (CONFIG_LIBVULKAN), which
+# this app selects; ggml-vulkan.cpp resolves its vk* calls there at final link.
+
+# Include paths
+# compat/ provides Unikraft/musl build shims for upstream Linux-isms (e.g.
+# <linux/limits.h> in common/{arg,download}.cpp). Placed first so it wins.
+APPLLAMA_VK_CINCLUDES-y   += -I$(APPLLAMA_VK_BASE)/compat
+APPLLAMA_VK_CXXINCLUDES-y += -I$(APPLLAMA_VK_BASE)/compat
+APPLLAMA_VK_CINCLUDES-y   += -I$(GGML_INC) -I$(GGML_SRC) -I$(GGML_SRC)/ggml-cpu
+APPLLAMA_VK_CXXINCLUDES-y += -I$(LLAMA_ROOT)/include -I$(LLAMA_SRC) \
+                                      -I$(LLAMA_SRC)/models \
+                                      -I$(LLAMA_COMMON) -I$(LLAMA_ROOT)/vendor \
+                                      -I$(LLAMA_SERVER) -I$(LLAMA_MTMD) \
+                                      -I$(APPLLAMA_VK_BASE) \
+                                      -I$(GGML_INC) -I$(GGML_SRC) -I$(GGML_SRC)/ggml-cpu \
+                                      -I$(GGML_SRC)/ggml-vulkan -I$(GGML_SPIRV_INC) -I$(GGML_VK_SHADERS) \
+                                      -I$(APPLLAMA_VK_BASE)/../../libs/libvulkan/include
+
+# See apps/app-llama-cpu/Makefile.uk for the COLD / HOT flag rationale.
+# P2 (plan-optimize.md): explicit + overridable target CPU arch (see the CPU
+# appliance Makefile.uk). Default `native` is correct here because build host ==
+# KVM run host (Broadwell); override LLAMA_MARCH for cross-host builds.
+LLAMA_MARCH ?= native
+APPLLAMA_VK_COMMON_DEFS := -DGGML_VERSION=\"0.12.0\" -DGGML_COMMIT=\"fcae601e4\" \
+                                     -D_GNU_SOURCE -DGGML_NO_NATIVE=1 -DGGML_USE_CPU=1 \
+                                     -DGGML_USE_VULKAN=1 \
+                                     -march=$(LLAMA_MARCH) -mtune=$(LLAMA_MARCH) \
+                                     -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
+                                     -isystem $(COMPILER_DIR)/include
+APPLLAMA_VK_COLD_FLAGS   := -Os -ffunction-sections -fdata-sections
+APPLLAMA_VK_C_COLD_EXTRA := -fno-asynchronous-unwind-tables -fno-unwind-tables
+APPLLAMA_VK_HOT_FLAGS    := -O3 -funroll-loops -fno-math-errno -fno-trapping-math
+
+APPLLAMA_VK_CFLAGS-y   += $(APPLLAMA_VK_COMMON_DEFS) $(APPLLAMA_VK_COLD_FLAGS) \
+                                    $(APPLLAMA_VK_C_COLD_EXTRA) \
+                                    -Wno-unused-function
+APPLLAMA_VK_CXXFLAGS-y += -std=c++17 $(APPLLAMA_VK_COMMON_DEFS) $(APPLLAMA_VK_COLD_FLAGS) \
+                                    -DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1 \
+                                    -isystem $(VULKAN_HEADERS_INCLUDE) \
+                                    -Wno-unknown-pragmas -Wno-unused-function
+# Server mode pulls in the full upstream HTTP server. tools/server/server-http.h
+# uses std::unordered_map without including <unordered_map> directly (relies on a
+# transitive include that this libc++ does not provide), so force-include it.
+APPLLAMA_VK_CXXFLAGS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += -include unordered_map
+# common/jinja/value.cpp does `#include "unicode.h"` wanting common/unicode.h
+# (common_parse_utf8_codepoint), but -I$(LLAMA_SRC) precedes -I$(LLAMA_COMMON)
+# so the unrelated src/unicode.h (tokenizer) wins. -iquote is searched for
+# quoted includes after the file's OWN directory but before -I dirs, so src/*
+# files still get their local src/unicode.h while common/jinja gets common's.
+APPLLAMA_VK_CXXFLAGS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += -iquote $(LLAMA_COMMON)
+# --gc-sections belongs at the final image link (CONFIG_OPTIMIZE_DEADELIM in the
+# Kraftfiles), not in per-library LDFLAGS which feed the relocatable `ld -r` link
+# where binutils rejects it for lacking an entry-point root.
+APPLLAMA_VK_LDFLAGS-y  += -Wl,--build-id=none -Wl,--hash-style=gnu
+
+# Per-file HOT overrides; same set as the CPU appliance plus the ggml core and
+# ggml-vulkan compute sources now built in-tree by this app (GGML, GGML_QUANTS,
+# GGML_VULKAN).
+APPLLAMA_VK_GGML_FLAGS-y          += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_GGML_VULKAN_FLAGS-y   += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_GGML_CPU_FLAGS-y      += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_QUANTS_FLAGS-y        += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_BINARY_OPS_FLAGS-y    += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_UNARY_OPS_FLAGS-y     += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_VEC_FLAGS-y           += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_OPS_FLAGS-y           += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_REPACK_FLAGS-y        += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_TRAITS_FLAGS-y        += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_HBM_FLAGS-y           += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_GGML_CPU_CPP_FLAGS-y  += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_X86_QUANTS_FLAGS-y    += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_X86_REPACK_FLAGS-y    += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_X86_CPU_FEATS_FLAGS-y += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_LLAMA_FLAGS-y         += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_LLAMA_GRAPH_FLAGS-y   += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_LLAMA_CONTEXT_FLAGS-y += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_LLAMA_KV_CACHE_FLAGS-y += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_LLAMA_KV_CACHE_ISWA_FLAGS-y += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_LLAMA_MEMORY_FLAGS-y  += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_LLAMA_SAMPLER_FLAGS-y += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_LLAMA_BATCH_FLAGS-y   += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_LLAMA_MODEL_FLAGS-y   += $(APPLLAMA_VK_HOT_FLAGS)
+
+# Single-purpose appliance entry points. Only the selected mode is compiled; the
+# unused source file becomes an empty translation unit thanks to its #if guard.
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_BENCH)  += $(APPLLAMA_VK_BASE)/bench.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/server.cpp
+
+# ── ggml core + Vulkan backend (formerly libukggml_vk, now built in-tree) ─────
+# Compiled IN-TREE with Unikraft's clang + libc++ to avoid ABI mismatches from
+# prebuilt GCC/libstdc++ archives. ggml.cpp (std::set_terminate handler) is
+# intentionally OMITTED — unused in Unikraft.
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml.c
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-alloc.c
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-backend.cpp
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-backend-meta.cpp
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-quants.c
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-threading.cpp
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/gguf.cpp
+# Vulkan backend (in-tree — avoids libstdc++ vtable/typeinfo ABI mismatch).
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-vulkan/ggml-vulkan.cpp
+# Pre-compiled SPIRV shader blobs referenced by ggml-vulkan-shaders.hpp.
+APPLLAMA_VK_SRCS-y += $(wildcard $(GGML_VK_SHADERS)/*.comp.cpp)
+
+# ── ggml-cpu backend ──────────────────────────────────────────────────────────
+APPLLAMA_VK_SRCS-y += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/ggml-cpu-cpp.cpp
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/ggml-cpu.c
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/quants.c
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/repack.cpp
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/hbm.cpp
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/traits.cpp
+APPLLAMA_VK_SRCS-y += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/dummy-amx.cpp
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/binary-ops.cpp
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/unary-ops.cpp
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/vec.cpp
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/ops.cpp
+APPLLAMA_VK_SRCS-y += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/x86-quants.c
+APPLLAMA_VK_SRCS-y += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/x86-repack.cpp
+APPLLAMA_VK_SRCS-y += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/x86-cpu-feats.cpp
+
+# ggml-opt and backend registry (omitted from the in-tree ggml build above)
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-opt.cpp
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-backend-dl.cpp
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-backend-reg.cpp
+
+# ── upstream llama-server HTTP entrypoint ───────────────────────────────────
+# tools/server/main.cpp already delegates to `int llama_server(int, char **)`;
+# the Unikraft app calls that function directly from server.cpp, so no Linux
+# launcher process is required. Keep local wrappers for basename collisions.
+# cpp-httplib is vendored split (httplib.h declares, httplib.cpp defines); the
+# upstream CMake build compiles httplib.cpp into a static lib. Compile it here
+# too, otherwise every httplib::Server/Client symbol is an undefined reference
+# at the final image link. Plus a posix_spawnp link shim (see compat-spawn.c).
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(LLAMA_ROOT)/vendor/cpp-httplib/httplib.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/compat-spawn.c
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/upstream-server.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/build-info.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(filter-out $(LLAMA_COMMON)/unicode.cpp, $(wildcard $(LLAMA_COMMON)/*.cpp))
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(wildcard $(LLAMA_COMMON)/jinja/*.cpp)
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/common-unicode.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += \
+    $(LLAMA_SERVER)/server-chat.cpp \
+    $(LLAMA_SERVER)/server-common.cpp \
+    $(LLAMA_SERVER)/server-context.cpp \
+    $(LLAMA_SERVER)/server-http.cpp \
+    $(LLAMA_SERVER)/server-models.cpp \
+    $(LLAMA_SERVER)/server-queue.cpp \
+    $(LLAMA_SERVER)/server-task.cpp \
+    $(LLAMA_SERVER)/server-tools.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += \
+    $(LLAMA_MTMD)/mtmd.cpp \
+    $(LLAMA_MTMD)/mtmd-audio.cpp \
+    $(LLAMA_MTMD)/mtmd-image.cpp \
+    $(LLAMA_MTMD)/mtmd-helper.cpp \
+    $(LLAMA_MTMD)/clip.cpp \
+    $(filter-out $(LLAMA_MTMD)/models/cogvlm.cpp \
+                  $(LLAMA_MTMD)/models/llama4.cpp \
+                  $(LLAMA_MTMD)/models/paddleocr.cpp \
+                  $(LLAMA_MTMD)/models/qwen2vl.cpp \
+                  $(LLAMA_MTMD)/models/qwen3vl.cpp, \
+                  $(wildcard $(LLAMA_MTMD)/models/*.cpp)) \
+    $(APPLLAMA_VK_BASE)/mtmd-model-cogvlm.cpp \
+    $(APPLLAMA_VK_BASE)/mtmd-model-llama4.cpp \
+    $(APPLLAMA_VK_BASE)/mtmd-model-paddleocr.cpp \
+    $(APPLLAMA_VK_BASE)/mtmd-model-qwen2vl.cpp \
+    $(APPLLAMA_VK_BASE)/mtmd-model-qwen3vl.cpp
+
+# ── llama.cpp high-level layer ────────────────────────────────────────────────
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-adapter.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-arch.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-batch.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-chat.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-context.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-cparams.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-grammar.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-graph.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-hparams.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-impl.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-io.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-kv-cache.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-kv-cache-iswa.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-kv-cache-dsa.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-memory.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-memory-hybrid.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-memory-hybrid-iswa.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-memory-recurrent.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-mmap.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-model.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-model-loader.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-model-saver.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-quant.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-sampler.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-vocab.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/unicode.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/unicode-data.cpp
+
+# models/llama.cpp basename conflicts with src/llama.cpp; use a shim instead.
+APPLLAMA_VK_SRCS-y += $(filter-out $(LLAMA_SRC)/models/llama.cpp, \
+                                $(wildcard $(LLAMA_SRC)/models/*.cpp))
+APPLLAMA_VK_SRCS-y += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/models-llama.cpp

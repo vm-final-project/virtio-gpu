@@ -12,7 +12,7 @@
     }
   },
   "artifacts": {
-    "server_runtime_json": "results/llama/upstream_server_vk.json"
+    "server_runtime_json": "results/llama/llama_server_vk.json"
   },
   "checks": [
     {
@@ -30,6 +30,6 @@
     "stage": "runtime",
     "claim_allowed": "Throughput blocker recorded; no requests/s or tokens/s claim.",
     "claim_forbidden": "Passing HTTP throughput claim while the server runtime is not in a serving state.",
-    "next_step": "Fix the Vulkan server runtime blocker in results/llama/upstream_server_vk.json, then rerun llm_server_vk_throughput_check.py."
+    "next_step": "Fix the Vulkan server runtime blocker in results/llama/llama_server_vk.json, then rerun llm_server_vk_throughput_check.py."
   }
 }

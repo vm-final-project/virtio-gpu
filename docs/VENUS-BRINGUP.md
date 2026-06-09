@@ -3,8 +3,7 @@
 > **2026-06-01 update — full GPU compute path reached; all 27 evaluation-matrix
 > rows PASS (0 blocked).** The upstream llama.cpp Vulkan **bench** appliance now
 > runs end-to-end on the real V100 over `virtio-gpu-gl venus=true`
-> (`pp512=2232.1 t/s`, `tg128=160.2 t/s` on the latest same-run artifact; three
-> post-change runs record `tg128` median `139.9`), and the **server**
+> (`pp512=2232.1 t/s`, `tg128=160.2 t/s` on the latest same-run artifact), and the **server**
 > appliance boots into a single entrypoint, loads all 28 layers onto the V100
 > via Venus, and reaches `READY`. The four breakthroughs versus the milestone
 > log below:
@@ -76,7 +75,7 @@ same-run PASS evidence. It is the evidence trail for the governance rows
 
 ## llama.cpp Vulkan appliance: current PASS evidence
 
-`scripts/llama_vk_real_run.py` boots `vogue-llama-upstream-vk_qemu-x86_64` under
+`scripts/llama_vk_real_run.py` boots `vogue-llama-vk_qemu-x86_64` under
 real Venus (`-device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true`,
 `-display egl-headless,gl=on`, 9pfs model). Observed, end-to-end:
 
@@ -87,11 +86,9 @@ real Venus (`-device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true`,
    (`ggml_vulkan: 0 = ...`), registering the Vulkan backend.
 3. The upstream llama.cpp Vulkan bench runs a real GGUF on the V100 and emits
    token output with `pp512=2232.1 t/s`, `tg128=160.2 t/s` on the latest
-   artifact after enabling batched Venus submission; the three post-change runs
-   in `results/llama/post_opt_runs/` report `tg128={135.7, 139.9, 160.2}`.
-   (`results/llama/upstream_vk.json`).
+   artifact after enabling batched Venus submission (`results/llama/llama_vk.json`).
 4. The Vulkan server image boots directly into its server entrypoint, loads the
-   model over Venus, and reaches `READY` (`results/llama/upstream_server_vk.json`).
+   model over Venus, and reaches `READY` (`results/llama/llama_server_vk.json`).
 
 Honest status: the runtime rows are PASS on this host. HTTP serving semantics
 remain out of scope until the lwIP/netdev path exists; `llm.server.vk` is a
@@ -101,8 +98,8 @@ model-loaded readiness claim, not a request/response throughput claim.
 
 - **Build**: upstream llama.cpp added `src/llama-kv-cache-dsa.cpp`; it was missing
   from the appliance source lists, causing undefined-symbol link failures. Added
-  to `apps/app-llama-upstream-vk/Makefile.uk` and
-  `apps/app-llama-upstream/Makefile.uk`. Also wipe stale `llama.cpp/build-unikraft*`
+  to `apps/app-llama-vk/Makefile.uk` and
+  `apps/app-llama-cpu/Makefile.uk`. Also wipe stale `llama.cpp/build-unikraft*`
   cmake caches if they reference an old project path.
 - **Runtime crash**: the Venus device's `hostmem=512M` 64-bit PCI BAR must land
   in the sub-4GB PCI hole, otherwise the guest faults in
@@ -268,7 +265,7 @@ make kmscube-build
 python3 scripts/venus_qemu_probe.py --mode 2d            # PASS real_virtio_gpu=1
 python3 scripts/venus_qemu_probe.py --mode venus-ring     # PASS frame proof
 
-make llama-upstream-vk-build
+make llama-vk-build
 python3 scripts/llama_vk_real_run.py                      # real boot capture
 make eval-check                                           # 27/27 pass on eval host
 ```

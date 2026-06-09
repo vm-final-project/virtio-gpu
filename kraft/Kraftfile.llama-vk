@@ -1,0 +1,73 @@
+spec: v0.6
+
+name: vogue-llama-vk
+
+# Upstream llama.cpp Vulkan bench-only single-application appliance
+# (llm.bench.vk gate). Routes through in-tree ggml-vulkan → libvulkan → libukvulkan_venus SUBMIT_3D
+# → QEMU virtio-gpu-gl-pci,venus=true.
+
+unikraft:
+  source: ../unikraft
+  kconfig:
+    CONFIG_APP_LLAMA_VK: 'y'
+    CONFIG_APP_LLAMA_VK_ROOTFS_9PFS: 'y'
+    CONFIG_APP_LLAMA_VK_MODE_BENCH: 'y'
+    CONFIG_OPTIMIZE_DEADELIM: 'y'
+    # ggml-vulkan compiles pipelines on hardware_concurrency() std::async worker
+    # threads that drive the Venus dispatch (vulkan.hpp -> stub -> uk_venus_encode
+    # with multi-KB SPIR-V/struct temporaries). Worker (and main) threads default
+    # to STACK_SIZE = 2^4 pages = 64 KiB, which the deep compute-graph dispatch
+    # chain overflows non-deterministically (corrupted callee-saved regs -> crash
+    # in stub_vkCreateDescriptorPool). Order 7 = 512 KiB per thread fixes it.
+    CONFIG_STACK_SIZE_PAGE_ORDER: '7'
+    CONFIG_AUXSTACK_SIZE_PAGE_ORDER: '7'
+    CONFIG_LIBMUSL: 'y'
+    CONFIG_LIBCXX: 'y'
+    CONFIG_CXX_THREADS: 'y'
+    CONFIG_LIBCXXABI: 'y'
+    CONFIG_LIBUNWIND: 'y'
+    CONFIG_LIBCOMPILER_RT: 'y'
+    CONFIG_LIBPOSIX_TTY: 'y'
+    CONFIG_LIBPOSIX_TTY_STDIO: 'y'
+    CONFIG_LIBPOSIX_TTY_STDOUT_SERIAL: 'y'
+    CONFIG_LIBPOSIX_TTY_STDIN_NULL: 'y'
+    CONFIG_LIBPOSIX_PROCESS: 'y'
+    CONFIG_LIBPOSIX_TIME: 'y'
+    CONFIG_LIBPOSIX_MMAP: 'y'
+    CONFIG_LIBPOSIX_VFS: 'y'
+    CONFIG_LIBVFSCORE: 'y'
+    CONFIG_LIBRAMFS: 'y'
+    CONFIG_LIBVFSCORE_AUTOMOUNT_CI: 'y'
+    CONFIG_LIBVFSCORE_AUTOMOUNT_CI_RAMFS: 'y'
+    CONFIG_LIBUK9P: 'y'
+    CONFIG_LIBVIRTIO_9P: 'y'
+    CONFIG_LIB9PFS: 'y'
+    CONFIG_LIBPTHREAD_EMBEDDED: 'y'
+    CONFIG_LIBUKSGLIST: 'y'
+    CONFIG_LIBUKVIRTIO_GPU: 'y'
+    CONFIG_LIBUKVIRTIO_GPU_BACKEND_REAL: 'y'
+    CONFIG_LIBUKVULKAN_VENUS: 'y'
+    CONFIG_LIBVULKAN: 'y'
+
+targets:
+  - qemu/x86_64
+
+libraries:
+  libmusl:
+    source: ../lib-musl
+  libcxx:
+    source: ../lib-libcxx
+  libcxxabi:
+    source: ../lib-libcxxabi
+  libunwind:
+    source: ../lib-libunwind
+  libcompiler-rt:
+    source: ../lib-compiler-rt
+  libukvirtio_gpu:
+    source: ./libs/libukvirtio_gpu
+  libukvulkan_venus:
+    source: ./libs/libukvulkan_venus
+  libvulkan:
+    source: ./libs/libvulkan
+  app-llama-vk:
+    source: ./apps/app-llama-vk

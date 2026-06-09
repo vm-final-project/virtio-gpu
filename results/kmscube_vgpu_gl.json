@@ -8,7 +8,7 @@
       "status": "pass",
       "evidence": "results/kmscube_vgpu_gl/run/build.log;results/kmscube_vgpu_gl/run/run.log;results/kmscube_vgpu_gl/run/frame-proof.json;results/kmscube_vgpu_gl/run/mesa-feasibility.json",
       "claim_allowed": "Unikraft-native kmscube EGL/GLES scanout proof over a non-software VirtIO-GPU-GL/virgl path.",
-      "claim_forbidden": "GPU tensor acceleration, LLM offload, generalized Mesa compatibility, glmark2 success, or performance speedup.",
+      "claim_forbidden": "GPU tensor acceleration, LLM offload, generalized Mesa compatibility, or performance speedup.",
       "next_step": "Plan glmark2-es2-drm quantitative benchmark only after preserving K1 evidence.",
       "details": {
         "pass_fields": {

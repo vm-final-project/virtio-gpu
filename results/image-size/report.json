@@ -14,14 +14,6 @@
       "status": "pass"
     },
     {
-      "name": "glmark2",
-      "row": "gfx.glmark2.sw",
-      "image": ".unikraft/build/vogue-glmark2_qemu-x86_64",
-      "size_bytes": 1089776,
-      "size_human": "1.04 MiB",
-      "status": "pass"
-    },
-    {
       "name": "llama-cpu-bench",
       "row": "llm.bench.cpu",
       "image": ".unikraft/build/vogue-llama-upstream-bench_qemu-x86_64",

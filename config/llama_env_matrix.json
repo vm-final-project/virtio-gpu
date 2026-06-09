@@ -143,9 +143,9 @@
         1
       ],
       "runner": "qemu-unikraft",
-      "kraftfile": "kraft/Kraftfile.llama-upstream-vk",
-      "image": ".unikraft/build/vogue-llama-upstream-vk_qemu-x86_64",
-      "single_app": "app-llama-upstream-vk",
+      "kraftfile": "kraft/Kraftfile.llama-vk",
+      "image": ".unikraft/build/vogue-llama-vk_qemu-x86_64",
+      "single_app": "app-llama-vk",
       "qemu_args": [
         "-enable-kvm",
         "-cpu",
@@ -171,9 +171,9 @@
         1
       ],
       "runner": "qemu-unikraft",
-      "kraftfile": "kraft/Kraftfile.llama-upstream-vk-server",
-      "image": ".unikraft/build/vogue-llama-upstream-vk-server_qemu-x86_64",
-      "single_app": "app-llama-upstream-vk",
+      "kraftfile": "kraft/Kraftfile.llama-vk-server",
+      "image": ".unikraft/build/vogue-llama-vk-server_qemu-x86_64",
+      "single_app": "app-llama-vk",
       "qemu_args": [
         "-enable-kvm",
         "-cpu",
@@ -201,9 +201,9 @@
         1
       ],
       "runner": "qemu-unikraft",
-      "kraftfile": "kraft/Kraftfile.llama-upstream-bench",
-      "image": ".unikraft/build/vogue-llama-upstream-bench_qemu-x86_64",
-      "single_app": "app-llama-upstream",
+      "kraftfile": "kraft/Kraftfile.llama-cpu-bench",
+      "image": ".unikraft/build/vogue-llama-cpu-bench_qemu-x86_64",
+      "single_app": "app-llama-cpu",
       "qemu_args": [
         "-enable-kvm",
         "-cpu",
@@ -227,9 +227,9 @@
         1
       ],
       "runner": "qemu-unikraft",
-      "kraftfile": "kraft/Kraftfile.llama-upstream-server",
-      "image": ".unikraft/build/vogue-llama-upstream-server_qemu-x86_64",
-      "single_app": "app-llama-upstream",
+      "kraftfile": "kraft/Kraftfile.llama-cpu-server",
+      "image": ".unikraft/build/vogue-llama-cpu-server_qemu-x86_64",
+      "single_app": "app-llama-cpu",
       "qemu_args": [
         "-enable-kvm",
         "-cpu",
@@ -249,37 +249,37 @@
       "id": "qemu-unikraft-llama-bench-only",
       "mode": "bench",
       "family": "qemu+unikraft+cpu",
-      "kraftfile": "kraft/Kraftfile.llama-upstream-bench",
-      "single_app": "app-llama-upstream",
+      "kraftfile": "kraft/Kraftfile.llama-cpu-bench",
+      "single_app": "app-llama-cpu",
       "entrypoint": "main -> run_bench_only",
-      "expected_serial": "uk-llama-upstream: PASS evidence_id=llama-upstream-cpu"
+      "expected_serial": "uk-llama-cpu: PASS evidence_id=llama-cpu"
     },
     {
       "id": "qemu-unikraft-llama-server-only",
       "mode": "server",
       "family": "qemu+unikraft+cpu",
-      "kraftfile": "kraft/Kraftfile.llama-upstream-server",
-      "single_app": "app-llama-upstream",
+      "kraftfile": "kraft/Kraftfile.llama-cpu-server",
+      "single_app": "app-llama-cpu",
       "entrypoint": "main -> run_server_only",
-      "expected_serial": "uk-llama-upstream-server: READY"
+      "expected_serial": "uk-llama-cpu-server: READY"
     },
     {
       "id": "qemu-unikraft-llama-vulkan-bench-only",
       "mode": "bench",
       "family": "qemu+unikraft+vulkan",
-      "kraftfile": "kraft/Kraftfile.llama-upstream-vk",
-      "single_app": "app-llama-upstream-vk",
+      "kraftfile": "kraft/Kraftfile.llama-vk",
+      "single_app": "app-llama-vk",
       "entrypoint": "main -> Vulkan bench",
-      "expected_serial": "uk-llama-upstream-vk: PASS evidence_id=llama-upstream-vk"
+      "expected_serial": "uk-llama-vk: PASS evidence_id=llama-vk"
     },
     {
       "id": "qemu-unikraft-llama-vulkan-server-only",
       "mode": "server",
       "family": "qemu+unikraft+vulkan",
-      "kraftfile": "kraft/Kraftfile.llama-upstream-vk-server",
-      "single_app": "app-llama-upstream-vk",
+      "kraftfile": "kraft/Kraftfile.llama-vk-server",
+      "single_app": "app-llama-vk",
       "entrypoint": "main -> Vulkan server readiness",
-      "expected_serial": "uk-llama-upstream-vk-server: READY"
+      "expected_serial": "uk-llama-vk-server: READY"
     }
   ]
 }

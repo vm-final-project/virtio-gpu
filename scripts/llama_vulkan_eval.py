@@ -3,8 +3,8 @@
 
 Supported gates intentionally mirror the minimized codebase:
 - n3-dispatch: host-native regression for libvulkan static Vulkan/Venus dispatch.
-- upstream-cpu: structured runtime artifact for the true upstream llama.cpp CPU appliance.
-- upstream-vk: structured runtime artifact for the true upstream llama.cpp Vulkan/Venus appliance.
+- llama-cpu: structured runtime artifact for the true upstream llama.cpp CPU appliance.
+- llama-vk: structured runtime artifact for the true upstream llama.cpp Vulkan/Venus appliance.
 - linux-baseline/probe/build/run/bench: reference-baseline placeholders that preserve claim
   boundaries when same-run evidence is not present.
 
@@ -88,17 +88,17 @@ def n3_dispatch() -> int:
 def upstream_runtime(kind: str) -> int:
     assert kind in {"cpu", "vk"}
     if kind == "cpu":
-        name = "upstream_cpu"
-        image = ROOT / ".unikraft" / "build" / "vogue-llama-upstream-cpu_qemu-x86_64"
-        evidence = "llama-upstream-cpu"
+        name = "llama_cpu"
+        image = ROOT / ".unikraft" / "build" / "vogue-llama-cpu_qemu-x86_64"
+        evidence = "llama-cpu"
         allowed = "Upstream llama.cpp CPU appliance runtime when same-run PASS marker exists."
-        next_step = "run: make llama-upstream-cpu-build && make llama-upstream-cpu-run"
+        next_step = "run: make llama-cpu-build && make llama-cpu-run"
     else:
-        name = "upstream_vk"
-        image = ROOT / ".unikraft" / "build" / "vogue-llama-upstream-vk_qemu-x86_64"
-        evidence = "llama-upstream-vk"
+        name = "llama_vk"
+        image = ROOT / ".unikraft" / "build" / "vogue-llama-vk_qemu-x86_64"
+        evidence = "llama-vk"
         allowed = "Upstream llama.cpp Vulkan/Venus appliance runtime when same-run PASS marker exists."
-        next_step = "run: make llama-upstream-vk-build && make llama-upstream-vk-run"
+        next_step = "run: make llama-vk-build && make llama-vk-run"
     if not image.exists():
         write_json(RESULTS / f"{name}.json", blocked_artifact(
             source="scripts/llama_vulkan_eval.py",
@@ -123,21 +123,21 @@ def upstream_runtime(kind: str) -> int:
                 next_step=next_step,
                 extra={"evidence_id": "env10-real", "pass": False},
             ))
-        print(f"LLAMA-UPSTREAM-{kind.upper()} blocked: image missing")
+        print(f"LLAMA-{kind.upper()} blocked: image missing")
         return 0
     # Keep runtime non-invasive in CI: record that a bootable image exists and
     # the gate still needs a same-run serial PASS capture to promote throughput.
     write_json(RESULTS / f"{name}.json", blocked_artifact(
         source="scripts/llama_vulkan_eval.py",
         status="blocked:runtime-capture-required",
-        headline=f"llama.cpp upstream runtime gate: {name}",
+        headline=f"llama.cpp runtime gate: {name}",
         stage="runtime",
         claim_allowed=allowed,
         claim_forbidden="Throughput claim until serial log contains the PASS evidence marker.",
         next_step=next_step,
         extra={"evidence_id": evidence, "pass": False, "image": str(image.relative_to(ROOT))},
     ))
-    print(f"LLAMA-UPSTREAM-{kind.upper()} blocked: runtime capture required")
+    print(f"LLAMA-{kind.upper()} blocked: runtime capture required")
     return 0
 
 
@@ -161,17 +161,17 @@ def reference_gate(mode: str) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=["n3-dispatch", "upstream-cpu", "upstream-vk", "linux-baseline", "probe", "build", "run", "bench"])
+    parser.add_argument("mode", choices=["n3-dispatch", "llama-cpu", "llama-vk", "linux-baseline", "probe", "build", "run", "bench"])
     args = parser.parse_args()
     if args.mode == "n3-dispatch":
         return n3_dispatch()
-    if args.mode == "upstream-cpu":
+    if args.mode == "llama-cpu":
         return upstream_runtime("cpu")
-    if args.mode == "upstream-vk":
+    if args.mode == "llama-vk":
         # Real boot through QEMU virtio-gpu-gl venus=true (no longer a stub).
         # llama_vk_real_run.py writes the honest same-run artifacts; if the image
         # is missing it falls back to the documented image-missing blocker.
-        if (ROOT / ".unikraft" / "build" / "vogue-llama-upstream-vk_qemu-x86_64").exists():
+        if (ROOT / ".unikraft" / "build" / "vogue-llama-vk_qemu-x86_64").exists():
             import subprocess as _sp
             return _sp.call([sys.executable, str(ROOT / "scripts" / "llama_vk_real_run.py")])
         return upstream_runtime("vk")

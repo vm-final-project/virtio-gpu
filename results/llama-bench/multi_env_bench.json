@@ -77,7 +77,7 @@
       "extrapolation_ref": "tiny model 0.008 GFLOP/token (2x4.12M params); same reference as ENV8",
       "gflops_s": null,
       "gpu": 1,
-      "image": ".unikraft/build/vogue-llama-upstream-vk_qemu-x86_64",
+      "image": ".unikraft/build/vogue-llama-vk_qemu-x86_64",
       "label": "QEMU + Unikraft VirtIO-GPU Venus (GPU, KVM)",
       "measurement_method": "Unikraft boot failed or output not parsed: kernel not found: /Users/caichaowei/NTU/114_2/virtual-machine/final-project/vm-final-project/.unikraft/build/vogue-llama-vk_qemu-x86_64",
       "n_pass": 0,
@@ -87,7 +87,7 @@
       "pp512_llama38b": null,
       "real_timer": 1,
       "row_id": "LLAMA-VK-GPU-BENCH",
-      "run_log": "results/llama/upstream_vk.log",
+      "run_log": "results/llama/llama_vk.log",
       "stats": {
         "elapsed": null,
         "gflops": null,

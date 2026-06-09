@@ -1,8 +1,0 @@
-{
-  "status": "blocked:image-not-built",
-  "generated_utc": "2026-05-28T17:05:38Z",
-  "evidence_id": "llama-vk-n3_run",
-  "claim_allowed": "Block reason documented; no LLAMA-VK pass claim for this gate.",
-  "claim_forbidden": "GPU acceleration, throughput speedup, or any token-emission claim.",
-  "next_step": "run: make llama-vulkan-n3-build"
-}

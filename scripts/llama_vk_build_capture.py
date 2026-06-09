@@ -2,7 +2,7 @@
 """Capture real build evidence for bld.host.vk.
 
 Inspects the actual Unikraft VK appliance image produced by
-`make llama-upstream-vk-build` and records whether the upstream ggml Vulkan
+`make llama-vk-build` and records whether the upstream ggml Vulkan
 backend genuinely compiled and linked: the image must exist and expose
 ggml_vk_*/ggml_backend_vk_* symbols (proving ggml-vulkan.cpp + the Venus/ICD
 libraries are linked in), and the build must have used -DGGML_USE_VULKAN=1.
@@ -19,9 +19,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "results" / "llama"
-IMAGE = ROOT / ".unikraft" / "build" / "vogue-llama-upstream-vk_qemu-x86_64"
+IMAGE = ROOT / ".unikraft" / "build" / "vogue-llama-vk_qemu-x86_64"
 DBG = Path(str(IMAGE) + ".dbg")
-MAKEFILE_UK = ROOT / "apps" / "app-llama-upstream-vk" / "Makefile.uk"
+MAKEFILE_UK = ROOT / "apps" / "app-llama-vk" / "Makefile.uk"
 
 
 def _now() -> str:
@@ -50,7 +50,7 @@ def main() -> int:
             "generated_utc": _now(),
             "claim_allowed": "Build blocker documented; no link/compile claim.",
             "claim_forbidden": "Vulkan execution or token claim.",
-            "next_step": "run: make llama-upstream-vk-build",
+            "next_step": "run: make llama-vk-build",
         })
         print("vk-build-capture: blocked:llama-vulkan-appliance-not-built")
         return 0

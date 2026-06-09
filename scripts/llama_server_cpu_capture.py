@@ -24,7 +24,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "results" / "llama"
-IMAGE = ROOT / ".unikraft" / "build" / "vogue-llama-upstream-server_qemu-x86_64"
+IMAGE = ROOT / ".unikraft" / "build" / "vogue-llama-cpu-server_qemu-x86_64"
 
 
 def _now() -> str:
@@ -33,12 +33,12 @@ def _now() -> str:
 
 def _write(payload: dict) -> None:
     RESULTS.mkdir(parents=True, exist_ok=True)
-    (RESULTS / "upstream_server_cpu.json").write_text(json.dumps(payload, indent=2) + "\n")
+    (RESULTS / "llama_server_cpu.json").write_text(json.dumps(payload, indent=2) + "\n")
 
 
 def _blocker(status: str, next_step: str) -> int:
     _write({
-        "schema": "llama/upstream-server.v2", "evidence_id": "llama-upstream-server-cpu",
+        "schema": "llama/upstream-server.v2", "evidence_id": "llama-server-cpu",
         "status": status, "pass": False, "generated_utc": _now(),
         "claim_allowed": "Blocker documented; no server-runtime claim.",
         "claim_forbidden": "HTTP throughput or runtime claim without a same-run READY marker.",
@@ -69,7 +69,7 @@ def main() -> int:
         return _blocker("blocked:qemu-missing", "Install qemu-system-x86 and rerun.")
     if not IMAGE.exists():
         return _blocker("blocked:unikraft-image-missing",
-                        "Build kraft/Kraftfile.llama-upstream-server then rerun.")
+                        "Build kraft/Kraftfile.llama-cpu-server then rerun.")
     model = _model_path()
     if model is None:
         return _blocker("blocked:model-missing", "Set VOGUE_CPU_MODEL=/path/to/model.gguf and rerun.")
@@ -97,19 +97,19 @@ def main() -> int:
         except subprocess.TimeoutExpired as e:
             out = _dec(e.stdout) + _dec(e.stderr)
 
-    (RESULTS / "upstream_server_cpu.log").write_text(out)
-    (RESULTS / "upstream_server_cpu_serial.log").write_text(out)
-    m = re.search(r"uk-llama-upstream-server: READY ([^\n]+)", out)
+    (RESULTS / "llama_server_cpu.log").write_text(out)
+    (RESULTS / "llama_server_cpu_serial.log").write_text(out)
+    m = re.search(r"uk-llama-cpu-server: READY ([^\n]+)", out)
     if not m:
         return _blocker("blocked:no-pass-line",
-                        "Inspect results/llama/upstream_server_cpu.log; no READY marker observed.")
+                        "Inspect results/llama/llama_server_cpu.log; no READY marker observed.")
 
     _write({
-        "schema": "llama/upstream-server.v2", "evidence_id": "llama-upstream-server-cpu",
+        "schema": "llama/upstream-server.v2", "evidence_id": "llama-server-cpu",
         "status": "pass", "pass": True, "scaffold_booted": True, "generated_utc": _now(),
         "ready_line": m.group(0).strip(),
         "accel": accel, "cpu": cpu, "host": platform.platform(), "model": model.name,
-        "run_log": "results/llama/upstream_server_cpu.log",
+        "run_log": "results/llama/llama_server_cpu.log",
         "claim_allowed": (f"Upstream llama.cpp server appliance boots directly into a single entrypoint on "
                           f"Unikraft (no shell/fork/exec) and reaches READY on this host ({accel}/-cpu {cpu})."),
         "claim_forbidden": "HTTP throughput or request/response benchmarking until the lwIP netdev gate lands.",

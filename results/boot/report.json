@@ -13,12 +13,6 @@
     },
     {
       "status": "pass",
-      "image": ".unikraft/build/vogue-glmark2_qemu-x86_64",
-      "boot_to_ready_ms": 932.92,
-      "name": "glmark2"
-    },
-    {
-      "status": "pass",
       "image": ".unikraft/build/vogue-llama-upstream-bench_qemu-x86_64",
       "boot_to_ready_ms": 77155.92,
       "name": "llama-cpu-bench"

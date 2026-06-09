@@ -8,7 +8,7 @@ application projects keep their own application semantics.
 ## Runtime stack
 
 ```text
-application port (kmscube/glmark2/vkmark/llama.cpp)
+application port (kmscube/vkmark/llama.cpp)
   -> bounded Unikraft compatibility shim
   -> libukvirtio_gpu real frontend
   -> VirtIO-GPU controlq/cursorq + resources/fences/capsets/blobs
@@ -21,8 +21,8 @@ only the bounded interfaces needed by the artifact rows.
 
 ## Dependency graph
 
-`make depgraph` (`scripts/gen_depgraph.py`, design in
-`docs/dependency-graph-plan.md`) extracts the virtio-gpu dependency multigraph
+`make depgraph` (`scripts/gen_depgraph.py`, plan in
+`docs/plans/dependency-graph-plan.md`) extracts the virtio-gpu dependency multigraph
 across three codebases and one protocol seam — the Linux guest driver
 (`../linux/drivers/gpu/drm/virtio`), our VOGUE `libs/*`, and the QEMU device
 model (`../qemu-src/hw/display`) — directly from their `Kconfig`/`Config.uk`,
@@ -77,10 +77,10 @@ Regenerate with `make depgraph`; `make depgraph-check` is the drift gate.
 
 | Class | Surface | Purpose | Evidence status |
 |---|---|---|---|
-| CPU single-app | `apps/app-llama-upstream`, `kraft/Kraftfile.llama-upstream-bench`, `kraft/Kraftfile.llama-upstream-server` | Unmodified upstream llama.cpp bench-only or server-only Unikraft image. | `llm.bench.cpu` pass or structured blocker. |
-| Vulkan single-app | `apps/app-llama-upstream-vk`, `kraft/Kraftfile.llama-upstream-vk` | Unmodified upstream llama.cpp Vulkan path through `libvulkan` (vk* ABI) → `libukvulkan_venus` (Venus driver). | `llm.bench.vk` / `llm.bench.vk.real` pass or structured blocker. |
+| CPU single-app | `apps/app-llama-cpu`, `kraft/Kraftfile.llama-cpu-bench`, `kraft/Kraftfile.llama-cpu-server` | Unmodified upstream llama.cpp bench-only or server-only Unikraft image. | `llm.bench.cpu` pass or structured blocker. |
+| Vulkan single-app | `apps/app-llama-vk`, `kraft/Kraftfile.llama-vk` | Unmodified upstream llama.cpp Vulkan path through `libvulkan` (vk* ABI) → `libukvulkan_venus` (Venus driver). | `llm.bench.vk` / `llm.bench.vk.real` pass or structured blocker. |
 | Vulkan ABI / driver | `libs/libvulkan`, `libs/libukvulkan_venus` | `libvulkan` owns the app-facing `vk*` ABI + Vulkan-Hpp dispatch (compute-first subset); `libukvulkan_venus` is the statically linked Venus driver. | `vk.ggml-dispatch` PASS. |
-| ggml-vulkan build glue | `apps/app-llama-upstream-vk/Makefile.uk` | Builds upstream `ggml-vulkan.cpp` + ggml core + SPIR-V shader blobs in-tree (the former `libukggml_vk` helper was retired); resolves the `vk*` ABI against `libvulkan`. | `vk.ggml-dispatch` PASS. |
+| ggml-vulkan build glue | `apps/app-llama-vk/Makefile.uk` | Builds upstream `ggml-vulkan.cpp` + ggml core + SPIR-V shader blobs in-tree (the former `libukggml_vk` helper was retired); resolves the `vk*` ABI against `libvulkan`. | `vk.ggml-dispatch` PASS. |
 | Environment matrix | `config/llama_env_matrix.json` | Baremetal/QEMU/Unikraft CPU/Vulkan/CUDA runs with explicit threads and args. | Dry-run/execute artifacts under `results/llama-env/`. |
 
 Synthetic local llama libraries and apps were removed: no local GGUF framework,
@@ -90,8 +90,8 @@ custom ggml substrate, or llama runtime remains under `libs/` or `apps/`.
 
 1. `make llama-vulkan-api-coverage`: upstream `ggml-vulkan.cpp` required Vulkan calls are present in the static dispatch table.
 2. `make llama-ggml-vk-dispatch`: host fake-backend dispatch test; no QEMU or GPU throughput claim.
-3. `make llama-upstream-vk-build`: Unikraft image links upstream ggml-vulkan/Venus libraries.
-4. `make llama-upstream-vk-run`: QEMU runtime; may return `blocked:no-egl-render-node` or another structured blocker.
+3. `make llama-vk-build`: Unikraft image links upstream ggml-vulkan/Venus libraries.
+4. `make llama-vk-run`: QEMU runtime; may return `blocked:no-egl-render-node` or another structured blocker.
 5. Only a same-run runtime PASS may support guest GPU inference claims.
 
 ## Reviewer targets

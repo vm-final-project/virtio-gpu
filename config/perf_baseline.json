@@ -3,23 +3,18 @@
   "purpose": "Reference values for make perf-check. Any metric that regresses by more than `regression_threshold_pct` triggers a non-zero exit. Update deliberately when the underlying workload changes.",
   "regression_threshold_pct": 10.0,
   "captured_utc": "2026-05-29T12:00:00Z",
-  "host_note": "Software-render benchmarks (gfx.kmscube.sw, gfx.glmark2.sw) have ±5–10% run-to-run variance on a non-isolated host. The 10% threshold absorbs that variance and still catches the SUBMIT_3D/fence regressions plan-optimize.md targets. Tighten on dedicated benchmarking hosts.",
+  "host_note": "Software-render benchmarks (gfx.kmscube.sw) have ±5–10% run-to-run variance on a non-isolated host. The 10% threshold absorbs that variance and still catches the SUBMIT_3D/fence regressions plan-optimize.md targets. Tighten on dedicated benchmarking hosts.",
   "metrics": {
     "gfx.kmscube.sw": {
       "fps": 478.0,
       "frame_ms": 2.09,
       "source": "scripts/app_perf_eval.py"
     },
-    "gfx.glmark2.sw": {
-      "fps": 171.0,
-      "frame_ms": 5.84,
-      "source": "scripts/app_perf_eval.py"
-    },
     "llm.bench.cpu": {
       "pp512": 9.3,
       "tg128": 7.7,
-      "note": "Real measured throughput: upstream llama.cpp on the Unikraft CPU appliance booted under QEMU KVM -cpu host (Broadwell), -march=native, Qwen3-0.6B-Q4_K_M via 9pfs. Replaces the prior synthetic placeholder. Single-thread (CONFIG_APP_LLAMA_UPSTREAM_THREADS=1).",
-      "source": "results/llama/upstream_cpu.json"
+      "note": "Real measured throughput: upstream llama.cpp on the Unikraft CPU appliance booted under QEMU KVM -cpu host (Broadwell), -march=native, Qwen3-0.6B-Q4_K_M via 9pfs. Single-thread (CONFIG_APP_LLAMA_CPU_THREADS=1).",
+      "source": "results/llama/llama_cpu.json"
     }
   }
 }

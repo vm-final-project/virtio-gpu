@@ -8,7 +8,7 @@ testing and evidence structure:
 - `libs/*/tests/test_*.c` holds library-local Unikraft `uktest` suites.
 - `scripts/` keeps only the canonical JSON generators and the runtime helper
   collectors they depend on.
-- `results/` stores JSON artifacts only for the canonical report surfaces.
+- `results/` stores the canonical report artifacts and a small set of retained runtime evidence files.
 
 `blocked:*` remains the explicit partial-progress state. Blocked artifacts are
 never passing evidence.
@@ -104,14 +104,14 @@ Build/run helpers kept for the retained runtime collectors:
 
 ```sh
 make kmscube-build
-make llama-upstream-cpu-build
-make llama-upstream-cpu-run
-make llama-upstream-server-build
-make llama-upstream-server-run
-make llama-upstream-vk-build
-make llama-upstream-vk-run
-make llama-upstream-vk-server-build
-make llama-upstream-vk-server-run
+make llama-cpu-build
+make llama-cpu-run
+make llama-cpu-server-build
+make llama-cpu-server-run
+make llama-vk-build
+make llama-vk-run
+make llama-vk-server-build
+make llama-vk-server-run
 make linux-guest-vk-baseline
 ```
 

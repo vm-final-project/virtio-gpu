@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-09T05:09:26.882501Z",
+    "generated_utc": "2026-06-09T09:16:18.973120Z",
     "source": "scripts/eval_matrix.py",
     "version": 1
   },
@@ -154,7 +154,7 @@
     {
       "row_id": "vk.smoke",
       "claim": "Vulkan smoke test substrate (native Venus gate)",
-      "workload": "app-vulkan-smoke: Venus capset detection + native Venus substrate",
+      "workload": "app-vulkan-sample: Venus capset detection + native Venus substrate",
       "status": "blocked:vulkan-test-failed",
       "required_evidence": "Host Vulkan baseline + Venus capset detection + native Venus substrate documented",
       "evidence": "results/vulkan/vulkan_perf.json",
@@ -187,7 +187,7 @@
     {
       "row_id": "host.vk.probe",
       "claim": "Unikraft Vulkan loader/ICD enumerates a Venus device",
-      "workload": "app-vulkan-smoke or app-llama-upstream-vk: vkEnumeratePhysicalDevices via libvulkan over libukvirtgpu_drm + libukvulkan_venus + virtio-gpu-gl with venus=true",
+      "workload": "app-vulkan-sample or app-llama-vk: vkEnumeratePhysicalDevices via libvulkan over libukvirtgpu_drm + libukvulkan_venus + virtio-gpu-gl with venus=true",
       "status": "pass",
       "required_evidence": "Guest log line `vk: physical_device=<name> api=<version>` and capset(venus) detected in the same run; recorded in results/llama/vulkan_probe.json",
       "evidence": "results/llama/vulkan_probe.json",
@@ -198,18 +198,18 @@
     {
       "row_id": "bld.host.vk",
       "claim": "Unikraft image linking upstream ggml-vulkan with -DGGML_USE_VULKAN=1",
-      "workload": "apps/app-llama-upstream-vk + Kraftfile.llama-upstream-vk: musl/libc++/pthread + upstream ggml-vulkan.cpp + vulkan-shaders + libvulkan + libukvulkan_venus",
+      "workload": "apps/app-llama-vk + Kraftfile.llama-vk: musl/libc++/pthread + upstream ggml-vulkan.cpp + vulkan-shaders + libvulkan + libukvulkan_venus",
       "status": "pass",
-      "required_evidence": "kraft build emits vogue-llama-upstream-vk_qemu-x86_64; build log contains -DGGML_USE_VULKAN=1; nm reports ggml_vk_* symbols",
+      "required_evidence": "kraft build emits vogue-llama-vk_qemu-x86_64; build log contains -DGGML_USE_VULKAN=1; nm reports ggml_vk_* symbols",
       "evidence": "results/llama/vulkan_build.json",
       "claim_allowed": "The full llama.cpp + ggml Vulkan backend compiles inside the Unikraft toolchain and links against the Vulkan ICD shim and Venus libraries.",
       "claim_forbidden": "Vulkan execution, llama tokens via GPU, or any throughput claim.",
-      "next_step": "Use apps/app-llama-upstream-vk + Kraftfile.llama-upstream-vk + extended libvulkan compute subset and run scripts/llama_vulkan_build.py."
+      "next_step": "Use apps/app-llama-vk + Kraftfile.llama-vk + extended libvulkan compute subset and run scripts/llama_vulkan_build.py."
     },
     {
       "row_id": "host.bench.vk.run",
       "claim": "Unikraft llama-cli runs llama.cpp with -ngl 99 via Mesa Venus",
-      "workload": "boot vogue-llama-upstream-vk under qemu virtio-gpu-gl,hostmem=8G,blob=true,venus=true; llama.cpp bench prompts the configured GGUF and emits tokens",
+      "workload": "boot vogue-llama-vk under qemu virtio-gpu-gl,hostmem=8G,blob=true,venus=true; llama.cpp bench prompts the configured GGUF and emits tokens",
       "status": "pass",
       "required_evidence": "Same-run guest log: vk_physical_device + ggml-vulkan device + non-zero token output + frame-proof artifact; recorded in results/llama/vulkan_run.json",
       "evidence": "results/llama/vulkan_run.json",
@@ -242,32 +242,32 @@
     {
       "row_id": "llm.bench.cpu",
       "claim": "Upstream llama.cpp CPU path on Unikraft without source modifications (W3)",
-      "workload": "apps/app-llama-upstream: upstream llama_backend_init + llama_model_load_from_file + llama_decode via 9pfs; upstream lib-musl supplies sysconf/getauxval/prctl/pthread surface",
+      "workload": "apps/app-llama-cpu: upstream llama_backend_init + llama_model_load_from_file + llama_decode via 9pfs; upstream lib-musl supplies sysconf/getauxval/prctl/pthread surface",
       "status": "pass",
-      "required_evidence": "pp512=9.4 t/s; evidence: results/llama/upstream_cpu.json",
-      "evidence": "results/llama/upstream_cpu.json",
+      "required_evidence": "pp512=9.4 t/s; evidence: results/llama/llama_cpu.json",
+      "evidence": "results/llama/llama_cpu.json",
       "claim_allowed": "Upstream llama.cpp CPU path boots on Unikraft with upstream sources unmodified. pp512=9.4 t/s via 9pfs model delivery.",
       "claim_forbidden": "GPU throughput, Vulkan dispatch, or upstream modification claim.",
-      "next_step": "Complete W3.3 cmake build (make llama-upstream-cmake) then make llama-upstream-cpu-build."
+      "next_step": "Complete W3.3 cmake build (make llama-cmake) then make llama-cpu-build."
     },
     {
       "row_id": "llm.server.cpu",
       "claim": "Upstream llama.cpp CPU server appliance on Unikraft without source modifications",
-      "workload": "apps/app-llama-upstream/server.cpp: single-purpose Unikraft image, no shell/fork/exec launcher, READY-line evidence; HTTP listener gated on Unikraft netdev/lwip",
+      "workload": "apps/app-llama-cpu/server.cpp: single-purpose Unikraft image, no shell/fork/exec launcher, READY-line evidence; HTTP listener gated on Unikraft netdev/lwip",
       "status": "pass",
-      "required_evidence": "Server entrypoint boots; see results/llama/upstream_server_cpu.json",
-      "evidence": "results/llama/upstream_server_cpu.json",
+      "required_evidence": "Server entrypoint boots; see results/llama/llama_server_cpu.json",
+      "evidence": "results/llama/llama_server_cpu.json",
       "claim_allowed": "Upstream llama.cpp server appliance boots directly into a single entrypoint on Unikraft (no shell).",
       "claim_forbidden": "HTTP throughput, request/response benchmarking, fork/exec launcher semantics, or any claim that requires a working lwip netdev path until that gate lands.",
-      "next_step": "Build kraft/Kraftfile.llama-upstream-server; promote when same-run evidence exists."
+      "next_step": "Build kraft/Kraftfile.llama-cpu-server; promote when same-run evidence exists."
     },
     {
       "row_id": "llm.bench.vk",
       "claim": "Upstream llama.cpp Vulkan bench-only appliance on Unikraft via Venus SUBMIT_3D",
-      "workload": "apps/app-llama-upstream-vk/bench.cpp: upstream llama.cpp Vulkan via in-tree ggml-vulkan \u2192 libvulkan \u2192 libukvulkan_venus SUBMIT_3D \u2192 QEMU virtio-gpu-gl-pci,venus=true",
+      "workload": "apps/app-llama-vk/bench.cpp: upstream llama.cpp Vulkan via in-tree ggml-vulkan \u2192 libvulkan \u2192 libukvulkan_venus SUBMIT_3D \u2192 QEMU virtio-gpu-gl-pci,venus=true",
       "status": "pass",
-      "required_evidence": "pp512=2045.8 t/s; evidence: results/llama/upstream_vk.json",
-      "evidence": "results/llama/upstream_vk.json",
+      "required_evidence": "pp512=2045.8 t/s; evidence: results/llama/llama_vk.json",
+      "evidence": "results/llama/llama_vk.json",
       "claim_allowed": "Upstream llama.cpp Vulkan path routes ggml compute through Venus on Unikraft without upstream source modifications. pp512=2045.8 t/s.",
       "claim_forbidden": "Any claim without same-run PASS artifacts.",
       "next_step": "Complete llm.bench.vk.real Venus runtime path to unblock real device queries."
@@ -275,35 +275,35 @@
     {
       "row_id": "llm.server.vk",
       "claim": "Upstream llama.cpp Vulkan HTTP server appliance on Unikraft via Venus SUBMIT_3D + lwIP",
-      "workload": "apps/app-llama-upstream-vk/server.cpp: single-purpose Vulkan server image; no shell/fork/exec launcher; Venus dispatch chain identical to llm.bench.vk; in-guest TCP/IP (virtio-net -> libuknetdev -> lwIP) serves the upstream llama_server() listener; same-run /health + /v1/models + /completion proof",
+      "workload": "apps/app-llama-vk/server.cpp: single-purpose Vulkan server image; no shell/fork/exec launcher; Venus dispatch chain identical to llm.bench.vk; in-guest TCP/IP (virtio-net -> libuknetdev -> lwIP) serves the upstream llama_server() listener; same-run /health + /v1/models + /completion proof",
       "status": "blocked:unikraft-image-missing",
-      "required_evidence": "Build or run blocked; see results/llama/upstream_server_vk.json",
-      "evidence": "results/llama/upstream_server_vk.json",
+      "required_evidence": "Build or run blocked; see results/llama/llama_server_vk.json",
+      "evidence": "results/llama/llama_server_vk.json",
       "claim_allowed": "Blocked; no server-runtime claim. Vulkan runtime is gated on host EGL render-node availability.",
       "claim_forbidden": "Aggregate HTTP throughput / requests-per-second / TTFT, fork/exec launcher semantics, or any claim without same-run PASS evidence.",
-      "next_step": "Build kraft/Kraftfile.llama-upstream-vk-server; promote when same-run evidence exists."
+      "next_step": "Build kraft/Kraftfile.llama-vk-server; promote when same-run evidence exists."
     },
     {
       "row_id": "bld.uk.vk",
       "claim": "Upstream llama.cpp Vulkan Unikraft image build with ggml-vulkan + Venus libraries linked (W5)",
-      "workload": "kraft/Kraftfile.llama-upstream-vk: libvulkan + libukvulkan_venus compile and link into vogue-llama-vk_qemu-x86_64 without DRM compat",
+      "workload": "kraft/Kraftfile.llama-vk: libvulkan + libukvulkan_venus compile and link into vogue-llama-vk_qemu-x86_64 without DRM compat",
       "status": "pass",
       "required_evidence": "Image builds: .unikraft/build/vogue-llama-vk_qemu-x86_64; evidence: results/llama/n3_build_passed.json",
       "evidence": "results/llama/n3_build_passed.json",
       "claim_allowed": "Upstream llama.cpp Vulkan image builds with ggml-vulkan and Venus libraries linked. Build-pass confirms toolchain compatibility between Unikraft clang, libvulkan native dispatch, and upstream ggml-vulkan.",
       "claim_forbidden": "GPU throughput, Vulkan execution, or any runtime claim.",
-      "next_step": "Run: make llama-upstream-vk-build"
+      "next_step": "Run: make llama-vk-build"
     },
     {
       "row_id": "llm.bench.vk.real",
       "claim": "Upstream llama.cpp full Vulkan path via real virtio-gpu-gl Venus backend (W4)",
-      "workload": "apps/app-llama-upstream-vk: upstream llama.cpp ggml-vulkan dispatches through Venus SUBMIT_3D to QEMU virtio-gpu-gl-pci,venus=true; real GPU compute executed",
+      "workload": "apps/app-llama-vk: upstream llama.cpp ggml-vulkan dispatches through Venus SUBMIT_3D to QEMU virtio-gpu-gl-pci,venus=true; real GPU compute executed",
       "status": "pass",
       "required_evidence": "pp512=2045.8 t/s via real Venus backend; evidence: results/llama/env10_real.json",
       "evidence": "results/llama/env10_real.json",
       "claim_allowed": "ENV10 PASS: upstream llama.cpp ggml-vulkan runs on Unikraft via real Venus. pp512=2045.8 t/s.",
       "claim_forbidden": "Any throughput claim without same-run PASS artifacts or ENV10 host GPU disclosure.",
-      "next_step": "Requires EGL headless display for QEMU virtio-gpu-gl-pci. Set DISPLAY or use EGL render node. Run: make llama-upstream-vk-run"
+      "next_step": "Requires EGL headless display for QEMU virtio-gpu-gl-pci. Set DISPLAY or use EGL render node. Run: make llama-vk-run"
     }
   ]
 }

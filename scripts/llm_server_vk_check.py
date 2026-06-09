@@ -14,19 +14,19 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results" / "llama"
 SOURCE = "scripts/llm_server_vk_check.py"
 
-VK_KRAFTFILE = ROOT / "kraft" / "Kraftfile.llama-upstream-vk-server"
-CPU_KRAFTFILE = ROOT / "kraft" / "Kraftfile.llama-upstream-server"
-VK_SERVER_CPP = ROOT / "apps" / "app-llama-upstream-vk" / "server.cpp"
-CPU_SERVER_CPP = ROOT / "apps" / "app-llama-upstream" / "server.cpp"
-VK_CONFIG_UK = ROOT / "apps" / "app-llama-upstream-vk" / "Config.uk"
-CPU_CONFIG_UK = ROOT / "apps" / "app-llama-upstream" / "Config.uk"
+VK_KRAFTFILE = ROOT / "kraft" / "Kraftfile.llama-vk-server"
+CPU_KRAFTFILE = ROOT / "kraft" / "Kraftfile.llama-cpu-server"
+VK_SERVER_CPP = ROOT / "apps" / "app-llama-vk" / "server.cpp"
+CPU_SERVER_CPP = ROOT / "apps" / "app-llama-cpu" / "server.cpp"
+VK_CONFIG_UK = ROOT / "apps" / "app-llama-vk" / "Config.uk"
+CPU_CONFIG_UK = ROOT / "apps" / "app-llama-cpu" / "Config.uk"
 ENV_MATRIX = ROOT / "config" / "llama_env_matrix.json"
-PORTING_PLAN = ROOT / "docs" / "llama-cpp-unikraft-porting-plan.md"
+PORTING_PLAN = ROOT / "docs" / "plans" / "llama-cpp-unikraft-porting-plan.md"
 LLAMA_ROOT = ROOT.parent / "llama.cpp"
 LLAMA_SERVER_MAIN = LLAMA_ROOT / "tools" / "server" / "main.cpp"
 LLAMA_SERVER_IMPL = LLAMA_ROOT / "tools" / "server" / "server.cpp"
-SERIAL_LOG = ROOT / "results" / "llama" / "upstream_server_vk_serial.log"
-SERVER_VK_RUNTIME = ROOT / "results" / "llama" / "upstream_server_vk.json"
+SERIAL_LOG = ROOT / "results" / "llama" / "llama_server_vk_serial.log"
+SERVER_VK_RUNTIME = ROOT / "results" / "llama" / "llama_server_vk.json"
 
 HOSTMEM_RE = re.compile(r"hostmem=(\S+).*blob=true.*venus=true")
 VK_NET_KCONFIG = (
@@ -40,10 +40,10 @@ VK_NET_KCONFIG = (
     "CONFIG_LIBUKRANDOM_DEVFS",
 )
 VK_SERVER_FLAGS = (
-    "CONFIG_APP_LLAMA_UPSTREAM_VK_PARALLEL",
-    "CONFIG_APP_LLAMA_UPSTREAM_VK_BATCH",
-    "CONFIG_APP_LLAMA_UPSTREAM_VK_UBATCH",
-    "CONFIG_APP_LLAMA_UPSTREAM_VK_PROMPT_CACHE",
+    "CONFIG_APP_LLAMA_VK_PARALLEL",
+    "CONFIG_APP_LLAMA_VK_BATCH",
+    "CONFIG_APP_LLAMA_VK_UBATCH",
+    "CONFIG_APP_LLAMA_VK_PROMPT_CACHE",
     "uk_vulkan_get_info",
     "UK_GGML_VK_DISPATCH_BATCH",
     "llama_server(",
@@ -55,14 +55,14 @@ VK_SERVER_FLAGS = (
     "no_fork_exec=1",
 )
 CPU_SERVER_FLAGS = (
-    "CONFIG_APP_LLAMA_UPSTREAM_PARALLEL",
-    "CONFIG_APP_LLAMA_UPSTREAM_PROMPT_CACHE",
+    "CONFIG_APP_LLAMA_CPU_PARALLEL",
+    "CONFIG_APP_LLAMA_CPU_PROMPT_CACHE",
     "mode=single-app",
     "no_fork_exec=1",
 )
 FORBIDDEN_PROCESS_CALLS = ("fork(", "execv(", "execve(", "posix_spawn(", "system(", "popen(")
 READY_LINE_RE = re.compile(
-    r"uk-llama-upstream-vk-server: READY .* slots=(?P<slots>\d+) "
+    r"uk-llama-vk-server: READY .* slots=(?P<slots>\d+) "
     r"ctx_per_slot=(?P<ctx>\d+) batch_size=(?P<batch>\d+) "
     r"ubatch_size=(?P<ubatch>\d+) prompt_cache=(?P<pc>\d) "
     r"batch_enabled=(?P<be>\d) "
@@ -96,24 +96,24 @@ def check_static() -> list[str]:
     if "int llama_server(int argc, char ** argv)" not in llama_server_impl:
         findings.append("upstream-llama: tools/server/server.cpp must expose reusable llama_server(argc, argv)")
     if not HOSTMEM_RE.search(vk_kraft):
-        findings.append("L4.1: kraft/Kraftfile.llama-upstream-vk-server missing hostmem=…,blob=true,venus=true")
+        findings.append("L4.1: kraft/Kraftfile.llama-vk-server missing hostmem=…,blob=true,venus=true")
     for sym in VK_NET_KCONFIG:
         if sym not in vk_kraft:
-            findings.append(f"http: kraft/Kraftfile.llama-upstream-vk-server missing {sym} (lwIP/netdev HTTP path)")
+            findings.append(f"http: kraft/Kraftfile.llama-vk-server missing {sym} (lwIP/netdev HTTP path)")
     for flag in VK_SERVER_FLAGS:
         if flag not in vk_server:
             findings.append(f"single-app/vk: server.cpp missing {flag}")
     for flag in CPU_SERVER_FLAGS:
         if flag not in cpu_server:
             findings.append(f"single-app/cpu: server.cpp missing {flag}")
-    if "APP_LLAMA_UPSTREAM_VK_PARALLEL" not in vk_config:
-        findings.append("L2.2: Vulkan Config.uk missing APP_LLAMA_UPSTREAM_VK_PARALLEL")
-    if "APP_LLAMA_UPSTREAM_VK_BATCH" not in vk_config:
-        findings.append("L2.2: Vulkan Config.uk missing APP_LLAMA_UPSTREAM_VK_BATCH")
-    if "APP_LLAMA_UPSTREAM_VK_UBATCH" not in vk_config:
-        findings.append("L2.2: Vulkan Config.uk missing APP_LLAMA_UPSTREAM_VK_UBATCH")
-    if "APP_LLAMA_UPSTREAM_PARALLEL" not in cpu_config:
-        findings.append("L2.2: CPU Config.uk missing APP_LLAMA_UPSTREAM_PARALLEL")
+    if "APP_LLAMA_VK_PARALLEL" not in vk_config:
+        findings.append("L2.2: Vulkan Config.uk missing APP_LLAMA_VK_PARALLEL")
+    if "APP_LLAMA_VK_BATCH" not in vk_config:
+        findings.append("L2.2: Vulkan Config.uk missing APP_LLAMA_VK_BATCH")
+    if "APP_LLAMA_VK_UBATCH" not in vk_config:
+        findings.append("L2.2: Vulkan Config.uk missing APP_LLAMA_VK_UBATCH")
+    if "APP_LLAMA_CPU_PARALLEL" not in cpu_config:
+        findings.append("L2.2: CPU Config.uk missing APP_LLAMA_CPU_PARALLEL")
     for label, text in (("cpu-server.cpp", cpu_server), ("vk-server.cpp", vk_server)):
         for needle in FORBIDDEN_PROCESS_CALLS:
             if needle in text:
@@ -124,7 +124,7 @@ def check_static() -> list[str]:
             findings.append(f"env-matrix: missing {required}")
     if not all(term in porting_plan for term in ("ELF Loader", "discovery", "native", "fork", "exec")):
         findings.append("porting-plan: must document ELF Loader as discovery-only and native no-fork/no-exec path")
-    if "CONFIG_APP_LLAMA_UPSTREAM_MODE_SERVER" not in cpu_kraft:
+    if "CONFIG_APP_LLAMA_CPU_MODE_SERVER" not in cpu_kraft:
         findings.append("cpu-kraftfile: missing server-mode Kconfig selection")
     return findings
 

@@ -59,47 +59,6 @@
       "evidence": "results/venus/qemu_2d_probe.json; results/venus/qemu_venus-ring_probe.json; results/kmscube_vgpu_gl/run/frame_pixel_proof.json"
     },
     {
-      "app": "app-glmark2",
-      "environment": "Native fake backend",
-      "env_id": "native",
-      "status": "pass",
-      "claim_allowed": "Native scene-clear FPS via fake VirtIO-GPU: display substrate correctness.",
-      "claim_forbidden": "Full glmark2 score, QEMU perf, or GPU acceleration.",
-      "metrics": {
-        "fps": 185.07,
-        "avg_frame_ms": 5.403,
-        "frames": 120,
-        "fences": 240
-      },
-      "note": "gfx.glmark2.sw: 120 frames @ 185.1 FPS (1280x800)",
-      "evidence": "results/app_perf.json"
-    },
-    {
-      "app": "app-glmark2",
-      "environment": "QEMU + Unikraft CPU (2D path)",
-      "env_id": "uk-cpu",
-      "status": "pass-substrate:cpu",
-      "claim_allowed": "EGL scene-clear substrate runs in Unikraft via VirtIO-GPU 2D (software path).",
-      "claim_forbidden": "Full GL scene coverage, QEMU FPS measurement, or GPU acceleration.",
-      "metrics": {
-        "substrate_fps_native": 185.07,
-        "qemu_probe": "pass"
-      },
-      "note": "gfx.glmark2.sw path: substrate FPS measured natively; QEMU 2D probe passes.",
-      "evidence": "results/app_perf.json;results/venus/qemu_2d_probe.json"
-    },
-    {
-      "app": "app-glmark2",
-      "environment": "QEMU + Unikraft VirtIO-GPU Vulkan",
-      "env_id": "uk-vgpu",
-      "status": "blocked:not-planned",
-      "claim_allowed": "No accelerated glmark2 scene claim is made in this revision; the software-substrate row is the supported result.",
-      "claim_forbidden": "Full glmark2 scene rendering or FPS inside Unikraft without a dedicated accelerated workload and same-run artifacts.",
-      "metrics": {},
-      "note": "No accelerated glmark2 scene gate is currently implemented.",
-      "evidence": "results/app_perf.json"
-    },
-    {
       "app": "app-vkmark",
       "environment": "Native substrate (vk.drm-shim+vk.icd ICD)",
       "env_id": "native",
@@ -184,7 +143,7 @@
       "evidence": "results/vulkan/vulkan_perf.json"
     },
     {
-      "app": "app-vulkan-smoke",
+      "app": "app-vulkan-sample",
       "environment": "Native substrate (Venus capset probe)",
       "env_id": "native",
       "status": "pass",
@@ -200,7 +159,7 @@
       "evidence": "results/vulkan/vulkan_perf.json"
     },
     {
-      "app": "app-vulkan-smoke",
+      "app": "app-vulkan-sample",
       "environment": "QEMU + Unikraft VirtIO-GPU Vulkan",
       "env_id": "uk-vgpu",
       "status": "blocked:render-payload-not-implemented",
@@ -213,7 +172,7 @@
       "evidence": "results/vulkan/vulkan_perf.json"
     },
     {
-      "app": "app-llama-upstream",
+      "app": "app-llama-cpu",
       "environment": "QEMU + Unikraft CPU bench-only",
       "env_id": "uk-cpu",
       "status": "pass",
@@ -224,10 +183,10 @@
         "pp512": 9.4
       },
       "note": "True llama.cpp CPU appliance: main() selects bench mode and exits; no shell.",
-      "evidence": "results/llama/upstream_cpu.json; results/llama-env/plan.json"
+      "evidence": "results/llama/llama_cpu.json; results/llama-env/plan.json"
     },
     {
-      "app": "app-llama-upstream",
+      "app": "app-llama-cpu",
       "environment": "QEMU + Unikraft CPU server-only",
       "env_id": "uk-cpu-server",
       "status": "pass",
@@ -235,13 +194,13 @@
       "claim_forbidden": "General-purpose shell image or full HTTP serving claim before runtime/net evidence.",
       "metrics": {
         "threads": 1,
-        "ready_marker": "uk-llama-upstream-server: READY model=/mnt/model/model.gguf threads=1 slots=1 prompt_cache=1 mode=single-app no_fork_exec=1"
+        "ready_marker": "uk-llama-cpu-server: READY model=/mnt/model/model.gguf threads=1 slots=1 prompt_cache=1 mode=single-app no_fork_exec=1"
       },
       "note": "CPU server appliance reaches READY directly from main().",
-      "evidence": "results/llama/upstream_server_cpu.json; results/llama-env/server-plan.json"
+      "evidence": "results/llama/llama_server_cpu.json; results/llama-env/server-plan.json"
     },
     {
-      "app": "app-llama-upstream-vk",
+      "app": "app-llama-vk",
       "environment": "Static ggml-vulkan/Venus dispatch",
       "env_id": "native-dispatch",
       "status": "pass",
@@ -255,7 +214,7 @@
       "evidence": "results/llama/vulkan_n3_dispatch.json"
     },
     {
-      "app": "app-llama-upstream-vk",
+      "app": "app-llama-vk",
       "environment": "QEMU + Unikraft Vulkan bench-only",
       "env_id": "uk-vgpu",
       "status": "pass",
@@ -266,10 +225,10 @@
         "pp512": 2045.8
       },
       "note": "True llama.cpp Vulkan appliance with same-run PASS bench evidence.",
-      "evidence": "results/llama/upstream_vk.json; results/llama-env/plan.json"
+      "evidence": "results/llama/llama_vk.json; results/llama-env/plan.json"
     },
     {
-      "app": "app-llama-upstream-vk",
+      "app": "app-llama-vk",
       "environment": "QEMU + Unikraft Vulkan server-only",
       "env_id": "uk-vgpu-server",
       "status": "pass",
@@ -277,11 +236,11 @@
       "claim_forbidden": "ELF-loader, shell, HTTP serving, or throughput claim before same-run runtime/net evidence.",
       "metrics": {
         "threads": 1,
-        "ready_marker": "uk-llama-upstream-vk-server: READY model=/mnt/model/model.gguf threads=4 backend=vulkan slots=4 ctx_per_slot=512 batch_size=2048 ubatch_size=512 prompt_cache=1 batch_enabled=1 hostmem_fixed=0",
+        "ready_marker": "uk-llama-vk-server: READY model=/mnt/model/model.gguf threads=4 backend=vulkan slots=4 ctx_per_slot=512 batch_size=2048 ubatch_size=512 prompt_cache=1 batch_enabled=1 hostmem_fixed=0",
         "static_findings": 0
       },
       "note": "Vulkan server appliance reaches model-loaded READY over the real Venus path.",
-      "evidence": "results/llama/upstream_server_vk.json; results/llama/server_vk_check.json; results/llama-env/server-plan.json"
+      "evidence": "results/llama/llama_server_vk.json; results/llama/server_vk_check.json; results/llama-env/server-plan.json"
     }
   ]
 }

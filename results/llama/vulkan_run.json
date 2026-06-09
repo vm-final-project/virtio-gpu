@@ -4,7 +4,7 @@
   "status": "pass",
   "pass": true,
   "generated_utc": "2026-06-03T07:24:35.546986Z",
-  "image": ".unikraft/build/vogue-llama-upstream-vk_qemu-x86_64",
+  "image": ".unikraft/build/vogue-llama-vk_qemu-x86_64",
   "venus_device": "Tesla V100-SXM2-16GB",
   "model": "Qwen3-0.6B-Q4_K_M.gguf",
   "n_gpu_layers": 99,
@@ -12,7 +12,7 @@
   "pp512": 2045.8,
   "tg128": 139.3,
   "accel": "kvm",
-  "run_log": "results/llama/upstream_vk.log",
+  "run_log": "results/llama/llama_vk.log",
   "transport": "virtio-gpu-gl venus=true; ggml-vulkan -> libukggml_vk -> libukvenus SUBMIT_3D -> host virglrenderer Venus -> host Vulkan driver",
   "claim_allowed": "End-to-end Vulkan compute: the Unikraft guest's ggml-vulkan backend offloaded all layers via Venus to the host driver and emitted real tokens for Qwen3-0.6B-Q4_K_M.gguf on Tesla V100-SXM2-16GB.",
   "claim_forbidden": "Throughput superiority over bare-metal; the Unikraft Venus path is expected to trail it."
