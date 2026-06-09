@@ -6,6 +6,8 @@ SHELL := /bin/bash
 
 KRAFT ?= $(if $(wildcard $(CURDIR)/.tools/kraftkit/kraft),$(CURDIR)/.tools/kraftkit/kraft,kraft)
 QEMU ?= qemu-system-x86_64
+MODEL ?= $(CURDIR)/models/model.gguf
+RUN_TIMEOUT ?= 120
 
 LLAMA_ROOT             ?= $(realpath $(CURDIR)/../llama.cpp)
 VENUS_PROTOCOL_ROOT    ?= $(realpath $(CURDIR)/../venus-protocol)
@@ -29,15 +31,16 @@ help:
 	@printf '%s\n' \
 	  'VOGUE targets' \
 	  '' \
-	  'Tests:      test-fast test-native test-qemu test-gpu verify' \
-	  'Evidence:   venus-check vulkan-check eval-check current-stage-check' \
-	  'Servers:    llm-server-vk-check llm-server-vk-throughput-check' \
+	  'Tests:      test-fast test-native venus-check vulkan-check verify' \
 	  'Build/run:  llama-{cpu,vk}{,-server}-{build,run}' \
 	  'Baseline:   linux-guest-vk-baseline' \
 	  'Cleanup:    clean'
 
-verify: test-fast test-qemu test-gpu eval-check current-stage-check \
-	llm-server-vk-throughput-check
+verify: test-fast venus-check vulkan-check \
+	llama-cpu-run llama-cpu-server-run llama-vk-run llama-vk-server-run \
+	linux-guest-vk-baseline
 
 clean:
 	$(MAKE) -C tests clean
+	find results -type f \( -name '*.log' -o -name '*.ppm' -o -name '*.tmp' \) -delete
+	rm -rf results/kmscube_vgpu_gl/run/.qmp

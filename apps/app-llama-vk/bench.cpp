@@ -5,7 +5,7 @@
  * mounts /mnt/model via 9pfs, wires the static Venus-backed Vulkan dispatch,
  * runs pp512 + tg128 with -ngl 99, prints the evidence line, and exits.
  *
- * Output parsed by python3 -m scripts.vogue capture vk-bench upstream-vk:
+ * Output parsed by make llama-vk-run:
  *   uk-llama-upstream-vk: pp512=<f> tg128=<f>
  *   uk-llama-upstream-vk: PASS evidence_id=llama-upstream-vk
  */

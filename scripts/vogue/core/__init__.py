@@ -1,1 +1,0 @@
-"""Shared automation primitives."""

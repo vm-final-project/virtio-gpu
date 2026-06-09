@@ -29,26 +29,25 @@ llama-cpu-build:
 		--target qemu/x86_64 --kraftfile kraft/Kraftfile.llama-cpu .
 
 llama-cpu-run: llama-cpu-build
-	python3 -m scripts.vogue capture cpu-bench
+	python3 scripts/llama_cpu.py --mode bench --model "$(MODEL)" --qemu "$(QEMU)" --timeout "$(RUN_TIMEOUT)"
 
 llama-cpu-server-build:
 	COMPILER=clang $(KRAFT) build --no-prompt --log-type basic --no-update \
 		--target qemu/x86_64 --kraftfile kraft/Kraftfile.llama-cpu-server .
 
 llama-cpu-server-run: llama-cpu-server-build
-	python3 -m scripts.vogue capture cpu-server
+	python3 scripts/llama_cpu.py --mode server --model "$(MODEL)" --qemu "$(QEMU)" --timeout "$(RUN_TIMEOUT)"
 
 llama-vk-build: llama-vk-prepare
 	COMPILER=clang $(KRAFT) build --no-prompt --log-type basic --no-update \
 		--target qemu/x86_64 --kraftfile kraft/Kraftfile.llama-vk .
-	python3 -m scripts.vogue capture vk-build
 
 llama-vk-run: llama-vk-build
-	python3 -m scripts.vogue capture vk-bench
+	python3 scripts/llama_vk.py --mode bench --model "$(MODEL)" --qemu "$(QEMU)" --timeout "$(RUN_TIMEOUT)"
 
 llama-vk-server-build: llama-vk-prepare
 	COMPILER=clang $(KRAFT) build --no-prompt --log-type basic --no-update \
 		--target qemu/x86_64 --kraftfile kraft/Kraftfile.llama-vk-server .
 
 llama-vk-server-run: llama-vk-server-build
-	python3 -m scripts.vogue capture vk-server
+	python3 scripts/llama_vk.py --mode server --model "$(MODEL)" --qemu "$(QEMU)" --timeout "$(RUN_TIMEOUT)"

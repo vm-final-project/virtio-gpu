@@ -1,16 +1,12 @@
 {
-  "schema": "llama/upstream-runtime.v2",
-  "evidence_id": "llama-cpu",
-  "status": "pass",
-  "pass": true,
-  "generated_utc": "2026-06-03T07:18:30.160729Z",
-  "pp512": 9.4,
-  "tg128": 7.4,
-  "accel": "kvm",
-  "cpu": "host",
-  "host": "Linux-6.18.33-x86_64-with-glibc2.39",
-  "model": "Qwen3-0.6B-Q4_K_M.gguf",
-  "run_log": "results/llama/llama_cpu.log",
-  "claim_allowed": "Upstream llama.cpp CPU path boots on Unikraft (unmodified sources) and runs a real GGUF via 9pfs on this host (kvm/-cpu host). pp512=9.4 tg128=7.4 t/s.",
-  "claim_forbidden": "GPU throughput, Vulkan dispatch, or cross-host comparison without a matching baseline."
+  "status": "blocked:qemu-missing",
+  "generated_utc": "2026-06-09T11:28:54.685551Z",
+  "command": "/tmp/vogue-missing-qemu -machine accel=tcg -cpu max -m 4096 -nographic -no-reboot -kernel /Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu-refactor/.unikraft/build/vogue-llama-cpu_qemu-x86_64",
+  "inputs": {
+    "mode": "bench",
+    "model": "/tmp/vogue-missing.gguf",
+    "image": "/Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu-refactor/.unikraft/build/vogue-llama-cpu_qemu-x86_64"
+  },
+  "metrics": {},
+  "error": "QEMU executable not found"
 }

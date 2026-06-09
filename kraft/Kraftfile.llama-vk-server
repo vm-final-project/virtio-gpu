@@ -19,10 +19,10 @@ name: vogue-llama-vk-server
 #       -virtfs local,path=$(pwd)/rootfs/llama,mount_tag=model,security_model=none,id=model \
 #       -serial mon:stdio
 #   # then: curl http://127.0.0.1:18080/health  ->  {"status":"ok"}
-# See python3 -m scripts.vogue capture vk-server for the canonical command.
+# See make llama-vk-server-run for the canonical command.
 # The hostmem=8G window backs Venus host-visible blobs (KV cache); blob=true
 # is required for that mapping; venus=true exposes capset id=4 to the guest.
-# See python3 -m scripts.vogue evaluate server-vk for the gate that records the host
+# The runtime target records the host
 # device flags alongside any same-run llama.cpp request metrics.
 
 unikraft:
@@ -86,7 +86,7 @@ unikraft:
     # virtio-net NIC -> libuknetdev -> lwIP (sockets API). Static IPv4 config is
     # passed on the kernel command line through the uknetdev EINFO libparam
     # (netdev.ipv4_addr/…); QEMU user-mode networking (-netdev user,hostfwd=…)
-    # forwards a host port to guest 8080. See python3 -m scripts.vogue capture vk-server.
+    # forwards a host port to guest 8080. See make llama-vk-server-run.
     CONFIG_LIBVIRTIO_NET: 'y'
     CONFIG_LIBUKNETDEV: 'y'
     CONFIG_LIBUKNETDEV_EINFO_LIBPARAM: 'y'

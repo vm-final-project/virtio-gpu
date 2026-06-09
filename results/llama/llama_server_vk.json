@@ -1,14 +1,12 @@
 {
-  "schema": "llama/upstream-server-vk.v2",
-  "evidence_id": "llama-vk-server",
-  "status": "blocked:unikraft-image-missing",
-  "pass": false,
-  "image": null,
-  "host": "macOS-26.5.1-arm64-arm-64bit",
-  "serial_log": "results/llama/llama_server_vk_serial.log",
-  "transport": "virtio-gpu-gl venus=true; in-tree ggml-vulkan -> libvulkan -> libukvulkan_venus SUBMIT_3D -> host virglrenderer Venus",
-  "network": "virtio-net-pci -> libuknetdev -> lwIP TCP/IP; QEMU user-mode hostfwd to guest 8080",
-  "claim_allowed": "Single-application llama.cpp Vulkan server appliance boots directly into one entrypoint (no shell, no fork/exec), reaches model-loaded readiness over the real virtio-gpu-gl Venus path, and serves HTTP over the in-guest lwIP stack (same-run /health + /completion proof).",
-  "claim_forbidden": "Aggregate request/second throughput, TTFT, or slot-utilisation benchmarking \u2014 only same-run HTTP liveness + one bounded completion is captured here, not a performance number.",
-  "generated_utc": "2026-06-09T05:09:27.048247Z"
+  "status": "blocked:qemu-missing",
+  "generated_utc": "2026-06-09T11:29:16.215159Z",
+  "command": "/tmp/vogue-missing-qemu -machine accel=tcg -cpu max -m 3072 -no-reboot -kernel /Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu-refactor/.unikraft/build/vogue-llama-vk-server_qemu-x86_64 -display egl-headless,gl=on -vga none -device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true -append console=ttyS0 -serial mon:stdio -monitor none -netdev user,id=net0,hostfwd=tcp:127.0.0.1:0-10.0.2.15:8080 -device virtio-net-pci,netdev=net0",
+  "inputs": {
+    "mode": "server",
+    "model": "/tmp/vogue-missing.gguf",
+    "image": "/Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu-refactor/.unikraft/build/vogue-llama-vk-server_qemu-x86_64"
+  },
+  "metrics": {},
+  "error": "QEMU executable not found"
 }

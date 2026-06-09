@@ -39,7 +39,7 @@ make gen-libukvenus-selftest    # run the pin/extract/manifest/generate/coverage
 The generator runs `../venus-protocol/vn_protocol.py --outdir <dir>` (no
 `--renderer` ⇒ driver/guest variant), then writes `GENERATED.lock` with a
 sha256 of every emitted header. `gen-libukvenus-verify` is a prerequisite of
-`make governance-check`, so a drifted tree fails the governance gate.
+`make test-fast`, so a drifted tree fails the deterministic gate.
 
 ## Slicing for image size
 

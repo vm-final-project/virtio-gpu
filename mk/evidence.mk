@@ -1,35 +1,16 @@
-.PHONY: venus-probe-2d venus-probe-ring venus-perf venus-check \
-	vulkan-check eval eval-check current-stage-check \
-	llm-server-vk-check llm-server-vk-throughput-check linux-guest-vk-baseline
+.PHONY: venus-probe-2d venus-probe-ring venus-check vulkan-check \
+	linux-guest-vk-baseline
 
 venus-probe-2d:
-	python3 -m scripts.vogue probe venus --mode 2d --allow-blocked
+	python3 scripts/venus_probe.py --mode 2d --qemu "$(QEMU)" --timeout "$(RUN_TIMEOUT)"
 
 venus-probe-ring:
-	python3 -m scripts.vogue probe venus --mode venus-ring --allow-blocked
+	python3 scripts/venus_probe.py --mode venus-ring --qemu "$(QEMU)" --timeout "$(RUN_TIMEOUT)"
 
-venus-perf: venus-probe-2d venus-probe-ring
-	python3 -m scripts.vogue evaluate venus --repetitions 5 --allow-blocked
+venus-check: test-venus venus-probe-2d venus-probe-ring
 
-venus-check: venus-perf
-
-vulkan-check:
-	python3 -m scripts.vogue evaluate vulkan --repetitions 3 --allow-blocked
-
-eval:
-	python3 -m scripts.vogue evaluate matrix --check
-
-eval-check: venus-check vulkan-check
-	python3 -m scripts.vogue evaluate matrix --check
-
-current-stage-check: eval-check
-	python3 -m scripts.vogue report stage --check
-
-llm-server-vk-check: llama-vk-server-run
-	python3 -m scripts.vogue evaluate server-vk --check
-
-llm-server-vk-throughput-check: llm-server-vk-check
-	python3 -m scripts.vogue evaluate server-vk-throughput --check
+vulkan-check: vulkan-tests test-dispatch
+	python3 scripts/vulkan_check.py --timeout "$(RUN_TIMEOUT)"
 
 linux-guest-vk-baseline:
-	python3 -m scripts.vogue capture linux-guest-vk
+	python3 scripts/linux_vulkan_baseline.py --model "$(MODEL)" --qemu "$(QEMU)" --timeout "$(RUN_TIMEOUT)"

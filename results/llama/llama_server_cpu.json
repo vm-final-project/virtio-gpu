@@ -1,16 +1,12 @@
 {
-  "schema": "llama/upstream-server.v2",
-  "evidence_id": "llama-cpu-server",
-  "status": "pass",
-  "pass": true,
-  "scaffold_booted": true,
-  "generated_utc": "2026-06-01T12:17:34.645092Z",
-  "ready_line": "uk-llama-cpu-server: READY model=/mnt/model/model.gguf threads=1 slots=1 prompt_cache=1 mode=single-app no_fork_exec=1",
-  "accel": "kvm",
-  "cpu": "host",
-  "host": "Linux-6.18.33-x86_64-with-glibc2.39",
-  "model": "Qwen3-0.6B-Q4_K_M.gguf",
-  "run_log": "results/llama/llama_server_cpu.log",
-  "claim_allowed": "Upstream llama.cpp server appliance boots directly into a single entrypoint on Unikraft (no shell/fork/exec) and reaches READY on this host (kvm/-cpu host).",
-  "claim_forbidden": "HTTP throughput or request/response benchmarking until the lwIP netdev gate lands."
+  "status": "blocked:qemu-missing",
+  "generated_utc": "2026-06-09T11:28:54.740253Z",
+  "command": "/tmp/vogue-missing-qemu -machine accel=tcg -cpu max -m 4096 -nographic -no-reboot -kernel /Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu-refactor/.unikraft/build/vogue-llama-cpu-server_qemu-x86_64",
+  "inputs": {
+    "mode": "server",
+    "model": "/tmp/vogue-missing.gguf",
+    "image": "/Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu-refactor/.unikraft/build/vogue-llama-cpu-server_qemu-x86_64"
+  },
+  "metrics": {},
+  "error": "QEMU executable not found"
 }

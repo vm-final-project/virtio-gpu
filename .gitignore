@@ -76,8 +76,13 @@ cscope.out*
 # CMake generated state
 CMakeFiles/
 
-# Generated duplicate run/result histories. Curated latest evidence stays tracked
-# at results/*_latest.*; reproducibility run archives belong under ../manifest/results/.
+# Runtime output is local. Canonical JSON files are tracked explicitly.
+/results/**/*.log
+/results/**/*.ppm
+/results/**/*.qmp
+/results/**/.qmp/
+/results/**/frames/
+/results/**/tmp/
 /results/eval/
 /results/app-perf/
 /results/perf/

@@ -12,7 +12,7 @@ Expected content when staging is used:
 ```
 
 Real GGUF and SPIR-V artifacts are not vendored into git. The environment matrix
-(`config/llama_env_matrix.json`) records the model path, thread counts, backend
+the Make invocation records the model path, thread counts, backend
 flags, and claim boundaries for every baremetal/QEMU/Unikraft row.
 
 The rootfs must not contain a shell or unrelated utility application for the

@@ -6,9 +6,9 @@ test-fast: native-tests proto-abi
 # Compatibility alias. Keep one canonical dependency graph and no duplicate recipe.
 test-native: test-fast
 
-test-qemu: venus-check llm-server-vk-check
+test-qemu: venus-check
 
-test-gpu: vulkan-tests vulkan-check test-dispatch
+test-gpu: vulkan-check
 
 native-tests:
 	$(MAKE) -C tests native

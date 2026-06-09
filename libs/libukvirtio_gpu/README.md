@@ -9,7 +9,7 @@ contexts, 3D submit, resource blobs, UUID assignment, map/unmap, and metrics.
 Current stage: the real backend reaches QEMU/Venus and supports passing
 transport, ring, kmscube frame, and llama.cpp Vulkan runtime rows on the
 evaluation host. The `real-path` hygiene gate is also resolved there:
-`make current-stage-check` now treats a CPU-only latest
+`make verify` treats a CPU-only latest
 `.unikraft/build/config` as not applicable when the production graphics/Vulkan
 configs, real backend object files, compile database, and QEMU Venus probe all
 pass; see `plan-fix.md`.

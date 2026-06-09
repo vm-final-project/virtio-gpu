@@ -1,37 +1,12 @@
 {
-  "schema": "llama/upstream-runtime.v2",
-  "evidence_id": "llama-vk",
-  "status": "pass",
-  "pass": true,
-  "generated_utc": "2026-06-03T07:24:35.544131Z",
-  "image": ".unikraft/build/vogue-llama-vk_qemu-x86_64",
-  "host": "Linux-6.18.33-x86_64-with-glibc2.39",
-  "venus_device": "Tesla V100-SXM2-16GB",
-  "host_render_error": "failed to dispatch context op 5",
-  "run_log": "results/llama/llama_vk.log",
-  "claim_allowed": "Real boot of the upstream llama.cpp Vulkan appliance under QEMU virtio-gpu-gl venus=true; throughput only when status==pass.",
-  "claim_forbidden": "Throughput/acceleration claim unless status==pass with same-run pp512/tg128.",
-  "pp512": 2045.8,
-  "tg128": 139.3,
-  "accel": "kvm",
-  "model": "Qwen3-0.6B-Q4_K_M.gguf",
-  "tokens_emitted": true,
-  "n_gpu_layers": 99,
-  "rows": [
-    {
-      "test": "pp512",
-      "t_s": 2045.8
-    },
-    {
-      "test": "tg128",
-      "t_s": 139.3
-    }
-  ],
-  "threads": 1,
-  "n_ctx": 640,
-  "n_batch": 512,
-  "n_ubatch": 512,
-  "dispatch_batch_enabled": true,
-  "hostmem_fixed": false,
-  "attempts_used": 1
+  "status": "blocked:qemu-missing",
+  "generated_utc": "2026-06-09T11:29:16.021858Z",
+  "command": "/tmp/vogue-missing-qemu -machine accel=tcg -cpu max -m 3072 -no-reboot -kernel /Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu-refactor/.unikraft/build/vogue-llama-vk_qemu-x86_64 -display egl-headless,gl=on -vga none -device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true -append console=ttyS0 -serial mon:stdio -monitor none",
+  "inputs": {
+    "mode": "bench",
+    "model": "/tmp/vogue-missing.gguf",
+    "image": "/Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu-refactor/.unikraft/build/vogue-llama-vk_qemu-x86_64"
+  },
+  "metrics": {},
+  "error": "QEMU executable not found"
 }
