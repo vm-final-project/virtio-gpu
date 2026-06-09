@@ -214,7 +214,7 @@ blob-map path; bind via the Venus `vkGetMemoryResourcePropertiesMESA` / blob exp
   too small and made the host reject bind). With these, the **host-visible
   staging buffer now allocates** and model load advances to the **device-local
   model weight buffer** (~390 MB). Generic helper `uk_venus_query_roundtrip`
-  drives all three queries. (Note: the native `venus_cs_test` link line needed
+  drives all three queries. (Note: the native Venus encoder test link line needed
   `venus_compute.c` added — `tests/Makefile`.)
 - **M3 device-creation root cause (found):** the device-local alloc failure and
   the persistent `vkGetDeviceQueue resulted in CS error` both stem from

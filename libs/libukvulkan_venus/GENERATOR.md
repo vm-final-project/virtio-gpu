@@ -82,8 +82,8 @@ therefore compiles against the generated tree and the Vulkan headers
 exactly like `libukggml_vulkan`; the generated tree is verified to build against
 the kraft Vulkan-Headers (VK_HEADER_VERSION 352).
 
-Guards: `tests/venus_parity_test.c` (the `venus-parity` gate) plus the
-`venus_cs_test`/`venus_compute_test` byte oracles confirm the bridges emit the
+Guards: `tests/venus_parity_test.c` (the `venus-parity` gate) plus the focused
+`venus_encoder_test` byte-oracle regression confirm the bridges emit the
 expected streams, and `venus-gen-compile` keeps the generated tree compiling
 through the shim. The Vulkan/Venus llama.cpp server boots over real
 virtio-gpu-gl Venus on the evaluation host through this exact path.

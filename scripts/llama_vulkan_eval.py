@@ -47,7 +47,7 @@ def blocker(name: str, reason: str, *, next_step: str = "") -> int:
 
 
 def n3_dispatch() -> int:
-    proc = subprocess.run(["make", "-C", str(ROOT / "tests"), "n3-dispatch"],
+    proc = subprocess.run(["make", "-C", str(ROOT / "tests"), "test-dispatch"],
                           cwd=ROOT, text=True, stdout=subprocess.PIPE,
                           stderr=subprocess.STDOUT, timeout=120, check=False)
     out = proc.stdout
@@ -60,9 +60,15 @@ def n3_dispatch() -> int:
             passed, failed = map(int, m2.groups())
             total = passed + failed
         else:
-            passed = 160 if proc.returncode == 0 and "PASS" in out else 0
-            failed = 0 if proc.returncode == 0 else 1
-            total = passed + failed
+            m3 = re.search(r"vulkan_dispatch_test:\s+PASS checks=(\d+)", out)
+            if m3:
+                passed = int(m3.group(1))
+                failed = 0
+                total = passed
+            else:
+                passed = 0
+                failed = 0 if proc.returncode == 0 and "PASS" in out else 1
+                total = passed + failed
     status = "pass" if proc.returncode == 0 and failed == 0 else "blocked:dispatch-test-failed"
     write("vulkan_n3_dispatch", {
         "schema": "llama/vulkan-dispatch.v2",

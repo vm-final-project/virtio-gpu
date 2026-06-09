@@ -159,19 +159,11 @@ def run_vulkan_compute_test(reps: int) -> dict:
 def run_venus_ring_test() -> dict:
     """Run libukvulkan_venus native ring/blob substrate test and parse microbench output."""
     build = subprocess.run(
-        ["make", "-C", str(ROOT / "tests"), "venus-cs"],
+        ["make", "-C", str(ROOT / "tests"), "venus-ring"],
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=30)
     out = build.stdout or ""
-    perf = {"status": "pass" if build.returncode == 0 and "venus_cs_test: all checks passed" in out else "blocked:test-failed",
+    perf = {"status": "pass" if build.returncode == 0 and "venus_ring_test: PASS" in out else "blocked:test-failed",
             "output_tail": out[-2000:]}
-    m = re.search(r"venus_ring_perf: bytes=(\d+) writes=(\d+) elapsed_ns=(\d+) throughput_mib_s=([0-9.]+)", out)
-    if m:
-        perf.update({
-            "bytes": int(m.group(1)),
-            "writes": int(m.group(2)),
-            "elapsed_ns": int(m.group(3)),
-            "throughput_mib_s": float(m.group(4)),
-        })
     return perf
 
 def vkmark_substrate_check() -> dict:

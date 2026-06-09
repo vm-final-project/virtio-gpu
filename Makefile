@@ -171,7 +171,7 @@ vulkan-tests:
 
 # Single-binary convenience: virtgpu DRM ioctl shim (vk.drm-shim).
 vk-drm-shim-check:
-	$(MAKE) -C tests g5
+	$(MAKE) -C tests virtgpu-drm
 
 # ============================================================================
 # Graphics appliances (KraftKit)

@@ -646,10 +646,13 @@ int uk_venus_ring_cmd_wait(struct uk_venus_ring *ring, uint32_t timeout_iters)
 			return 0;
 		if (timeout_iters != (uint32_t)~0u && iters >= timeout_iters)
 			return -ETIMEDOUT;
-		/* Pause hint: reduces spin-wait CPU pressure and gives the host
-		 * ring_thread a chance to run on the same physical core
-		 * (critical on single-vCPU Unikraft). */
+		/* Pause hint on x86; elsewhere keep only the compiler barrier so
+		 * the polling loop remains portable on host-native builds. */
+#if defined(__i386__) || defined(__x86_64__)
 		__asm__ volatile("pause" ::: "memory");
+#else
+		__asm__ volatile("" ::: "memory");
+#endif
 		iters++;
 	} while (1);
 }

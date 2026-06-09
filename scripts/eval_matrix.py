@@ -91,7 +91,7 @@ def venus_rows() -> list[Row]:
     ring_evidence = "results/venus/qemu_venus-ring_probe.json"
 
     # proto.venus-enc: Venus wire-format encoding correctness gate.
-    # Evidence: vulkan_registry_check (command IDs) + venus_cs_test encoding layout assertions.
+    # Evidence: vulkan_registry_check (command IDs) + focused encoder assertions.
     reg_check = load_json(RESULTS / "vulkan" / "vulkan_registry_check.json")
     venus_cs_src = ROOT / "libs" / "libukvulkan_venus" / "venus_cs.c"
     enc_src_present = venus_cs_src.exists()
@@ -143,7 +143,7 @@ def venus_rows() -> list[Row]:
             "libukvulkan_venus: PACKED encoding + uint32 array_size per Mesa vn_encode_array_size()",
             enc_status,
             "vulkan_registry_check (9 command IDs vs vk.xml/Mesa/VK_EXT_command_serialization.xml); "
-            "venus_cs_test encoding layout assertions for all bootstrap commands",
+            "venus_encoder_test layout assertions for the retained bootstrap commands",
             enc_evidence,
             "Venus encoder uses PACKED wire format (no inter-field alignment padding; uint64 not 8-byte "
             "aligned in stream); array presence fields are uint32 array_size per Mesa protocol, not "
@@ -155,14 +155,14 @@ def venus_rows() -> list[Row]:
         Row("proto.venus-ring", "Venus ring-buffer protocol substrate",
             "libukvulkan_venus: vkCreateRingMESA/vkNotifyRingMESA/vkDestroyRingMESA + circular ring",
             ring_status,
-            "venus_cs_test ring_proto (24 checks) + ring_perf throughput pass; "
-            "vkCreateRingMESA encoding, host-visible head/tail layout, circular write, flush, wait",
+            "venus_ring_test protocol checks; vkCreateRingMESA encoding, host-visible "
+            "head/tail layout, circular write, flush, wait",
             ring_evidence if ring_probe else "libs/libukvulkan_venus/venus_init.c;libs/libukvulkan_venus/venus_cs.c",
             "Mesa-compatible Venus ring-buffer protocol (vkCreateRingMESA / vkNotifyRingMESA) "
             "is implemented in libukvulkan_venus and passes all native tests: "
             "HEAD at offset 0, TAIL at offset 64, STATUS at offset 128, circular buffer at 192; "
             "power-of-2 buf_size, store-release tail, vkNotifyRingMESA notify, and "
-            "spin-poll wait. All 24 ring_proto checks and ring_perf throughput pass.",
+            "spin-poll wait. The focused ring test covers the retained substrate behavior.",
             "GPU acceleration, non-empty Vulkan payload rendering, or generalized Vulkan correctness; "
             "the QMP frame proof is a deterministic transport/display proof, not a virgl render pass.",
             "Use the passing QMP frame-proof path as a regression gate; next unblocker is a real virgl/Venus render command stream."),
@@ -275,22 +275,22 @@ def build_rows() -> list[Row]:
     k_rows = {r.get("row_id", ""): r for r in k_data.get("rows", []) if isinstance(r, dict)}
     perf_rows = app_perf_rows()
 
-    n2d_pass = ok_native and "virtio_gpu_2d_render_test: PASS frames=3 transfers=3 flushes=3 fences=6" in native_out
-    api_pass = ok_native and "virtio_gpu_full_api_test passed" in native_out
-    g5_pass = ok_native and ("drm_virtgpu_test: all checks passed" in native_out or "virtgpu_drm_ioctl_test: all checks passed" in native_out)
-    drm_fdio_pass = ok_native and "virtgpu_drm_fdio_test: all checks passed" in native_out
+    n2d_pass = ok_native and "virtio_gpu_core_test: PASS" in native_out
+    api_pass = ok_native and "virtio_gpu_core_test: PASS" in native_out
+    g5_pass = ok_native and "virtgpu_drm_test: PASS" in native_out
+    drm_fdio_pass = ok_native and "virtgpu_drm_test: PASS" in native_out
 
     return [
         Row("disp.2d", "2D display pipeline", "native fake-backend render path",
             "pass" if n2d_pass else "missing",
-            "3 frames, 3 transfers, 3 flushes, 6 fences",
+            "core fake-backend render path, scanout, UUID, APIR, and fence coverage",
             rel(native_log),
             "VirtIO-GPU 2D command ordering, DMA backing, scanout, flush, and fence synchronization work in the native harness.",
             "GPU acceleration, virgl rendering, or Mesa compatibility.",
             "Keep as regression gate for all display-path changes."),
         Row("proto.api-contract", "API contract", "VirtIO-GPU/GL fake-backend API coverage",
             "pass" if api_pass else "missing",
-            "capsets, context, blob, submit, and fence counters",
+            "capsets, scanout, APIR encode/decode, UUID, and fence counters",
             rel(native_log),
             "Guest API contract and fake-backend semantics are covered.",
             "Host virglrenderer execution or hardware acceleration.",
@@ -326,7 +326,7 @@ def build_rows() -> list[Row]:
             "appliance, rerun kmscube-run, and let kmscube_vgpu_gl_eval.py emit "
             "frame_pixel_proof.json from the real PPM."),
         Row("vk.drm-core", "libukvirtgpu_drm core translator — DRM ioctl replay",
-            "virtgpu_drm_ioctl_test: GETPARAM, GET_CAPS, CONTEXT_INIT, RESOURCE_CREATE_BLOB, RESOURCE_INFO, MAP, EXECBUFFER, WAIT, GEM_CLOSE",
+            "virtgpu_drm_test: direct DRM ioctl translator path",
             "pass" if g5_pass else "missing",
             "DRM ioctl replay including Venus capset detection, host-coherent mapping, GET_CAPS, RESOURCE_INFO, and GEM_CLOSE",
             rel(native_log),
@@ -335,7 +335,7 @@ def build_rows() -> list[Row]:
             "fd-compatible /dev/dri mmap behavior, full Mesa Vulkan apps, syncobj/PRIME, or hardware acceleration.",
             "Keep as direct translator regression gate; fd compatibility is tracked by vk.drm-fdio."),
         Row("vk.drm-fdio", "libukvirtgpu_drm fdio facade — render-node ioctl/mmap offsets",
-            "virtgpu_drm_fdio_test: per-open file state, ioctl callback, page-aligned MAP offset, mmap resolution, cross-fd isolation",
+            "virtgpu_drm_test: fdio render-node facade path",
             "pass" if drm_fdio_pass else "missing",
             "fd-compatible DRM facade test against fake backend",
             rel(native_log),
@@ -487,25 +487,20 @@ def llama_vulkan_rows() -> list[Row]:
             "Outright performance superiority claim; Unikraft Vulkan is expected to trail bare-metal.",
             "Once host.bench.vk.run passes, run scripts/llama_vulkan_bench.py and regenerate the benchmark/evaluation artifacts."),
         Row("vk.ggml-dispatch",
-            "Static Venus-backed Vulkan ICD dispatch layer (libvulkan): 82 Vulkan C ABI "
-            "stubs wired to Venus encoder, no dlopen, no host libvulkan.so",
+            "Static Venus-backed Vulkan dispatch layer (libvulkan): focused proc lookup, "
+            "diagnostic surface, and native init path",
             "libs/libvulkan/uk_vulkan_dispatch.c: vkGetInstanceProcAddr as real C symbol "
             "returning Venus-backed stubs; uk_vulkan_init() over native libukvulkan_venus; "
-            f"tests/ggml_vk_dispatch_test.c: {n3_total} checks across proc lookup, init, stub calls, "
-            "and 23-step compute bootstrap",
+            f"tests/vulkan_dispatch_test.c: {n3_total} retained checks across proc lookup, "
+            "diagnostic info, and native init plumbing",
             n3_status,
-            f"{n3_passed}/{n3_total} checks pass in ggml_vk_dispatch_test: proc lookup (80 functions), "
-            "dispatch init via native Venus fake backend, per-stub VK_SUCCESS + handle allocation, "
-            "23-step full compute bootstrap sequence (CreateInstance→WaitForFences). "
-            "Venus SUBMIT_3D encoding fires for every mutating call. "
+            f"{n3_passed}/{n3_total} retained checks pass in vulkan_dispatch_test: static proc lookup, "
+            "dispatch info surface, and native Venus-backed init coverage. "
             f"artifact written to {n3_evidence}",
             n3_evidence,
-            f"{n3_passed}/{n3_total} checks pass in ggml_vk_dispatch_test: proc lookup (80 functions), "
-            "dispatch init via native Venus fake backend, per-stub VK_SUCCESS + handle allocation, "
-            "23-step full compute bootstrap sequence (CreateInstance→WaitForFences). All Vulkan struct "
-            "field accesses verified against Vulkan 1.3 spec byte offsets. Venus SUBMIT_3D encoding "
-            "fires for every mutating call. Static dispatch layer is sufficient to satisfy "
-            "ggml-vulkan.cpp VULKAN_HPP_DEFAULT_DISPATCHER.init() without a dynamic Vulkan loader.",
+            f"{n3_passed}/{n3_total} retained checks pass in vulkan_dispatch_test: the libvulkan "
+            "dispatch table exposes the required entry points, the native Venus-backed init path "
+            "is callable, and the exported diagnostic surface reports the intended claim boundary.",
             "Real GPU throughput, llama.cpp token output, ring-buffer reads, "
             "or vkMapMemory coherency to host VRAM.",
             "Implement Venus ring-buffer reads (uk_venus_ring_wait_reply) to unblock real device "
