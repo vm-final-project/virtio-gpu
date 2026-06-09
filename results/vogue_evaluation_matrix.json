@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-09T04:55:56.586736Z",
+    "generated_utc": "2026-06-09T05:09:26.882501Z",
     "source": "scripts/eval_matrix.py",
     "version": 1
   },
@@ -72,7 +72,7 @@
       "evidence": "results/kmscube_vgpu_gl/run/frame_pixel_proof.json",
       "claim_allowed": "Only a non-blank screendump whose mean colour matches the encoded CLEAR colour per frame may promote this row.",
       "claim_forbidden": "Software rendering, SUBMIT_3D-only proof, or capset probe.",
-      "next_step": "Land .bind=PIPE_BIND_RENDER_TARGET in app-kmscube/main.c, rebuild the appliance, rerun kmscube-run, and let kmscube_vgpu_gl_eval.py emit frame_pixel_proof.json from the real PPM."
+      "next_step": "Land .bind=PIPE_BIND_RENDER_TARGET in app-kmscube/main.c, rebuild the appliance, rerun the kmscube image, and refresh frame_pixel_proof.json from the real PPM."
     },
     {
       "row_id": "vk.drm-core",
@@ -134,11 +134,11 @@
       "claim": "Venus command serialization wire-format correctness",
       "workload": "libukvulkan_venus: PACKED encoding + uint32 array_size per Mesa vn_encode_array_size()",
       "status": "pass",
-      "required_evidence": "vulkan_registry_check (9 command IDs vs vk.xml/Mesa/VK_EXT_command_serialization.xml); venus_encoder_core_test layout assertions for the retained bootstrap commands",
-      "evidence": "results/vulkan/vulkan_registry_check.json;libs/libukvulkan_venus/venus_cs.c",
+      "required_evidence": "venus_encoder_core_test layout assertions for the retained bootstrap commands",
+      "evidence": "libs/libukvulkan_venus/venus_cs.c",
       "claim_allowed": "Venus encoder uses PACKED wire format (no inter-field alignment padding; uint64 not 8-byte aligned in stream); array presence fields are uint32 array_size per Mesa protocol, not uint64 pointer flags. Commands match vk.xml and Mesa vn_protocol_driver_defines.h. Encoding is parseable by virglrenderer's vkr_context_submit_cmd.",
-      "claim_forbidden": "GPU acceleration, rendering, or Vulkan conformance; registry check validates IDs only, not runtime correctness.",
-      "next_step": "Keep as regression gate; rerun vulkan_registry_check after any venus.h ID changes."
+      "claim_forbidden": "GPU acceleration, rendering, or Vulkan conformance; native encoder assertions do not claim runtime correctness.",
+      "next_step": "Keep as regression gate; rerun the retained encoder core test after protocol changes."
     },
     {
       "row_id": "proto.venus-ring",
@@ -220,13 +220,13 @@
     {
       "row_id": "host.bench.vk",
       "claim": "Unikraft Vulkan throughput compared against Linux-VM Venus / BM-Vulkan / BM-CUDA / Unikraft-CPU",
-      "workload": "scripts/llama_env_matrix.py: pp512/tg128 plan/evidence inside Unikraft alongside Linux/baremetal baselines",
+      "workload": "results/llama/vulkan_bench.json: pp512/tg128 evidence inside Unikraft alongside Linux/baremetal baselines",
       "status": "pass",
       "required_evidence": "results/llama-env/plan.json and runtime artifacts with pp512/tg128 plus matching rows for ENV-Unikraft-CPU, ENV-LinuxVM-Vulkan, ENV-BM-Vulkan, ENV-BM-CUDA",
       "evidence": "results/llama/vulkan_bench.json",
       "claim_allowed": "Apples-to-apples Vulkan throughput comparison published with claim boundaries: specialization overhead vs Linux-VM Venus, gap to bare-metal Vulkan/CUDA.",
       "claim_forbidden": "Outright performance superiority claim; Unikraft Vulkan is expected to trail bare-metal.",
-      "next_step": "Once host.bench.vk.run passes, run scripts/llama_vulkan_bench.py and regenerate the benchmark/evaluation artifacts."
+      "next_step": "Once host.bench.vk.run passes, regenerate results/llama/vulkan_bench.json from the retained runtime collectors."
     },
     {
       "row_id": "vk.ggml-dispatch",

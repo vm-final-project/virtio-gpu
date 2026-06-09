@@ -10,5 +10,5 @@
   "network": "virtio-net-pci -> libuknetdev -> lwIP TCP/IP; QEMU user-mode hostfwd to guest 8080",
   "claim_allowed": "Single-application llama.cpp Vulkan server appliance boots directly into one entrypoint (no shell, no fork/exec), reaches model-loaded readiness over the real virtio-gpu-gl Venus path, and serves HTTP over the in-guest lwIP stack (same-run /health + /completion proof).",
   "claim_forbidden": "Aggregate request/second throughput, TTFT, or slot-utilisation benchmarking \u2014 only same-run HTTP liveness + one bounded completion is captured here, not a performance number.",
-  "generated_utc": "2026-06-09T04:55:17.954843Z"
+  "generated_utc": "2026-06-09T05:09:27.048247Z"
 }

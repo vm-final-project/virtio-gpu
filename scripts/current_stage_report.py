@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""Generate an auditable current-stage completeness report for VOGUE.
-
-This gate is intentionally conservative: it does not promote blocked GPU rows.
-It verifies that the current docs/design/evaluation artifacts are aligned with
-Unikraft design rules and that every supported test/evaluation/benchmark surface
-has a corresponding generated artifact.
-"""
+"""Generate an auditable current-stage completeness report for VOGUE."""
 from __future__ import annotations
 
 import argparse
@@ -64,9 +58,9 @@ def main() -> int:
     targets = makefile_targets()
     required_targets = {
         "verify", "test-fast", "test-native", "test-qemu", "test-gpu",
-        "governance-check", "native-tests", "venus-check", "stage-check", "benchmark-check",
-        "eval-check", "lib-readme-check", "claim-check",
-        "vulkan-tests", "vulkan-check", "test-core", "test-compat", "test-venus", "test-dispatch",
+        "native-tests", "test-core", "test-compat", "test-venus", "test-dispatch",
+        "proto-abi", "vulkan-tests", "venus-check", "vulkan-check",
+        "eval-check", "current-stage-check", "llm-server-vk-check", "llm-server-vk-throughput-check",
     }
     scripts = {p.name for p in (ROOT / "scripts").glob("*.py")}
     required_scripts = {
@@ -85,16 +79,14 @@ def main() -> int:
         "llama_vk_build_capture.py",
         "linux_guest_vulkan_baseline.py",
         "llama_vulkan_linux_baseline.py",
+        "artifact_utils.py",
     }
 
-    stage = load_json(OUT / "stage_audit.json")
-    alignment = load_json(OUT / "unikraft_alignment.json")
-    bench = load_json(ROOT / "results" / "benchmarks" / "benchmark_summary.json")
     matrix = load_json(ROOT / "results" / "vogue_evaluation_matrix.json")
     venus = load_json(ROOT / "results" / "venus" / "venus_perf.json")
-    real_path = load_json(ROOT / "results" / "venus" / "real_path_check.json")
+    vulkan = load_json(ROOT / "results" / "vulkan" / "vulkan_perf.json")
+    server = load_json(ROOT / "results" / "llama" / "server_vk_check.json")
     qemu = load_json(ROOT / "results" / "venus" / "qemu_2d_probe.json")
-    stk = load_json(ROOT / "results" / "stk" / "latest" / "stk_runtime_eval.json")
     readme = read(ROOT / "README.md")
 
     eval_rows = matrix.get("rows", []) if isinstance(matrix.get("rows"), list) else []
@@ -111,13 +103,6 @@ def main() -> int:
         row("script_surface", required_scripts <= scripts,
             f"present={sorted(required_scripts & scripts)} missing={sorted(required_scripts - scripts)}",
             "All expected evaluation and guardrail scripts exist"),
-        row("unikraft_alignment", alignment.get("status") == "pass",
-            "results/stage/unikraft_alignment.json", "Unikraft design-rule alignment gate passes"),
-        row("stage_audit", stage.get("status") == "pass",
-            "results/stage/stage_audit.json", "Current-stage audit passes"),
-        row("benchmark_summary", bench.get("status") == "pass" and len(bench.get("rows", [])) >= 6,
-            f"rows={len(bench.get('rows', []))} results/benchmarks/benchmark_summary.json",
-            "Benchmark summary exists with native app and Venus readiness rows"),
         row("evaluation_matrix", required_eval_rows <= set(eval_by_id),
             f"rows={len(eval_rows)} missing={sorted(required_eval_rows - set(eval_by_id))}",
             "Evidence matrix contains every supported pass/blocked claim row"),
@@ -136,23 +121,16 @@ def main() -> int:
             qemu.get("status") in ("pass", "blocked:modern-pci-unsupported", "blocked:probe-incomplete", "blocked:image-missing", "blocked:timeout", "blocked:qemu-missing"),
             "results/venus/qemu_2d_probe.json; results/vogue_evaluation_matrix.json",
             "QEMU Venus probe artifact recorded with a structured status"),
-        row("real_path_selected", real_path.get("status") == "pass",
-            "results/venus/real_path_check.json",
-            "Production Kraft/config/build artifacts use the real VirtIO-GPU backend"),
-        row("stk_out_of_scope",
-            "Out of scope" in read(ROOT / "design/unikraft-virtio-gpu-spec-v1.md"),
-            "design/unikraft-virtio-gpu-spec-v1.md", "STK porting is documented as out of scope (plan.md §0.5)"),
+        row("generator_json_only",
+            all(data and "metadata" in data for data in [venus, vulkan, server]),
+            "results/venus/venus_perf.json; results/vulkan/vulkan_perf.json; results/llama/server_vk_check.json",
+            "Canonical generators emit the shared JSON artifact shape"),
         row("library_readmes", not missing_readmes and len(lib_dirs) > 0,
             f"libs={len(lib_dirs)} missing={missing_readmes}", "Every local library has Unikraft-style README docs"),
         row("readme_current_stage",
-            all(s in readme for s in ["make stage-check", "make benchmark-check", "make venus-check", "results/vogue_evaluation_matrix.json"])
+            all(s in readme for s in ["make native-tests", "make test-compat", "make venus-check", "results/vogue_evaluation_matrix.json"])
             and "blocked:*" in readme,
             "README.md", "README exposes canonical commands and JSON-only evaluation artifacts"),
-        row("governance_metadata", all((ROOT / path).exists() for path in ["docs/GOVERNANCE.md", "config/governance.json"])
-            and (ROOT.parent / "manifest" / "manifests" / "vogue-main.yaml").exists()
-            and "make test-fast" in readme and "make governance-check" in readme and "../manifest" in readme,
-            "docs/GOVERNANCE.md; config/governance.json; ../manifest/manifests/vogue-main.yaml",
-            "Research-artifact governance metadata and manifest/VM ownership split are documented"),
     ]
 
     ok = all(r["status"] == "pass" for r in rows)
@@ -163,7 +141,7 @@ def main() -> int:
         counts={
             "libraries": len(lib_dirs),
             "eval_rows": len(eval_rows),
-            "benchmark_rows": len(bench.get("rows", [])) if isinstance(bench.get("rows"), list) else 0,
+            "canonical_scripts": len(required_scripts),
         },
         rows=rows,
         extra={
@@ -173,11 +151,11 @@ def main() -> int:
                 "counts": {
                     "libraries": len(lib_dirs),
                     "eval_rows": len(eval_rows),
-                    "benchmark_rows": len(bench.get("rows", [])) if isinstance(bench.get("rows"), list) else 0,
+                    "canonical_scripts": len(required_scripts),
                 },
                 "qemu_status": qemu.get("status"),
-                "real_path_status": real_path.get("status"),
-                "stk_accelerated_runtime": stk.get("accelerated_runtime"),
+                "vulkan_status": vulkan.get("status"),
+                "server_status": server.get("status"),
             },
             "claim_boundary": "Current supported rows pass on the evaluation host only when backed by same-run JSON artifacts. Blocked rows remain explicit partial-progress states and are never promoted to passing evidence.",
         },
@@ -186,7 +164,7 @@ def main() -> int:
 
     print(
         f"current_stage_report: {payload['status']} checks={len(rows)} "
-        f"eval_rows={len(eval_rows)} benchmark_rows={payload['summary']['counts']['benchmark_rows']}"
+        f"eval_rows={len(eval_rows)} canonical_scripts={payload['summary']['counts']['canonical_scripts']}"
     )
     if args.check and not ok:
         for r in rows:

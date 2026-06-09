@@ -1,10 +1,10 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-09T04:55:17.205028Z",
+    "generated_utc": "2026-06-09T05:09:38.120816Z",
     "source": "scripts/llm_server_vk_check.py",
     "version": 1
   },
-  "status": "pass",
+  "status": "blocked:health=None",
   "summary": {
     "headline": "Single-application Vulkan llama.cpp server contract",
     "counts": {
@@ -26,10 +26,18 @@
     },
     {
       "id": "http_probe",
-      "status": "pass"
+      "status": "blocked:health=None"
     }
   ],
   "rows": [],
+  "block": {
+    "reason": "blocked:health=None",
+    "stage": "runtime",
+    "claim_allowed": "Static single-application contract can still pass; runtime serving remains explicitly blocked.",
+    "claim_forbidden": "Passing Vulkan server runtime or HTTP serving claim without READY-line and same-run HTTP proof.",
+    "next_step": "Regenerate the Vulkan server runtime capture and rerun llm_server_vk_check.py.",
+    "first_missing_dependency": "results/llama/upstream_server_vk_serial.log"
+  },
   "static_findings": [],
   "runtime_status": "pass",
   "runtime_log": "results/llama/upstream_server_vk_serial.log",
@@ -40,10 +48,10 @@
   "prompt_cache": true,
   "dispatch_batch_enabled": true,
   "hostmem_fixed": false,
-  "http_status": "pass",
-  "http_health": 200,
-  "http_models_status": 200,
-  "http_completion_status": 200,
-  "http_completion_content": "8888888888888888",
-  "http_endpoint": "http://127.0.0.1:40137"
+  "http_status": "blocked:health=None",
+  "http_health": null,
+  "http_models_status": null,
+  "http_completion_status": null,
+  "http_completion_content": null,
+  "http_endpoint": null
 }

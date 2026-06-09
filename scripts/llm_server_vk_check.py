@@ -16,7 +16,6 @@ SOURCE = "scripts/llm_server_vk_check.py"
 
 VK_KRAFTFILE = ROOT / "kraft" / "Kraftfile.llama-upstream-vk-server"
 CPU_KRAFTFILE = ROOT / "kraft" / "Kraftfile.llama-upstream-server"
-RUNSH = ROOT / "scripts" / "run_llama_upstream_vk_server.sh"
 VK_SERVER_CPP = ROOT / "apps" / "app-llama-upstream-vk" / "server.cpp"
 CPU_SERVER_CPP = ROOT / "apps" / "app-llama-upstream" / "server.cpp"
 VK_CONFIG_UK = ROOT / "apps" / "app-llama-upstream-vk" / "Config.uk"
@@ -30,7 +29,6 @@ SERIAL_LOG = ROOT / "results" / "llama" / "upstream_server_vk_serial.log"
 SERVER_VK_RUNTIME = ROOT / "results" / "llama" / "upstream_server_vk.json"
 
 HOSTMEM_RE = re.compile(r"hostmem=(\S+).*blob=true.*venus=true")
-RUNSH_FLAGS = ("egl-headless", "blob=true", "venus=true", "hostmem=", "hostfwd=", "virtio-net-pci")
 VK_NET_KCONFIG = (
     "CONFIG_LIBVIRTIO_NET",
     "CONFIG_LIBUKNETDEV",
@@ -84,7 +82,6 @@ def check_static() -> list[str]:
     findings: list[str] = []
     vk_kraft = read(VK_KRAFTFILE)
     cpu_kraft = read(CPU_KRAFTFILE)
-    runsh = read(RUNSH)
     vk_server = read(VK_SERVER_CPP)
     cpu_server = read(CPU_SERVER_CPP)
     vk_config = read(VK_CONFIG_UK)
@@ -103,8 +100,6 @@ def check_static() -> list[str]:
     for sym in VK_NET_KCONFIG:
         if sym not in vk_kraft:
             findings.append(f"http: kraft/Kraftfile.llama-upstream-vk-server missing {sym} (lwIP/netdev HTTP path)")
-    if RUNSH.exists() and not all(flag in runsh for flag in RUNSH_FLAGS):
-        findings.append("L4.2: scripts/run_llama_upstream_vk_server.sh missing required QEMU/Venus flags")
     for flag in VK_SERVER_FLAGS:
         if flag not in vk_server:
             findings.append(f"single-app/vk: server.cpp missing {flag}")

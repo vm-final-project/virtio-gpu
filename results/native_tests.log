@@ -1,9 +1,9 @@
 make[1]: `build/virtio_gpu_core_test' is up to date.
-make[1]: `build/virtgpu_drm_test' is up to date.
-make[1]: `build/venus_encoder_test' is up to date.
-make[1]: `build/venus_ring_test' is up to date.
-make[1]: `build/virgl_encoder_test' is up to date.
-make[1]: `build/vulkan_dispatch_test' is up to date.
+make[1]: `build/virtgpu_drm_compat_test' is up to date.
+make[1]: `build/venus_encoder_core_test' is up to date.
+make[1]: `build/venus_ring_core_test' is up to date.
+make[1]: `build/virgl_encoder_core_test' is up to date.
+make[1]: `build/vulkan_dispatch_core_test' is up to date.
   PASS  alloc default available
   PASS  probe fake device
   PASS  metrics reset
@@ -68,7 +68,7 @@ virtio_gpu_core_test: PASS checks=37
   PASS  fdio mmap cross file fails
   PASS  fdio gem close
   PASS  fdio closed handle map fails
-virtgpu_drm_test: PASS checks=26
+virtgpu_drm_compat_test: PASS checks=26
   PASS  init rejects null encoder
   PASS  init rejects null buffer
   PASS  init rejects zero capacity
@@ -94,7 +94,7 @@ virtgpu_drm_test: PASS checks=26
   PASS  composite encode no overflow
   PASS  tiny init
   PASS  overflow flagged
-venus_encoder_test: PASS checks=25
+venus_encoder_core_test: PASS checks=25
   PASS  probe fake device
   PASS  ring status pass
   PASS  ring create rejects null dev
@@ -118,8 +118,8 @@ venus_encoder_test: PASS checks=25
   PASS  ring wait
   PASS  ring unregister
   PASS  protocol cleared
-venus_ring_test: PASS checks=23
-virgl_encoder_test: Gallium command stream encoder
+venus_ring_core_test: PASS checks=23
+virgl_encoder_core_test: Gallium command stream encoder
   PASS  init:pos_zero
   PASS  init:no_overflow
   PASS  init:len_zero
@@ -168,7 +168,7 @@ virgl_encoder_test: Gallium command stream encoder
   PASS  submit:fence_nonzero
   PASS  submit:submits_3d_incremented
   PASS  submit:teardown_ok
-virgl_encoder_test: all checks passed
+virgl_encoder_core_test: all checks passed
   PASS  proc:vkCreateInstance
   PASS  proc:vkEnumeratePhysicalDevices
   PASS  proc:vkCreateDevice
@@ -191,4 +191,4 @@ virgl_encoder_test: all checks passed
   PASS  supported commands non-zero
   PASS  batch disabled by default
   PASS  hostmem fixed disabled by default
-vulkan_dispatch_test: PASS checks=22
+vulkan_dispatch_core_test: PASS checks=22

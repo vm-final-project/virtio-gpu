@@ -32,7 +32,7 @@ def main() -> int:
     for _ in range(max(1, args.repetitions)):
         t0 = time.perf_counter_ns()
         proc = subprocess.run(
-            ["python3", "scripts/real_driver_static_check.py"],
+            ["make", "-C", "tests", "test-venus"],
             cwd=ROOT,
             text=True,
             stdout=subprocess.PIPE,
@@ -54,7 +54,7 @@ def main() -> int:
         "static_gate_failures": sum(1 for s in statuses if s != 0),
     }
     checks = [
-        {"id": "real_driver_static_check", "status": status},
+        {"id": "test_venus", "status": status},
         {"id": "qemu_2d_probe", "status": qemu_status},
     ]
     extra = {

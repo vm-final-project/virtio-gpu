@@ -251,7 +251,8 @@ def _attempt(qemu: str, model: Path) -> tuple[str, dict]:
                   ((e.stderr or "") if isinstance(e.stderr, str) else "")
 
     (RESULTS / "upstream_vk.log").write_text(out)
-    # Also under the *_serial.log name that scripts/model_load_time_check.py reads.
+    # Mirror the runtime log under the *_serial.log name for the canonical
+    # JSON consumers that track the latest same-run boot.
     (RESULTS / "upstream_vk_serial.log").write_text(out)
     tail = out[-4000:]
 

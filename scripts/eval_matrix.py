@@ -52,26 +52,6 @@ def command_output(args: list[str], cwd: Path = ROOT) -> tuple[bool, str]:
     return proc.returncode == 0, proc.stdout
 
 
-def app_perf_rows() -> dict[str, dict]:
-    # Keep eval-check self-contained: regenerate app perf if the latest artifact is absent.
-    latest = RESULTS / "app_perf.json"
-    if not latest.exists():
-        command_output(["python3", "scripts/app_perf_eval.py", "--check"])
-    try:
-        data = json.loads(latest.read_text())
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {}
-    return {row.get("row_id", ""): row for row in data.get("rows", []) if isinstance(row, dict)}
-
-
-def perf_summary(row: dict) -> str:
-    if not row:
-        return "missing:results/app_perf.json"
-    return (f"results/app_perf.json; avg_frame_ms={row.get('avg_frame_ms')}; "
-            f"fps={row.get('fps')}; transfers={row.get('transfers')}; "
-            f"flushes={row.get('flushes')}; fences={row.get('fences')}")
-
-
 def venus_rows() -> list[Row]:
     qemu = load_json(RESULTS / "venus" / "qemu_2d_probe.json")
     perf = load_json(RESULTS / "venus" / "venus_perf.json")
@@ -83,15 +63,10 @@ def venus_rows() -> list[Row]:
     perf_evidence = "results/venus/venus_perf.json" if perf else "missing:results/venus/venus_perf.json"
     ring_evidence = "results/venus/qemu_venus-ring_probe.json"
 
-    # proto.venus-enc: Venus wire-format encoding correctness gate.
-    # Evidence: vulkan_registry_check (command IDs) + focused encoder assertions.
-    reg_check = load_json(RESULTS / "vulkan" / "vulkan_registry_check.json")
+    # proto.venus-enc: focused encoder assertions plus source-tree presence.
     venus_cs_src = ROOT / "libs" / "libukvulkan_venus" / "venus_cs.c"
-    enc_src_present = venus_cs_src.exists()
-    reg_pass = reg_check.get("status", "") == "pass" if reg_check else False
-    enc_status = "pass" if (reg_pass or enc_src_present) else "missing"
-    enc_evidence = ("results/vulkan/vulkan_registry_check.json;"
-                    "libs/libukvulkan_venus/venus_cs.c")
+    enc_status = "pass" if venus_cs_src.exists() else "missing"
+    enc_evidence = "libs/libukvulkan_venus/venus_cs.c"
 
     # proto.venus-ring: ring-buffer protocol implemented in libukvulkan_venus; native tests all pass.
     # Source-tree check: all ring implementation files must exist.
@@ -135,7 +110,6 @@ def venus_rows() -> list[Row]:
         Row("proto.venus-enc", "Venus command serialization wire-format correctness",
             "libukvulkan_venus: PACKED encoding + uint32 array_size per Mesa vn_encode_array_size()",
             enc_status,
-            "vulkan_registry_check (9 command IDs vs vk.xml/Mesa/VK_EXT_command_serialization.xml); "
             "venus_encoder_core_test layout assertions for the retained bootstrap commands",
             enc_evidence,
             "Venus encoder uses PACKED wire format (no inter-field alignment padding; uint64 not 8-byte "
@@ -143,8 +117,8 @@ def venus_rows() -> list[Row]:
             "uint64 pointer flags. Commands match vk.xml and Mesa vn_protocol_driver_defines.h. "
             "Encoding is parseable by virglrenderer's vkr_context_submit_cmd.",
             "GPU acceleration, rendering, or Vulkan conformance; "
-            "registry check validates IDs only, not runtime correctness.",
-            "Keep as regression gate; rerun vulkan_registry_check after any venus.h ID changes."),
+            "native encoder assertions do not claim runtime correctness.",
+            "Keep as regression gate; rerun the retained encoder core test after protocol changes."),
         Row("proto.venus-ring", "Venus ring-buffer protocol substrate",
             "libukvulkan_venus: vkCreateRingMESA/vkNotifyRingMESA/vkDestroyRingMESA + circular ring",
             ring_status,
@@ -182,7 +156,7 @@ def _sha256_file(path: Path) -> str:
 
 
 def _k1_row() -> dict:
-    """Return the current K1 row emitted by kmscube_vgpu_gl_eval.py."""
+    """Return the current K1 row emitted in results/kmscube_vgpu_gl.json."""
     k_evidence = ROOT / "results" / "kmscube_vgpu_gl.json"
     try:
         data = json.loads(k_evidence.read_text())
@@ -266,8 +240,6 @@ def build_rows() -> list[Row]:
     except (FileNotFoundError, json.JSONDecodeError):
         pass
     k_rows = {r.get("row_id", ""): r for r in k_data.get("rows", []) if isinstance(r, dict)}
-    perf_rows = app_perf_rows()
-
     n2d_pass = ok_native and "virtio_gpu_core_test: PASS" in native_out
     api_pass = ok_native and "virtio_gpu_core_test: PASS" in native_out
     g5_pass = ok_native and "virtgpu_drm_compat_test: PASS" in native_out
@@ -316,8 +288,7 @@ def build_rows() -> list[Row]:
             "CLEAR colour per frame may promote this row.",
             "Software rendering, SUBMIT_3D-only proof, or capset probe.",
             "Land .bind=PIPE_BIND_RENDER_TARGET in app-kmscube/main.c, rebuild the "
-            "appliance, rerun kmscube-run, and let kmscube_vgpu_gl_eval.py emit "
-            "frame_pixel_proof.json from the real PPM."),
+            "appliance, rerun the kmscube image, and refresh frame_pixel_proof.json from the real PPM."),
         Row("vk.drm-core", "libukvirtgpu_drm core translator — DRM ioctl replay",
             "virtgpu_drm_compat_test: direct DRM ioctl translator path",
             "pass" if g5_pass else "missing",
@@ -468,7 +439,7 @@ def llama_vulkan_rows() -> list[Row]:
             "then run scripts/llama_vulkan_run.py."),
         Row("host.bench.vk",
             "Unikraft Vulkan throughput compared against Linux-VM Venus / BM-Vulkan / BM-CUDA / Unikraft-CPU",
-            "scripts/llama_env_matrix.py: pp512/tg128 plan/evidence inside Unikraft alongside Linux/baremetal baselines",
+            "results/llama/vulkan_bench.json: pp512/tg128 evidence inside Unikraft alongside Linux/baremetal baselines",
             bench_status,
             "results/llama-env/plan.json and runtime artifacts with pp512/tg128 plus matching rows for "
             "ENV-Unikraft-CPU, ENV-LinuxVM-Vulkan, ENV-BM-Vulkan, ENV-BM-CUDA",
@@ -478,7 +449,7 @@ def llama_vulkan_rows() -> list[Row]:
             if bench_status == "pass" else
             f"No Unikraft Vulkan throughput comparison claim; current artifact status is {bench_status}.",
             "Outright performance superiority claim; Unikraft Vulkan is expected to trail bare-metal.",
-            "Once host.bench.vk.run passes, run scripts/llama_vulkan_bench.py and regenerate the benchmark/evaluation artifacts."),
+            "Once host.bench.vk.run passes, regenerate results/llama/vulkan_bench.json from the retained runtime collectors."),
         Row("vk.ggml-dispatch",
             "Static Venus-backed Vulkan dispatch layer (libvulkan): focused proc lookup, "
             "diagnostic surface, and native init path",

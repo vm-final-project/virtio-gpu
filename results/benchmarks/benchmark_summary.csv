@@ -1,9 +1,0 @@
-row_id,benchmark,status,metric,value,scope
-gfx.kmscube.sw,kmscube,pass,avg_frame_ms,2.209,native software/substrate fake-backend
-gfx.kmscube.sw,kmscube,pass,fps,452.76,native software/substrate fake-backend
-gfx.glmark2.sw,glmark2 scene clear,pass,avg_frame_ms,5.618,native software/substrate fake-backend
-gfx.glmark2.sw,glmark2 scene clear,pass,fps,178.0,native software/substrate fake-backend
-VSTAT,real driver static gate,pass,latency_ms_mean,37.3744484,"static gate overhead, not GPU performance"
-VSTAT,real driver static gate,pass,latency_ms_median,36.175489,"static gate overhead, not GPU performance"
-VSTAT,real driver static gate,pass,latency_ms_p95,38.09006,"static gate overhead, not GPU performance"
-xport.qemu-vgpu,QEMU Venus probe,pass,probe_status,pass,real QEMU probe; pass required for acceleration claims
