@@ -1,10 +1,9 @@
 /*
- * Shared helpers for the bench-only and server-only single-purpose appliances.
+ * Shared helpers for the CPU single-purpose appliance.
  *
- * Both appliances follow Unikraft's design principle: one process, one purpose,
- * no shell, no second binary. Each entrypoint compiles only the mode it needs;
- * the unused mode's code is excluded by `#if CONFIG_APP_LLAMA_CPU_MODE_*`
- * so the image carries exactly what that appliance executes.
+ * Both bench and server modes route through 9pfs + llama.cpp and share the
+ * same small set of Unikraft/llama helpers, so keep them in one local header
+ * with an app-specific name rather than a generic common.h.
  */
 #pragma once
 
@@ -49,8 +48,6 @@ static inline double now_sec(void)
     return ts.tv_sec + ts.tv_nsec * 1e-9;
 }
 
-/* plan-optimize.md L1.4 — record load latency and the mmap state so the
- * model-load-time-check gate has a stable line to grep. */
 static inline llama_model *load_model(const char *model_path, const char *tag)
 {
     mkdir("/mnt", 0755);
@@ -64,17 +61,14 @@ static inline llama_model *load_model(const char *model_path, const char *tag)
     llama_numa_init(GGML_NUMA_STRATEGY_DISABLED);
 
     llama_model_params mparams = llama_model_default_params();
-    mparams.use_mmap     = false; /* 9pfs does not support mmap */
-    mparams.n_gpu_layers = 0;
-    int huge_pages       = 0;
+    mparams.use_mmap = false;
 
     double t0 = now_sec();
     llama_model *model = llama_model_load_from_file(model_path, mparams);
     double load_ms = (now_sec() - t0) * 1000.0;
 
-    uk_printf("%s: model_load path=%s use_mmap=%d huge_pages=%d "
-              "elapsed_ms=%.2f\n",
-              tag, model_path, (int)mparams.use_mmap, huge_pages, load_ms);
+    uk_printf("%s: model_load path=%s use_mmap=%d elapsed_ms=%.2f\n",
+              tag, model_path, (int)mparams.use_mmap, load_ms);
 
     if (!model) {
         uk_printf("%s: FAIL model_load failed path=%s\n", tag, model_path);

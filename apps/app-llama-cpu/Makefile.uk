@@ -125,7 +125,7 @@ APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-backend-dl.cpp
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-backend-reg.cpp
 
 # ── ggml-cpu backend ─────────────────────────────────────────────────────────
-APPLLAMA_CPU_SRCS-y += $(APPLLAMA_CPU_BASE)/ggml-cpu-cpp.cpp
+APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/ggml-cpu.cpp
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/ggml-cpu.c
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/quants.c
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/repack.cpp
@@ -177,4 +177,4 @@ APPLLAMA_CPU_SRCS-y += $(LLAMA_SRC)/unicode-data.cpp
 # models/llama.cpp basename conflicts with src/llama.cpp; use a shim instead.
 APPLLAMA_CPU_SRCS-y += $(filter-out $(LLAMA_SRC)/models/llama.cpp, \
                              $(wildcard $(LLAMA_SRC)/models/*.cpp))
-APPLLAMA_CPU_SRCS-y += $(APPLLAMA_CPU_BASE)/models-llama.cpp
+APPLLAMA_CPU_SRCS-y += $(LLAMA_SRC)/models/llama.cpp

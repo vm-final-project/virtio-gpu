@@ -11,7 +11,7 @@
  * cache) are surfaced through the Kconfig knobs below; common.h prints the
  * L1.4 model-load latency line.
  */
-#include "common.h"
+#include "llama-cpu-common.h"
 
 #if CONFIG_APP_LLAMA_CPU_MODE_SERVER
 

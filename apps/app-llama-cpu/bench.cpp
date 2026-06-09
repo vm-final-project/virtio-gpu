@@ -9,7 +9,7 @@
  *   uk-llama-upstream: pp512=<f> tg128=<f>
  *   uk-llama-upstream: PASS evidence_id=llama-upstream-cpu
  */
-#include "common.h"
+#include "llama-cpu-common.h"
 
 #if CONFIG_APP_LLAMA_CPU_MODE_BENCH
 

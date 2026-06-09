@@ -4,7 +4,9 @@ VOGUE is a Unikraft VirtIO-GPU, Venus, Vulkan, and llama.cpp research artifact.
 `Makefile` is the stable automation interface. The repo now supports both
 `x86_64` and `arm64` QEMU targets; CPU llama appliances can be built and run on
 Apple Silicon with `ARCH=arm64`, while the GPU/Venus path still needs a Linux
-host Vulkan stack for runtime proof.
+host Vulkan stack for runtime proof. The Vulkan llama server appliance is
+local-model only in this repo: it always reads `/mnt/model/model.gguf` and does
+not download models from Hugging Face or a remote URL at runtime.
 
 ## Prerequisites
 
@@ -146,8 +148,9 @@ make llama-vk-server-run ARCH=x86_64 MODEL=/absolute/path/model.gguf
 ```
 
 The server runner records readiness plus HTTP behavior in the same JSON result.
-If your host Vulkan loader is not at the default path, export `VK_LIB` before
-building or running.
+It always mounts and reads `/mnt/model/model.gguf` inside the guest. If your
+host Vulkan loader is not at the default path, export `VK_LIB` before building
+or running.
 
 ## Results
 

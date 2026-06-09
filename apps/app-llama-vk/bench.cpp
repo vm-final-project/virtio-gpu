@@ -9,7 +9,7 @@
  *   uk-llama-upstream-vk: pp512=<f> tg128=<f>
  *   uk-llama-upstream-vk: PASS evidence_id=llama-upstream-vk
  */
-#include "common.h"
+#include "llama-vk-common.h"
 
 #if CONFIG_APP_LLAMA_VK_MODE_BENCH
 

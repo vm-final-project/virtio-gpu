@@ -12,7 +12,9 @@ llama.cpp / ggml-vulkan
 ```
 
 Bench and server modes use separate images and direct entrypoints. No shell,
-`fork()`, or `exec()` launcher is present.
+`fork()`, or `exec()` launcher is present. This appliance is local-model only:
+it always reads `/mnt/model/model.gguf` and does not download from Hugging Face
+or a remote URL at runtime.
 
 ```sh
 make llama-vk-run ARCH=x86_64 MODEL=/path/to/model.gguf

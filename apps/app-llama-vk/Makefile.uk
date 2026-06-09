@@ -141,7 +141,7 @@ APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-vulkan/ggml-vulkan.cpp
 APPLLAMA_VK_SRCS-y += $(wildcard $(GGML_VK_SHADERS)/*.comp.cpp)
 
 # ── ggml-cpu backend ──────────────────────────────────────────────────────────
-APPLLAMA_VK_SRCS-y += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/ggml-cpu-cpp.cpp
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/ggml-cpu.cpp
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/ggml-cpu.c
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/quants.c
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/repack.cpp
@@ -174,11 +174,13 @@ APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-backend-reg.cpp
 # at the final image link. Plus a posix_spawnp link shim (see compat-spawn.c).
 APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(LLAMA_ROOT)/vendor/cpp-httplib/httplib.cpp
 APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/compat-spawn.c
-APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/upstream-server.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(LLAMA_ROOT)/tools/server/server.cpp
 APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/build-info.cpp
 APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(filter-out $(LLAMA_COMMON)/unicode.cpp, $(wildcard $(LLAMA_COMMON)/*.cpp))
 APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(wildcard $(LLAMA_COMMON)/jinja/*.cpp)
-APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/common-unicode.cpp
+# `common/unicode.cpp` collides with `src/unicode.cpp`, so keep a uniquely
+# named shim translation unit for the common helper.
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/llama-common-unicode.cpp
 APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += \
     $(LLAMA_SERVER)/server-chat.cpp \
     $(LLAMA_SERVER)/server-common.cpp \
@@ -200,11 +202,11 @@ APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += \
                   $(LLAMA_MTMD)/models/qwen2vl.cpp \
                   $(LLAMA_MTMD)/models/qwen3vl.cpp, \
                   $(wildcard $(LLAMA_MTMD)/models/*.cpp)) \
-    $(APPLLAMA_VK_BASE)/mtmd-model-cogvlm.cpp \
-    $(APPLLAMA_VK_BASE)/mtmd-model-llama4.cpp \
-    $(APPLLAMA_VK_BASE)/mtmd-model-paddleocr.cpp \
-    $(APPLLAMA_VK_BASE)/mtmd-model-qwen2vl.cpp \
-    $(APPLLAMA_VK_BASE)/mtmd-model-qwen3vl.cpp
+    $(LLAMA_MTMD)/models/cogvlm.cpp \
+    $(LLAMA_MTMD)/models/llama4.cpp \
+    $(LLAMA_MTMD)/models/paddleocr.cpp \
+    $(LLAMA_MTMD)/models/qwen2vl.cpp \
+    $(LLAMA_MTMD)/models/qwen3vl.cpp
 
 # ── llama.cpp high-level layer ────────────────────────────────────────────────
 APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama.cpp
@@ -239,4 +241,4 @@ APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/unicode-data.cpp
 # models/llama.cpp basename conflicts with src/llama.cpp; use a shim instead.
 APPLLAMA_VK_SRCS-y += $(filter-out $(LLAMA_SRC)/models/llama.cpp, \
                                 $(wildcard $(LLAMA_SRC)/models/*.cpp))
-APPLLAMA_VK_SRCS-y += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/models-llama.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/models/llama.cpp
