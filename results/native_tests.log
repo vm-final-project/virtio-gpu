@@ -1,345 +1,125 @@
-make[1]: Entering directory '/mydata/JerryT/virtio-gpu/tests'
-make[2]: 'build/dma_buf_test' is up to date.
-make[2]: 'build/virtio_gpu_full_api_test' is up to date.
-make[2]: 'build/virtio_gpu_2d_render_test' is up to date.
-make[2]: 'build/virtgpu_drm_ioctl_test' is up to date.
-make[2]: 'build/virtgpu_drm_fdio_test' is up to date.
-make[2]: 'build/venus_bootstrap_test' is up to date.
-make[2]: 'build/venus_cs_test' is up to date.
-make[2]: 'build/venus_compute_test' is up to date.
-make[2]: 'build/virgl_encoder_test' is up to date.
-make[2]: 'build/venus_generated_compile_test' is up to date.
-make[2]: 'build/venus_parity_test' is up to date.
-make[2]: 'build/venus_hotpath_bench' is up to date.
-make[2]: 'build/ggml_vk_dispatch_test' is up to date.
-dma_buf_test passed alignment=4096 sg=1 len=4096
-virtio_gpu_full_api_test passed capsets=5 fences=7 submits_3d=1 blobs=1 bytes_to_host=36864 bytes_from_host=4096
-virtio_gpu_2d_render_test: frame=0 res=1 crc=0x6f2935c5
-virtio_gpu_2d_render_test: frame=1 res=2 crc=0x85ce0dc5
-virtio_gpu_2d_render_test: frame=2 res=3 crc=0x6f04a5c5
-virtio_gpu_2d_render_test: PASS frames=3 transfers=3 flushes=3 fences=6
-virtgpu_drm_ioctl_test: G5 ioctl replay against fake VirtIO-GPU backend
-  PASS  open
-  PASS  open:vdev non-null
-  PASS  getparam:3d_features
-  PASS  getparam:3d_features value
-  PASS  getparam:resource_blob
-  PASS  getparam:resource_blob value
-  PASS  getparam:context_init
-  PASS  getparam:context_init value
-  PASS  getparam:supported_capset_ids
-  PASS  getparam:supported_capset_ids has_venus
-  PASS  ioctl:GETPARAM
-  PASS  ioctl:GETPARAM value
-  PASS  getparam:unknown_param returns EINVAL
-  PASS  context_init:venus
-  PASS  context_init:ctx_initialized
-  PASS  context_init:capset_id
-  PASS  context_init:duplicate returns EEXIST
-  PASS  ioctl:dev2_open
-  PASS  ioctl:CONTEXT_INIT
-  PASS  ioctl:CONTEXT_INIT:ctx_initialized
-  PASS  ioctl:CONTEXT_INIT:close
-  PASS  resource_create_blob:guest
-  PASS  resource_create_blob:guest:bo_handle
-  PASS  resource_create_blob:guest:res_handle
-  PASS  resource_create_blob:host3d
-  PASS  resource_create_blob:host3d:bo_handle
-  PASS  resource_create_blob:zero_size returns EINVAL
-  PASS  ioctl:RESOURCE_CREATE_BLOB
-  PASS  ioctl:RESOURCE_CREATE_BLOB:bo_handle
-  PASS  ioctl:GET_CAPS:venus
-  PASS  ioctl:GET_CAPS:venus:data
-  PASS  ioctl:RESOURCE_INFO
-  PASS  ioctl:RESOURCE_INFO:metadata
-  PASS  map:blob
-  PASS  map:blob:offset non-zero
-  PASS  map:blob:idempotent
-  PASS  map:blob:idempotent:same_addr
-  PASS  map:write_readback
-  PASS  ioctl:MAP
-  PASS  ioctl:MAP:offset
+make[1]: `build/virtio_gpu_core_test' is up to date.
+make[1]: `build/virtgpu_drm_compat_test' is up to date.
+make[1]: `build/venus_encoder_core_test' is up to date.
+make[1]: `build/venus_ring_core_test' is up to date.
+make[1]: `build/virgl_encoder_core_test' is up to date.
+make[1]: `build/vulkan_dispatch_core_test' is up to date.
+  PASS  alloc default available
+  PASS  probe fake device
+  PASS  metrics reset
+  PASS  caps get
+  PASS  virgl supported
+  PASS  resource blob supported
+  PASS  context init supported
+  PASS  venus capset present
+  PASS  capset info get
+  PASS  capset name virgl
+  PASS  edid get
+  PASS  edid length
+  PASS  edid header
+  PASS  aligned frame alloc
+  PASS  frame alignment
+  PASS  sg append frame
+  PASS  sg single segment
+  PASS  resource create 2d
+  PASS  attach backing
+  PASS  transfer+flush
+  PASS  wait fence
+  PASS  set scanout
+  PASS  assign uuid
+  PASS  uuid non-zero
+  PASS  metrics get
+  PASS  resource counted
+  PASS  transfer counted
+  PASS  flush counted
+  PASS  fence counted
+  PASS  apir encode header
+  PASS  apir header size
+  PASS  apir decode header
+  PASS  apir decode round-trip
+  PASS  apir decode handshake reply
+  PASS  apir reply version
+  PASS  detach backing
+  PASS  resource unref
+virtio_gpu_core_test: PASS checks=37
+  PASS  open core device
+  PASS  core vdev present
+  PASS  getparam 3d features
+  PASS  getparam resource blob
+  PASS  context init venus
+  PASS  context marked initialized
+  PASS  create blob via ioctl
+  PASS  blob handle assigned
+  PASS  map blob
+  PASS  map offset non-zero
+  PASS  mapped write/readback
   PASS  execbuffer
-  PASS  ioctl:EXECBUFFER
-  PASS  execbuffer:no_ctx_dev_open
-  PASS  execbuffer:no_ctx returns EINVAL
-  PASS  wait
-  PASS  ioctl:WAIT
-  PASS  ioctl:unknown returns ENOSYS
-  PASS  ioctl:PRIME_HANDLE_TO_FD returns ENOSYS
-  PASS  ioctl:SYNCOBJ_CREATE returns ENOSYS
-  PASS  gem_close:create_blob
-  PASS  ioctl:GEM_CLOSE
-  PASS  ioctl:GEM_CLOSE:resource_info returns ENOENT
-  PASS  close:zeroed_state
-virtgpu_drm_ioctl_test: all checks passed
-virtgpu_drm_fdio_test: fdio-style DRM render-node facade
-  PASS  render_node_path
-  PASS  open:f0
-  PASS  open:f1
-  PASS  file_ioctl:GETPARAM
-  PASS  file_ioctl:GETPARAM:value
-  PASS  file_ioctl:RESOURCE_CREATE_BLOB
-  PASS  file_ioctl:RESOURCE_CREATE_BLOB:bo
-  PASS  file_ioctl:MAP
-  PASS  file_ioctl:MAP:offset
-  PASS  file_ioctl:MAP:page_aligned_offset
-  PASS  file_mmap:resolve_same_fd
-  PASS  file_mmap:resolve_same_fd:pointer
-  PASS  file_mmap:cross_fd_offset returns ENOENT
-  PASS  file_mmap:unknown_offset returns ENOENT
-  PASS  file_ioctl:GEM_CLOSE
-  PASS  file_ioctl:GEM_CLOSE:map returns ENOENT
-  PASS  close
-virtgpu_drm_fdio_test: all checks passed
-venus_bootstrap_test: native Venus driver against fake VirtIO-GPU backend
-  PASS  open:null_dev returns EINVAL
-  PASS  open
-  PASS  open:opened
-  PASS  open:gpu non-null
-  PASS  info:device_name
-  PASS  info:capset_id == VENUS(4)
-  PASS  info:venus_available
-  PASS  info:supported_capsets has_bit4
-  PASS  info:has_resource_blob
-  PASS  info:has_context_init
-  PASS  info:rendering_status == blocked:ring-buffer-frame-proof-missing
-  PASS  get_info
-  PASS  get_info:device_name
-  PASS  get_info:capset_id
-  PASS  get_info:venus_available
-  PASS  get_info:idempotent
-  PASS  get_info:idempotent:same_result
-  PASS  get_info:uninit returns EINVAL
-  PASS  get_info:null_dev returns EINVAL
-  PASS  get_info:null_info returns EINVAL
-  PASS  capset_name:venus non-null
-  PASS  capset_name:venus non-empty
-  PASS  ctx_ready
-  PASS  ctx:capset_id == VENUS
-  PASS  close:zeroed_state
-  PASS  close:null_safe
-venus_bootstrap_test: all checks passed
-venus_cs_test:
-  PASS  init:null_enc
-  PASS  init:null_buf
-  PASS  init:zero_cap
-  PASS  init:ok
-  PASS  init:size_zero
-  PASS  init:no_overflow
-  PASS  overflow:before
-  PASS  overflow:size4
-  PASS  overflow:flag_set
-  PASS  overflow:size_frozen
-  PASS  reset:overflow_cleared
-  PASS  reset:size_zero
-  PASS  uint32:val
-  PASS  uint32:size
-  PASS  uint64:packed
-  PASS  uint64:val
-  PASS  cstring:ab_size
-  PASS  cstring:ab_len
-  PASS  cstring:ab_chars
-  PASS  cstring:null_size
-  PASS  cstring:null_zero
-  PASS  ptr:present
-  PASS  ptr:null
-  PASS  create_inst:no_overflow
-  PASS  create_inst:nonzero_size
-  PASS  create_inst:cmd_type
-  PASS  create_inst:flags
-  PASS  create_inst:ptr_present
-  PASS  create_inst:stype
-  PASS  enum_devs:no_overflow
-  PASS  enum_devs:cmd_type
-  PASS  enum_devs:flags
-  PASS  enum_devs:nonzero_size
-  PASS  create_dev:no_overflow
-  PASS  create_dev:cmd_type
-  PASS  create_dev:flags
-  PASS  create_dev:phys_handle
-  PASS  create_dev:nonzero_size
-  PASS  get_queue:no_overflow
-  PASS  get_queue:cmd_type
-  PASS  get_queue:device
-  PASS  get_queue:qfi
-  PASS  queue_submit_empty:no_overflow
-  PASS  queue_submit_empty:cmd_type
-  PASS  queue_submit_empty:queue
-  PASS  create_ring:no_overflow
-  PASS  create_ring:nonzero_size
-  PASS  create_ring:cmd_type
-  PASS  create_ring:flags
-  PASS  create_ring:ring_id
-  PASS  create_ring:ptr_present
-  PASS  create_ring:stype
-  PASS  destroy_ring:no_overflow
-  PASS  destroy_ring:cmd_type
-  PASS  destroy_ring:ring_id
-  PASS  notify_ring:no_overflow
-  PASS  notify_ring:cmd_type
-  PASS  notify_ring:ring_id
-  PASS  notify_ring:seqno
-  PASS  probe:null_dev_nonull
-  PASS  probe:null_dev_blocked
-  PASS  capset:null_dev
-  PASS  fakedev:probe_ok
-  PASS  fakedev:capset_get_ok
-  PASS  fakedev:wire_format_ver
-  PASS  fakedev:probe_pass
-  PASS  fakedev:ctx_create_ok
-  PASS  fakedev:ctx_id_nonzero
-  PASS  fakedev:enc_no_overflow
-  PASS  fakedev:submit_ok
-  PASS  ring:probe_ok
-  PASS  ring:status_pass
-  PASS  ring:create_null_dev
-  PASS  ring:create_zero_size
-  PASS  ring:create_ok
-  PASS  ring:ready
-  PASS  ring:ctx_blob_live
-  PASS  ring:enc_ready
-  PASS  ring:submit_ok
-  PASS  ring:fence_nonzero
-  PASS  ring:counters
-  PASS  ring:payload_copied
-  PASS  ring:write_ok
-  PASS  ring:write_copied
-  PASS  ring:overflow_enospc
-  PASS  ring:metrics_get
-  PASS  ring:metrics_blob
-  PASS  ring:metrics_ctx_submit
-  PASS  ring:destroy_zeroes
-  PASS  ring_proto:probe_ok
-  PASS  ring_proto:create_ok
-  PASS  ring_proto:size_correct
-  PASS  ring_proto:register_ok
-  PASS  ring_proto:protocol_ready
-  PASS  ring_proto:buf_size
-  PASS  ring_proto:buf_mask
-  PASS  ring_proto:ring_id
-  PASS  ring_proto:cur_tail
-  PASS  ring_proto:head_zero
-  PASS  ring_proto:tail_zero
-  PASS  ring_proto:enc_ok
-  PASS  ring_proto:cmd_write_ok
-  PASS  ring_proto:cur_tail_adv
-  PASS  ring_proto:data_correct
-  PASS  ring_proto:flush_ok
-  PASS  ring_proto:tail_stored
-  PASS  ring_proto:load_head
-  PASS  ring_proto:wait_ok
-  PASS  ring_proto:wrap_write_ok
-  PASS  ring_proto:unregister_ok
-  PASS  ring_proto:protocol_cleared
-  PASS  ring_proto:ring_id_cleared
-  PASS  ring_proto:double_unregister_ok
-  PASS  ring_perf:probe_ok
-  PASS  ring_perf:create_ok
-  PASS  ring_perf:writes_ok
-venus_ring_perf: bytes=65536 writes=256 elapsed_ns=7010 throughput_mib_s=8915.83
-venus_cs_test: all checks passed
-venus_compute_test: Venus compute dispatch wire-format tests
-============================================================
-  PASS  create_buffer:no_overflow
-  PASS  create_buffer:cmd_type
-  PASS  create_buffer:cmd_flags
-  PASS  create_buffer:device
-  PASS  create_buffer:info_present
-  PASS  create_buffer:stype
-  PASS  create_buffer:size
-  PASS  create_buffer:usage
-  INFO  create_buffer: encoded 92 bytes
-  PASS  destroy_buffer:no_overflow
-  PASS  destroy_buffer:cmd_type
-  PASS  destroy_buffer:cmd_flags
-  PASS  destroy_buffer:device
-  PASS  destroy_buffer:handle
-  PASS  alloc_memory:no_overflow
-  PASS  alloc_memory:cmd_type
-  PASS  alloc_memory:cmd_flags
-  PASS  alloc_memory:device
-  PASS  alloc_memory:info_present
-  PASS  alloc_memory:stype
-  PASS  alloc_memory:pnext_null
-  PASS  alloc_memory:size
-  PASS  alloc_memory:type_idx
-  PASS  create_shader:no_overflow
-  PASS  create_shader:cmd_type
-  PASS  create_shader:cmd_flags
-  PASS  create_shader:device
-  PASS  create_shader:info_present
-  PASS  create_shader:stype
-  INFO  create_shader: encoded 100 bytes
-  PASS  create_compute:no_overflow
-  PASS  create_compute:cmd_type
-  PASS  create_compute:cmd_flags
-  PASS  create_compute:device
-  INFO  create_compute_pipelines: encoded 148 bytes
-  PASS  create_cmd_pool:no_overflow
-  PASS  create_cmd_pool:cmd_type
-  PASS  create_cmd_pool:cmd_flags
-  PASS  create_cmd_pool:device
-  PASS  create_cmd_pool:info_present
-  PASS  create_cmd_pool:queue_family
-  PASS  begin_cmd_buf:no_overflow
-  PASS  begin_cmd_buf:cmd_type
-  PASS  begin_cmd_buf:cmd_flags
-  PASS  begin_cmd_buf:cmd_buf
-  PASS  end_cmd_buf:no_overflow
-  PASS  end_cmd_buf:cmd_type
-  PASS  end_cmd_buf:cmd_buf
-  PASS  cmd_dispatch:no_overflow
-  PASS  cmd_dispatch:cmd_type
-  PASS  cmd_dispatch:cmd_flags
-  PASS  cmd_dispatch:cmd_buf
-  PASS  cmd_dispatch:x
-  PASS  cmd_dispatch:y
-  PASS  cmd_dispatch:z
-  PASS  cmd_dispatch:size
-  PASS  cmd_bind_pipeline:no_overflow
-  PASS  cmd_bind_pipeline:cmd_type
-  PASS  cmd_bind_pipeline:cmd_buf
-  PASS  cmd_bind_pipeline:bind_point
-  PASS  cmd_bind_pipeline:pipeline
-  PASS  cmd_push_constants:no_overflow
-  PASS  cmd_push_constants:cmd_type
-  PASS  cmd_push_constants:cmd_buf
-  PASS  cmd_push_constants:layout
-  PASS  cmd_push_constants:stage
-  PASS  cmd_push_constants:offset
-  PASS  cmd_push_constants:size
-  PASS  create_fence:no_overflow
-  PASS  create_fence:cmd_type
-  PASS  create_fence:cmd_flags
-  PASS  create_fence:device
-  PASS  create_fence:info_present
-  PASS  create_fence:stype
-  PASS  create_fence:flags
-  PASS  wait_fences:no_overflow
-  PASS  wait_fences:cmd_type
-  PASS  wait_fences:cmd_flags
-  PASS  wait_fences:device
-  PASS  wait_fences:count
-  PASS  wait_fences:arr_size
-  PASS  wait_fences:fence
-  PASS  wait_fences:wait_all
-  PASS  wait_fences:timeout
-  PASS  queue_submit:no_overflow
-  PASS  queue_submit:cmd_type
-  PASS  queue_submit:cmd_flags
-  PASS  queue_submit:queue
-  PASS  queue_submit:count
-  INFO  queue_submit: encoded 100 bytes
-  PASS  compute_sequence:no_overflow
-  PASS  compute_sequence:encoded_bytes
-  PASS  compute_sequence:first_cmd
-  INFO  compute_dispatch_sequence: encoded 1504 bytes covering 20 commands
-  PASS  venus-compute-dispatch:sequence
-============================================================
-venus_compute_test: all checks PASS  (Venus compute dispatch encoded correctly)
-uk-venus-compute: PASS evidence_id=venus-compute-dispatch
-virgl_encoder_test: Gallium command stream encoder
+  PASS  wait blob
+  PASS  gem close
+  PASS  closed handle map fails
+  PASS  render node path
+  PASS  open fdio file0
+  PASS  open fdio file1
+  PASS  fdio getparam
+  PASS  fdio create blob
+  PASS  fdio map ioctl
+  PASS  fdio map page aligned
+  PASS  fdio mmap same file
+  PASS  fdio mmap cross file fails
+  PASS  fdio gem close
+  PASS  fdio closed handle map fails
+virtgpu_drm_compat_test: PASS checks=26
+  PASS  init rejects null encoder
+  PASS  init rejects null buffer
+  PASS  init rejects zero capacity
+  PASS  init works
+  PASS  size starts at zero
+  PASS  uint32 encoded
+  PASS  uint64 packed
+  PASS  packed size
+  PASS  cstring size
+  PASS  cstring count
+  PASS  cstring bytes
+  PASS  create instance cmd
+  PASS  create instance flags
+  PASS  create instance pointer flag
+  PASS  enumerate cmd
+  PASS  enumerate non-empty
+  PASS  create buffer cmd
+  PASS  create buffer device
+  PASS  create buffer usage
+  PASS  allocate memory cmd
+  PASS  allocate memory size
+  PASS  composite encode has bytes
+  PASS  composite encode no overflow
+  PASS  tiny init
+  PASS  overflow flagged
+venus_encoder_core_test: PASS checks=25
+  PASS  probe fake device
+  PASS  ring status pass
+  PASS  ring create rejects null dev
+  PASS  ring create rejects zero size
+  PASS  ring create works
+  PASS  ring ready
+  PASS  ring register
+  PASS  protocol ready
+  PASS  buffer size
+  PASS  buffer mask
+  PASS  head zero
+  PASS  tail zero
+  PASS  encoder init
+  PASS  encoder produced bytes
+  PASS  encoder no overflow
+  PASS  ring write
+  PASS  tail advanced
+  PASS  buffer payload copied
+  PASS  ring flush
+  PASS  shared tail stored
+  PASS  ring wait
+  PASS  ring unregister
+  PASS  protocol cleared
+venus_ring_core_test: PASS checks=23
+virgl_encoder_core_test: Gallium command stream encoder
   PASS  init:pos_zero
   PASS  init:no_overflow
   PASS  init:len_zero
@@ -388,216 +168,27 @@ virgl_encoder_test: Gallium command stream encoder
   PASS  submit:fence_nonzero
   PASS  submit:submits_3d_incremented
   PASS  submit:teardown_ok
-virgl_encoder_test: all checks passed
-venus_generated_compile_test: PASS
-  PASS  vkCmdDispatch (28 bytes)
-  PASS  vkCreateBuffer (92 bytes)
-  PASS  vkDestroyBuffer (32 bytes)
-  PASS  vkAllocateMemory (72 bytes)
-  PASS  vkFreeMemory (32 bytes)
-  PASS  vkBindBufferMemory (40 bytes)
-  PASS  vkCmdCopyBuffer (68 bytes)
-  PASS  vkCmdFillBuffer (44 bytes)
-  PASS  vkCmdBindPipeline (28 bytes)
-  PASS  vkCmdPushConstants (60 bytes)
-  PASS  vkCreateShaderModule (100 bytes)
-  PASS  vkCreateFence (64 bytes)
-  PASS  vkResetFences (36 bytes)
-  PASS  vkQueueWaitIdle (16 bytes)
-venus_parity_test: PASS (all parity checks identical)
-venus_hotpath_bench: steps=64 cmds_per_buf=8
-  A per-call SUBMIT_3D : submits_3d=640  (10.00 /step)
-  B batched SUBMIT_3D  : submits_3d=128  (2.00 /step)
-  C ring stream        : submits_3d=65  (1.02 /step)
-venus_hotpath_bench: PASS
-ggml_vk_dispatch_test: N3 static Vulkan ICD dispatch layer
-================================================================
-
-[A] Proc lookup — vkGetInstanceProcAddr / vkGetDeviceProcAddr
+virgl_encoder_core_test: all checks passed
   PASS  proc:vkCreateInstance
-  PASS  proc:vkDestroyInstance
   PASS  proc:vkEnumeratePhysicalDevices
-  PASS  proc:vkGetPhysicalDeviceProperties
-  PASS  proc:vkGetPhysicalDeviceProperties2
-  PASS  proc:vkGetPhysicalDeviceFeatures
-  PASS  proc:vkGetPhysicalDeviceFeatures2
-  PASS  proc:vkGetPhysicalDeviceMemoryProperties
-  PASS  proc:vkGetPhysicalDeviceMemoryProperties2
-  PASS  proc:vkGetPhysicalDeviceQueueFamilyProperties
-  PASS  proc:vkEnumerateDeviceExtensionProperties
-  PASS  proc:vkEnumerateInstanceLayerProperties
-  PASS  proc:vkEnumerateInstanceExtensionProperties
   PASS  proc:vkCreateDevice
-  PASS  proc:vkDestroyDevice
   PASS  proc:vkGetDeviceQueue
-  PASS  proc:vkAllocateMemory
-  PASS  proc:vkFreeMemory
-  PASS  proc:vkMapMemory
-  PASS  proc:vkUnmapMemory
   PASS  proc:vkCreateBuffer
-  PASS  proc:vkDestroyBuffer
-  PASS  proc:vkGetBufferMemoryRequirements
-  PASS  proc:vkGetBufferMemoryRequirements2
-  PASS  proc:vkBindBufferMemory
-  PASS  proc:vkGetBufferDeviceAddress
   PASS  proc:vkCreateShaderModule
-  PASS  proc:vkDestroyShaderModule
-  PASS  proc:vkCreateDescriptorSetLayout
-  PASS  proc:vkCreateDescriptorPool
-  PASS  proc:vkAllocateDescriptorSets
-  PASS  proc:vkUpdateDescriptorSets
-  PASS  proc:vkCreatePipelineLayout
-  PASS  proc:vkDestroyPipelineLayout
   PASS  proc:vkCreateComputePipelines
-  PASS  proc:vkDestroyPipeline
-  PASS  proc:vkCreateCommandPool
-  PASS  proc:vkAllocateCommandBuffers
-  PASS  proc:vkFreeCommandBuffers
-  PASS  proc:vkBeginCommandBuffer
-  PASS  proc:vkEndCommandBuffer
-  PASS  proc:vkResetCommandBuffer
-  PASS  proc:vkResetCommandPool
-  PASS  proc:vkGetMemoryHostPointerPropertiesEXT
-  PASS  proc:vkCmdBindPipeline
-  PASS  proc:vkCmdBindDescriptorSets
-  PASS  proc:vkCmdPushConstants
   PASS  proc:vkCmdDispatch
-  PASS  proc:vkCmdCopyBuffer
-  PASS  proc:vkCmdFillBuffer
-  PASS  proc:vkCmdPipelineBarrier
   PASS  proc:vkQueueSubmit
-  PASS  proc:vkQueueWaitIdle
-  PASS  proc:vkDeviceWaitIdle
-  PASS  proc:vkCreateFence
-  PASS  proc:vkDestroyFence
-  PASS  proc:vkResetFences
   PASS  proc:vkWaitForFences
-  PASS  proc:vkGetFenceStatus
-  PASS  proc:vkCreateSemaphore
-  PASS  proc:vkCreateQueryPool
-  PASS  proc:vkGetQueryPoolResults
-  PASS  proc:vkCmdResetQueryPool
-  PASS  proc:vkCmdWriteTimestamp
-  PASS  proc:vkCmdBeginQuery
-  PASS  proc:vkCmdEndQuery
-  PASS  proc:vkGetPhysicalDeviceProperties2KHR
-  PASS  proc:vkGetPhysicalDeviceFeatures2KHR
-  PASS  proc:vkGetPhysicalDeviceMemoryProperties2KHR
-  PASS  proc:vkGetBufferMemoryRequirements2KHR
-  PASS  proc:vkGetBufferDeviceAddressKHR
-  PASS  proc:unknown_fn returns NULL
-  PASS  proc:empty_name returns NULL
-  PASS  proc:null_name returns NULL
-  PASS  devproc:vkCmdDispatch
-  PASS  devproc:vkQueueSubmit
-  PASS  devproc:unknown returns NULL
-  PASS  get_proc_addr_fn:non_null
-  PASS  get_proc_addr_fn:finds_vkCreateInstance
-
-[B] Dispatch init — uk_vulkan_init()
-  PASS  init:returns_zero
-  PASS  init:idempotent
-  PASS  info:initialized_set
-  PASS  info:driver_name_venus
-  PASS  info:claim_boundary_set
-  PASS  info:supported_command_count_nonzero
-  PASS  info:batch_enabled_default_off
-  PASS  info:hostmem_fixed_default_off
-  PASS  info:null_safe
-
-[C] Call stubs — VK_SUCCESS from each registered function
-  PASS  stub:CreateInstance returns VK_SUCCESS
-  PASS  stub:CreateInstance sets instance handle
-  PASS  stub:EnumPhysDevs count==1
-  PASS  stub:EnumPhysDevs returns VK_SUCCESS
-  PASS  stub:EnumPhysDevs sets pdev handle
-  PASS  stub:GetPhysDevProps vendorID==NVIDIA(0x10de)
-  PASS  stub:GetPhysDevFeatures robustBufferAccess==VK_TRUE
-  PASS  stub:GetPhysDevMemProps memTypeCount==3
-  PASS  stub:CreateDevice returns VK_SUCCESS
-  PASS  stub:CreateDevice sets device handle
-  PASS  stub:GetDeviceQueue sets queue handle
-VOGUE-DBG allocMem type=1 size=0MB hostvis=1
-  PASS  stub:AllocateMemory returns VK_SUCCESS
-  PASS  stub:AllocateMemory sets memory handle
-  PASS  stub:CreateBuffer(in) returns VK_SUCCESS
-  PASS  stub:CreateBuffer(in) sets handle
-  PASS  stub:CreateBuffer(out) returns VK_SUCCESS
-  PASS  stub:CreateBuffer handles are distinct
-  PASS  stub:GetBufMemReq alignment==256
-  PASS  stub:GetBufMemReq memoryTypeBits==0x7
-  PASS  stub:BindBufferMemory(in) returns VK_SUCCESS
-  PASS  stub:BindBufferMemory(out) returns VK_SUCCESS
-  PASS  stub:MapMemory returns VK_SUCCESS
-  PASS  stub:MapMemory returns non-NULL pointer
-VOGUE-DBG createShaderModule h=0x2000000000103 codeSize=20 encpos=100 ovf=0 bufsz=2097152
-  PASS  stub:CreateShaderModule returns VK_SUCCESS
-  PASS  stub:CreateShaderModule sets handle
-  PASS  stub:CreateDescriptorSetLayout returns VK_SUCCESS
-  PASS  stub:CreateDescriptorSetLayout sets handle
-  PASS  stub:CreateDescriptorPool returns VK_SUCCESS
-  PASS  stub:CreateDescriptorPool sets handle
-  PASS  stub:AllocateDescriptorSets returns VK_SUCCESS
-  PASS  stub:AllocateDescriptorSets sets handle
-  PASS  stub:UpdateDescriptorSets storage buffer called
-  PASS  stub:CreatePipelineLayout returns VK_SUCCESS
-  PASS  stub:CreatePipelineLayout sets handle
-VOGUE-DBG createComputePipeline h=0x2000000000108 module=0x2000000000103 layout=0x2000000000107
-  PASS  stub:CreateComputePipelines returns VK_SUCCESS
-  PASS  stub:CreateComputePipelines sets handle
-  PASS  stub:CreateCommandPool returns VK_SUCCESS
-  PASS  stub:CreateCommandPool sets handle
-  PASS  stub:AllocateCommandBuffers returns VK_SUCCESS
-  PASS  stub:AllocateCommandBuffers sets handle
-  PASS  stub:BeginCommandBuffer returns VK_SUCCESS
-  PASS  stub:CmdBindPipeline called without crash
-  PASS  stub:CmdBindDescriptorSets called without crash
-  PASS  stub:CmdPushConstants called without crash
-  PASS  stub:CmdCopyBuffer called without crash
-  PASS  stub:CmdFillBuffer called without crash
-  PASS  stub:CmdPipelineBarrier called without crash
-  PASS  stub:CmdDispatch called without crash
-  PASS  stub:EndCommandBuffer returns VK_SUCCESS
-  PASS  stub:CreateFence returns VK_SUCCESS
-  PASS  stub:CreateFence sets handle
-  PASS  stub:QueueSubmit returns VK_SUCCESS
-  PASS  stub:WaitForFences returns VK_SUCCESS
-  PASS  stub:ResetFences returns VK_SUCCESS
-VOGUE-DBG destroyShaderModule h=0x2000000000103
-  PASS  stub:cleanup destroy/free path called
-
-[D] Full compute bootstrap sequence
-  PASS  seq:01:CreateInstance
-  PASS  seq:02:EnumeratePhysicalDevices
-  PASS  seq:03:CreateDevice
-  PASS  seq:04:GetDeviceQueue
-VOGUE-DBG allocMem type=0 size=0MB hostvis=0
-  PASS  seq:05:AllocateMemory
-  PASS  seq:06:CreateBuffer(in)
-  PASS  seq:07:CreateBuffer(out)
-  PASS  seq:08:BindBufferMemory(in)
-  PASS  seq:09:BindBufferMemory(out)
-VOGUE-DBG createShaderModule h=0x200000000010f codeSize=20 encpos=100 ovf=0 bufsz=2097152
-  PASS  seq:10:CreateShaderModule
-  PASS  seq:11:CreateDescriptorSetLayout
-  PASS  seq:12:CreateDescriptorPool
-  PASS  seq:13:AllocateDescriptorSets
-  PASS  seq:14:CreatePipelineLayout
-VOGUE-DBG createComputePipeline h=0x2000000000114 module=0x200000000010f layout=0x2000000000113
-  PASS  seq:15:CreateComputePipelines
-  PASS  seq:16:CreateCommandPool
-  PASS  seq:17:AllocateCommandBuffers
-  PASS  seq:18:BeginCommandBuffer
-  PASS  seq:19:CmdBind+Dispatch called
-  PASS  seq:20:EndCommandBuffer
-  PASS  seq:21:CreateFence
-  PASS  seq:21:QueueSubmit
-  PASS  seq:22:WaitForFences
-  PASS  seq:23:ResetFences
-  INFO  sequence: all 23 steps completed without device loss
-
-================================================================
-Results: 167 passed, 0 failed
-ggml_vk_dispatch_test: all checks PASS
-uk-llama-vk-n3: PASS evidence_id=llama-vk-n3-dispatch gpu=1 venus=1 substrate=static-vk-dispatch
-make[1]: Leaving directory '/mydata/JerryT/virtio-gpu/tests'
+  PASS  proc unknown returns null
+  PASS  device proc known
+  PASS  device proc unknown null
+  PASS  init returns zero
+  PASS  init idempotent
+  PASS  proc addr function non-null
+  PASS  info initialized
+  PASS  driver venus
+  PASS  claim boundary present
+  PASS  supported commands non-zero
+  PASS  batch disabled by default
+  PASS  hostmem fixed disabled by default
+vulkan_dispatch_core_test: PASS checks=22

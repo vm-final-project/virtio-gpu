@@ -22,3 +22,7 @@ LIBUKVULKAN_VENUS_CINCLUDES-y += -I$(LIBUKVULKAN_VENUS_BASE)/generated
 LIBUKVULKAN_VENUS_CINCLUDES-y += -I$(VULKAN_HEADERS_INCLUDE)
 # Generated encoders are upstream-shaped; silence their stylistic warnings.
 LIBUKVULKAN_VENUS_CFLAGS-y += -Wno-unused-parameter -Wno-missing-field-initializers
+
+ifneq ($(filter y,$(CONFIG_LIBUKVULKAN_VENUS_TEST_ENCODER) $(CONFIG_LIBUKTEST_ALL)),)
+LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/tests/test_encoder.c
+endif

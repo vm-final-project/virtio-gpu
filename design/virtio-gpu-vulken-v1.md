@@ -18,7 +18,7 @@ VOGUE VirtIO-GPU Venus/Vulkan v1 — Gate implementation reference.
 
 ## performance evaluation
 
-Reference: `results/vogue_evaluation_matrix.md`
+Reference: `results/vogue_evaluation_matrix.json`
 
 Key metrics:
 - submit latency p50/p95/p99 measured via Venus probe scripts

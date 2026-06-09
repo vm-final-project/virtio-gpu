@@ -39,3 +39,17 @@ config LIBUKVULKAN_VENUS_USE_DRM_COMPAT
 	  the Linux/Mesa DRM virtgpu UAPI. Default n: nothing in the Venus path
 	  requires the DRM shim (the former libukvk_icd bootstrap that used it has
 	  been retired).
+
+config LIBUKVULKAN_VENUS_TEST
+	bool "Enable unit tests"
+	depends on LIBUKVULKAN_VENUS
+	default n
+	select LIBUKTEST
+
+config LIBUKVULKAN_VENUS_TEST_ENCODER
+	bool "Encoder helper tests"
+	depends on LIBUKVULKAN_VENUS_TEST
+	default y
+	help
+	  Small uktest suite for the generated-protocol bridge helpers and
+	  encoder overflow handling.

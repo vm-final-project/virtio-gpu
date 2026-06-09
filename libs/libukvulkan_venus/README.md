@@ -14,8 +14,8 @@ surface lives in `<uk/vulkan_venus.h>`; the low-level driver primitives remain i
 `<uk/venus.h>`.
 
 Source lineage: the Venus wire format is owned upstream by Mesa's
-`venus-protocol` generator (pinned in `scripts/venus/pin.json`). VOGUE generates
-the driver-side protocol headers into `generated/` via `make gen-libukvenus`. The
+`venus-protocol` generator (pinned in `scripts/venus/pin.json`). VOGUE keeps the
+generated driver-side protocol headers under `generated/`. The
 in-image `uk_venus_encode_*` entry points in `venus_cs.c`/`venus_compute.c` are
 generated-protocol bridges: each builds the real `Vk*` struct from its scalar
 arguments and calls the generated `vn_encode_vk*`, so the emitted wire format
@@ -88,10 +88,10 @@ claim-boundary test.
 ## Verification
 
 ```sh
-make -C tests venus-cs
-make llama-vulkan-api-coverage
-make llama-ggml-vk-dispatch
-make lib-readme-check
+make -C tests venus-encoder-core
+make -C tests venus-ring-core
+make test-dispatch
+make vulkan-check
 make verify
 ```
 

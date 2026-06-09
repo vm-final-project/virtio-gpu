@@ -110,10 +110,8 @@ offset through the same open file's mmap registry.
 ## Verification
 
 ```console
-make native-vulkan-no-drm-check
-make -C tests g5
-make -C tests virtgpu-drm-fdio
-make vk-drm-shim-check
+make -C tests virtgpu-drm-compat
+make test-compat
 make verify
 ```
 

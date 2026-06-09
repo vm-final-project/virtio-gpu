@@ -1,23 +1,35 @@
 {
-  "schema": "llama/server-vk-throughput.v1",
-  "generated_utc": "2026-06-04T00:27:56.128919Z",
-  "status": "pass",
-  "source": "scripts/llm_server_vk_throughput_check.py",
-  "transport": "virtio-gpu-gl venus=true; libukggml_vk -> libukvenus SUBMIT_3D -> host virglrenderer Venus",
-  "venus_device": "Tesla V100-SXM2-16GB",
-  "requests": 8,
-  "concurrency": 1,
-  "n_predict": 128,
-  "ok": 8,
-  "failed": 0,
-  "wall_s": 50.192,
-  "requests_per_s": 0.159,
-  "tokens_per_s": 20.4,
-  "decode_tps_mean": 25.53,
-  "decode_tps_max": 26.88,
-  "prompt_tps_mean": 146.14,
-  "mean_latency_s": 6.274,
-  "ttft_s": 4.9758,
-  "claim_allowed": "Measured same-run HTTP throughput for the Vulkan llama.cpp server over real Venus on the recorded model.",
-  "claim_forbidden": "Cross-host / cross-model comparison or peak-capacity claim beyond this bounded same-run burst."
+  "metadata": {
+    "generated_utc": "2026-06-09T05:09:27.059349Z",
+    "source": "scripts/llm_server_vk_throughput_check.py",
+    "version": 1
+  },
+  "status": "blocked:unikraft-image-missing",
+  "summary": {
+    "headline": "Measured throughput for the Vulkan llama.cpp HTTP server",
+    "counts": {
+      "requests": 8
+    }
+  },
+  "artifacts": {
+    "server_runtime_json": "results/llama/upstream_server_vk.json"
+  },
+  "checks": [
+    {
+      "id": "server_runtime",
+      "status": "blocked:unikraft-image-missing"
+    },
+    {
+      "id": "http_throughput",
+      "status": "blocked:unikraft-image-missing"
+    }
+  ],
+  "rows": [],
+  "block": {
+    "reason": "blocked:unikraft-image-missing",
+    "stage": "runtime",
+    "claim_allowed": "Throughput blocker recorded; no requests/s or tokens/s claim.",
+    "claim_forbidden": "Passing HTTP throughput claim while the server runtime is not in a serving state.",
+    "next_step": "Fix the Vulkan server runtime blocker in results/llama/upstream_server_vk.json, then rerun llm_server_vk_throughput_check.py."
+  }
 }

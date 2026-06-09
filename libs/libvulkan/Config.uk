@@ -26,6 +26,18 @@ menuconfig LIBVULKAN
 
 if LIBVULKAN
 
+config LIBVULKAN_TEST
+	bool "Enable unit tests"
+	default n
+	select LIBUKTEST
+
+config LIBVULKAN_TEST_DISPATCH
+	bool "Dispatch surface tests"
+	default y
+	depends on LIBVULKAN_TEST
+	help
+	  Small uktest suite for static proc lookup and exported diagnostic info.
+
 config LIBVULKAN_ENABLE_DRM_FD_COMPAT
 	bool "Enable Linux DRM fd compatibility provider"
 	default n

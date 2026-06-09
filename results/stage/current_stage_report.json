@@ -1,48 +1,36 @@
 {
-  "status": "pass",
-  "written_at": "2026-06-04T15:36:19Z",
-  "summary": {
-    "libraries": 4,
-    "eval_rows": 26,
-    "benchmark_rows": 8,
-    "qemu_status": "pass",
-    "real_path_status": "pass",
-    "stk_accelerated_runtime": null
+  "metadata": {
+    "generated_utc": "2026-06-09T05:09:26.721280Z",
+    "source": "scripts/current_stage_report.py",
+    "version": 1
   },
+  "status": "pass",
+  "summary": {
+    "headline": "Current-stage completeness report",
+    "counts": {
+      "libraries": 4,
+      "eval_rows": 26,
+      "canonical_scripts": 16
+    },
+    "qemu_status": "pass",
+    "vulkan_status": "blocked:vulkan-test-failed",
+    "server_status": "blocked:health=None"
+  },
+  "artifacts": {},
+  "checks": [],
   "rows": [
     {
       "id": "make_targets",
       "status": "pass",
-      "evidence": "present=['benchmark-check', 'claim-check', 'eval-check', 'governance-check', 'lib-readme-check', 'native-tests', 'stage-check', 'test-fast', 'test-gpu', 'test-native', 'test-qemu', 'venus-check', 'verify', 'vulkan-check', 'vulkan-tests'] missing=[]",
+      "evidence": "present=['current-stage-check', 'eval-check', 'llm-server-vk-check', 'llm-server-vk-throughput-check', 'native-tests', 'proto-abi', 'test-compat', 'test-core', 'test-dispatch', 'test-fast', 'test-gpu', 'test-native', 'test-qemu', 'test-venus', 'venus-check', 'verify', 'vulkan-check', 'vulkan-tests'] missing=[]",
       "required": "Makefile exposes all top-level test/evaluation/benchmark gates",
       "blocker": ""
     },
     {
       "id": "script_surface",
       "status": "pass",
-      "evidence": "present=['app_perf_eval.py', 'benchmark_summary.py', 'eval_matrix.py', 'governance_check.py', 'lib_readme_check.py', 'llama_env_matrix.py', 'llama_vulkan_api_coverage.py', 'llama_vulkan_eval.py', 'real_driver_static_check.py', 'real_virtio_gpu_path_check.py', 'stage_audit.py', 'unikraft_alignment_check.py', 'venus_perf_eval.py', 'venus_qemu_probe.py', 'vulkan_perf_eval.py'] missing=[]",
+      "evidence": "present=['artifact_utils.py', 'current_stage_report.py', 'eval_matrix.py', 'linux_guest_vulkan_baseline.py', 'llama_cpu_real_run.py', 'llama_server_cpu_capture.py', 'llama_server_vk_capture.py', 'llama_vk_build_capture.py', 'llama_vk_real_run.py', 'llama_vulkan_eval.py', 'llama_vulkan_linux_baseline.py', 'llm_server_vk_check.py', 'llm_server_vk_throughput_check.py', 'venus_perf_eval.py', 'venus_qemu_probe.py', 'vulkan_perf_eval.py'] missing=[]",
       "required": "All expected evaluation and guardrail scripts exist",
-      "blocker": ""
-    },
-    {
-      "id": "unikraft_alignment",
-      "status": "pass",
-      "evidence": "results/stage/unikraft_alignment.json",
-      "required": "Unikraft design-rule alignment gate passes",
-      "blocker": ""
-    },
-    {
-      "id": "stage_audit",
-      "status": "pass",
-      "evidence": "results/stage/stage_audit.json",
-      "required": "Current-stage audit passes",
-      "blocker": ""
-    },
-    {
-      "id": "benchmark_summary",
-      "status": "pass",
-      "evidence": "rows=8 results/benchmarks/benchmark_summary.json",
-      "required": "Benchmark summary exists with native app and Venus readiness rows",
       "blocker": ""
     },
     {
@@ -74,17 +62,10 @@
       "blocker": ""
     },
     {
-      "id": "real_path_selected",
+      "id": "generator_json_only",
       "status": "pass",
-      "evidence": "results/venus/real_path_check.json",
-      "required": "Production Kraft/config/build artifacts use the real VirtIO-GPU backend",
-      "blocker": ""
-    },
-    {
-      "id": "stk_out_of_scope",
-      "status": "pass",
-      "evidence": "design/unikraft-virtio-gpu-spec-v1.md",
-      "required": "STK porting is documented as out of scope (plan.md \u00a70.5)",
+      "evidence": "results/venus/venus_perf.json; results/vulkan/vulkan_perf.json; results/llama/server_vk_check.json",
+      "required": "Canonical generators emit the shared JSON artifact shape",
       "blocker": ""
     },
     {
@@ -98,16 +79,10 @@
       "id": "readme_current_stage",
       "status": "pass",
       "evidence": "README.md",
-      "required": "README exposes current-stage/evaluation commands and fix plan",
-      "blocker": ""
-    },
-    {
-      "id": "governance_metadata",
-      "status": "pass",
-      "evidence": "docs/GOVERNANCE.md; config/governance.json; ../manifest/manifests/vogue-main.yaml",
-      "required": "Research-artifact governance metadata and manifest/VM ownership split are documented",
+      "required": "README exposes canonical commands and JSON-only evaluation artifacts",
       "blocker": ""
     }
   ],
-  "claim_boundary": "Current supported rows pass on the evaluation host, including K1/xport.qemu-vgpu and llama.cpp Vulkan runtime rows. The same rows must not be promoted on other hosts without same-run pass artifacts. Governance metadata links release claims to ../manifest specs and marks unlinked claims non-release; STK porting is out of scope (plan.md \u00a70.5)."
+  "generated_utc": "2026-06-09T05:09:26.721088Z",
+  "claim_boundary": "Current supported rows pass on the evaluation host only when backed by same-run JSON artifacts. Blocked rows remain explicit partial-progress states and are never promoted to passing evidence."
 }

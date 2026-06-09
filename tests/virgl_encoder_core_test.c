@@ -211,7 +211,7 @@ static void test_submit_to_fake_backend(void)
 
 int main(void)
 {
-	printf("virgl_encoder_test: Gallium command stream encoder\n");
+	printf("virgl_encoder_core_test: Gallium command stream encoder\n");
 	test_init();
 	test_null_args();
 	test_create_surface();
@@ -222,8 +222,8 @@ int main(void)
 	test_submit_to_fake_backend();
 
 	if (failures == 0)
-		printf("virgl_encoder_test: all checks passed\n");
+		printf("virgl_encoder_core_test: all checks passed\n");
 	else
-		printf("virgl_encoder_test: FAILED %d check(s)\n", failures);
+		printf("virgl_encoder_core_test: FAILED %d check(s)\n", failures);
 	return failures;
 }

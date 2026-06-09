@@ -16,13 +16,13 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import pathlib
 import re
 import shutil
 import subprocess
-import time
+
+from artifact_utils import blocked_artifact, make_artifact, write_json
 
 ROOT    = pathlib.Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results" / "vulkan"
@@ -53,14 +53,6 @@ NVIDIA_BASELINES = {
     "terrain":  2400, "shadow":   3800, "refract":  3100,
     "compute":  6200,
 }
-
-
-def load_json(path: pathlib.Path) -> dict:
-    try:
-        return json.loads(path.read_text())
-    except Exception:
-        return {}
-
 
 def run_vulkaninfo() -> dict:
     """Run vulkaninfo and parse device list."""
@@ -159,19 +151,11 @@ def run_vulkan_compute_test(reps: int) -> dict:
 def run_venus_ring_test() -> dict:
     """Run libukvulkan_venus native ring/blob substrate test and parse microbench output."""
     build = subprocess.run(
-        ["make", "-C", str(ROOT / "tests"), "venus-cs"],
+        ["make", "-C", str(ROOT / "tests"), "venus-ring-core"],
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=30)
     out = build.stdout or ""
-    perf = {"status": "pass" if build.returncode == 0 and "venus_cs_test: all checks passed" in out else "blocked:test-failed",
+    perf = {"status": "pass" if build.returncode == 0 and "venus_ring_core_test: PASS" in out else "blocked:test-failed",
             "output_tail": out[-2000:]}
-    m = re.search(r"venus_ring_perf: bytes=(\d+) writes=(\d+) elapsed_ns=(\d+) throughput_mib_s=([0-9.]+)", out)
-    if m:
-        perf.update({
-            "bytes": int(m.group(1)),
-            "writes": int(m.group(2)),
-            "elapsed_ns": int(m.group(3)),
-            "throughput_mib_s": float(m.group(4)),
-        })
     return perf
 
 def vkmark_substrate_check() -> dict:
@@ -226,12 +210,7 @@ def vkmark_substrate_check() -> dict:
 
 
 def write_artifacts(data: dict) -> None:
-    RESULTS.mkdir(parents=True, exist_ok=True)
-
-    data["written_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    (RESULTS / "vulkan_perf.json").write_text(json.dumps(data, indent=2) + "\n")
-    (RESULTS / "vulkan_perf.md").write_text(
-        f"# Vulkan/Venus Performance Evaluation\n\n```json\n{json.dumps(data, indent=2)}\n```\n")
+    write_json(RESULTS / "vulkan_perf.json", data)
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -247,28 +226,66 @@ def main() -> int:
     overall = ((vk_test.get("status") == "pass" and ring.get("status") == "pass") or args.allow_blocked)
 
     g5_g6_pass = vkm.get("g5_pass") and vkm.get("g6_pass")
-    data = {
-        "status": "pass" if vk_test.get("status") == "pass" else "blocked:vulkan-test-failed",
-        "acceleration": "blocked:no-render-payload" if (g5_g6_pass and ring.get("status") == "pass") else ("blocked:ring-substrate-missing" if g5_g6_pass else "blocked:g5-g6-missing"),
+    status = "pass" if vk_test.get("status") == "pass" else "blocked:vulkan-test-failed"
+    acceleration = (
+        "blocked:no-render-payload"
+        if (g5_g6_pass and ring.get("status") == "pass")
+        else ("blocked:ring-substrate-missing" if g5_g6_pass else "blocked:g5-g6-missing")
+    )
+    checks = [
+        {"id": "vulkaninfo", "status": vkinfo.get("status", "missing")},
+        {"id": "vulkan_compute", "status": vk_test.get("status", "missing")},
+        {"id": "venus_ring_core", "status": ring.get("status", "missing")},
+        {"id": "vkmark_substrate", "status": vkm.get("status", "missing")},
+    ]
+    extra = {
+        "acceleration": acceleration,
         "g5_g6_substrate": "pass" if g5_g6_pass else "blocked",
         "venus_ring_substrate": ring,
         "vulkaninfo": vkinfo,
         "vulkan_compute": vk_test,
         "vkmark_substrate": vkm,
-        "claim_allowed": (
-            "Host-side Vulkan API surface proof and baseline measurements. "
-            "Native libvulkan dispatch, libukvulkan_venus driver, and host-visible ring substrate implemented and tested. "
-            "Venus/vkmark rendering still requires non-empty render payloads."
-        ),
-        "claim_forbidden": (
-            "Vulkan rendering fps inside Unikraft, GPU acceleration, "
-            "or vkmark scene scores without non-empty accelerated render-payload evidence."
-        ),
     }
+    if status.startswith("blocked:"):
+        data = blocked_artifact(
+            source="scripts/vulkan_perf_eval.py",
+            status=status,
+            headline="Host Vulkan baseline and Venus substrate gate",
+            stage="host-env" if "missing" in vk_test.get("status", "") else "validation",
+            first_missing_dependency=vk_test.get("first_missing_dependency"),
+            claim_allowed="Host Vulkan blocker recorded; no Unikraft Vulkan runtime or acceleration claim.",
+            claim_forbidden="Passing Vulkan runtime or vkmark rendering claim without a passing host Vulkan baseline.",
+            next_step="Install or expose the required host Vulkan loader/header/toolchain surface and rerun vulkan_perf_eval.py.",
+            counts={"repetitions": args.repetitions, "physical_devices": vk_test.get("physical_devices", 0)},
+            artifacts={"result_json": "results/vulkan/vulkan_perf.json"},
+            checks=checks,
+            extra=extra,
+        )
+    else:
+        data = make_artifact(
+            source="scripts/vulkan_perf_eval.py",
+            status="pass",
+            headline="Host Vulkan baseline and Venus substrate gate",
+            counts={"repetitions": args.repetitions, "physical_devices": vk_test.get("physical_devices", 0)},
+            artifacts={"result_json": "results/vulkan/vulkan_perf.json"},
+            checks=checks,
+            extra={
+                **extra,
+                "claim_allowed": (
+                    "Host-side Vulkan API surface proof and baseline measurements. "
+                    "Native libvulkan dispatch, libukvulkan_venus driver, and host-visible ring substrate implemented and tested. "
+                    "Venus/vkmark rendering still requires non-empty render payloads."
+                ),
+                "claim_forbidden": (
+                    "Vulkan rendering fps inside Unikraft, GPU acceleration, "
+                    "or vkmark scene scores without non-empty accelerated render-payload evidence."
+                ),
+            },
+        )
 
     write_artifacts(data)
     print(f"vulkan_perf_eval: {data['status']} "
-          f"acceleration={data['acceleration']} "
+          f"acceleration={acceleration} "
           f"ring={ring.get('status')} "
           f"devices={vkinfo.get('raw_count', 0)} "
           f"fence_avg_us={vk_test.get('fence_avg_us', '?')}")

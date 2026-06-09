@@ -109,7 +109,7 @@ def main() -> int:
             out = _dec(e.stdout) + _dec(e.stderr)
 
     (RESULTS / "upstream_cpu.log").write_text(out)
-    (RESULTS / "upstream_cpu_serial.log").write_text(out)  # model_load_time_check reads *_serial.log
+    (RESULTS / "upstream_cpu_serial.log").write_text(out)
     m = re.search(r"uk-llama-upstream: pp512=([0-9.]+) tg128=([0-9.]+)", out)
     passed = "uk-llama-upstream: PASS evidence_id=llama-upstream-cpu" in out
     if not (m and passed):

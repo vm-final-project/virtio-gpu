@@ -1,2 +1,0 @@
-row_id,app,mode,frames,width,height,bytes_per_frame,total_ms,avg_frame_ms,fps,memcpy_mib_s,transfers,flushes,fences,first_crc,last_crc,status,claim_allowed,claim_forbidden
-gfx.kmscube.submit,kmscube,virgl submit plus VirtIO GPU fake backend,60,640,480,1228800,106.909,1.782,561.23,657.69,60,60,120,0x076b9dc5,0x076b9dc5,pass,Native software/substrate performance for the named supported application path.,"Real QEMU performance, virgl/GPU acceleration, or full application-suite coverage."

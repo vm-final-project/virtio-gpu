@@ -17,9 +17,10 @@ group so you never need to `cd tests/`:
 
 ```sh
 make native-tests       # full deterministic suite (primary CI gate)
-make test-core          # group 1: VirtIO-GPU core / DMA / DRM+GBM shims
-make test-venus         # group 2: virtgpu ioctl / VK ICD / Venus / virgl
-make test-dispatch      # group 3: ggml-vulkan static dispatch
+make test-core          # group 1: VirtIO-GPU core helper + fake-backend path
+make test-compat        # group 2: virtgpu DRM compatibility facade
+make test-venus         # group 3: Venus protocol helpers
+make test-dispatch      # group 4: libvulkan static dispatch
 make proto-abi          # VirtIO-GPU wire-ABI struct/feature check
 make vulkan-tests       # optional host Vulkan compute baseline (VK_LIB + VK_INC)
 ```
@@ -35,9 +36,10 @@ The same targets exist on this component `Makefile` if you are working inside
 
 | Group | Target | Binaries | Evidence rows |
 |---|---|---|---|
-| Core | `test-core` | `dma_buf_test`, `virtio_gpu_full_api_test`, `virtio_gpu_2d_render_test` | `proto.real-driver`, `xport.qemu-vgpu` |
-| 3D / Venus | `test-venus` | `virtgpu_drm_ioctl_test`, `virtgpu_drm_fdio_test`, `venus_bootstrap_test`, `venus_cs_test`, `venus_compute_test`, `virgl_encoder_test` | `vk.drm-core`, `vk.drm-fdio`, `proto.venus-enc`, `proto.venus-ring`, `vk.readiness` |
-| ggml-vulkan dispatch | `test-dispatch` | `ggml_vk_dispatch_test` | `vk.ggml-dispatch` |
+| Core | `test-core` | `virtio_gpu_core_test`, `virgl_encoder_core_test` | `proto.real-driver`, `xport.qemu-vgpu` |
+| Compat | `test-compat` | `virtgpu_drm_compat_test` | `vk.drm-core`, `vk.drm-fdio` |
+| Venus | `test-venus` | `venus_encoder_core_test`, `venus_ring_core_test` | `proto.venus-enc`, `proto.venus-ring`, `vk.readiness` |
+| ggml-vulkan dispatch | `test-dispatch` | `vulkan_dispatch_core_test` | `vk.ggml-dispatch` |
 | Conditional | `vulkan`, `proto-abi` | `vulkan_compute_test`, `virtio_gpu_proto_abi_test` | host Vulkan baseline, `proto.real-driver` |
 
 ## Running a single test
@@ -45,19 +47,18 @@ The same targets exist on this component `Makefile` if you are working inside
 Each binary has a one-shot target on the component `Makefile` (build + run):
 
 ```sh
-make -C tests venus-cs        # venus_cs_test
-make -C tests venus-compute   # venus_compute_test
-make -C tests virgl-enc       # virgl_encoder_test
-make -C tests virtgpu-drm     # virtgpu_drm_ioctl_test  (explicit DRM compatibility alias)
-make -C tests virtgpu-drm-fdio # virtgpu_drm_fdio_test  (fd ioctl/mmap facade)
-make -C tests g5              # virtgpu_drm_ioctl_test  (== root: make vk-drm-shim-check)
-make -C tests test-n3         # ggml_vk_dispatch_test   (legacy alias of test-dispatch)
+make -C tests virtio-gpu-core # virtio_gpu_core_test
+make -C tests virtgpu-drm-compat   # virtgpu_drm_compat_test
+make -C tests venus-encoder-core   # venus_encoder_core_test
+make -C tests venus-ring-core      # venus_ring_core_test
+make -C tests virgl-encoder-core   # virgl_encoder_core_test
+make -C tests vulkan-dispatch-core # vulkan_dispatch_core_test
 ```
 
 Or build and run one binary by path:
 
 ```sh
-make -C tests build/dma_buf_test && tests/build/dma_buf_test
+make -C tests build/virtio_gpu_core_test && tests/build/virtio_gpu_core_test
 ```
 
 ## Conditional targets
@@ -70,21 +71,16 @@ make -C tests build/dma_buf_test && tests/build/dma_buf_test
 ## Expected PASS output
 
 ```text
-dma_buf_test passed alignment=4096 sg=1 len=4096
-virtio_gpu_full_api_test passed capsets=5 fences=7 submits_3d=1 blobs=1 bytes_to_host=36864 bytes_from_host=4096
-virtio_gpu_2d_render_test: PASS frames=3 transfers=3 flushes=3 fences=6
-virtgpu_drm_ioctl_test: all checks passed
-venus_bootstrap_test: all checks passed
-venus_cs_test: all checks passed
-venus_compute_test: all checks PASS  (Venus compute dispatch encoded correctly)
-uk-venus-compute: PASS evidence_id=venus-compute-dispatch
-virgl_encoder_test: all checks passed
-ggml_vk_dispatch_test: all checks PASS
-uk-llama-vk-n3: PASS evidence_id=llama-vk-n3-dispatch gpu=1 venus=1 substrate=static-vk-dispatch
+virtio_gpu_core_test: PASS checks=37
+virtgpu_drm_compat_test: PASS checks=26
+venus_encoder_core_test: PASS checks=25
+venus_ring_core_test: PASS checks=23
+virgl_encoder_core_test: all checks passed
+vulkan_dispatch_core_test: PASS checks=22
 virtio_gpu_proto_abi_test passed ctrl_hdr=24 display_info=408 edid=1056
 ```
 
-The full `native` run ends with `Results: 164 passed, 0 failed`.
+The full `native` run ends after the six retained binaries pass.
 
 ## How it works
 
@@ -105,4 +101,4 @@ The full `native` run ends with `Results: 164 passed, 0 failed`.
   (`uk_posix_memalign`/`uk_free` over libc). Device-backing memory in the guest
   uses these upstream APIs directly — there is no first-party DMA library.
 
-Full evidence matrix: `results/vogue_evaluation_matrix.md`.
+Full evidence matrix: `results/vogue_evaluation_matrix.json`.
