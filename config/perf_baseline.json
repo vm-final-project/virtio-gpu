@@ -8,7 +8,7 @@
     "gfx.kmscube.sw": {
       "fps": 478.0,
       "frame_ms": 2.09,
-      "source": "scripts/app_perf_eval.py"
+      "source": "results/kmscube_vgpu_gl.json"
     },
     "llm.bench.cpu": {
       "pp512": 9.3,

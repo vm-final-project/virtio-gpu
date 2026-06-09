@@ -1,7 +1,7 @@
 {
   "metadata": {
     "generated_utc": "2026-06-09T09:16:18.973120Z",
-    "source": "scripts/eval_matrix.py",
+    "source": "python3 -m scripts.vogue evaluate matrix",
     "version": 1
   },
   "summary": {
@@ -182,7 +182,7 @@
       "evidence": "results/llama/vulkan_linux_baseline.json",
       "claim_allowed": "Standards-track baseline: this validates QEMU + virglrenderer + Venus + Mesa Venus ICD + upstream ggml-vulkan on the same host hardware.",
       "claim_forbidden": "Unikraft Vulkan acceleration claim or any guest-side compute-remoting ABI.",
-      "next_step": "Run scripts/llama_vulkan_linux_baseline.py once on the evaluation host."
+      "next_step": "Run python3 -m scripts.vogue capture host-vk on the evaluation host."
     },
     {
       "row_id": "host.vk.probe",
@@ -248,7 +248,7 @@
       "evidence": "results/llama/llama_cpu.json",
       "claim_allowed": "Upstream llama.cpp CPU path boots on Unikraft with upstream sources unmodified. pp512=9.4 t/s via 9pfs model delivery.",
       "claim_forbidden": "GPU throughput, Vulkan dispatch, or upstream modification claim.",
-      "next_step": "Complete W3.3 cmake build (make llama-cmake) then make llama-cpu-build."
+      "next_step": "Run make llama-cpu-build; upstream sources compile in-tree."
     },
     {
       "row_id": "llm.server.cpu",

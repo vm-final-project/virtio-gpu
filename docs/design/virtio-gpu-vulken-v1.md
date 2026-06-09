@@ -35,5 +35,5 @@ Derived from:
 
 STK / `stk-code` / SuperTuxKart porting is **out of scope** for this project.
 See `plan.md §0.5` for the full out-of-scope list. The
-`scripts/check_venus_vulkan_docs.py` token list for this file is scheduled
+`the documentation validation workflow` token list for this file is scheduled
 for cleanup under `plan.md §W0.2`.

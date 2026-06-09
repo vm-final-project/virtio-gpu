@@ -52,7 +52,7 @@ qemu-system-x86_64: -device virtio-gpu-gl-pci,…,venus=true: Property 'virtio-g
 ```
 
 This produced the misleading `blocked:probe-incomplete` artifact. Fixed by
-`scripts/venus_qemu_probe.py:select_qemu()`, which now prefers a binary whose
+`python3 -m scripts.vogue probe venus:select_qemu()`, which now prefers a binary whose
 `virtio-gpu-gl-pci,help` advertises `venus` (local 11.0.1). Re-running the probe
 now boots the guest and surfaces the true blocker below.
 
@@ -251,7 +251,7 @@ effort, and must not be promoted without same-run PASS artifacts:
 
 - Verified the full Venus-capable host env (table §1).
 - Proved the two-layer root cause from real QEMU boots.
-- Fixed Layer 1: `scripts/venus_qemu_probe.py` now auto-selects a Venus-capable
+- Fixed Layer 1: `python3 -m scripts.vogue probe venus` now auto-selects a Venus-capable
   QEMU; the probe artifact is now the honest `blocked:modern-pci-unsupported`
   with an actionable `next_step`, instead of the misleading `probe-incomplete`.
 - Scoped Layer 2 (modern VirtIO-PCI) against the virtio-1.2 spec with concrete

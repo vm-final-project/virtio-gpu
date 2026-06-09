@@ -4,12 +4,12 @@
   "paths": {
     "LLAMA_ROOT": {
       "default": "../llama.cpp",
-      "description": "Pinned upstream llama.cpp checkout. Used by cmake/unikraft-clang.cmake and Makefile.uk for libllama.a/libggml*.a.",
+      "description": "Pinned upstream llama.cpp checkout. Sources are compiled in-tree; the Vulkan preparation target generates SPIR-V shader sources.",
       "env": "LLAMA_ROOT"
     },
     "VENUS_PROTOCOL_ROOT": {
       "default": "../venus-protocol",
-      "description": "Sibling Mesa venus-protocol checkout. Used by scripts/gen_libukvenus.py to generate libukvulkan_venus encoders.",
+      "description": "Sibling Mesa venus-protocol checkout providing protocol headers for libukvulkan_venus and host tests.",
       "env": "VENUS_PROTOCOL_ROOT"
     },
     "VULKAN_HEADERS_INCLUDE": {

@@ -16,9 +16,9 @@ regen.
 
 ```
 scripts/venus/pin.json                 # pinned upstream commit + slice config
-scripts/extract_ggml_vk_commands.py    # ggml-vulkan.cpp -> command manifest
+generated/ggml_vk_commands.json        # ggml-vulkan.cpp command manifest
 config/venus_command_manifest.json     # frozen Venus wire command set (66 cmds)
-scripts/gen_libukvenus.py              # generate/verify driver headers
+generated/                             # generated/verified driver headers
 libs/libukvulkan_venus/generated/             # committed driver headers + GENERATED.lock
 libs/libukvulkan_venus/include/uk/vn_cs.h     # encoder/decoder/handle-id shim
 libs/libukvulkan_venus/include/uk/vn_ring.h   # 4-function transport shim
@@ -48,9 +48,9 @@ and Vulkan core version; it does not slice per command. Every `vn_encode_*`
 is `static inline`, so the encoders ggml never calls are dropped by
 compile-time dead-code elimination. `config/venus_command_manifest.json` is the
 deterministic list of the Venus wire commands ggml-vulkan actually uses
-(derived by `scripts/extract_ggml_vk_commands.py`); `make
+(derived from the pinned ggml-vulkan source); `make
 gen-libukvenus-selftest` asserts every one of them has a generated encoder
-(`scripts/venus/test_coverage.py`). Loader-only and blob-mapped-memory commands
+(the generated coverage manifest). Loader-only and blob-mapped-memory commands
 (`vkGetInstanceProcAddr`, `vkMapMemory`, ...) are listed under `client_side` and
 intentionally excluded — they are serviced guest-side, never serialized.
 

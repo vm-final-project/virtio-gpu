@@ -45,9 +45,8 @@ cross-host/cross-model throughput claims.
 ## Stage 0 — Baselines
 
 ```sh
-make llama-env-list                 # contains baremetal+vulkan, qemu+linux+vulkan, qemu+unikraft+vulkan
-make llama-cmake-vk                 # build upstream libllama.a + libggml-vulkan.a with the Unikraft toolchain
-make llama-vulkan-api-coverage      # confirm libvulkan dispatch matches upstream ggml-vulkan API
+make llama-vk-prepare               # generate the shared upstream SPIR-V shader sources
+make test-dispatch                  # validate the static Vulkan dispatch surface
 ```
 
 ## Stage 1 — Discovery only
@@ -126,9 +125,9 @@ and the matching `results/llama/llama_vk.json`,
 ## Verification
 
 ```sh
-make llama-vulkan-api-coverage
-make llama-ggml-vk-dispatch
-make llama-vk-check
+make test-dispatch
+make llama-vk-build
+make llama-vk-run
 ```
 
 ## Claim boundaries

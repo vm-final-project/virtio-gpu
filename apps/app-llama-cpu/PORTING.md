@@ -24,9 +24,7 @@ Verify the same model + flags on Linux first so any Unikraft regression is
 attributable to the port, not to llama.cpp itself.
 
 ```sh
-make llama-env-list                 # Show baremetal/QEMU/Unikraft × CPU/Vulkan/CUDA cells
-make llama-env-check                # Validate config/llama_env_matrix.json
-make llama-cmake                    # Build upstream libllama.a with cmake/unikraft-clang.cmake
+make llama-cpu-build                # Compile upstream sources in-tree into the appliance
 ```
 
 ## Stage 1 — Binary compatibility (discovery only)
@@ -62,8 +60,7 @@ make llama-cpu-check
 ```
 
 The model is mounted at `/mnt/model` via `lib-9pfs` + `lib-virtio-9p`; the
-9pfs `-virtfs` argument is set by `scripts/llama_env_matrix.py` for the
-`qemu+unikraft+cpu` row.
+canonical CPU capture command supplies the matching QEMU `-virtfs` argument.
 
 ## Stage 3 — Catalog wrap-up
 
@@ -89,8 +86,8 @@ must always be quoted from a same-run PASS row, never inferred.
 
 - `Config.uk` declares `CONFIG_APP_LLAMA_CPU` and the bench/server mode
   switches; selects required `LIBUK*` / `LIB*` dependencies.
-- `Makefile.uk` registers the app and compiles upstream `libllama.a` /
-  `libggml*.a` artifacts produced by `make llama-cmake`.
+- `Makefile.uk` registers the app and compiles the required upstream llama.cpp
+  and ggml translation units in-tree with the Unikraft toolchain.
 - `exportsyms.uk` exports only `main`.
 
 ## Verification

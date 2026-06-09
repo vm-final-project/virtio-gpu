@@ -21,20 +21,9 @@ only the bounded interfaces needed by the artifact rows.
 
 ## Dependency graph
 
-`make depgraph` (`scripts/gen_depgraph.py`, plan in
-`docs/plans/dependency-graph-plan.md`) extracts the virtio-gpu dependency multigraph
-across three codebases and one protocol seam — the Linux guest driver
-(`../linux/drivers/gpu/drm/virtio`), our VOGUE `libs/*`, and the QEMU device
-model (`../qemu-src/hw/display`) — directly from their `Kconfig`/`Config.uk`,
-`Makefile`/`meson.build`, and `#include` graphs. Edges are typed `build`
-(dashed), `compile` (blue), and `runtime` (bold). Artifacts and full catalogue
-live in [`results/depgraph/`](../results/depgraph/README.md):
-
-| View | Insight | Files |
-|---|---|---|
-| A — The Collapse | Linux links 13 DRM/KMS/GEM objects + subsystem `select`s; VOGUE reaches the same seam through a thin `libuk*` chain, depending on **none** of that tower. | `results/depgraph/view-a-collapse.{svg,mmd}` |
-| B — Three Kinds of One Edge | Where build wiring diverges from the runtime hot path on the VOGUE Vulkan chain. | `results/depgraph/view-b-edge-kinds.{svg,mmd}` |
-| C — The Invariant Spine | Linux **and** VOGUE emit the same `VIRTIO_GPU_CMD_*`/Venus opcodes that QEMU consumes — interchangeable guests, one host contract. | `results/depgraph/view-c-spine.{svg,mmd}` |
+The maintained architecture below documents the build and runtime boundaries
+directly. The former generated graph artifacts were removed because they had
+no active producer or validation target.
 
 View C — the shared protocol contract that both guests speak to QEMU:
 
@@ -70,8 +59,6 @@ flowchart LR
   seam_venus_ring ==>|venus decode| qemu_virtio_gpu_virgl
   qemu_virtio_gpu_virgl ==>|host Vulkan| qemu_ext_virglrenderer
 ```
-
-Regenerate with `make depgraph`; `make depgraph-check` is the drift gate.
 
 ## llama.cpp taxonomy
 

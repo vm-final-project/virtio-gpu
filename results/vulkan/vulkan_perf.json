@@ -1,7 +1,7 @@
 {
   "metadata": {
     "generated_utc": "2026-06-09T05:09:16.980891Z",
-    "source": "scripts/vulkan_perf_eval.py",
+    "source": "python3 -m scripts.vogue evaluate vulkan",
     "version": 1
   },
   "status": "blocked:vulkan-test-failed",

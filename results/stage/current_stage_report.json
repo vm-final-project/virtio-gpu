@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-09T09:16:18.751521Z",
-    "source": "scripts/current_stage_report.py",
+    "generated_utc": "2026-06-09T10:52:24.015849Z",
+    "source": "python3 -m scripts.vogue report stage",
     "version": 1
   },
   "status": "pass",
@@ -10,7 +10,7 @@
     "counts": {
       "libraries": 4,
       "eval_rows": 26,
-      "canonical_scripts": 16
+      "canonical_scripts": 10
     },
     "qemu_status": "pass",
     "vulkan_status": "blocked:vulkan-test-failed",
@@ -29,7 +29,7 @@
     {
       "id": "script_surface",
       "status": "pass",
-      "evidence": "present=['artifact_utils.py', 'current_stage_report.py', 'eval_matrix.py', 'linux_guest_vulkan_baseline.py', 'llama_cpu_real_run.py', 'llama_server_cpu_capture.py', 'llama_server_vk_capture.py', 'llama_vk_build_capture.py', 'llama_vk_real_run.py', 'llama_vulkan_eval.py', 'llama_vulkan_linux_baseline.py', 'llm_server_vk_check.py', 'llm_server_vk_throughput_check.py', 'venus_perf_eval.py', 'venus_qemu_probe.py', 'vulkan_perf_eval.py'] missing=[]",
+      "evidence": "present=['scripts/vogue/__main__.py', 'scripts/vogue/cli.py', 'scripts/vogue/commands/current_stage.py', 'scripts/vogue/commands/eval_matrix.py', 'scripts/vogue/commands/server_vk_check.py', 'scripts/vogue/commands/server_vk_throughput.py', 'scripts/vogue/commands/venus_perf.py', 'scripts/vogue/commands/venus_probe.py', 'scripts/vogue/commands/vulkan_perf.py', 'scripts/vogue/core/artifacts.py'] missing=[]",
       "required": "All expected evaluation and guardrail scripts exist",
       "blocker": ""
     },
@@ -83,6 +83,6 @@
       "blocker": ""
     }
   ],
-  "generated_utc": "2026-06-09T09:16:18.750783Z",
+  "generated_utc": "2026-06-09T10:52:24.015745Z",
   "claim_boundary": "Current supported rows pass on the evaluation host only when backed by same-run JSON artifacts. Blocked rows remain explicit partial-progress states and are never promoted to passing evidence."
 }

@@ -53,13 +53,6 @@
       "required_targets": [
         "artifact-full"
       ]
-    },
-    "depgraph": {
-      "purpose": "Regenerate the cross-boundary virtio-gpu dependency graph (Linux/VOGUE/QEMU + protocol seam) into results/depgraph/ and gate it against drift.",
-      "required_targets": [
-        "depgraph",
-        "depgraph-check"
-      ]
     }
   },
   "apps": {

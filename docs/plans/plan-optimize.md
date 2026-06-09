@@ -27,9 +27,8 @@ state.
 Primary local evidence files:
 
 - `results/llama/server_vk_throughput.json`
-- `results/model-load/latest.json`
-- `results/model-load/latest.md`
-- `scripts/llama_server_vk_capture.py`
+- `results/llama/llama_server_vk.json`
+- `python3 -m scripts.vogue capture vk-server`
 - `kraft/Kraftfile.llama-vk-server`
 - `apps/app-llama-vk/common.h`
 - `apps/app-llama-vk/server.cpp`
@@ -49,7 +48,7 @@ From `results/llama/server_vk_throughput.json`:
 - `ttft_s=1.2376`
 - device `Tesla V100-SXM2-16GB`
 
-From `results/model-load/latest.json` and `results/model-load/latest.md`:
+From `results/llama/llama_server_vk.json`:
 
 - `llm.bench.vk elapsed_ms=4691.79`
 - `llm.server.vk elapsed_ms=6442.77`
@@ -66,7 +65,7 @@ From `results/llama/vulkan_linux_baseline.json`:
 - host Vulkan baseline `pp512_t_per_s=5586.91`
 - host Vulkan baseline `tg128_t_per_s=239.16`
 
-From `scripts/llama_server_vk_capture.py`:
+From `python3 -m scripts.vogue capture vk-server`:
 
 - the canonical QEMU command currently has **no `-smp`**, so the server path is
   still running with a single guest vCPU.
@@ -150,7 +149,7 @@ dispatch (and the single vCPU), not the Venus transport. Prioritize those next.
 
 **Why this is first:**
 
-- `scripts/llama_server_vk_capture.py` currently records a single-vCPU runtime path
+- `python3 -m scripts.vogue capture vk-server` currently records a single-vCPU runtime path
 - current throughput evidence is only `concurrency=1`
 - the READY line records `threads=1`
 - the current server already carries `--parallel 4`, so the remaining obvious
@@ -225,7 +224,7 @@ dispatch (and the single vCPU), not the Venus transport. Prioritize those next.
 **Success gate:**
 
 - reduce model-load latency versus the current baseline
-- update `results/model-load/latest.json` and `results/model-load/latest.md`
+- update the canonical server runtime artifact
 - prove the new path with branch-local artifacts rather than documentation alone
 
 ### P2. Build-target tuning

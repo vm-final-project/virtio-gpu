@@ -41,32 +41,12 @@ Unikraft “Writing Tests” guide: one suite per `libs/*/tests/test_*.c`, suite
 registration with `uk_testsuite_register(...)`, and `Config.uk` / `Makefile.uk`
 wiring under `LIB..._TEST` with `LIBUKTEST_ALL` support.
 
-## Canonical Script Surface
+## Canonical Automation Surface
 
-Public JSON generators:
-
-- `scripts/eval_matrix.py`
-- `scripts/vulkan_perf_eval.py`
-- `scripts/venus_perf_eval.py`
-- `scripts/llama_vulkan_eval.py`
-- `scripts/llm_server_vk_check.py`
-- `scripts/llm_server_vk_throughput_check.py`
-- `scripts/current_stage_report.py`
-
-Retained helper collectors:
-
-- `scripts/venus_qemu_probe.py`
-- `scripts/llama_vk_real_run.py`
-- `scripts/llama_cpu_real_run.py`
-- `scripts/llama_server_vk_capture.py`
-- `scripts/llama_server_cpu_capture.py`
-- `scripts/llama_vk_build_capture.py`
-- `scripts/linux_guest_vulkan_baseline.py`
-- `scripts/llama_vulkan_linux_baseline.py`
-
-Shared artifact/blocker helper:
-
-- `scripts/artifact_utils.py`
+Make targets are the stable public interface. Their implementation uses the
+single `python3 -m scripts.vogue` CLI with `capture`, `probe`, `evaluate`, and
+`report` command groups. Shared artifact and process behavior lives under
+`scripts/vogue/core/`; command implementations are internal.
 
 Canonical JSON artifacts:
 
@@ -122,11 +102,11 @@ The reduced cleanup pass is validated with:
 ```sh
 make -C tests clean
 make -C tests native
-python3 scripts/vulkan_perf_eval.py --repetitions 1 --allow-blocked
-python3 scripts/venus_perf_eval.py --repetitions 1 --allow-blocked
-python3 scripts/llm_server_vk_check.py
-python3 scripts/llm_server_vk_throughput_check.py
-python3 scripts/eval_matrix.py --check
-python3 scripts/current_stage_report.py --check
+python3 -m scripts.vogue evaluate vulkan --repetitions 1 --allow-blocked
+python3 -m scripts.vogue evaluate venus --repetitions 1 --allow-blocked
+python3 -m scripts.vogue evaluate server-vk
+python3 -m scripts.vogue evaluate server-vk-throughput
+python3 -m scripts.vogue evaluate matrix --check
+python3 -m scripts.vogue report stage --check
 git diff --check
 ```

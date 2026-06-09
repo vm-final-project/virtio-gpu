@@ -1,12 +1,6 @@
 # VOGUE Benchmark Environment Configuration
 #
-# New selectable llama.cpp benchmark rows are machine-readable in
-# config/llama_env_matrix.json and validated by scripts/llama_env_matrix.py.
-#
-# Single source of truth for shared parameters across:
-#   scripts/multi_env_bench.py     — multi-environment llama.cpp benchmark
-#   scripts/llama_vulkan_eval.py   — LLAMA-VK-* evidence gates
-#   tests/uk_ggml_vulkan_dispatch_test.c  — vk.ggml-dispatch static dispatch regression test
+# Shared parameters for the canonical VOGUE capture and evaluation commands.
 #
 # Edit this file to change any shared benchmark parameter; the scripts will
 # pick up changes automatically.  Values that are machine-specific (binary
@@ -89,8 +83,7 @@ hardware:
   host_ram_gb: 256
 
 # ── Environment definitions ──────────────────────────────────────────────────
-# Used to document the expected set of environments; multi_env_bench.py
-# generates each row programmatically but reads the id/label from here.
+# Documents the expected benchmark environments consumed by evaluation reports.
 environments:
   ENV0a:
     id: baremetal_cpu_1t

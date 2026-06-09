@@ -1,7 +1,7 @@
 {
   "metadata": {
     "generated_utc": "2026-06-09T05:09:16.981711Z",
-    "source": "scripts/venus_perf_eval.py",
+    "source": "python3 -m scripts.vogue evaluate venus",
     "version": 1
   },
   "status": "pass",

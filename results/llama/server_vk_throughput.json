@@ -1,7 +1,7 @@
 {
   "metadata": {
     "generated_utc": "2026-06-09T05:09:27.059349Z",
-    "source": "scripts/llm_server_vk_throughput_check.py",
+    "source": "python3 -m scripts.vogue evaluate server-vk-throughput",
     "version": 1
   },
   "status": "blocked:unikraft-image-missing",

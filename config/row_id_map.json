@@ -4,7 +4,7 @@
   "rules": [
     "Every new row ID must appear as a key in `new` below.",
     "Legacy IDs are accepted only inside this file or inside .omx/ (audit history).",
-    "scripts/naming_check.py rejects legacy tokens outside the allowlist."
+    "Legacy tokens outside the allowlist are forbidden by repository review."
   ],
   "allowlist_paths": [
     "config/row_id_map.json",

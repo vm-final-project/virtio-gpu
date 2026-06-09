@@ -5,7 +5,7 @@
  * /mnt/model via 9pfs, runs pp512 + tg128, prints the evidence line, and
  * exits. No HTTP, no shell, no second mode in the binary.
  *
- * Output parsed by scripts/llama_vulkan_eval.py upstream-cpu:
+ * Output parsed by python3 -m scripts.vogue capture vk-bench upstream-cpu:
  *   uk-llama-upstream: pp512=<f> tg128=<f>
  *   uk-llama-upstream: PASS evidence_id=llama-upstream-cpu
  */

@@ -64,10 +64,10 @@ same-run PASS evidence. It is the evidence trail for the governance rows
 - `xport.qemu-vgpu` — the kmscube `vogue_qemu-x86_64` appliance boots under
   QEMU 11 + `venus=true` and enumerates the real device:
   `virtio_gpu capsets=3 virgl=1 blob=1 host_visible=1`, capset id=4 **venus**,
-  and prints `real_virtio_gpu=1`. (`scripts/venus_qemu_probe.py --mode 2d`.)
+  and prints `real_virtio_gpu=1`. (`python3 -m scripts.vogue probe venus --mode 2d`.)
 - `proto.venus-ring` — the Venus ring registers and flushes against the real
   device and a QMP screendump frame proof passes
-  (`scripts/venus_qemu_probe.py --mode venus-ring`).
+  (`python3 -m scripts.vogue probe venus --mode venus-ring`).
 - `host.baseline.vk` — host-native `llama.cpp` Vulkan on the V100 (the same GPU
   Venus targets): qwen3-0.6B `pp128≈2692 t/s`, `tg32≈222 t/s`
   (`llama.cpp/build-vk/bin/llama-bench -ngl 99`, run with
@@ -75,7 +75,7 @@ same-run PASS evidence. It is the evidence trail for the governance rows
 
 ## llama.cpp Vulkan appliance: current PASS evidence
 
-`scripts/llama_vk_real_run.py` boots `vogue-llama-vk_qemu-x86_64` under
+`python3 -m scripts.vogue capture vk-bench` boots `vogue-llama-vk_qemu-x86_64` under
 real Venus (`-device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true`,
 `-display egl-headless,gl=on`, 9pfs model). Observed, end-to-end:
 
@@ -174,7 +174,7 @@ host-visible type must be backed by a mappable blob so `vkMapMemory` returns a g
 pointer the host shares (the `blocked:host-visible-or-qemu-gate` lever). Mirror the ring's
 blob-map path; bind via the Venus `vkGetMemoryResourcePropertiesMESA` / blob export flow.
 
-**Milestones** (each independently verifiable by re-running `scripts/llama_vk_real_run.py`):
+**Milestones** (each independently verifiable by re-running `python3 -m scripts.vogue capture vk-bench`):
 - **M1 — DONE.** Reply round-trip implemented and proven: the guest reads the
   real host device name (`Tesla V100-SXM2-16GB`) back over Venus
   (`uk_venus_query_device_name`), ggml registers the real device, and
@@ -262,10 +262,10 @@ export SPIRV_HEADERS_INCLUDE=../SPIRV-Headers/include
 sudo chmod o+rw /dev/dri/renderD12[89] /dev/dri/renderD13[01]
 
 make kmscube-build
-python3 scripts/venus_qemu_probe.py --mode 2d            # PASS real_virtio_gpu=1
-python3 scripts/venus_qemu_probe.py --mode venus-ring     # PASS frame proof
+python3 python3 -m scripts.vogue probe venus --mode 2d            # PASS real_virtio_gpu=1
+python3 python3 -m scripts.vogue probe venus --mode venus-ring     # PASS frame proof
 
 make llama-vk-build
-python3 scripts/llama_vk_real_run.py                      # real boot capture
+python3 python3 -m scripts.vogue capture vk-bench                      # real boot capture
 make eval-check                                           # 27/27 pass on eval host
 ```

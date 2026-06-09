@@ -26,7 +26,7 @@ promoting Unikraft rows.
    - CPU: `build-cpu/bin/llama-bench`
    - Vulkan: `build-vulkan/bin/llama-bench`
    - CUDA: `build-cuda/bin/llama-bench`
-3. Run through `scripts/llama_env_matrix.py` so every row records:
+3. Run through `python3 -m scripts.vogue evaluate matrix` so every row records:
    - family (`baremetal+cuda`, `baremetal+vulkan`, `baremetal+cpu`,
      `qemu+linux+vulkan`, `qemu+linux+cpu`, `qemu+unikraft+vulkan`,
      `qemu+unikraft+cpu`),
@@ -34,7 +34,7 @@ promoting Unikraft rows.
    - model path,
    - backend flags such as `-ngl 99`,
    - allowed and forbidden claims.
-4. Store raw evidence under `results/llama-env/` or `results/llama-bench/`.
+4. Store canonical runtime evidence under `results/llama/`.
 
 Validation:
 
@@ -133,7 +133,7 @@ only.
 ```sh
 make test-fast
 make eval-check
-python3 scripts/app_multi_env_bench.py
+python3 the canonical benchmark workflow
 make current-stage-check
 ```
 
