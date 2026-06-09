@@ -182,7 +182,7 @@
       "evidence": "results/llama/vulkan_linux_baseline.json",
       "claim_allowed": "Standards-track baseline: this validates QEMU + virglrenderer + Venus + Mesa Venus ICD + upstream ggml-vulkan on the same host hardware.",
       "claim_forbidden": "Unikraft Vulkan acceleration claim or any guest-side compute-remoting ABI.",
-      "next_step": "Run python3 -m scripts.vogue capture host-vk on the evaluation host."
+      "next_step": "Import a same-host Vulkan baseline into results/llama/vulkan_linux_baseline.json."
     },
     {
       "row_id": "host.vk.probe",

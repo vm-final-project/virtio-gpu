@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_utc": "2026-06-09T10:52:24.015849Z",
+    "generated_utc": "2026-06-09T10:56:24.032899Z",
     "source": "python3 -m scripts.vogue report stage",
     "version": 1
   },
@@ -8,81 +8,43 @@
   "summary": {
     "headline": "Current-stage completeness report",
     "counts": {
-      "libraries": 4,
+      "checks": 6,
       "eval_rows": 26,
-      "canonical_scripts": 10
-    },
-    "qemu_status": "pass",
-    "vulkan_status": "blocked:vulkan-test-failed",
-    "server_status": "blocked:no-ready-line"
+      "modules": 9
+    }
   },
   "artifacts": {},
-  "checks": [],
-  "rows": [
+  "checks": [
     {
       "id": "make_targets",
       "status": "pass",
-      "evidence": "present=['current-stage-check', 'eval-check', 'llm-server-vk-check', 'llm-server-vk-throughput-check', 'native-tests', 'proto-abi', 'test-compat', 'test-core', 'test-dispatch', 'test-fast', 'test-gpu', 'test-native', 'test-qemu', 'test-venus', 'venus-check', 'verify', 'vulkan-check', 'vulkan-tests'] missing=[]",
-      "required": "Makefile exposes all top-level test/evaluation/benchmark gates",
-      "blocker": ""
+      "evidence": "missing=[]"
     },
     {
       "id": "script_surface",
       "status": "pass",
-      "evidence": "present=['scripts/vogue/__main__.py', 'scripts/vogue/cli.py', 'scripts/vogue/commands/current_stage.py', 'scripts/vogue/commands/eval_matrix.py', 'scripts/vogue/commands/server_vk_check.py', 'scripts/vogue/commands/server_vk_throughput.py', 'scripts/vogue/commands/venus_perf.py', 'scripts/vogue/commands/venus_probe.py', 'scripts/vogue/commands/vulkan_perf.py', 'scripts/vogue/core/artifacts.py'] missing=[]",
-      "required": "All expected evaluation and guardrail scripts exist",
-      "blocker": ""
+      "evidence": "missing=[]"
     },
     {
       "id": "evaluation_matrix",
       "status": "pass",
-      "evidence": "rows=26 missing=[]",
-      "required": "Evidence matrix contains every supported pass/blocked claim row",
-      "blocker": ""
+      "evidence": "missing=[]"
     },
     {
-      "id": "pass_rows",
+      "id": "artifact_schema",
       "status": "pass",
-      "evidence": "results/vogue_evaluation_matrix.json",
-      "required": "Core supported rows pass; upstream llama.cpp rows accept structured blockers for missing QEMU/Venus images",
-      "blocker": ""
-    },
-    {
-      "id": "blocked_rows_are_explicit",
-      "status": "pass",
-      "evidence": "gfx.kmscube.submit+gfx.kmscube.frame present in matrix; STK porting out of scope",
-      "required": "K1 transport/frame rows are present; STK porting explicitly dropped",
-      "blocker": ""
-    },
-    {
-      "id": "venus_blocker_recorded",
-      "status": "pass",
-      "evidence": "results/venus/qemu_2d_probe.json; results/vogue_evaluation_matrix.json",
-      "required": "QEMU Venus probe artifact recorded with a structured status",
-      "blocker": ""
-    },
-    {
-      "id": "generator_json_only",
-      "status": "pass",
-      "evidence": "results/venus/venus_perf.json; results/vulkan/vulkan_perf.json; results/llama/server_vk_check.json",
-      "required": "Canonical generators emit the shared JSON artifact shape",
-      "blocker": ""
+      "evidence": "canonical JSON"
     },
     {
       "id": "library_readmes",
       "status": "pass",
-      "evidence": "libs=4 missing=[]",
-      "required": "Every local library has Unikraft-style README docs",
-      "blocker": ""
+      "evidence": "missing=[]"
     },
     {
-      "id": "readme_current_stage",
+      "id": "readme",
       "status": "pass",
-      "evidence": "README.md",
-      "required": "README exposes canonical commands and JSON-only evaluation artifacts",
-      "blocker": ""
+      "evidence": "canonical commands"
     }
   ],
-  "generated_utc": "2026-06-09T10:52:24.015745Z",
-  "claim_boundary": "Current supported rows pass on the evaluation host only when backed by same-run JSON artifacts. Blocked rows remain explicit partial-progress states and are never promoted to passing evidence."
+  "rows": []
 }
