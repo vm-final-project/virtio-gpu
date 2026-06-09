@@ -10,5 +10,5 @@ Status: `pass`
 | `fail_closed_host_visible` | `pass` | Host-visible blob mapping is truthfully blocked when the Unikraft transport lacks SHM BAR exposure. (`libs/libukvirtio_gpu/virtio_gpu_real.c`) |
 | `stk_out_of_scope` | `pass` | STK porting is explicitly documented as out of scope in the spec (plan.md §0.5). (`design/unikraft-virtio-gpu-spec-v1.md`) |
 | `source_lineage` | `pass` | Spec records source lineage and non-reimplementation boundaries. (`design/unikraft-virtio-gpu-spec-v1.md`) |
-| `paper_truthful_blocker` | `pass` | Paper evaluation reports current QEMU/Unikraft blocker instead of overclaiming. (`paper/sections/08-evaluation.typ`) |
+| `readme_truthful_stage` | `pass` | README reports the current repo-facing stage and keeps claims tied to same-run evidence. (`README.md`) |
 | `forbidden_project_pci_driver` | `pass` | Project must not fork Unikraft PCI discovery. (`libs/libukvirtio_gpu`) |

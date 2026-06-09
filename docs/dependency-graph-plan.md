@@ -199,7 +199,7 @@ and the curated runtime edges it can't know about. We *borrow its model*
 (per-file nodes, `--merge module/directory` granularity) and reimplement in
 `gen_depgraph.py` so all three edge kinds and all three repos share one path.
 A Mermaid (`.mmd`) mirror of Views A/C is optional for inline rendering in
-Markdown/the paper.
+Markdown.
 
 Reference tools & official docs surveyed (see Sources): Graphviz `dot`/`neato`/
 `fdp`; `cinclude2dot` (Perl) and `cinclude2dot2` (Py3) for the include-graph

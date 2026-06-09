@@ -79,7 +79,7 @@ def write_outputs(rows: list[dict]) -> None:
         "metadata": {
             "generated_utc": generated,
             "source": "scripts/image_size_check.py",
-            "principle": "Unikraft single-purpose images carry only the linked-in source per Kconfig mode (see paper §7).",
+            "principle": "Unikraft single-purpose images carry only the linked-in source per Kconfig mode.",
         },
         "rows": rows,
     }

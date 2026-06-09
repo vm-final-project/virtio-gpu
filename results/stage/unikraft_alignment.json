@@ -45,10 +45,10 @@
       "missing": []
     },
     {
-      "id": "paper_truthful_blocker",
+      "id": "readme_truthful_stage",
       "status": "pass",
-      "path": "paper/sections/08-evaluation.typ",
-      "reason": "Paper evaluation reports current QEMU/Unikraft blocker instead of overclaiming.",
+      "path": "README.md",
+      "reason": "README reports the current repo-facing stage and keeps claims tied to same-run evidence.",
       "missing": []
     },
     {

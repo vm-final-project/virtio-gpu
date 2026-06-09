@@ -174,7 +174,7 @@
       "result_file": "results/vogue_evaluation_matrix.json",
       "manifest": "../manifest/manifests/vogue-main.yaml",
       "rule": "PASS and blocked rows are generated in VM; reproducible orchestration is owned by manifest.",
-      "experiment_spec": "../manifest/experiments/tests/paper.yaml"
+      "experiment_spec": "../manifest/experiments/tests/smoke.yaml"
     },
     {
       "id": "llama-upstream-vk-runtime",
@@ -207,7 +207,6 @@
       "../manifest/experiments/tests/venus.yaml",
       "../manifest/experiments/tests/llama-vulkan.yaml",
       "../manifest/experiments/tests/k1-frame.yaml",
-      "../manifest/experiments/tests/paper.yaml",
       "../manifest/experiments/tests/llama-env-matrix.yaml",
       "../manifest/experiments/tests/llama-unikraft-single-app.yaml",
       "../manifest/scripts/exp-run.sh",

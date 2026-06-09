@@ -38,7 +38,7 @@
     "design/unikraft-virtio-gpu-spec-v1.md": true,
     "design/virtio-gpu-vulken-v1.md": true,
     "README.md": true,
-    "paper/sections/08-evaluation.typ": true
+    "docs/ARCHITECTURE.md": true
   },
   "qemu_probe_status": "pass",
   "venus_perf_status": "pass",
@@ -72,5 +72,5 @@
     "bld.uk.vk:pass",
     "llm.bench.vk.real:pass"
   ],
-  "claim_boundary": "Native/static/design/paper gates pass. Real QEMU Venus acceleration remains blocked unless qemu_probe_status is pass."
+  "claim_boundary": "Native/static/design gates pass. Real QEMU Venus acceleration remains blocked unless qemu_probe_status is pass."
 }

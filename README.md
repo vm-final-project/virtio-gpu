@@ -14,8 +14,7 @@ claims are bounded explicitly.
 ### Core purpose
 
 Reach the *same host-facing VirtIO-GPU / Venus contract that a Linux guest uses*
-through a **much thinner Unikraft library stack** (the paper calls this a
-*dependency collapse*). Local code stays small: first-party Unikraft libraries
+through a **much thinner Unikraft library stack**. Local code stays small: first-party Unikraft libraries
 own the VirtIO-GPU / Venus / Vulkan glue, while upstream applications
 (llama.cpp, kmscube) keep their own logic and are consumed unmodified
 through one-line include shims.

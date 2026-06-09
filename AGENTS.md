@@ -32,7 +32,7 @@ Add or update focused tests in `tests/` for library behavior. Test files general
 
 ## Commit & Pull Request Guidelines
 
-Recent history uses short, imperative subjects, sometimes with a scope prefix such as `docs:` or `slide:`. Keep commits focused and mention the evidence generated or intentionally not run. Pull requests should describe the claim boundary, changed paths, required external stack, and test results; include screenshots or result artifacts when graphics or benchmark output changes.
+Recent history uses short, imperative subjects, sometimes with a scope prefix such as `docs:` or `bench:`. Keep commits focused and mention the evidence generated or intentionally not run. Pull requests should describe the claim boundary, changed paths, required external stack, and test results; include screenshots or result artifacts when graphics or benchmark output changes.
 
 ## Security & Configuration Tips
 

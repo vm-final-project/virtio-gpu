@@ -1,8 +1,7 @@
 {
   "metadata": {
     "generated_utc": "2026-06-04T15:35:44.362328Z",
-    "source": "scripts/eval_matrix.py",
-    "paper": "paper/main.typ"
+    "source": "scripts/eval_matrix.py"
   },
   "rows": [
     {
@@ -33,7 +32,7 @@
       "workload": "QEMU VirtIO-GPU-GL probe",
       "status": "pass",
       "required_evidence": "capset discovery recorded in prior run evidence",
-      "evidence": "paper/sections/08-evaluation.typ",
+      "evidence": "results/venus/qemu_2d_probe.json",
       "claim_allowed": "The tested host exposes a GL-capable VirtIO-GPU path for future K1 work.",
       "claim_forbidden": "Rendering or acceleration without a virgl command stream.",
       "next_step": "Tie future K1 runs to same-run capset, submit, and frame evidence."
@@ -212,7 +211,7 @@
       "evidence": "results/llama/vulkan_bench.json",
       "claim_allowed": "Apples-to-apples Vulkan throughput comparison published with claim boundaries: specialization overhead vs Linux-VM Venus, gap to bare-metal Vulkan/CUDA.",
       "claim_forbidden": "Outright performance superiority claim; Unikraft Vulkan is expected to trail bare-metal.",
-      "next_step": "Once host.bench.vk.run passes, run scripts/llama_vulkan_bench.py and update paper/generated tables."
+      "next_step": "Once host.bench.vk.run passes, run scripts/llama_vulkan_bench.py and regenerate the benchmark/evaluation artifacts."
     },
     {
       "row_id": "vk.ggml-dispatch",

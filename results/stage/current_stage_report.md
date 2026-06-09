@@ -4,8 +4,8 @@ Status: `pass`
 
 | Check | Status | Evidence | Required property |
 |---|---|---|---|
-| `make_targets` | `pass` | present=['benchmark-check', 'claim-check', 'eval-check', 'governance-check', 'lib-readme-check', 'native-tests', 'paper-check', 'stage-check', 'test-fast', 'test-gpu', 'test-native', 'test-qemu', 'venus-check', 'verify', 'vulkan-check', 'vulkan-tests'] missing=[] | Makefile exposes all top-level test/evaluation/benchmark gates |
-| `script_surface` | `pass` | present=['app_perf_eval.py', 'benchmark_summary.py', 'eval_matrix.py', 'governance_check.py', 'lib_readme_check.py', 'llama_env_matrix.py', 'llama_vulkan_api_coverage.py', 'llama_vulkan_eval.py', 'paper_consistency_check.py', 'real_driver_static_check.py', 'real_virtio_gpu_path_check.py', 'stage_audit.py', 'unikraft_alignment_check.py', 'venus_perf_eval.py', 'venus_qemu_probe.py', 'vulkan_perf_eval.py'] missing=[] | All expected evaluation and guardrail scripts exist |
+| `make_targets` | `pass` | present=['benchmark-check', 'claim-check', 'eval-check', 'governance-check', 'lib-readme-check', 'native-tests', 'stage-check', 'test-fast', 'test-gpu', 'test-native', 'test-qemu', 'venus-check', 'verify', 'vulkan-check', 'vulkan-tests'] missing=[] | Makefile exposes all top-level test/evaluation/benchmark gates |
+| `script_surface` | `pass` | present=['app_perf_eval.py', 'benchmark_summary.py', 'eval_matrix.py', 'governance_check.py', 'lib_readme_check.py', 'llama_env_matrix.py', 'llama_vulkan_api_coverage.py', 'llama_vulkan_eval.py', 'real_driver_static_check.py', 'real_virtio_gpu_path_check.py', 'stage_audit.py', 'unikraft_alignment_check.py', 'venus_perf_eval.py', 'venus_qemu_probe.py', 'vulkan_perf_eval.py'] missing=[] | All expected evaluation and guardrail scripts exist |
 | `unikraft_alignment` | `pass` | results/stage/unikraft_alignment.json | Unikraft design-rule alignment gate passes |
 | `stage_audit` | `pass` | results/stage/stage_audit.json | Current-stage audit passes |
 | `benchmark_summary` | `pass` | rows=8 results/benchmarks/benchmark_summary.json | Benchmark summary exists with native app and Venus readiness rows |
@@ -16,8 +16,6 @@ Status: `pass`
 | `real_path_selected` | `pass` | results/venus/real_path_check.json | Production Kraft/config/build artifacts use the real VirtIO-GPU backend |
 | `stk_out_of_scope` | `pass` | design/unikraft-virtio-gpu-spec-v1.md | STK porting is documented as out of scope (plan.md §0.5) |
 | `library_readmes` | `pass` | libs=4 missing=[] | Every local library has Unikraft-style README docs |
-| `paper_generated_tables` | `pass` | paper/generated/app-performance-table.typ; paper/generated/venus-stage-table.typ; paper/generated/current-stage-table.typ | Paper consumes generated benchmark/stage tables |
-| `paper_claim_boundaries` | `pass` | paper/sections/08-evaluation.typ; paper/sections/12-artifact-appendix.typ | Paper states current stage and claim boundaries |
 | `readme_current_stage` | `pass` | README.md | README exposes current-stage/evaluation commands and fix plan |
 | `governance_metadata` | `pass` | docs/GOVERNANCE.md; config/governance.json; ../manifest/manifests/vogue-main.yaml | Research-artifact governance metadata and manifest/VM ownership split are documented |
 
