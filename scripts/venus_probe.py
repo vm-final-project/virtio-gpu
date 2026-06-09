@@ -6,7 +6,7 @@ import argparse
 import pathlib
 import subprocess
 
-from common import acceleration, decode, resolve_qemu, result, write_json
+from common import acceleration, default_qemu_binary, image_suffix, machine_and_cpu_args, normalize_arch, resolve_qemu, result, result_path, write_json
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -17,28 +17,31 @@ def output_path(mode: str) -> pathlib.Path:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--arch", default="x86_64")
     parser.add_argument("--mode", choices=("2d", "venus-ring"), required=True)
-    parser.add_argument("--qemu", required=True)
+    parser.add_argument("--qemu")
     parser.add_argument("--timeout", type=int, required=True)
     args = parser.parse_args()
+    arch = normalize_arch(args.arch)
+    qemu_name = args.qemu or default_qemu_binary(arch)
 
-    out = output_path(args.mode)
-    qemu = resolve_qemu(args.qemu)
+    out = result_path(ROOT / "results/venus", f"qemu_{args.mode}_probe.json", arch)
+    qemu = resolve_qemu(qemu_name)
     if not qemu:
-        message = f"QEMU executable not found: {args.qemu}"
+        message = f"QEMU executable not found: {qemu_name}"
         write_json(out, result("blocked:qemu-missing", error=message))
         return 0
 
-    image = ROOT / "build" / "app-vulkan-sample_qemu-x86_64"
+    image = ROOT / "build" / f"app-vulkan-sample_{image_suffix(arch)}"
     if not image.is_file():
         message = f"missing image: {image}"
         write_json(out, result("blocked:image-missing", error=message))
         return 0
 
-    accel, cpu = acceleration()
+    accel = acceleration(arch)
     device = "virtio-gpu-pci" if args.mode == "2d" else "virtio-gpu-gl-pci,blob=true,venus=true"
     command = [
-        qemu, "-machine", f"accel={accel}", "-cpu", cpu, "-m", "512M",
+        qemu, *machine_and_cpu_args(arch, accel), "-m", "512M",
         "-display", "none", "-serial", "stdio", "-device", device,
         "-kernel", str(image),
     ]

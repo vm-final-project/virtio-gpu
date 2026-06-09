@@ -16,7 +16,11 @@
 #         -DCMAKE_TOOLCHAIN_FILE=$(realpath cmake/unikraft-clang.cmake) ...
 
 set(CMAKE_SYSTEM_NAME Linux)
-set(CMAKE_SYSTEM_PROCESSOR x86_64)
+set(_VOGUE_ARCH "$ENV{ARCH}")
+if("${_VOGUE_ARCH}" STREQUAL "")
+  set(_VOGUE_ARCH "x86_64")
+endif()
+set(CMAKE_SYSTEM_PROCESSOR ${_VOGUE_ARCH})
 
 set(CMAKE_C_COMPILER   clang)
 set(CMAKE_CXX_COMPILER clang++)
@@ -41,10 +45,19 @@ set(_VOGUE_VULKAN_HEADERS_INC "$ENV{VULKAN_HEADERS_INCLUDE}")
 # under QEMU -cpu host. Override by exporting VOGUE_MARCH for a different target.
 set(_VOGUE_MARCH "$ENV{VOGUE_MARCH}")
 if("${_VOGUE_MARCH}" STREQUAL "")
-  set(_VOGUE_MARCH "native")
+  if("${_VOGUE_ARCH}" STREQUAL "arm64")
+    set(_VOGUE_MARCH "armv8-a")
+  else()
+    set(_VOGUE_MARCH "native")
+  endif()
 endif()
 
-set(_VOGUE_CXX_FLAGS "-fPIC -std=c++17 -march=${_VOGUE_MARCH} -mtune=${_VOGUE_MARCH}")
+set(_VOGUE_MTUNE "${_VOGUE_MARCH}")
+if("${_VOGUE_ARCH}" STREQUAL "arm64")
+  set(_VOGUE_MTUNE "generic")
+endif()
+
+set(_VOGUE_CXX_FLAGS "-fPIC -std=c++17 -march=${_VOGUE_MARCH} -mtune=${_VOGUE_MTUNE}")
 foreach(_inc IN ITEMS
     "${_VOGUE_HOST_CXX_INCLUDE}"
     "${_VOGUE_SPIRV_HEADERS_INC}"
@@ -59,7 +72,7 @@ if(NOT "${_VOGUE_HOST_GCC_LIB}" STREQUAL "")
   string(APPEND _VOGUE_LD_FLAGS "-L${_VOGUE_HOST_GCC_LIB}")
 endif()
 
-set(CMAKE_C_FLAGS             "-fPIC -march=${_VOGUE_MARCH} -mtune=${_VOGUE_MARCH}" CACHE STRING "" FORCE)
+set(CMAKE_C_FLAGS             "-fPIC -march=${_VOGUE_MARCH} -mtune=${_VOGUE_MTUNE}" CACHE STRING "" FORCE)
 set(CMAKE_CXX_FLAGS           "${_VOGUE_CXX_FLAGS}" CACHE STRING "" FORCE)
 set(CMAKE_EXE_LINKER_FLAGS    "${_VOGUE_LD_FLAGS}" CACHE STRING "" FORCE)
 set(CMAKE_SHARED_LINKER_FLAGS "${_VOGUE_LD_FLAGS}" CACHE STRING "" FORCE)

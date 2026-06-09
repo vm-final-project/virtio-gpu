@@ -7,7 +7,8 @@ name: vogue-llama-vk
 # → QEMU virtio-gpu-gl-pci,venus=true.
 
 unikraft:
-  source: ../unikraft
+  source: https://github.com/unikraft/unikraft.git
+  version: f6f00b2d9cf4826ed9729bb62738947f82bf1f6e
   kconfig:
     CONFIG_APP_LLAMA_VK: 'y'
     CONFIG_APP_LLAMA_VK_ROOTFS_9PFS: 'y'
@@ -51,18 +52,14 @@ unikraft:
 
 targets:
   - qemu/x86_64
+  - qemu/arm64
 
 libraries:
-  libmusl:
-    source: ../lib-musl
-  libcxx:
-    source: ../lib-libcxx
-  libcxxabi:
-    source: ../lib-libcxxabi
-  libunwind:
-    source: ../lib-libunwind
-  libcompiler-rt:
-    source: ../lib-compiler-rt
+  musl: stable
+  libcxx: stable
+  libcxxabi: stable
+  libunwind: stable
+  compiler-rt: stable
   libukvirtio_gpu:
     source: ./libs/libukvirtio_gpu
   libukvulkan_venus:

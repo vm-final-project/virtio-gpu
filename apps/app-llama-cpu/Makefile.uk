@@ -1,11 +1,11 @@
 $(eval $(call addlib,appllama_cpu))
 
-# External source roots. LLAMA_ROOT defaults to a sibling checkout next to
-# vm-final-project (the same convention used for ../unikraft and ../lib-musl).
-# Override via the environment or by exporting it from the top-level Makefile.
-LLAMA_ROOT  ?= $(realpath $(APPLLAMA_CPU_BASE)/../../../llama.cpp)
+# External source roots. LLAMA_ROOT defaults to the repo-local checkout managed
+# by `make deps`. Override via the environment or by exporting it from the
+# top-level Makefile.
+LLAMA_ROOT  ?= $(realpath $(APPLLAMA_CPU_BASE)/../../.deps/src/llama.cpp)
 ifeq ($(strip $(LLAMA_ROOT)),)
-$(error LLAMA_ROOT not set and ../llama.cpp sibling not found; export LLAMA_ROOT or set it in config/external_paths.json)
+$(error LLAMA_ROOT not set and .deps/src/llama.cpp not found; export LLAMA_ROOT or set it in config/external_paths.json)
 endif
 GGML_SRC    := $(LLAMA_ROOT)/ggml/src
 GGML_INC    := $(LLAMA_ROOT)/ggml/include
@@ -36,13 +36,18 @@ APPLLAMA_CPU_CXXINCLUDES-y += -I$(LLAMA_ROOT)/include -I$(LLAMA_SRC) \
 # C++ exception-table chain through libc++/libunwind stays intact.
 # P2 (plan-optimize.md): target CPU arch is explicit + overridable. Upstream
 # ggml disables its native default under cross-compilation, so the appliance must
-# state its target. Default `native` is correct on the evaluation host because
-# the build host == the KVM run host (`-cpu host`, Broadwell); override
-# LLAMA_MARCH=<arch> for cross-host builds where build != run CPU.
+# state its target. x86_64 keeps the existing `native` default; arm64 uses the
+# portable ARMv8-A baseline unless the caller overrides it.
+ifeq ($(CONFIG_ARCH_ARM_64),y)
+LLAMA_MARCH ?= armv8-a
+LLAMA_MTUNE ?= generic
+else
 LLAMA_MARCH ?= native
+LLAMA_MTUNE ?= $(LLAMA_MARCH)
+endif
 APPLLAMA_CPU_COMMON_DEFS := -DGGML_VERSION=\"0.12.0\" -DGGML_COMMIT=\"fcae601e4\" \
                                   -D_GNU_SOURCE -DGGML_NO_NATIVE=1 -DGGML_USE_CPU=1 \
-                                  -march=$(LLAMA_MARCH) -mtune=$(LLAMA_MARCH) \
+                                  -march=$(LLAMA_MARCH) -mtune=$(LLAMA_MTUNE) \
                                   -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
                                   -isystem $(COMPILER_DIR)/include
 APPLLAMA_CPU_COLD_FLAGS    := -Os -ffunction-sections -fdata-sections
@@ -84,6 +89,10 @@ APPLLAMA_CPU_GGML_CPU_CPP_FLAGS-y  += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_X86_QUANTS_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_X86_REPACK_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_X86_CPU_FEATS_FLAGS-y += $(APPLLAMA_CPU_HOT_FLAGS)
+# ── arm64 quant / repack kernels ─────────────────────────────────────────
+APPLLAMA_CPU_ARM_QUANTS_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
+APPLLAMA_CPU_ARM_REPACK_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
+APPLLAMA_CPU_ARM_CPU_FEATS_FLAGS-y += $(APPLLAMA_CPU_HOT_FLAGS)
 # ── llama.cpp high-level graph executor ──────────────────────────────────
 APPLLAMA_CPU_LLAMA_FLAGS-y         += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_LLAMA_GRAPH_FLAGS-y   += $(APPLLAMA_CPU_HOT_FLAGS)
@@ -127,9 +136,12 @@ APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/binary-ops.cpp
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/unary-ops.cpp
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/vec.cpp
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/ops.cpp
-APPLLAMA_CPU_SRCS-y += $(APPLLAMA_CPU_BASE)/x86-quants.c
-APPLLAMA_CPU_SRCS-y += $(APPLLAMA_CPU_BASE)/x86-repack.cpp
-APPLLAMA_CPU_SRCS-y += $(APPLLAMA_CPU_BASE)/x86-cpu-feats.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_X86_64) += $(APPLLAMA_CPU_BASE)/x86-quants.c
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_X86_64) += $(APPLLAMA_CPU_BASE)/x86-repack.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_X86_64) += $(APPLLAMA_CPU_BASE)/x86-cpu-feats.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_ARM_64) += $(APPLLAMA_CPU_BASE)/arm-quants.c
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_ARM_64) += $(APPLLAMA_CPU_BASE)/arm-repack.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_ARM_64) += $(APPLLAMA_CPU_BASE)/arm-cpu-feats.cpp
 
 # ── llama.cpp high-level layer ────────────────────────────────────────────────
 APPLLAMA_CPU_SRCS-y += $(LLAMA_SRC)/llama.cpp

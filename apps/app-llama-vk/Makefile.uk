@@ -4,10 +4,10 @@ $(eval $(call addlib,appllama_vk))
 # VULKAN_HEADERS_INCLUDE must be supplied via the environment (or via
 # config/external_paths.json); the build fails fast if it is missing so the
 # guest image cannot quietly miss a Vulkan-Hpp upgrade.
-LLAMA_ROOT             ?= $(realpath $(APPLLAMA_VK_BASE)/../../../llama.cpp)
+LLAMA_ROOT             ?= $(realpath $(APPLLAMA_VK_BASE)/../../.deps/src/llama.cpp)
 VULKAN_HEADERS_INCLUDE ?=
 ifeq ($(strip $(LLAMA_ROOT)),)
-$(error LLAMA_ROOT not set and ../llama.cpp sibling not found; export LLAMA_ROOT or set it in config/external_paths.json)
+$(error LLAMA_ROOT not set and .deps/src/llama.cpp not found; export LLAMA_ROOT or set it in config/external_paths.json)
 endif
 ifeq ($(strip $(VULKAN_HEADERS_INCLUDE)),)
 $(error VULKAN_HEADERS_INCLUDE not set; export it or set it in config/external_paths.json)
@@ -20,8 +20,8 @@ LLAMA_SERVER := $(LLAMA_ROOT)/tools/server
 LLAMA_MTMD   := $(LLAMA_ROOT)/tools/mtmd
 COMPILER_DIR := $(shell clang -print-resource-dir)
 # Pre-generated SPIRV shader sources/header (from the cmake VK cross-build,
-# i.e. `make llama-upstream-cmake-vk` -> build-unikraft-vk) + SPIRV headers.
-GGML_VK_SHADERS ?= $(LLAMA_ROOT)/build-unikraft-vk/ggml/src/ggml-vulkan
+# i.e. `make llama-vk-prepare` -> build-unikraft-vk-$(ARCH)) + SPIRV headers.
+GGML_VK_SHADERS ?= $(LLAMA_ROOT)/build-unikraft-vk-$(ARCH)/ggml/src/ggml-vulkan
 GGML_SPIRV_INC  ?= $(SPIRV_HEADERS_INCLUDE)
 
 # This app builds the upstream ggml stack IN-TREE (the former libukggml_vk build
@@ -47,13 +47,19 @@ APPLLAMA_VK_CXXINCLUDES-y += -I$(LLAMA_ROOT)/include -I$(LLAMA_SRC) \
 
 # See apps/app-llama-cpu/Makefile.uk for the COLD / HOT flag rationale.
 # P2 (plan-optimize.md): explicit + overridable target CPU arch (see the CPU
-# appliance Makefile.uk). Default `native` is correct here because build host ==
-# KVM run host (Broadwell); override LLAMA_MARCH for cross-host builds.
+# appliance Makefile.uk). x86_64 keeps the existing `native` default; arm64 uses
+# the portable ARMv8-A baseline unless the caller overrides it.
+ifeq ($(CONFIG_ARCH_ARM_64),y)
+LLAMA_MARCH ?= armv8-a
+LLAMA_MTUNE ?= generic
+else
 LLAMA_MARCH ?= native
+LLAMA_MTUNE ?= $(LLAMA_MARCH)
+endif
 APPLLAMA_VK_COMMON_DEFS := -DGGML_VERSION=\"0.12.0\" -DGGML_COMMIT=\"fcae601e4\" \
                                      -D_GNU_SOURCE -DGGML_NO_NATIVE=1 -DGGML_USE_CPU=1 \
                                      -DGGML_USE_VULKAN=1 \
-                                     -march=$(LLAMA_MARCH) -mtune=$(LLAMA_MARCH) \
+                                     -march=$(LLAMA_MARCH) -mtune=$(LLAMA_MTUNE) \
                                      -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
                                      -isystem $(COMPILER_DIR)/include
 APPLLAMA_VK_COLD_FLAGS   := -Os -ffunction-sections -fdata-sections
@@ -100,6 +106,9 @@ APPLLAMA_VK_GGML_CPU_CPP_FLAGS-y  += $(APPLLAMA_VK_HOT_FLAGS)
 APPLLAMA_VK_X86_QUANTS_FLAGS-y    += $(APPLLAMA_VK_HOT_FLAGS)
 APPLLAMA_VK_X86_REPACK_FLAGS-y    += $(APPLLAMA_VK_HOT_FLAGS)
 APPLLAMA_VK_X86_CPU_FEATS_FLAGS-y += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_ARM_QUANTS_FLAGS-y    += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_ARM_REPACK_FLAGS-y    += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_ARM_CPU_FEATS_FLAGS-y += $(APPLLAMA_VK_HOT_FLAGS)
 APPLLAMA_VK_LLAMA_FLAGS-y         += $(APPLLAMA_VK_HOT_FLAGS)
 APPLLAMA_VK_LLAMA_GRAPH_FLAGS-y   += $(APPLLAMA_VK_HOT_FLAGS)
 APPLLAMA_VK_LLAMA_CONTEXT_FLAGS-y += $(APPLLAMA_VK_HOT_FLAGS)
@@ -143,9 +152,12 @@ APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/binary-ops.cpp
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/unary-ops.cpp
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/vec.cpp
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/ops.cpp
-APPLLAMA_VK_SRCS-y += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/x86-quants.c
-APPLLAMA_VK_SRCS-y += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/x86-repack.cpp
-APPLLAMA_VK_SRCS-y += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/x86-cpu-feats.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_X86_64) += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/x86-quants.c
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_X86_64) += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/x86-repack.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_X86_64) += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/x86-cpu-feats.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_ARM_64) += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/arm-quants.c
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_ARM_64) += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/arm-repack.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_ARM_64) += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/arm-cpu-feats.cpp
 
 # ggml-opt and backend registry (omitted from the in-tree ggml build above)
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-opt.cpp

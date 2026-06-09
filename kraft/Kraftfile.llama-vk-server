@@ -8,7 +8,8 @@ name: vogue-llama-vk-server
 # the only difference is the Kconfig mode, which compiles server.cpp
 # instead of bench.cpp.
 #
-# Reference QEMU invocation (plan-optimize.md L4.1/L4.2 + HTTP serving):
+# Reference QEMU invocation for the current Linux proof path
+# (plan-optimize.md L4.1/L4.2 + HTTP serving):
 #   qemu-system-x86_64 -machine accel=kvm -cpu max -m 4G \
 #       -kernel .unikraft/build/vogue-llama-vk-server_qemu-x86_64 \
 #       -append "console=ttyS0 random.seed=<8 u32 words>" \
@@ -19,14 +20,17 @@ name: vogue-llama-vk-server
 #       -virtfs local,path=$(pwd)/rootfs/llama,mount_tag=model,security_model=none,id=model \
 #       -serial mon:stdio
 #   # then: curl http://127.0.0.1:18080/health  ->  {"status":"ok"}
-# See make llama-vk-server-run for the canonical command.
+# For arm64 builds, switch to qemu-system-aarch64, the `virt` machine, the
+# `ttyAMA0` console, and the `_qemu-arm64` image suffix. See
+# `make llama-vk-server-run` for the canonical command.
 # The hostmem=8G window backs Venus host-visible blobs (KV cache); blob=true
 # is required for that mapping; venus=true exposes capset id=4 to the guest.
 # The runtime target records the host
 # device flags alongside any same-run llama.cpp request metrics.
 
 unikraft:
-  source: ../unikraft
+  source: https://github.com/unikraft/unikraft.git
+  version: f6f00b2d9cf4826ed9729bb62738947f82bf1f6e
   kconfig:
     CONFIG_APP_LLAMA_VK: 'y'
     CONFIG_APP_LLAMA_VK_ROOTFS_9PFS: 'y'
@@ -118,20 +122,15 @@ unikraft:
 
 targets:
   - qemu/x86_64
+  - qemu/arm64
 
 libraries:
-  libmusl:
-    source: ../lib-musl
-  libcxx:
-    source: ../lib-libcxx
-  libcxxabi:
-    source: ../lib-libcxxabi
-  libunwind:
-    source: ../lib-libunwind
-  libcompiler-rt:
-    source: ../lib-compiler-rt
-  liblwip:
-    source: ../lib-lwip
+  musl: stable
+  libcxx: stable
+  libcxxabi: stable
+  libunwind: stable
+  compiler-rt: stable
+  lwip: stable
   libukvirtio_gpu:
     source: ./libs/libukvirtio_gpu
   libukvulkan_venus:
