@@ -10,7 +10,7 @@ $(eval $(call addlib,libvulkan))
 ifeq ($(CONFIG_LIBVULKAN),y)
 
 # Vulkan-Hpp headers come from the pinned Khronos Vulkan-Headers checkout
-# (config/external_paths.json: VULKAN_HEADERS_INCLUDE). Default derives from the
+# (config/deps.json: VULKAN_HEADERS_INCLUDE). Default derives from the
 # sibling checkout; override on the make command line if needed.
 VULKAN_HEADERS_INCLUDE ?= $(LIBVULKAN_BASE)/../../.deps/src/Vulkan-Headers/include
 

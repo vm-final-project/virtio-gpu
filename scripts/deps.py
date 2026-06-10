@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fetch and report external VOGUE dependencies.
 
-Reads config/external_paths.json.  The top-level sections are:
+Reads config/deps.json.  The top-level sections are:
 
   kraftkit.packages  — KraftKit package-registry libraries (musl, libcxx, …).
                        Resolved at `kraft build` time; deps.py only registers
@@ -27,7 +27,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CONFIG = ROOT / "config" / "external_paths.json"
+CONFIG = ROOT / "config" / "deps.json"
 
 
 def load_config() -> dict:
@@ -115,7 +115,7 @@ def fetch(refresh: bool) -> None:
     run(["kraft", "pkg", "source", manifest], check=False)
     run(["kraft", "pkg", "update"])
 
-    # Clone every git_source declared in config/external_paths.json, then
+    # Clone every git_source declared in config/deps.json, then
     # re-apply any local patches it carries.
     for name, entry in config["git_sources"].items():
         path = resolved_path(entry)

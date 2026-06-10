@@ -3,7 +3,7 @@
 #
 # Path inputs come from the environment so the toolchain file carries no
 # personal-checkout paths. Defaults are documented in
-# config/external_paths.json:
+# config/deps.json:
 #
 #   LLAMA_ROOT              upstream llama.cpp source root
 #   VULKAN_HEADERS_INCLUDE  Vulkan-Headers (v1.3.352) include dir
@@ -33,7 +33,7 @@ set(CMAKE_CXX_COMPILER clang++)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 
 # Optional host include/lib roots; the Makefile resolves defaults from
-# config/external_paths.json. Leave empty to fall back on the toolchain's
+# config/deps.json. Leave empty to fall back on the toolchain's
 # built-in search paths.
 set(_VOGUE_HOST_CXX_INCLUDE  "$ENV{HOST_CXX_INCLUDE}")
 set(_VOGUE_HOST_GCC_LIB      "$ENV{HOST_GCC_LIB}")
