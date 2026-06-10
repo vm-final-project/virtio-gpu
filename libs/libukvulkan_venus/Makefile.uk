@@ -16,7 +16,7 @@ LIBUKVULKAN_VENUS_CINCLUDES-y += -I$(LIBUKVIRTIO_GPU_BASE)/include
 # from the pinned ../venus-protocol (see GENERATOR.md). Those headers + the
 # vn_cs/vn_ring shim need the bare include dir, the generated dir, and stock
 # Vulkan headers (VULKAN_HEADERS_INCLUDE, the same set libvulkan uses).
-VULKAN_HEADERS_INCLUDE ?= $(LIBUKVULKAN_VENUS_BASE)/../../../Vulkan-Headers/include
+VULKAN_HEADERS_INCLUDE ?= $(LIBUKVULKAN_VENUS_BASE)/../../.deps/src/Vulkan-Headers/include
 LIBUKVULKAN_VENUS_CINCLUDES-y += -I$(LIBUKVULKAN_VENUS_BASE)/include/uk
 LIBUKVULKAN_VENUS_CINCLUDES-y += -I$(LIBUKVULKAN_VENUS_BASE)/generated
 LIBUKVULKAN_VENUS_CINCLUDES-y += -I$(VULKAN_HEADERS_INCLUDE)

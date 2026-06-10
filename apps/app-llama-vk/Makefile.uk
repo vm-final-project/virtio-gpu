@@ -18,7 +18,6 @@ LLAMA_SRC    := $(LLAMA_ROOT)/src
 LLAMA_COMMON := $(LLAMA_ROOT)/common
 LLAMA_SERVER := $(LLAMA_ROOT)/tools/server
 LLAMA_MTMD   := $(LLAMA_ROOT)/tools/mtmd
-COMPILER_DIR := $(shell clang -print-resource-dir)
 # Pre-generated SPIRV shader sources/header (from the cmake VK cross-build,
 # i.e. `make llama-vk-prepare` -> build-unikraft-vk-$(ARCH)) + SPIRV headers.
 GGML_VK_SHADERS ?= $(LLAMA_ROOT)/build-unikraft-vk-$(ARCH)/ggml/src/ggml-vulkan
@@ -61,7 +60,6 @@ APPLLAMA_VK_COMMON_DEFS := -DGGML_VERSION=\"0.12.0\" -DGGML_COMMIT=\"fcae601e4\"
                                      -DGGML_USE_VULKAN=1 \
                                      -march=$(LLAMA_MARCH) -mtune=$(LLAMA_MTUNE) \
                                      -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
-                                     -isystem $(COMPILER_DIR)/include
 APPLLAMA_VK_COLD_FLAGS   := -Os -ffunction-sections -fdata-sections
 APPLLAMA_VK_C_COLD_EXTRA := -fno-asynchronous-unwind-tables -fno-unwind-tables
 APPLLAMA_VK_HOT_FLAGS    := -O3 -funroll-loops -fno-math-errno -fno-trapping-math
@@ -69,7 +67,7 @@ APPLLAMA_VK_HOT_FLAGS    := -O3 -funroll-loops -fno-math-errno -fno-trapping-mat
 APPLLAMA_VK_CFLAGS-y   += $(APPLLAMA_VK_COMMON_DEFS) $(APPLLAMA_VK_COLD_FLAGS) \
                                     $(APPLLAMA_VK_C_COLD_EXTRA) \
                                     -Wno-unused-function
-APPLLAMA_VK_CXXFLAGS-y += -std=c++17 $(APPLLAMA_VK_COMMON_DEFS) $(APPLLAMA_VK_COLD_FLAGS) \
+APPLLAMA_VK_CXXFLAGS-y += -std=gnu++17 $(APPLLAMA_VK_COMMON_DEFS) $(APPLLAMA_VK_COLD_FLAGS) \
                                     -DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1 \
                                     -isystem $(VULKAN_HEADERS_INCLUDE) \
                                     -Wno-unknown-pragmas -Wno-unused-function
