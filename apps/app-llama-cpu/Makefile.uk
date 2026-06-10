@@ -10,13 +10,24 @@ endif
 GGML_SRC    := $(LLAMA_ROOT)/ggml/src
 GGML_INC    := $(LLAMA_ROOT)/ggml/include
 LLAMA_SRC   := $(LLAMA_ROOT)/src
-COMPILER_DIR := $(shell clang -print-resource-dir)
+# ggml-impl.h pulls the compiler's own SIMD intrinsics header (<arm_neon.h> on
+# arm64, <immintrin.h> on x86). That header lives in the compiler's builtin
+# include dir, which unikraft's -nostdinc drops; add it back explicitly. GCC
+# exposes it via -print-file-name=include, clang via -print-resource-dir. Using
+# $(CC) keeps this correct across both the x86_64-elf and aarch64-elf toolchains.
+ifeq ($(COMPILER),clang)
+APPLLAMA_CPU_BUILTIN_INC := $(shell $(CC) -print-resource-dir)/include
+else
+APPLLAMA_CPU_BUILTIN_INC := $(shell $(CC) -print-file-name=include)
+endif
 
 # Include paths
-APPLLAMA_CPU_CINCLUDES-y   += -I$(GGML_INC) -I$(GGML_SRC) -I$(GGML_SRC)/ggml-cpu
+APPLLAMA_CPU_CINCLUDES-y   += -I$(GGML_INC) -I$(GGML_SRC) -I$(GGML_SRC)/ggml-cpu \
+                                   -isystem $(APPLLAMA_CPU_BUILTIN_INC)
 APPLLAMA_CPU_CXXINCLUDES-y += -I$(LLAMA_ROOT)/include -I$(LLAMA_SRC) \
                                    -I$(LLAMA_SRC)/models \
-                                   -I$(GGML_INC) -I$(GGML_SRC) -I$(GGML_SRC)/ggml-cpu
+                                   -I$(GGML_INC) -I$(GGML_SRC) -I$(GGML_SRC)/ggml-cpu \
+                                   -isystem $(APPLLAMA_CPU_BUILTIN_INC)
 
 # Compile flags: enable CPU backend static registration, suppress fortify+glibc compat issues.
 #
@@ -48,8 +59,7 @@ endif
 APPLLAMA_CPU_COMMON_DEFS := -DGGML_VERSION=\"0.12.0\" -DGGML_COMMIT=\"fcae601e4\" \
                                   -D_GNU_SOURCE -DGGML_NO_NATIVE=1 -DGGML_USE_CPU=1 \
                                   -march=$(LLAMA_MARCH) -mtune=$(LLAMA_MTUNE) \
-                                  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
-                                  -isystem $(COMPILER_DIR)/include
+                                  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0
 APPLLAMA_CPU_COLD_FLAGS    := -Os -ffunction-sections -fdata-sections
 APPLLAMA_CPU_C_COLD_EXTRA  := -fno-asynchronous-unwind-tables -fno-unwind-tables
 APPLLAMA_CPU_HOT_FLAGS     := -O3 -funroll-loops -fno-math-errno -fno-trapping-math
@@ -57,7 +67,7 @@ APPLLAMA_CPU_HOT_FLAGS     := -O3 -funroll-loops -fno-math-errno -fno-trapping-m
 APPLLAMA_CPU_CFLAGS-y   += $(APPLLAMA_CPU_COMMON_DEFS) $(APPLLAMA_CPU_COLD_FLAGS) \
                                  $(APPLLAMA_CPU_C_COLD_EXTRA) \
                                  -Wno-unused-function
-APPLLAMA_CPU_CXXFLAGS-y += -std=c++17 $(APPLLAMA_CPU_COMMON_DEFS) $(APPLLAMA_CPU_COLD_FLAGS) \
+APPLLAMA_CPU_CXXFLAGS-y += -std=gnu++17 $(APPLLAMA_CPU_COMMON_DEFS) $(APPLLAMA_CPU_COLD_FLAGS) \
                                  -Wno-unknown-pragmas -Wno-unused-function
 # NOTE: --gc-sections must NOT go here: per-library LDFLAGS feed the relocatable
 # `ld -r` link, where --gc-sections has no entry-point root and binutils errors
@@ -76,6 +86,7 @@ APPLLAMA_CPU_GGML_BACKEND_FLAGS-y += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_GGML_THREADING_FLAGS-y += $(APPLLAMA_CPU_HOT_FLAGS)
 # ── ggml-cpu hot kernels ─────────────────────────────────────────────────
 APPLLAMA_CPU_GGML_CPU_FLAGS-y      += $(APPLLAMA_CPU_HOT_FLAGS)
+APPLLAMA_CPU_GGML_CPU_CORE_FLAGS-y += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_QUANTS_FLAGS-y        += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_BINARY_OPS_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_UNARY_OPS_FLAGS-y     += $(APPLLAMA_CPU_HOT_FLAGS)
@@ -85,14 +96,12 @@ APPLLAMA_CPU_REPACK_FLAGS-y        += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_TRAITS_FLAGS-y        += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_HBM_FLAGS-y           += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_GGML_CPU_CPP_FLAGS-y  += $(APPLLAMA_CPU_HOT_FLAGS)
-# ── x86 quant / repack kernels ───────────────────────────────────────────
-APPLLAMA_CPU_X86_QUANTS_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
-APPLLAMA_CPU_X86_REPACK_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
-APPLLAMA_CPU_X86_CPU_FEATS_FLAGS-y += $(APPLLAMA_CPU_HOT_FLAGS)
-# ── arm64 quant / repack kernels ─────────────────────────────────────────
-APPLLAMA_CPU_ARM_QUANTS_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
-APPLLAMA_CPU_ARM_REPACK_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
-APPLLAMA_CPU_ARM_CPU_FEATS_FLAGS-y += $(APPLLAMA_CPU_HOT_FLAGS)
+# ── x86 quant / repack kernels (|x86 variant -> QUANTS_X86 / REPACK_X86) ──
+APPLLAMA_CPU_QUANTS_X86_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
+APPLLAMA_CPU_REPACK_X86_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
+# ── arm64 quant / repack kernels (|arm variant -> QUANTS_ARM / REPACK_ARM) ─
+APPLLAMA_CPU_QUANTS_ARM_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
+APPLLAMA_CPU_REPACK_ARM_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
 # ── llama.cpp high-level graph executor ──────────────────────────────────
 APPLLAMA_CPU_LLAMA_FLAGS-y         += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_LLAMA_GRAPH_FLAGS-y   += $(APPLLAMA_CPU_HOT_FLAGS)
@@ -108,6 +117,9 @@ APPLLAMA_CPU_LLAMA_MODEL_FLAGS-y   += $(APPLLAMA_CPU_HOT_FLAGS)
 # source file becomes an empty translation unit thanks to its #if guard.
 APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_BENCH)  += $(APPLLAMA_CPU_BASE)/bench.cpp
 APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += $(APPLLAMA_CPU_BASE)/server.cpp
+
+# GCC<->LLVM C++ runtime ABI shim (provides __cxa_call_terminate etc.).
+APPLLAMA_CPU_SRCS-y += $(APPLLAMA_CPU_BASE)/uk_stdcxx_compat.cpp
 
 # ── ggml core ────────────────────────────────────────────────────────────────
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml.c
@@ -125,8 +137,13 @@ APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-backend-dl.cpp
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-backend-reg.cpp
 
 # ── ggml-cpu backend ─────────────────────────────────────────────────────────
+# ggml-cpu.cpp (C++ glue) and ggml-cpu.c (C kernels) share a basename. unikraft
+# names objects by basename only (external srcs are flattened), so both would
+# emit ggml-cpu.o and collide at link. Tag the C TU with a |core variant so it
+# builds as ggml-cpu.core.o. Same pattern below for the arch-specific
+# quants.c / repack.cpp, which otherwise collide with the generic ones.
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/ggml-cpu.cpp
-APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/ggml-cpu.c
+APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/ggml-cpu.c|core
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/quants.c
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/repack.cpp
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/hbm.cpp
@@ -136,11 +153,11 @@ APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/binary-ops.cpp
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/unary-ops.cpp
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/vec.cpp
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/ops.cpp
-APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/quants.c
-APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/repack.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/quants.c|x86
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/repack.cpp|x86
 APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/cpu-feats.cpp
-APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/quants.c
-APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/repack.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/quants.c|arm
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/repack.cpp|arm
 APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/cpu-feats.cpp
 
 # ── llama.cpp high-level layer ────────────────────────────────────────────────
@@ -174,7 +191,8 @@ APPLLAMA_CPU_SRCS-y += $(LLAMA_SRC)/unicode.cpp
 APPLLAMA_CPU_SRCS-y += $(LLAMA_SRC)/unicode-data.cpp
 
 # ── llama.cpp model implementations ──────────────────────────────────────────
-# models/llama.cpp basename conflicts with src/llama.cpp; use a shim instead.
+# models/llama.cpp basename conflicts with src/llama.cpp (both -> llama.o); tag
+# the model-arch TU with a |mdl variant so it builds as llama.mdl.o.
 APPLLAMA_CPU_SRCS-y += $(filter-out $(LLAMA_SRC)/models/llama.cpp, \
                              $(wildcard $(LLAMA_SRC)/models/*.cpp))
-APPLLAMA_CPU_SRCS-y += $(LLAMA_SRC)/models/llama.cpp
+APPLLAMA_CPU_SRCS-y += $(LLAMA_SRC)/models/llama.cpp|mdl
