@@ -31,6 +31,15 @@ unikraft:
     # boot protocol (lxboot on arm64 / multiboot on x86_64) and console drivers
     # (pl011 on arm64, ns16550 on x86_64) are implied automatically.
     CONFIG_KVM_VMM_QEMU: 'y'
+    # ARM64 interrupt controller: QEMU virt machine uses GICv2 by default.
+    CONFIG_LIBUKINTCTLR_GICV2: 'y'
+    # llama.cpp graph building has deep call chains and large stack frames
+    # (e.g. llm_graph_result::reset() alone uses ~25 KiB for a llm_graph_params
+    # local). The 64 KiB default stack (order 4) overflows below RAM base during
+    # llama_context::graph_reserve(), faulting with ISV=0 (HVF asserts; TCG
+    # reports a synchronous external abort). Order 9 = 2 MiB gives ample margin.
+    # This default also sizes pthread worker stacks used for inference.
+    CONFIG_STACK_SIZE_PAGE_ORDER: '9'
     CONFIG_APP_LLAMA_CPU: 'y'
     CONFIG_APP_LLAMA_CPU_ROOTFS_9PFS: 'y'
     CONFIG_APP_LLAMA_CPU_MODE_SERVER: 'y'
