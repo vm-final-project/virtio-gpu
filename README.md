@@ -1,193 +1,135 @@
 # VOGUE: VirtIO-GPU on Unikraft
 
-VOGUE is a Unikraft VirtIO-GPU, Venus, Vulkan, and llama.cpp research artifact.
-`Makefile` is the stable automation interface. The repo now supports both
-`x86_64` and `arm64` QEMU targets; CPU llama appliances can be built and run on
-Apple Silicon with `ARCH=arm64`, while the GPU/Venus path still needs a Linux
-host Vulkan stack for runtime proof. The Vulkan llama server appliance is
-local-model only in this repo: it always reads `/mnt/model/model.gguf` and does
-not download models from Hugging Face or a remote URL at runtime.
+VOGUE is a research artifact for running **VirtIO-GPU, Venus, Vulkan, and
+llama.cpp** as single-application [Unikraft](https://unikraft.org) unikernels.
+It targets both `x86_64` and `arm64` QEMU. The CPU llama appliances build and
+run on Apple Silicon (`ARCH=arm64`); the GPU/Vulkan path builds for either arch
+but still needs a Linux host Vulkan stack for runtime proof.
+
+`make` is the stable automation interface — run `make help` for the full list.
+
+## Project structure
+
+| Path | What it holds |
+|------|---------------|
+| `apps/` | One directory per appliance. Each boots directly into a single entrypoint (no shell, no `fork`/`exec`). |
+| `libs/` | First-party Unikraft libraries — the reusable VirtIO-GPU / Venus / Vulkan substrate. |
+| `kraft/` | `Kraftfile.*` per appliance/target: Unikraft core, libraries, KConfig, and QEMU targets. |
+| `mk/` | Make includes: `llama.mk` (appliances), `tests.mk`, `evidence.mk`. |
+| `scripts/` | Python runners (`llama_cpu.py`, `llama_vk.py`, `deps.py`, probes) that drive QEMU and emit JSON results. |
+| `tests/` | Host-native C test suite (fake VirtIO-GPU backend, no QEMU/GPU needed) — the fast CI gate. |
+| `config/` | Tracked reference `.config` snapshots for static evidence gates. |
+| `results/` | JSON result captures (one schema, see [Results](#results)). |
+| `rootfs/` | Optional model/shader staging for the llama appliances. |
+| `.deps/src/` | Pinned non-Kraft upstreams fetched by `make deps` (not vendored in git). |
+
+### Appliances (`apps/`)
+
+| App | Kraftfile(s) | Stack |
+|-----|--------------|-------|
+| `app-llama-cpu` | `Kraftfile.llama-cpu{,-bench,-server}` | upstream llama.cpp on the CPU backend |
+| `app-llama-vk` | `Kraftfile.llama-vk{,-server}` | llama.cpp → ggml-vulkan → Vulkan/Venus |
+| `app-kmscube` | `Kraftfile.kmscube-vgpu-gl` | virgl command-stream graphics proof |
+| `app-vkmark`, `app-vulkan-sample` | (via `make vulkan-check`) | Venus/Vulkan substrate probes |
+| `llama-common/` | — | shared headers for the CPU + Vulkan llama appliances |
+
+### The Vulkan stack (`libs/`)
+
+```text
+application / llama.cpp  ->  upstream ggml-vulkan / Vulkan-Hpp
+  -> libvulkan            app-facing vk* ABI, dispatch, Hpp loader (compute-first subset)
+  -> libukvulkan_venus    native Venus Vulkan driver (encode/decode, ring, context)
+  -> libukvirtio_gpu      VirtIO-GPU guest frontend: SUBMIT_3D, blobs, fences
+  -> QEMU virtio-gpu-gl + virglrenderer (Venus)  ->  host Vulkan driver
+```
+
+`libukvirtgpu_drm` is an optional Linux/Mesa virtgpu-UAPI shim; native builds do
+not use it. The CPU llama appliance bypasses this stack entirely (ggml CPU
+backend). Each library has its own README with API and design boundaries.
 
 ## Prerequisites
 
-Install the local build tools first:
-
 ```sh
-brew install kraftkit qemu python
+brew install kraftkit qemu python      # macOS host tools
 ```
 
-Linux GPU/Venus runs additionally need:
+Linux GPU/Venus runs additionally need a Vulkan-capable host driver, a
+`virglrenderer`/Venus-capable QEMU, and (if not at the default path) a `VK_LIB`
+override.
 
-- a Vulkan-capable host driver
-- `virglrenderer`/Venus-capable QEMU setup
-- a valid `VK_LIB` override when the default `/usr/lib/x86_64-linux-gnu/libvulkan.so.1` does not apply
+Non-Kraft upstreams (`llama.cpp`, `venus-protocol`, `Vulkan-Headers`,
+`SPIRV-Headers`) are fetched into `.deps/src/` by `make deps`. Every external
+path can be overridden via environment variables documented in
+[`config/deps.json`](config/deps.json).
 
-Kraft-managed dependencies come from the official manifest cache. Non-Kraft
-upstreams are stored under `.deps/src/` by `make deps`:
-
-- `llama.cpp`
-- `venus-protocol`
-- `Vulkan-Headers`
-- `SPIRV-Headers`
-
-Every external path can still be overridden with environment variables from
-[`config/deps.json`](/Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu/config/deps.json:1).
-
-## Dependency Workflow
-
-Initial setup:
+## Dependency workflow
 
 ```sh
-make deps
-make deps-status
+make deps          # fetch Kraft manifest + pinned git upstreams into .deps/src/, run kraft fetch
+make deps-status   # show pinned Unikraft rev, library channels, checkout state
+make deps-refresh  # refresh git checkouts and re-run kraft fetch (cache-busting)
 ```
 
-What each command does:
+Standard Unikraft split per appliance: `Kraftfile` (core/libs/KConfig/targets),
+`Config.uk` (app options), `Makefile.uk` (register the app, pick sources,
+per-arch flags).
 
-- `make deps`: source the official Kraft manifest, update the local package
-  index, fetch the pinned non-Kraft Git dependencies into `.deps/src/`, and run
-  `kraft fetch` for every tracked Kraftfile.
-- `make deps-status`: show the pinned Unikraft revision, official library
-  channel selections, and the state of each repo-local upstream checkout.
-- `make deps-refresh`: refresh Git checkouts and rerun `kraft fetch` with
-  cache-busting.
-
-This repo uses the standard Unikraft split:
-
-- `Kraftfile`: choose Unikraft core, official libraries, KConfig and targets.
-- `Config.uk`: expose app/library options and architecture-specific dependencies.
-- `Makefile.uk`: register the app as a Unikraft library, pick sources, and
-  apply per-architecture build flags.
-- `kraft fetch`: retrieve Unikraft core and library dependencies declared in the
-  Kraftfile.
-- `Makefile.uk` fetch/prepare logic: build-time handling for application
-  upstream code such as `llama.cpp`.
-
-## Build And Test
-
-Common entrypoints:
-
-```sh
-make help
-make test-fast
-make test-native
-make venus-check
-make vulkan-check
-make verify MODEL=/absolute/path/model.gguf
-```
-
-Runtime variables:
+## Build and run
 
 ```make
-ARCH ?= x86_64
-QEMU ?= qemu-system-x86_64   # qemu-system-aarch64 when ARCH=arm64
-MODEL ?= models/model.gguf   # falls back to the sole *.gguf under models/
-RUN_TIMEOUT ?= 120
+ARCH   ?= x86_64                # arm64 for Apple Silicon
+MODEL  ?= models/model.gguf     # falls back to the sole *.gguf under models/
 ```
 
-Supported appliance targets:
+| Appliance | Build | Run |
+|-----------|-------|-----|
+| CPU bench | `make llama-cpu-build` | `make llama-cpu-run` |
+| CPU server | `make llama-cpu-server-build` | `make llama-cpu-server-run` |
+| Vulkan bench | `make llama-vk-build` | `make llama-vk-run` |
+| Vulkan server | `make llama-vk-server-build` | `make llama-vk-server-run` |
+| KMSCube (virgl) | `make kmscube-build` | — |
 
-```sh
-# CPU llama
-make llama-cpu-build
-make llama-cpu-run
-make llama-cpu-server-build
-make llama-cpu-server-run
+Add `ARCH=arm64` and `MODEL=/abs/path/model.gguf` as needed. Probes/gates:
+`make test-fast`, `make venus-check`, `make vulkan-check`.
 
-# GPU/Vulkan llama
-make llama-vk-build
-make llama-vk-run
-make llama-vk-server-build
-make llama-vk-server-run
+`make verify MODEL=...` is the broad release gate (`test-fast` → `venus-check` →
+`vulkan-check` → all four llama modes → `linux-guest-vk-baseline`). Missing QEMU,
+images, models, or GPU capabilities are reported as structured
+`blocked:<reason>` JSON, not hard failures.
 
-# KMSCube (VirtIO-GPU / virgl)
-make kmscube-build
+## Apple Silicon CPU quickstart (validated path)
 
-# Venus / Vulkan probes
-make venus-probe-2d
-make venus-probe-ring
-make venus-check          # test-venus + both probes
-make vulkan-check         # vulkan-tests + test-dispatch + vulkan_check.py
-
-# Linux guest baseline
-make linux-guest-vk-baseline
-```
-
-`make verify` is the broad release gate; it runs:
-`test-fast` → `venus-check` → `vulkan-check` → all four llama runtime modes
-→ `linux-guest-vk-baseline`.  Missing QEMU, images, models, or host GPU
-capabilities are reported as structured `blocked:<reason>` JSON rather than
-hard failures.
-
-## Apple Silicon CPU Workflow
-
-On an M1/M2/M3 Mac, the supported path is the CPU appliance on `qemu/arm64`:
+The CPU appliance on `qemu/arm64` is the path validated in this repo:
 
 ```sh
 make deps
-make test-fast
 make llama-cpu-server-build ARCH=arm64
-make llama-cpu-server-run ARCH=arm64 MODEL=/absolute/path/model.gguf
+make llama-cpu-server-run   ARCH=arm64 MODEL=/abs/path/model.gguf
 ```
 
-Related CPU bench command:
+`ARCH=arm64` selects `qemu-system-aarch64`, the `virt` machine, and `ttyAMA0`.
+The runner prefers HVF acceleration and falls back to TCG. The model is mounted
+into the guest over VirtIO-9P.
+
+**Toolchain caveats (macOS + GCC 16).** Unikraft 0.21.0 is validated against GCC
+11–14, so the Makefile: prepends Homebrew GNU make to `PATH` (KraftKit needs GNU
+make ≥ 4.1; macOS ships 3.81); injects `-std=gnu17` / `-std=gnu++17 -fpermissive`
+to tame the GCC-16 C23 default; and reapplies a tracked `extern "C"` patch to
+unikraft's `ectx.h` via `make deps` (see `patches/unikraft/`). The `x86_64` CPU
+path and the Vulkan targets build but are not runtime-verified in this round.
+
+## Running manually
+
+`make ...-run` captures all QEMU output and prints only pass/fail. To watch the
+boot log or hit the HTTP API, drive QEMU directly — the model mounts over
+**virtio-9p**, which `kraft run` cannot forward.
 
 ```sh
-make llama-cpu-run ARCH=arm64 MODEL=/absolute/path/model.gguf
-```
-
-Notes:
-
-- `ARCH=arm64` selects `qemu-system-aarch64`, `virt` machine type, and
-  `ttyAMA0`.
-- On macOS ARM64, the runner prefers QEMU HVF acceleration and falls back to
-  TCG automatically.
-- CPU images are expected to work on Apple Silicon. GPU/Venus images can be
-  built for `arm64`, but runtime verification still depends on a Linux host
-  Vulkan/Venus stack and is not claimed on macOS.
-
-### Build & run CPU llama (arm64 / Apple Silicon — validated path)
-
-This is the build-and-run path validated in this repo. It targets **arm64** under `qemu-system-aarch64` with `hvf` acceleration.
-
-```sh
-make deps                              # fetch upstreams + reapply tracked patches
-make llama-cpu-server-build ARCH=arm64 # or: llama-cpu-build
-make llama-cpu-run ARCH=arm64          # boots the appliance under QEMU
-```
-
-The run mounts a model into the guest over virtio-9p. `MODEL` defaults to `models/model.gguf`, falling back to the sole `*.gguf` in `models/`. Override explicitly when you keep several models:
-
-```sh
-make llama-cpu-run ARCH=arm64 MODEL=models/your-model.gguf
-```
-
-**Toolchain caveats (macOS + GCC 16).** Unikraft 0.21.0 is validated against GCC 11-14, but this host uses GCC 16, so the Makefile:
-
-- prepends Homebrew GNU make (`gnubin`) to `PATH` (KraftKit's sub-make needs GNU make >= 4.1; macOS ships 3.81),
-- injects `UK_CFLAGS=-std=gnu17` / `UK_CXXFLAGS=-std=gnu++17 -fpermissive` so the GCC-16 C23 default does not break the build,
-- reapplies a tracked `extern "C"` patch to unikraft's `ectx.h` via `make deps` (see `patches/unikraft/`).
-
-**Other targets.** The `x86_64` CPU path and the Vulkan targets (`llama-vk`, `llama-vk-server`) are build-designed but not verified in this round; they may need their own toolchain adjustments.
-
-## Running Manually
-
-The `make llama-cpu-server-run` target runs a Python wrapper that silently
-captures all QEMU output and only prints the final pass/fail result.  If you
-want to **see the boot log in real time** or poke at the running unikernel, you
-can drive QEMU or KraftKit directly.
-
-### Direct QEMU (recommended for model-serving workloads)
-
-The unikernel mounts the model file over **virtio-9p**, which `kraft run` cannot
-yet forward.  QEMU is therefore the lowest-friction path:
-
-```sh
-# 1. Place the model where QEMU can share it
+# 1. Stage the model where QEMU can share it
 mkdir -p /tmp/my-model
-cp models/google_gemma-3-1b-it-Q4_K_M.gguf /tmp/my-model/model.gguf
+cp models/your-model.gguf /tmp/my-model/model.gguf
 
-# 2. Boot the unikernel (arm64 / Apple Silicon with HVF)
+# 2. Boot (arm64 / Apple Silicon, HVF)
 qemu-system-aarch64 \
   -machine virt,accel=hvf -cpu host \
   -m 4096 -nographic -no-reboot \
@@ -199,128 +141,45 @@ qemu-system-aarch64 \
   -append "console=ttyAMA0 random.seed=1 2 3 4 5 6 7 8"
 ```
 
-Once the guest prints `READY`, test the HTTP API from a second terminal:
+For **x86_64** (Linux/KVM): use `qemu-system-x86_64`, `-machine accel=kvm -cpu
+host`, the `_qemu-x86_64` kernel, and `-append "console=ttyS0"` (drop the 9p/net
+device lines or keep as needed). Without KVM use `-machine accel=tcg -cpu max`
+(much slower).
+
+The guest prints `uk-llama-upstream-server: READY ...` once the model is loaded
+and the server is listening. Test it from a second terminal:
 
 ```sh
-curl http://127.0.0.1:18080/health
-# {"status":"ok"}
-```
+curl http://127.0.0.1:18080/health                       # {"status":"ok"}
 
-
-You can test the model by sending a request to the `/completion` endpoint:
-
-```sh
 curl http://127.0.0.1:18080/completion \
   -H "Content-Type: application/json" \
-  -d '{
-    "prompt": "hello!",
-    "n_predict": 128
-  }'
-```
+  -d '{"prompt": "hello!", "n_predict": 128}'
 
-You can also use the **OpenAI API format**:
-
-```sh
-curl http://127.0.0.1:18080/v1/chat/completions \
+curl http://127.0.0.1:18080/v1/chat/completions \        # OpenAI-compatible
   -H "Content-Type: application/json" \
-  -d '{
-    "messages": [{"role": "user", "content": "Hello"}],
-    "stream": true
-  }'
+  -d '{"messages": [{"role": "user", "content": "Hello"}], "stream": true}'
 ```
 
-For **x86_64** (Linux/KVM host) replace the first two lines with:
+Press **Ctrl-A X** to exit QEMU. The exact command of the last successful run is
+recorded under the `"command"` key of `results/llama/llama_server_cpu_arm64.json`.
+
+## Linux GPU/Vulkan workflow
 
 ```sh
-qemu-system-x86_64 \
-  -machine accel=kvm -cpu host \
-  -m 4096 -nographic -no-reboot \
-  -kernel .unikraft/build/vogue-llama-cpu-server_qemu-x86_64 \
-  -fsdev local,id=model,path=/tmp/my-model,security_model=none \
-  -device virtio-9p-pci,fsdev=model,mount_tag=model \
-  -append "console=ttyS0"
-```
-
-Without KVM, replace `-machine accel=kvm -cpu host` with
-`-machine accel=tcg -cpu max` (TCG software emulation, much slower).
-
-> **Tip:** The exact command that was used for the last successful run is
-> recorded verbatim in `results/llama/llama_server_cpu_arm64.json` under the
-> `"command"` key. Copy it and replace the `/var/folders/…/vogue-model-*` path
-> with a directory that contains your `model.gguf`.
-
-You should see the unikernel boot log followed by a line like:
-
-```
-uk-llama-upstream-server: READY model=/mnt/model/model.gguf threads=1 slots=1 …
-```
-
-Press **Ctrl-A X** to exit QEMU once you are done.
-
----
-
-### Via KraftKit (`kraft run`)
-
-`kraft run` is convenient for unikernels that do not need extra QEMU devices:
-
-```sh
-# Build first (skipped if already built)
-make llama-cpu-server-build ARCH=arm64
-
-# Run – note: no virtio-9p device, so the model is *not* mounted
-kraft run \
-  --target qemu/arm64 \
-  --kraftfile "$(pwd)/.kraft-gen/Kraftfile.llama-cpu-server" \
-  --memory 4096M \
-  -- "console=ttyAMA0"
-```
-
-> **Limitation:** `kraft run` does not support arbitrary `-fsdev`/`-device`
-> QEMU arguments, so the llama server will fail to open `model.gguf` when
-> launched this way.  Use direct QEMU (above) for any model-serving workload.
-
----
-
-## Linux GPU/Venus Workflow
-
-Build the GPU appliances for either architecture:
-
-```sh
-make llama-vk-build ARCH=x86_64
 make llama-vk-server-build ARCH=x86_64
+make llama-vk-server-run   ARCH=x86_64 MODEL=/abs/path/model.gguf
 ```
 
-Run-time proof still requires a Linux host with the expected Vulkan stack:
-
-```sh
-make llama-vk-run ARCH=x86_64 MODEL=/absolute/path/model.gguf
-make llama-vk-server-run ARCH=x86_64 MODEL=/absolute/path/model.gguf
-```
-
-The server runner records readiness plus HTTP behavior in the same JSON result.
-It always mounts and reads `/mnt/model/model.gguf` inside the guest. If your
-host Vulkan loader is not at the default path, export `VK_LIB` before building
-or running.
+Runtime proof requires a Linux host with the expected Vulkan stack. The
+appliance always reads `/mnt/model/model.gguf` (local model only — no Hugging
+Face / remote download at runtime). Export `VK_LIB` if your Vulkan loader is not
+at the default path.
 
 ## Results
 
-Canonical x86_64 result files:
-
-- `results/venus/qemu_2d_probe.json`
-- `results/venus/qemu_venus-ring_probe.json`
-- `results/vulkan/vulkan_perf.json`
-- `results/llama/llama_cpu.json`
-- `results/llama/llama_server_cpu.json`
-- `results/llama/llama_vk.json`
-- `results/llama/llama_server_vk.json`
-- `results/llama/vulkan_qemu_linux_baseline.json`
-
-`arm64` runs write the same schema with an `_arm64.json` suffix, for example:
-
-- `results/llama/llama_cpu_arm64.json`
-- `results/llama/llama_server_cpu_arm64.json`
-
-Each result file uses the same schema:
+Every runner writes one JSON file (`_arm64.json` suffix for arm64 runs) under
+`results/`, all sharing this schema:
 
 ```json
 {
@@ -333,4 +192,12 @@ Each result file uses the same schema:
 }
 ```
 
-Runtime logs, frame dumps, and QMP files are local and ignored.
+Canonical files include `results/llama/llama_{cpu,server_cpu,vk,server_vk}.json`,
+`results/venus/*.json`, and `results/vulkan/vulkan_perf.json`. Runtime logs,
+frame dumps, and QMP files are local and gitignored.
+
+## Testing
+
+`make test-fast` runs the host-native C suite (no QEMU/GPU/model needed) plus the
+VirtIO-GPU wire-ABI check — the primary CI gate. See [`tests/README.md`](tests/README.md)
+for the per-group breakdown.

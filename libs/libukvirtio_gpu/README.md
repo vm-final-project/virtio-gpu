@@ -6,13 +6,8 @@ Unikraft virtio-bus backend for QEMU/PCI VirtIO-GPU evidence. The real backend
 also contains the control-queue surface required by future virgl/Venus work:
 contexts, 3D submit, resource blobs, UUID assignment, map/unmap, and metrics.
 
-Current stage: the real backend reaches QEMU/Venus and supports passing
-transport, ring, kmscube frame, and llama.cpp Vulkan runtime rows on the
-evaluation host. The `real-path` hygiene gate is also resolved there:
-`make verify` treats a CPU-only latest
-`.unikraft/build/config` as not applicable when the production graphics/Vulkan
-configs, real backend object files, compile database, and QEMU Venus probe all
-pass; see `plan-fix.md`.
+Status: the real backend reaches QEMU/Venus and passes the transport, ring,
+kmscube-frame, and llama.cpp-Vulkan runtime rows on the evaluation host.
 
 ## Configuring applications to use `libukvirtio_gpu`
 
