@@ -78,7 +78,7 @@ Add a "Build & run CPU llama" subsection covering:
 ### 4. Commit split (logical, dependency order)
 
 1. **deps: fix Vulkan/SPIRV header sources & add patch mechanism**
-   — `scripts/deps.py`, `config/external_paths.json`,
+   — `scripts/deps.py`, `config/deps.json`,
    `patches/unikraft/0001-pal-ectx-extern-c-linkage.patch`
 2. **build: resolve Kraftfile unikraft path via @@UNIKRAFT_LOCAL@@ placeholder**
    — 6 × `kraft/Kraftfile.*`, `mk/llama.mk`, `.gitignore`
