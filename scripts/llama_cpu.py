@@ -83,12 +83,12 @@ def main() -> int:
 
     metrics: dict = {}
     if args.mode == "bench":
-        match = re.search(r"uk-llama-cpu: pp512=([0-9.]+) tg128=([0-9.]+)", log)
-        passed = bool(match and "uk-llama-cpu: PASS" in log)
+        match = re.search(r"uk-llama-upstream: pp512=([0-9.]+) tg128=([0-9.]+)", log)
+        passed = bool(match and "uk-llama-upstream: PASS" in log)
         if match:
             metrics = {"pp512": float(match.group(1)), "tg128": float(match.group(2))}
     else:
-        match = re.search(r"uk-llama-cpu-server: READY ([^\n]+)", log)
+        match = re.search(r"uk-llama-upstream-server: READY ([^\n]+)", log)
         passed = bool(match)
         if match:
             metrics = {"ready": match.group(0).strip()}
