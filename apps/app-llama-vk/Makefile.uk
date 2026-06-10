@@ -120,7 +120,7 @@ APPLLAMA_VK_LLAMA_MODEL_FLAGS-y   += $(APPLLAMA_VK_HOT_FLAGS)
 # Single-purpose appliance entry points. Only the selected mode is compiled; the
 # unused source file becomes an empty translation unit thanks to its #if guard.
 APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_BENCH)  += $(APPLLAMA_VK_BASE)/bench.cpp
-APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/server.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/llama-vk-server-entry.cpp
 
 # ── ggml core + Vulkan backend (formerly libukggml_vk, now built in-tree) ─────
 # Compiled IN-TREE with Unikraft's clang + libc++ to avoid ABI mismatches from
@@ -139,8 +139,12 @@ APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-vulkan/ggml-vulkan.cpp
 APPLLAMA_VK_SRCS-y += $(wildcard $(GGML_VK_SHADERS)/*.comp.cpp)
 
 # ── ggml-cpu backend ──────────────────────────────────────────────────────────
+# ggml-cpu.cpp (C++ glue) and ggml-cpu.c (C kernels) share a basename; Unikraft
+# names external objects by basename only, so tag the C TU |core -> ggml-cpu.core.o
+# to avoid the collision. Same pattern for the arch-specific quants.c/repack.cpp
+# below, which otherwise collide with the generic ones.
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/ggml-cpu.cpp
-APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/ggml-cpu.c
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/ggml-cpu.c|core
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/quants.c
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/repack.cpp
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/hbm.cpp
@@ -150,11 +154,11 @@ APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/binary-ops.cpp
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/unary-ops.cpp
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/vec.cpp
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/ops.cpp
-APPLLAMA_VK_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/quants.c
-APPLLAMA_VK_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/repack.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/quants.c|x86
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/repack.cpp|x86
 APPLLAMA_VK_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/cpu-feats.cpp
-APPLLAMA_VK_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/quants.c
-APPLLAMA_VK_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/repack.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/quants.c|arm
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/repack.cpp|arm
 APPLLAMA_VK_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/cpu-feats.cpp
 
 # ggml-opt and backend registry (omitted from the in-tree ggml build above)
@@ -200,11 +204,11 @@ APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += \
                   $(LLAMA_MTMD)/models/qwen2vl.cpp \
                   $(LLAMA_MTMD)/models/qwen3vl.cpp, \
                   $(wildcard $(LLAMA_MTMD)/models/*.cpp)) \
-    $(LLAMA_MTMD)/models/cogvlm.cpp \
-    $(LLAMA_MTMD)/models/llama4.cpp \
-    $(LLAMA_MTMD)/models/paddleocr.cpp \
-    $(LLAMA_MTMD)/models/qwen2vl.cpp \
-    $(LLAMA_MTMD)/models/qwen3vl.cpp
+    $(LLAMA_MTMD)/models/cogvlm.cpp|mtmd \
+    $(LLAMA_MTMD)/models/llama4.cpp|mtmd \
+    $(LLAMA_MTMD)/models/paddleocr.cpp|mtmd \
+    $(LLAMA_MTMD)/models/qwen2vl.cpp|mtmd \
+    $(LLAMA_MTMD)/models/qwen3vl.cpp|mtmd
 
 # ── llama.cpp high-level layer ────────────────────────────────────────────────
 APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama.cpp
@@ -236,7 +240,8 @@ APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-vocab.cpp
 APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/unicode.cpp
 APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/unicode-data.cpp
 
-# models/llama.cpp basename conflicts with src/llama.cpp; use a shim instead.
+# models/llama.cpp basename conflicts with src/llama.cpp (both -> llama.o); tag
+# the model-arch TU |mdl so it builds as llama.mdl.o.
 APPLLAMA_VK_SRCS-y += $(filter-out $(LLAMA_SRC)/models/llama.cpp, \
                                 $(wildcard $(LLAMA_SRC)/models/*.cpp))
-APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/models/llama.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/models/llama.cpp|mdl

@@ -131,7 +131,7 @@ APPLLAMA_CPU_LLAMA_MODEL_FLAGS-y   += $(APPLLAMA_CPU_HOT_FLAGS)
 # Single-purpose appliance entry points. Only one mode is compiled; the other
 # source file becomes an empty translation unit thanks to its #if guard.
 APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_BENCH)  += $(APPLLAMA_CPU_BASE)/bench.cpp
-APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += $(APPLLAMA_CPU_BASE)/server.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += $(APPLLAMA_CPU_BASE)/llama-server-entry.cpp
 APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += $(LLAMA_ROOT)/vendor/cpp-httplib/httplib.cpp
 APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += $(APPLLAMA_CPU_BASE)/compat-spawn.c
 APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += $(LLAMA_ROOT)/tools/server/server.cpp
@@ -162,11 +162,11 @@ APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += \
                   $(LLAMA_MTMD)/models/qwen2vl.cpp \
                   $(LLAMA_MTMD)/models/qwen3vl.cpp, \
                   $(wildcard $(LLAMA_MTMD)/models/*.cpp)) \
-    $(LLAMA_MTMD)/models/cogvlm.cpp \
-    $(LLAMA_MTMD)/models/llama4.cpp \
-    $(LLAMA_MTMD)/models/paddleocr.cpp \
-    $(LLAMA_MTMD)/models/qwen2vl.cpp \
-    $(LLAMA_MTMD)/models/qwen3vl.cpp
+    $(LLAMA_MTMD)/models/cogvlm.cpp|mtmd \
+    $(LLAMA_MTMD)/models/llama4.cpp|mtmd \
+    $(LLAMA_MTMD)/models/paddleocr.cpp|mtmd \
+    $(LLAMA_MTMD)/models/qwen2vl.cpp|mtmd \
+    $(LLAMA_MTMD)/models/qwen3vl.cpp|mtmd
 
 # GCC<->LLVM C++ runtime ABI shim (provides __cxa_call_terminate etc.).
 
