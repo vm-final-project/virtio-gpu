@@ -96,4 +96,9 @@ CMakeFiles/
 # models
 models/
 
-.config*.kraft-gen/
+# KraftKit generated/persisted build state
+.kraft-gen/
+.config*
+
+# build logs
+*.log

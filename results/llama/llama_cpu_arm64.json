@@ -1,0 +1,16 @@
+{
+  "status": "pass",
+  "generated_utc": "2026-06-10T04:12:08.122454Z",
+  "command": "/opt/homebrew/bin/qemu-system-aarch64 -machine virt,accel=hvf -cpu host -m 4096 -nographic -no-reboot -kernel /Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu/.unikraft/build/vogue-llama-cpu_qemu-arm64 -fsdev local,id=model,path=/var/folders/59/0dhfqywn3jld8bd1k8dfjg640000gn/T/vogue-model-kyfo0zmd,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model -append console=ttyAMA0",
+  "inputs": {
+    "mode": "bench",
+    "arch": "arm64",
+    "model": "/Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu/models/google_gemma-3-1b-it-Q4_K_M.gguf",
+    "image": "/Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu/.unikraft/build/vogue-llama-cpu_qemu-arm64"
+  },
+  "metrics": {
+    "pp512": 24.1,
+    "tg128": 18.2
+  },
+  "error": null
+}
