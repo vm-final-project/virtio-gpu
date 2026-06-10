@@ -2,15 +2,15 @@ $(eval $(call addlib,appllama_vk))
 
 # See apps/app-llama-cpu/Makefile.uk for the LLAMA_ROOT defaulting rule.
 # VULKAN_HEADERS_INCLUDE must be supplied via the environment (or via
-# config/external_paths.json); the build fails fast if it is missing so the
+# config/deps.json); the build fails fast if it is missing so the
 # guest image cannot quietly miss a Vulkan-Hpp upgrade.
-LLAMA_ROOT             ?= $(realpath $(APPLLAMA_VK_BASE)/../../../llama.cpp)
+LLAMA_ROOT             ?= $(realpath $(APPLLAMA_VK_BASE)/../../.deps/src/llama.cpp)
 VULKAN_HEADERS_INCLUDE ?=
 ifeq ($(strip $(LLAMA_ROOT)),)
-$(error LLAMA_ROOT not set and ../llama.cpp sibling not found; export LLAMA_ROOT or set it in config/external_paths.json)
+$(error LLAMA_ROOT not set and .deps/src/llama.cpp not found; export LLAMA_ROOT or set it in config/deps.json)
 endif
 ifeq ($(strip $(VULKAN_HEADERS_INCLUDE)),)
-$(error VULKAN_HEADERS_INCLUDE not set; export it or set it in config/external_paths.json)
+$(error VULKAN_HEADERS_INCLUDE not set; export it or set it in config/deps.json)
 endif
 GGML_SRC     := $(LLAMA_ROOT)/ggml/src
 GGML_INC     := $(LLAMA_ROOT)/ggml/include
@@ -18,10 +18,9 @@ LLAMA_SRC    := $(LLAMA_ROOT)/src
 LLAMA_COMMON := $(LLAMA_ROOT)/common
 LLAMA_SERVER := $(LLAMA_ROOT)/tools/server
 LLAMA_MTMD   := $(LLAMA_ROOT)/tools/mtmd
-COMPILER_DIR := $(shell clang -print-resource-dir)
 # Pre-generated SPIRV shader sources/header (from the cmake VK cross-build,
-# i.e. `make llama-upstream-cmake-vk` -> build-unikraft-vk) + SPIRV headers.
-GGML_VK_SHADERS ?= $(LLAMA_ROOT)/build-unikraft-vk/ggml/src/ggml-vulkan
+# i.e. `make llama-vk-prepare` -> build-unikraft-vk-$(ARCH)) + SPIRV headers.
+GGML_VK_SHADERS ?= $(LLAMA_ROOT)/build-unikraft-vk-$(ARCH)/ggml/src/ggml-vulkan
 GGML_SPIRV_INC  ?= $(SPIRV_HEADERS_INCLUDE)
 
 # This app builds the upstream ggml stack IN-TREE (the former libukggml_vk build
@@ -33,8 +32,8 @@ GGML_SPIRV_INC  ?= $(SPIRV_HEADERS_INCLUDE)
 # Include paths
 # compat/ provides Unikraft/musl build shims for upstream Linux-isms (e.g.
 # <linux/limits.h> in common/{arg,download}.cpp). Placed first so it wins.
-APPLLAMA_VK_CINCLUDES-y   += -I$(APPLLAMA_VK_BASE)/compat
-APPLLAMA_VK_CXXINCLUDES-y += -I$(APPLLAMA_VK_BASE)/compat
+APPLLAMA_VK_CINCLUDES-y   += -I$(APPLLAMA_VK_BASE)/compat -I$(APPLLAMA_VK_BASE)/../llama-common
+APPLLAMA_VK_CXXINCLUDES-y += -I$(APPLLAMA_VK_BASE)/compat -I$(APPLLAMA_VK_BASE)/../llama-common
 APPLLAMA_VK_CINCLUDES-y   += -I$(GGML_INC) -I$(GGML_SRC) -I$(GGML_SRC)/ggml-cpu
 APPLLAMA_VK_CXXINCLUDES-y += -I$(LLAMA_ROOT)/include -I$(LLAMA_SRC) \
                                       -I$(LLAMA_SRC)/models \
@@ -47,15 +46,20 @@ APPLLAMA_VK_CXXINCLUDES-y += -I$(LLAMA_ROOT)/include -I$(LLAMA_SRC) \
 
 # See apps/app-llama-cpu/Makefile.uk for the COLD / HOT flag rationale.
 # P2 (plan-optimize.md): explicit + overridable target CPU arch (see the CPU
-# appliance Makefile.uk). Default `native` is correct here because build host ==
-# KVM run host (Broadwell); override LLAMA_MARCH for cross-host builds.
+# appliance Makefile.uk). x86_64 keeps the existing `native` default; arm64 uses
+# the portable ARMv8-A baseline unless the caller overrides it.
+ifeq ($(CONFIG_ARCH_ARM_64),y)
+LLAMA_MARCH ?= armv8-a
+LLAMA_MTUNE ?= generic
+else
 LLAMA_MARCH ?= native
+LLAMA_MTUNE ?= $(LLAMA_MARCH)
+endif
 APPLLAMA_VK_COMMON_DEFS := -DGGML_VERSION=\"0.12.0\" -DGGML_COMMIT=\"fcae601e4\" \
                                      -D_GNU_SOURCE -DGGML_NO_NATIVE=1 -DGGML_USE_CPU=1 \
                                      -DGGML_USE_VULKAN=1 \
-                                     -march=$(LLAMA_MARCH) -mtune=$(LLAMA_MARCH) \
+                                     -march=$(LLAMA_MARCH) -mtune=$(LLAMA_MTUNE) \
                                      -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
-                                     -isystem $(COMPILER_DIR)/include
 APPLLAMA_VK_COLD_FLAGS   := -Os -ffunction-sections -fdata-sections
 APPLLAMA_VK_C_COLD_EXTRA := -fno-asynchronous-unwind-tables -fno-unwind-tables
 APPLLAMA_VK_HOT_FLAGS    := -O3 -funroll-loops -fno-math-errno -fno-trapping-math
@@ -63,7 +67,7 @@ APPLLAMA_VK_HOT_FLAGS    := -O3 -funroll-loops -fno-math-errno -fno-trapping-mat
 APPLLAMA_VK_CFLAGS-y   += $(APPLLAMA_VK_COMMON_DEFS) $(APPLLAMA_VK_COLD_FLAGS) \
                                     $(APPLLAMA_VK_C_COLD_EXTRA) \
                                     -Wno-unused-function
-APPLLAMA_VK_CXXFLAGS-y += -std=c++17 $(APPLLAMA_VK_COMMON_DEFS) $(APPLLAMA_VK_COLD_FLAGS) \
+APPLLAMA_VK_CXXFLAGS-y += -std=gnu++17 $(APPLLAMA_VK_COMMON_DEFS) $(APPLLAMA_VK_COLD_FLAGS) \
                                     -DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1 \
                                     -isystem $(VULKAN_HEADERS_INCLUDE) \
                                     -Wno-unknown-pragmas -Wno-unused-function
@@ -100,6 +104,9 @@ APPLLAMA_VK_GGML_CPU_CPP_FLAGS-y  += $(APPLLAMA_VK_HOT_FLAGS)
 APPLLAMA_VK_X86_QUANTS_FLAGS-y    += $(APPLLAMA_VK_HOT_FLAGS)
 APPLLAMA_VK_X86_REPACK_FLAGS-y    += $(APPLLAMA_VK_HOT_FLAGS)
 APPLLAMA_VK_X86_CPU_FEATS_FLAGS-y += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_ARM_QUANTS_FLAGS-y    += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_ARM_REPACK_FLAGS-y    += $(APPLLAMA_VK_HOT_FLAGS)
+APPLLAMA_VK_ARM_CPU_FEATS_FLAGS-y += $(APPLLAMA_VK_HOT_FLAGS)
 APPLLAMA_VK_LLAMA_FLAGS-y         += $(APPLLAMA_VK_HOT_FLAGS)
 APPLLAMA_VK_LLAMA_GRAPH_FLAGS-y   += $(APPLLAMA_VK_HOT_FLAGS)
 APPLLAMA_VK_LLAMA_CONTEXT_FLAGS-y += $(APPLLAMA_VK_HOT_FLAGS)
@@ -113,7 +120,7 @@ APPLLAMA_VK_LLAMA_MODEL_FLAGS-y   += $(APPLLAMA_VK_HOT_FLAGS)
 # Single-purpose appliance entry points. Only the selected mode is compiled; the
 # unused source file becomes an empty translation unit thanks to its #if guard.
 APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_BENCH)  += $(APPLLAMA_VK_BASE)/bench.cpp
-APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/server.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/llama-vk-server-entry.cpp
 
 # ── ggml core + Vulkan backend (formerly libukggml_vk, now built in-tree) ─────
 # Compiled IN-TREE with Unikraft's clang + libc++ to avoid ABI mismatches from
@@ -132,8 +139,12 @@ APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-vulkan/ggml-vulkan.cpp
 APPLLAMA_VK_SRCS-y += $(wildcard $(GGML_VK_SHADERS)/*.comp.cpp)
 
 # ── ggml-cpu backend ──────────────────────────────────────────────────────────
-APPLLAMA_VK_SRCS-y += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/ggml-cpu-cpp.cpp
-APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/ggml-cpu.c
+# ggml-cpu.cpp (C++ glue) and ggml-cpu.c (C kernels) share a basename; Unikraft
+# names external objects by basename only, so tag the C TU |core -> ggml-cpu.core.o
+# to avoid the collision. Same pattern for the arch-specific quants.c/repack.cpp
+# below, which otherwise collide with the generic ones.
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/ggml-cpu.cpp
+APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/ggml-cpu.c|core
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/quants.c
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/repack.cpp
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/hbm.cpp
@@ -143,9 +154,12 @@ APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/binary-ops.cpp
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/unary-ops.cpp
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/vec.cpp
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-cpu/ops.cpp
-APPLLAMA_VK_SRCS-y += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/x86-quants.c
-APPLLAMA_VK_SRCS-y += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/x86-repack.cpp
-APPLLAMA_VK_SRCS-y += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/x86-cpu-feats.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/quants.c|x86
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/repack.cpp|x86
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/cpu-feats.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/quants.c|arm
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/repack.cpp|arm
+APPLLAMA_VK_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/cpu-feats.cpp
 
 # ggml-opt and backend registry (omitted from the in-tree ggml build above)
 APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-opt.cpp
@@ -162,11 +176,13 @@ APPLLAMA_VK_SRCS-y += $(GGML_SRC)/ggml-backend-reg.cpp
 # at the final image link. Plus a posix_spawnp link shim (see compat-spawn.c).
 APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(LLAMA_ROOT)/vendor/cpp-httplib/httplib.cpp
 APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/compat-spawn.c
-APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/upstream-server.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(LLAMA_ROOT)/tools/server/server.cpp
 APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/build-info.cpp
 APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(filter-out $(LLAMA_COMMON)/unicode.cpp, $(wildcard $(LLAMA_COMMON)/*.cpp))
 APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(wildcard $(LLAMA_COMMON)/jinja/*.cpp)
-APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/common-unicode.cpp
+# `common/unicode.cpp` collides with `src/unicode.cpp`, so keep a uniquely
+# named shim translation unit for the common helper.
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/llama-common-unicode.cpp
 APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += \
     $(LLAMA_SERVER)/server-chat.cpp \
     $(LLAMA_SERVER)/server-common.cpp \
@@ -188,11 +204,11 @@ APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += \
                   $(LLAMA_MTMD)/models/qwen2vl.cpp \
                   $(LLAMA_MTMD)/models/qwen3vl.cpp, \
                   $(wildcard $(LLAMA_MTMD)/models/*.cpp)) \
-    $(APPLLAMA_VK_BASE)/mtmd-model-cogvlm.cpp \
-    $(APPLLAMA_VK_BASE)/mtmd-model-llama4.cpp \
-    $(APPLLAMA_VK_BASE)/mtmd-model-paddleocr.cpp \
-    $(APPLLAMA_VK_BASE)/mtmd-model-qwen2vl.cpp \
-    $(APPLLAMA_VK_BASE)/mtmd-model-qwen3vl.cpp
+    $(LLAMA_MTMD)/models/cogvlm.cpp|mtmd \
+    $(LLAMA_MTMD)/models/llama4.cpp|mtmd \
+    $(LLAMA_MTMD)/models/paddleocr.cpp|mtmd \
+    $(LLAMA_MTMD)/models/qwen2vl.cpp|mtmd \
+    $(LLAMA_MTMD)/models/qwen3vl.cpp|mtmd
 
 # ── llama.cpp high-level layer ────────────────────────────────────────────────
 APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama.cpp
@@ -224,7 +240,8 @@ APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/llama-vocab.cpp
 APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/unicode.cpp
 APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/unicode-data.cpp
 
-# models/llama.cpp basename conflicts with src/llama.cpp; use a shim instead.
+# models/llama.cpp basename conflicts with src/llama.cpp (both -> llama.o); tag
+# the model-arch TU |mdl so it builds as llama.mdl.o.
 APPLLAMA_VK_SRCS-y += $(filter-out $(LLAMA_SRC)/models/llama.cpp, \
                                 $(wildcard $(LLAMA_SRC)/models/*.cpp))
-APPLLAMA_VK_SRCS-y += $(APPLLAMA_VK_BASE)/../../apps/app-llama-cpu/models-llama.cpp
+APPLLAMA_VK_SRCS-y += $(LLAMA_SRC)/models/llama.cpp|mdl

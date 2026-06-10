@@ -1,22 +1,45 @@
 $(eval $(call addlib,appllama_cpu))
 
-# External source roots. LLAMA_ROOT defaults to a sibling checkout next to
-# vm-final-project (the same convention used for ../unikraft and ../lib-musl).
-# Override via the environment or by exporting it from the top-level Makefile.
-LLAMA_ROOT  ?= $(realpath $(APPLLAMA_CPU_BASE)/../../../llama.cpp)
+# External source roots. LLAMA_ROOT defaults to the repo-local checkout managed
+# by `make deps`. Override via the environment or by exporting it from the
+# top-level Makefile.
+LLAMA_ROOT  ?= $(realpath $(APPLLAMA_CPU_BASE)/../../.deps/src/llama.cpp)
 ifeq ($(strip $(LLAMA_ROOT)),)
-$(error LLAMA_ROOT not set and ../llama.cpp sibling not found; export LLAMA_ROOT or set it in config/external_paths.json)
+$(error LLAMA_ROOT not set and .deps/src/llama.cpp not found; export LLAMA_ROOT or set it in config/deps.json)
 endif
 GGML_SRC    := $(LLAMA_ROOT)/ggml/src
 GGML_INC    := $(LLAMA_ROOT)/ggml/include
 LLAMA_SRC   := $(LLAMA_ROOT)/src
-COMPILER_DIR := $(shell clang -print-resource-dir)
+LLAMA_COMMON := $(LLAMA_ROOT)/common
+LLAMA_SERVER := $(LLAMA_ROOT)/tools/server
+LLAMA_MTMD   := $(LLAMA_ROOT)/tools/mtmd
+
+# ggml-impl.h pulls the compiler's own SIMD intrinsics header (<arm_neon.h> on
+# arm64, <immintrin.h> on x86). That header lives in the compiler's builtin
+# include dir, which unikraft's -nostdinc drops; add it back explicitly. GCC
+# exposes it via -print-file-name=include, clang via -print-resource-dir. Using
+# $(CC) keeps this correct across both the x86_64-elf and aarch64-elf toolchains.
+ifeq ($(COMPILER),clang)
+APPLLAMA_CPU_BUILTIN_INC := $(shell $(CC) -print-resource-dir)/include
+else
+APPLLAMA_CPU_BUILTIN_INC := $(shell $(CC) -print-file-name=include)
+endif
 
 # Include paths
-APPLLAMA_CPU_CINCLUDES-y   += -I$(GGML_INC) -I$(GGML_SRC) -I$(GGML_SRC)/ggml-cpu
+APPLLAMA_CPU_CINCLUDES-y   += -I$(GGML_INC) -I$(GGML_SRC) -I$(GGML_SRC)/ggml-cpu \
+                                   -isystem $(APPLLAMA_CPU_BUILTIN_INC) \
+                                   -I$(APPLLAMA_CPU_BASE)/../llama-common
 APPLLAMA_CPU_CXXINCLUDES-y += -I$(LLAMA_ROOT)/include -I$(LLAMA_SRC) \
                                    -I$(LLAMA_SRC)/models \
-                                   -I$(GGML_INC) -I$(GGML_SRC) -I$(GGML_SRC)/ggml-cpu
+                                   -I$(GGML_INC) -I$(GGML_SRC) -I$(GGML_SRC)/ggml-cpu \
+                                   -isystem $(APPLLAMA_CPU_BUILTIN_INC) \
+                                   -I$(APPLLAMA_CPU_BASE)/../llama-common
+APPLLAMA_CPU_CINCLUDES-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER)   += -I$(APPLLAMA_CPU_BASE)/compat
+APPLLAMA_CPU_CXXINCLUDES-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += -I$(APPLLAMA_CPU_BASE)/compat \
+                                       -I$(LLAMA_COMMON) -I$(LLAMA_ROOT)/vendor \
+                                       -I$(LLAMA_SERVER) -I$(LLAMA_MTMD) \
+                                       -I$(APPLLAMA_CPU_BASE)
+
 
 # Compile flags: enable CPU backend static registration, suppress fortify+glibc compat issues.
 #
@@ -36,15 +59,19 @@ APPLLAMA_CPU_CXXINCLUDES-y += -I$(LLAMA_ROOT)/include -I$(LLAMA_SRC) \
 # C++ exception-table chain through libc++/libunwind stays intact.
 # P2 (plan-optimize.md): target CPU arch is explicit + overridable. Upstream
 # ggml disables its native default under cross-compilation, so the appliance must
-# state its target. Default `native` is correct on the evaluation host because
-# the build host == the KVM run host (`-cpu host`, Broadwell); override
-# LLAMA_MARCH=<arch> for cross-host builds where build != run CPU.
+# state its target. x86_64 keeps the existing `native` default; arm64 uses the
+# portable ARMv8-A baseline unless the caller overrides it.
+ifeq ($(CONFIG_ARCH_ARM_64),y)
+LLAMA_MARCH ?= armv8-a
+LLAMA_MTUNE ?= generic
+else
 LLAMA_MARCH ?= native
+LLAMA_MTUNE ?= $(LLAMA_MARCH)
+endif
 APPLLAMA_CPU_COMMON_DEFS := -DGGML_VERSION=\"0.12.0\" -DGGML_COMMIT=\"fcae601e4\" \
                                   -D_GNU_SOURCE -DGGML_NO_NATIVE=1 -DGGML_USE_CPU=1 \
-                                  -march=$(LLAMA_MARCH) -mtune=$(LLAMA_MARCH) \
-                                  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
-                                  -isystem $(COMPILER_DIR)/include
+                                  -march=$(LLAMA_MARCH) -mtune=$(LLAMA_MTUNE) \
+                                  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0
 APPLLAMA_CPU_COLD_FLAGS    := -Os -ffunction-sections -fdata-sections
 APPLLAMA_CPU_C_COLD_EXTRA  := -fno-asynchronous-unwind-tables -fno-unwind-tables
 APPLLAMA_CPU_HOT_FLAGS     := -O3 -funroll-loops -fno-math-errno -fno-trapping-math
@@ -52,8 +79,11 @@ APPLLAMA_CPU_HOT_FLAGS     := -O3 -funroll-loops -fno-math-errno -fno-trapping-m
 APPLLAMA_CPU_CFLAGS-y   += $(APPLLAMA_CPU_COMMON_DEFS) $(APPLLAMA_CPU_COLD_FLAGS) \
                                  $(APPLLAMA_CPU_C_COLD_EXTRA) \
                                  -Wno-unused-function
-APPLLAMA_CPU_CXXFLAGS-y += -std=c++17 $(APPLLAMA_CPU_COMMON_DEFS) $(APPLLAMA_CPU_COLD_FLAGS) \
+APPLLAMA_CPU_CXXFLAGS-y += -std=gnu++17 $(APPLLAMA_CPU_COMMON_DEFS) $(APPLLAMA_CPU_COLD_FLAGS) \
                                  -Wno-unknown-pragmas -Wno-unused-function
+APPLLAMA_CPU_CXXFLAGS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += -include unordered_map
+APPLLAMA_CPU_CXXFLAGS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += -iquote $(LLAMA_COMMON)
+
 # NOTE: --gc-sections must NOT go here: per-library LDFLAGS feed the relocatable
 # `ld -r` link, where --gc-sections has no entry-point root and binutils errors
 # out. Dead-section elimination is requested at the final image link instead via
@@ -71,6 +101,7 @@ APPLLAMA_CPU_GGML_BACKEND_FLAGS-y += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_GGML_THREADING_FLAGS-y += $(APPLLAMA_CPU_HOT_FLAGS)
 # ── ggml-cpu hot kernels ─────────────────────────────────────────────────
 APPLLAMA_CPU_GGML_CPU_FLAGS-y      += $(APPLLAMA_CPU_HOT_FLAGS)
+APPLLAMA_CPU_GGML_CPU_CORE_FLAGS-y += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_QUANTS_FLAGS-y        += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_BINARY_OPS_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_UNARY_OPS_FLAGS-y     += $(APPLLAMA_CPU_HOT_FLAGS)
@@ -80,10 +111,12 @@ APPLLAMA_CPU_REPACK_FLAGS-y        += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_TRAITS_FLAGS-y        += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_HBM_FLAGS-y           += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_GGML_CPU_CPP_FLAGS-y  += $(APPLLAMA_CPU_HOT_FLAGS)
-# ── x86 quant / repack kernels ───────────────────────────────────────────
-APPLLAMA_CPU_X86_QUANTS_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
-APPLLAMA_CPU_X86_REPACK_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
-APPLLAMA_CPU_X86_CPU_FEATS_FLAGS-y += $(APPLLAMA_CPU_HOT_FLAGS)
+# ── x86 quant / repack kernels (|x86 variant -> QUANTS_X86 / REPACK_X86) ──
+APPLLAMA_CPU_QUANTS_X86_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
+APPLLAMA_CPU_REPACK_X86_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
+# ── arm64 quant / repack kernels (|arm variant -> QUANTS_ARM / REPACK_ARM) ─
+APPLLAMA_CPU_QUANTS_ARM_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
+APPLLAMA_CPU_REPACK_ARM_FLAGS-y    += $(APPLLAMA_CPU_HOT_FLAGS)
 # ── llama.cpp high-level graph executor ──────────────────────────────────
 APPLLAMA_CPU_LLAMA_FLAGS-y         += $(APPLLAMA_CPU_HOT_FLAGS)
 APPLLAMA_CPU_LLAMA_GRAPH_FLAGS-y   += $(APPLLAMA_CPU_HOT_FLAGS)
@@ -98,7 +131,46 @@ APPLLAMA_CPU_LLAMA_MODEL_FLAGS-y   += $(APPLLAMA_CPU_HOT_FLAGS)
 # Single-purpose appliance entry points. Only one mode is compiled; the other
 # source file becomes an empty translation unit thanks to its #if guard.
 APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_BENCH)  += $(APPLLAMA_CPU_BASE)/bench.cpp
-APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += $(APPLLAMA_CPU_BASE)/server.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += $(APPLLAMA_CPU_BASE)/llama-server-entry.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += $(LLAMA_ROOT)/vendor/cpp-httplib/httplib.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += $(APPLLAMA_CPU_BASE)/compat-spawn.c
+APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += $(LLAMA_ROOT)/tools/server/server.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += $(APPLLAMA_CPU_BASE)/build-info.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += $(filter-out $(LLAMA_COMMON)/unicode.cpp, $(wildcard $(LLAMA_COMMON)/*.cpp))
+APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += $(wildcard $(LLAMA_COMMON)/jinja/*.cpp)
+# `common/unicode.cpp` collides with `src/unicode.cpp`, so keep a uniquely
+# named shim translation unit for the common helper.
+APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += $(APPLLAMA_CPU_BASE)/llama-common-unicode.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += \
+    $(LLAMA_SERVER)/server-chat.cpp \
+    $(LLAMA_SERVER)/server-common.cpp \
+    $(LLAMA_SERVER)/server-context.cpp \
+    $(LLAMA_SERVER)/server-http.cpp \
+    $(LLAMA_SERVER)/server-models.cpp \
+    $(LLAMA_SERVER)/server-queue.cpp \
+    $(LLAMA_SERVER)/server-task.cpp \
+    $(LLAMA_SERVER)/server-tools.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += \
+    $(LLAMA_MTMD)/mtmd.cpp \
+    $(LLAMA_MTMD)/mtmd-audio.cpp \
+    $(LLAMA_MTMD)/mtmd-image.cpp \
+    $(LLAMA_MTMD)/mtmd-helper.cpp \
+    $(LLAMA_MTMD)/clip.cpp \
+    $(filter-out $(LLAMA_MTMD)/models/cogvlm.cpp \
+                  $(LLAMA_MTMD)/models/llama4.cpp \
+                  $(LLAMA_MTMD)/models/paddleocr.cpp \
+                  $(LLAMA_MTMD)/models/qwen2vl.cpp \
+                  $(LLAMA_MTMD)/models/qwen3vl.cpp, \
+                  $(wildcard $(LLAMA_MTMD)/models/*.cpp)) \
+    $(LLAMA_MTMD)/models/cogvlm.cpp|mtmd \
+    $(LLAMA_MTMD)/models/llama4.cpp|mtmd \
+    $(LLAMA_MTMD)/models/paddleocr.cpp|mtmd \
+    $(LLAMA_MTMD)/models/qwen2vl.cpp|mtmd \
+    $(LLAMA_MTMD)/models/qwen3vl.cpp|mtmd
+
+# GCC<->LLVM C++ runtime ABI shim (provides __cxa_call_terminate etc.).
+
+APPLLAMA_CPU_SRCS-y += $(APPLLAMA_CPU_BASE)/uk_stdcxx_compat.cpp
 
 # ── ggml core ────────────────────────────────────────────────────────────────
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml.c
@@ -116,8 +188,13 @@ APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-backend-dl.cpp
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-backend-reg.cpp
 
 # ── ggml-cpu backend ─────────────────────────────────────────────────────────
-APPLLAMA_CPU_SRCS-y += $(APPLLAMA_CPU_BASE)/ggml-cpu-cpp.cpp
-APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/ggml-cpu.c
+# ggml-cpu.cpp (C++ glue) and ggml-cpu.c (C kernels) share a basename. unikraft
+# names objects by basename only (external srcs are flattened), so both would
+# emit ggml-cpu.o and collide at link. Tag the C TU with a |core variant so it
+# builds as ggml-cpu.core.o. Same pattern below for the arch-specific
+# quants.c / repack.cpp, which otherwise collide with the generic ones.
+APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/ggml-cpu.cpp
+APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/ggml-cpu.c|core
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/quants.c
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/repack.cpp
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/hbm.cpp
@@ -127,9 +204,12 @@ APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/binary-ops.cpp
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/unary-ops.cpp
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/vec.cpp
 APPLLAMA_CPU_SRCS-y += $(GGML_SRC)/ggml-cpu/ops.cpp
-APPLLAMA_CPU_SRCS-y += $(APPLLAMA_CPU_BASE)/x86-quants.c
-APPLLAMA_CPU_SRCS-y += $(APPLLAMA_CPU_BASE)/x86-repack.cpp
-APPLLAMA_CPU_SRCS-y += $(APPLLAMA_CPU_BASE)/x86-cpu-feats.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/quants.c|x86
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/repack.cpp|x86
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_X86_64) += $(GGML_SRC)/ggml-cpu/arch/x86/cpu-feats.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/quants.c|arm
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/repack.cpp|arm
+APPLLAMA_CPU_SRCS-$(CONFIG_ARCH_ARM_64) += $(GGML_SRC)/ggml-cpu/arch/arm/cpu-feats.cpp
 
 # ── llama.cpp high-level layer ────────────────────────────────────────────────
 APPLLAMA_CPU_SRCS-y += $(LLAMA_SRC)/llama.cpp
@@ -162,7 +242,8 @@ APPLLAMA_CPU_SRCS-y += $(LLAMA_SRC)/unicode.cpp
 APPLLAMA_CPU_SRCS-y += $(LLAMA_SRC)/unicode-data.cpp
 
 # ── llama.cpp model implementations ──────────────────────────────────────────
-# models/llama.cpp basename conflicts with src/llama.cpp; use a shim instead.
+# models/llama.cpp basename conflicts with src/llama.cpp (both -> llama.o); tag
+# the model-arch TU with a |mdl variant so it builds as llama.mdl.o.
 APPLLAMA_CPU_SRCS-y += $(filter-out $(LLAMA_SRC)/models/llama.cpp, \
                              $(wildcard $(LLAMA_SRC)/models/*.cpp))
-APPLLAMA_CPU_SRCS-y += $(APPLLAMA_CPU_BASE)/models-llama.cpp
+APPLLAMA_CPU_SRCS-y += $(LLAMA_SRC)/models/llama.cpp|mdl

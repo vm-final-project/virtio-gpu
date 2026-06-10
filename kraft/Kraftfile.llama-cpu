@@ -8,7 +8,7 @@ name: vogue-llama-cpu
 # stubs and pthread_setaffinity_np; no local POSIX shim is required.
 
 unikraft:
-  source: ../unikraft
+  source: @@UNIKRAFT_LOCAL@@
   kconfig:
     CONFIG_APP_LLAMA_CPU: 'y'
     CONFIG_APP_LLAMA_CPU_ROOTFS_9PFS: 'y'
@@ -41,17 +41,13 @@ unikraft:
 
 targets:
   - qemu/x86_64
+  - qemu/arm64
 
 libraries:
-  libmusl:
-    source: ../lib-musl
-  libcxx:
-    source: ../lib-libcxx
-  libcxxabi:
-    source: ../lib-libcxxabi
-  libunwind:
-    source: ../lib-libunwind
-  libcompiler-rt:
-    source: ../lib-compiler-rt
+  musl: stable
+  libcxx: stable
+  libcxxabi: stable
+  libunwind: stable
+  compiler-rt: stable
   app-llama-cpu:
     source: ./apps/app-llama-cpu

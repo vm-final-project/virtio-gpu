@@ -5,10 +5,11 @@ name: vogue-llama-vk-server
 # Upstream llama.cpp Vulkan server-only single-application appliance
 # (llm.server.vk gate). Same Venus dispatch chain as the bench appliance
 # (in-tree ggml-vulkan → libvulkan → libukvulkan_venus SUBMIT_3D → virtio-gpu-gl-pci,venus=true);
-# the only difference is the Kconfig mode, which compiles server.cpp
+# the only difference is the Kconfig mode, which compiles llama-vk-server-entry.cpp
 # instead of bench.cpp.
 #
-# Reference QEMU invocation (plan-optimize.md L4.1/L4.2 + HTTP serving):
+# Reference QEMU invocation for the current Linux proof path
+# (plan-optimize.md L4.1/L4.2 + HTTP serving):
 #   qemu-system-x86_64 -machine accel=kvm -cpu max -m 4G \
 #       -kernel .unikraft/build/vogue-llama-vk-server_qemu-x86_64 \
 #       -append "console=ttyS0 random.seed=<8 u32 words>" \
@@ -19,18 +20,24 @@ name: vogue-llama-vk-server
 #       -virtfs local,path=$(pwd)/rootfs/llama,mount_tag=model,security_model=none,id=model \
 #       -serial mon:stdio
 #   # then: curl http://127.0.0.1:18080/health  ->  {"status":"ok"}
-# See make llama-vk-server-run for the canonical command.
+# For arm64 builds, switch to qemu-system-aarch64, the `virt` machine, the
+# `ttyAMA0` console, and the `_qemu-arm64` image suffix. See
+# `make llama-vk-server-run` for the canonical command.
 # The hostmem=8G window backs Venus host-visible blobs (KV cache); blob=true
 # is required for that mapping; venus=true exposes capset id=4 to the guest.
 # The runtime target records the host
 # device flags alongside any same-run llama.cpp request metrics.
 
 unikraft:
-  source: ../unikraft
+  source: @@UNIKRAFT_LOCAL@@
   kconfig:
     CONFIG_APP_LLAMA_VK: 'y'
     CONFIG_APP_LLAMA_VK_ROOTFS_9PFS: 'y'
     CONFIG_APP_LLAMA_VK_MODE_SERVER: 'y'
+    # ARM64 interrupt controller: QEMU virt uses GICv2 by default. Not
+    # auto-selected on arm64 (unlike x86 APIC), so state it explicitly or the
+    # ukintctlr/gic build fails with "At least one GIC driver should be selected".
+    CONFIG_LIBUKINTCTLR_GICV2: 'y'
     # P0 (plan-optimize.md): guest SMP so the 4 continuous-batching slots can
     # overlap their CPU work (sampling/HTTP) across multiple vCPUs instead of
     # serialising on one. UKPLAT_CPU_MAXCOUNT>1 auto-selects HAVE_SMP + APIC/ACPI.
@@ -39,16 +46,20 @@ unikraft:
     CONFIG_APP_LLAMA_VK_THREADS: '4'
     # Continuous batching: 4 server slots so concurrent HTTP requests decode in
     # one batched forward pass (plan-optimize.md L2.2; llama.cpp Discussion
-    # #18308). server.cpp scales --ctx-size to PARALLEL*CTX so each slot keeps
+    # #18308). the entry scales --ctx-size to PARALLEL*CTX so each slot keeps
     # its full per-slot window.
     CONFIG_APP_LLAMA_VK_PARALLEL: '4'
     CONFIG_APP_LLAMA_VK_BATCH: '2048'
     CONFIG_APP_LLAMA_VK_UBATCH: '512'
     CONFIG_OPTIMIZE_DEADELIM: 'y'
-    # See Kraftfile.llama-vk: ggml-vulkan's async pipeline-compile
-    # workers + the compute-graph dispatch overflow the 64 KiB default thread
-    # stack; 512 KiB per thread is required for the Venus path to run reliably.
-    CONFIG_STACK_SIZE_PAGE_ORDER: '7'
+    # ggml-vulkan's async pipeline-compile workers AND llama.cpp's compute-graph
+    # setup overflow the 64 KiB default stack. llama_context::graph_reserve() ->
+    # llm_graph_result::reset() alone uses a ~25 KiB frame; the deep call chain
+    # needs far more. The CPU appliance was empirically fixed at order 9 (2 MiB);
+    # the VK path has at least as much stack pressure, so match it. Symptom of
+    # too-small stack: crash right after model load (HVF: hvf.c isv assertion;
+    # TCG: synchronous external abort with SP below RAM base 0x40000000).
+    CONFIG_STACK_SIZE_PAGE_ORDER: '9'
     CONFIG_AUXSTACK_SIZE_PAGE_ORDER: '7'
     CONFIG_LIBMUSL: 'y'
     CONFIG_LIBCXX: 'y'
@@ -118,20 +129,15 @@ unikraft:
 
 targets:
   - qemu/x86_64
+  - qemu/arm64
 
 libraries:
-  libmusl:
-    source: ../lib-musl
-  libcxx:
-    source: ../lib-libcxx
-  libcxxabi:
-    source: ../lib-libcxxabi
-  libunwind:
-    source: ../lib-libunwind
-  libcompiler-rt:
-    source: ../lib-compiler-rt
-  liblwip:
-    source: ../lib-lwip
+  musl: stable
+  libcxx: stable
+  libcxxabi: stable
+  libunwind: stable
+  compiler-rt: stable
+  lwip: stable
   libukvirtio_gpu:
     source: ./libs/libukvirtio_gpu
   libukvulkan_venus:

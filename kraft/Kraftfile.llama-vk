@@ -7,19 +7,25 @@ name: vogue-llama-vk
 # → QEMU virtio-gpu-gl-pci,venus=true.
 
 unikraft:
-  source: ../unikraft
+  source: @@UNIKRAFT_LOCAL@@
   kconfig:
     CONFIG_APP_LLAMA_VK: 'y'
     CONFIG_APP_LLAMA_VK_ROOTFS_9PFS: 'y'
     CONFIG_APP_LLAMA_VK_MODE_BENCH: 'y'
     CONFIG_OPTIMIZE_DEADELIM: 'y'
+    # ARM64 interrupt controller: QEMU virt uses GICv2 by default. Not
+    # auto-selected on arm64, so state it explicitly or the ukintctlr/gic build
+    # fails with "At least one GIC driver should be selected".
+    CONFIG_LIBUKINTCTLR_GICV2: 'y'
     # ggml-vulkan compiles pipelines on hardware_concurrency() std::async worker
     # threads that drive the Venus dispatch (vulkan.hpp -> stub -> uk_venus_encode
     # with multi-KB SPIR-V/struct temporaries). Worker (and main) threads default
     # to STACK_SIZE = 2^4 pages = 64 KiB, which the deep compute-graph dispatch
     # chain overflows non-deterministically (corrupted callee-saved regs -> crash
-    # in stub_vkCreateDescriptorPool). Order 7 = 512 KiB per thread fixes it.
-    CONFIG_STACK_SIZE_PAGE_ORDER: '7'
+    # in stub_vkCreateDescriptorPool). llama.cpp's graph setup adds more pressure
+    # (llm_graph_result::reset() alone uses a ~25 KiB frame); the CPU appliance was
+    # empirically fixed at order 9 (2 MiB), so match it here for headroom.
+    CONFIG_STACK_SIZE_PAGE_ORDER: '9'
     CONFIG_AUXSTACK_SIZE_PAGE_ORDER: '7'
     CONFIG_LIBMUSL: 'y'
     CONFIG_LIBCXX: 'y'
@@ -51,18 +57,14 @@ unikraft:
 
 targets:
   - qemu/x86_64
+  - qemu/arm64
 
 libraries:
-  libmusl:
-    source: ../lib-musl
-  libcxx:
-    source: ../lib-libcxx
-  libcxxabi:
-    source: ../lib-libcxxabi
-  libunwind:
-    source: ../lib-libunwind
-  libcompiler-rt:
-    source: ../lib-compiler-rt
+  musl: stable
+  libcxx: stable
+  libcxxabi: stable
+  libunwind: stable
+  compiler-rt: stable
   libukvirtio_gpu:
     source: ./libs/libukvirtio_gpu
   libukvulkan_venus:

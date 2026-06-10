@@ -1,8 +1,11 @@
 /*
  * Native llama.cpp server appliance.
  * VM boot -> Unikraft -> main() -> llama_server_main() -> upstream llama_server().
+ * This appliance is local-model only: the guest always mounts /mnt/model and
+ * serves /mnt/model/model.gguf. There is no Hugging Face or remote-URL
+ * download path in this build.
  */
-#include "common.h"
+#include "llama-vk-common.h"
 
 #if CONFIG_APP_LLAMA_VK_MODE_SERVER
 

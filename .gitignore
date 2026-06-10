@@ -72,6 +72,11 @@ cscope.out*
 # Curated reference configs belong under config/.
 /.config.*_qemu-x86_64
 /.config.*_qemu-x86_64.old
+/.config.*_qemu-arm64
+/.config.*_qemu-arm64.old
+
+# Repo-local external source cache
+/.deps/
 
 # CMake generated state
 CMakeFiles/
@@ -87,3 +92,13 @@ CMakeFiles/
 /results/app-perf/
 /results/perf/
 /results/llama-env/
+
+# models
+models/
+
+# KraftKit generated/persisted build state
+.kraft-gen/
+.config*
+
+# build logs
+*.log

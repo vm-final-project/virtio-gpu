@@ -1,0 +1,12 @@
+diff --git a/lib/ukpod/anon.c b/lib/ukpod/anon.c
+index 1a2b3c4..5d6e7f8 100644
+--- a/lib/ukpod/anon.c
++++ b/lib/ukpod/anon.c
+@@ -7,6 +7,7 @@
+ /* Page I/O ops for anonymous memory */
+ 
+ #include <uk/pod/anon.h>
++#include <uk/assert.h>
+ 
+ /**
+  * Page-in function for anonymous memory; fills pages with zeros.

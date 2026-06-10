@@ -1,0 +1,61 @@
+{
+  "schema_version": 5,
+  "kraftkit": {
+    "manifest": "https://manifests.kraftkit.sh/index.yaml",
+    "packages": {
+      "musl": "stable",
+      "libcxx": "stable",
+      "libcxxabi": "stable",
+      "libunwind": "stable",
+      "compiler-rt": "stable",
+      "lwip": "stable"
+    }
+  },
+  "git_sources": {
+    "unikraft": {
+      "path": ".deps/src/unikraft",
+      "repo": "https://github.com/unikraft/unikraft.git",
+      "rev": "RELEASE-0.21.0",
+      "ref_type": "tag",
+      "patches": [
+        "patches/unikraft/0001-pal-ectx-extern-c-linkage.patch",
+        "patches/unikraft/0002-ukpod-anon-include-assert.patch"
+      ],
+      "description": "Unikraft core. Kraftfiles reference this via the @@UNIKRAFT_LOCAL@@ placeholder resolved by mk/llama.mk. Patches in patches/unikraft/ are re-applied after every checkout/refresh (see scripts/deps.py)."
+    },
+    "llama_cpp": {
+      "path": ".deps/src/llama.cpp",
+      "env": "LLAMA_ROOT",
+      "repo": "https://github.com/ggml-org/llama.cpp.git",
+      "rev": "b9581",
+      "ref_type": "tag",
+      "description": "Upstream llama.cpp. Sources compiled in-tree; Vulkan prep target generates SPIR-V shaders."
+    },
+    "venus_protocol": {
+      "path": ".deps/src/venus-protocol",
+      "env": "VENUS_PROTOCOL_ROOT",
+      "repo": "https://gitlab.freedesktop.org/virgl/venus-protocol.git",
+      "rev": "70991d4c7e4e5a7bfa2fbb8a6e77e4eac350145d",
+      "ref_type": "commit",
+      "description": "Venus protocol headers for libukvulkan_venus and host tests."
+    },
+    "vulkan_headers": {
+      "path": ".deps/src/Vulkan-Headers",
+      "env": "VULKAN_HEADERS_INCLUDE",
+      "env_suffix": "/include",
+      "repo": "https://github.com/KhronosGroup/Vulkan-Headers.git",
+      "rev": "vulkan-sdk-1.4.350.0",
+      "ref_type": "tag",
+      "description": "Pinned Vulkan-Hpp/Vulkan-Headers. VULKAN_HEADERS_INCLUDE points to the include/ subdir."
+    },
+    "spirv_headers": {
+      "path": ".deps/src/SPIRV-Headers",
+      "env": "SPIRV_HEADERS_INCLUDE",
+      "env_suffix": "/include",
+      "repo": "https://github.com/KhronosGroup/SPIRV-Headers.git",
+      "rev": "vulkan-sdk-1.4.350.0",
+      "ref_type": "tag",
+      "description": "SPIR-V headers used by ggml-vulkan upstream compile."
+    }
+  }
+}

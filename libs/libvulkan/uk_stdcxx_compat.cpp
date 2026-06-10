@@ -5,6 +5,20 @@
 // (ggml error paths trap the kernel anyway).
 
 #include <cstdlib>
+#include <exception>
+
+// GCC's C++ exception machinery emits calls to __cxa_call_terminate when an
+// exception escapes a noexcept boundary; GCC ships it in libsupc++, but this
+// image links LLVM libc++abi, which lacks it. Provide a GCC-compatible helper
+// (adopt the in-flight exception, then terminate). Weak so a real libsupc++
+// wins if ever linked.
+extern "C" void *__cxa_begin_catch(void *) noexcept;
+
+extern "C" __attribute__((weak)) void __cxa_call_terminate(void *ue_header) {
+    if (ue_header)
+        __cxa_begin_catch(ue_header);
+    std::terminate();
+}
 
 namespace std {
 

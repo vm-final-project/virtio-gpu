@@ -5,7 +5,7 @@
  *
  * libvulkan owns the exported vk* entry points, NOT the Vulkan type
  * definitions. The canonical Vulkan types/prototypes come from the pinned
- * Khronos Vulkan-Headers checkout (config/external_paths.json:
+ * Khronos Vulkan-Headers checkout (config/deps.json:
  * VULKAN_HEADERS_INCLUDE). This shim simply forwards to that checkout so a
  * client that puts libvulkan/include ahead of the Khronos headers still
  * resolves the real Vulkan API.

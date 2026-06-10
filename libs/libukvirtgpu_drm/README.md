@@ -7,10 +7,9 @@ ioctl surface expected by Mesa's Venus guest driver
 via `libukvirtio_gpu`. The optional fdio facade adds per-open render-node state
 and mmap-offset resolution for Linux-style `open`/`ioctl`/`mmap` flows.
 
-Current stage: `vk.drm-core` passes as the direct virtgpu UAPI translation gate;
-`vk.drm-fdio` passes as the host-native fd-compatible render-node facade with
-per-open mmap offsets. This is still not a full Linux DRM implementation:
-syncobj and PRIME/dma-buf remain explicitly unsupported.
+Status: `vk.drm-core` (direct UAPI translation) and `vk.drm-fdio` (fd-compatible
+render-node facade with per-open mmap offsets) pass. This is not a full Linux DRM
+implementation — syncobj and PRIME/dma-buf are explicitly unsupported.
 
 Source lineage: Linux 6.18 `include/uapi/drm/virtgpu_drm.h`, Mesa
 `src/virtio/vulkan/vn_renderer_virtgpu.c`.

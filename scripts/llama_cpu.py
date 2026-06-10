@@ -9,43 +9,56 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from common import acceleration, decode, resolve_model, resolve_qemu, result, write_json
+from common import (
+    acceleration,
+    decode,
+    default_console,
+    default_qemu_binary,
+    image_suffix,
+    machine_and_cpu_args,
+    normalize_arch,
+    resolve_model,
+    resolve_qemu,
+    result,
+    result_path,
+    write_json,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results/llama"
 
 
-def image(mode: str) -> Path:
+def image(mode: str, arch: str) -> Path:
     name = "vogue-llama-cpu" + ("-server" if mode == "server" else "")
-    return ROOT / ".unikraft/build" / f"{name}_qemu-x86_64"
+    return ROOT / ".unikraft/build" / f"{name}_{image_suffix(arch)}"
 
 
-def qemu_command(qemu: str, model: Path, mode: str, timeout: int) -> list[str]:
+def qemu_command(qemu: str, model: Path, mode: str, timeout: int, arch: str) -> list[str]:
     del model, timeout
-    accel, cpu = acceleration()
-    return [
-        qemu, "-machine", f"accel={accel}", "-cpu", cpu, "-m", "4096",
-        "-nographic", "-no-reboot", "-kernel", str(image(mode)),
-    ]
+    accel = acceleration(arch)
+    return [qemu, *machine_and_cpu_args(arch, accel), "-m", "4096", "-nographic", "-no-reboot", "-kernel", str(image(mode, arch))]
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=("bench", "server"), required=True)
+    parser.add_argument("--arch", default="x86_64")
     parser.add_argument("--model", type=Path, required=True)
-    parser.add_argument("--qemu", default="qemu-system-x86_64")
+    parser.add_argument("--qemu")
     parser.add_argument("--timeout", type=int, default=120)
     args = parser.parse_args()
+    arch = normalize_arch(args.arch)
+    qemu_name = args.qemu or default_qemu_binary(arch)
 
-    output = RESULTS / f"llama_{'server_' if args.mode == 'server' else ''}cpu.json"
+    output = result_path(RESULTS, f"llama_{'server_' if args.mode == 'server' else ''}cpu.json", arch)
     model = resolve_model(args.model)
-    qemu = resolve_qemu(args.qemu)
-    base = qemu_command(qemu or args.qemu, args.model, args.mode, args.timeout)
-    inputs = {"mode": args.mode, "model": str(args.model), "image": str(image(args.mode))}
+    qemu = resolve_qemu(qemu_name)
+    base = qemu_command(qemu or qemu_name, args.model, args.mode, args.timeout, arch)
+    inputs = {"mode": args.mode, "arch": arch, "model": str(args.model), "image": str(image(args.mode, arch))}
     blocker = (
         ("blocked:qemu-missing", "QEMU executable not found") if not qemu else
         ("blocked:model-missing", "Model file not found") if not model else
-        ("blocked:image-missing", "Unikraft image not found") if not image(args.mode).is_file() else
+        ("blocked:image-missing", "Unikraft image not found") if not image(args.mode, arch).is_file() else
         None
     )
     if blocker:
@@ -59,7 +72,7 @@ def main() -> int:
             *base,
             "-fsdev", f"local,id=model,path={directory},security_model=none",
             "-device", "virtio-9p-pci,fsdev=model,mount_tag=model",
-            "-append", "console=ttyS0",
+            "-append", f"console={default_console(arch)}",
         ]
         try:
             proc = subprocess.run(command, cwd=ROOT, text=True, capture_output=True,
@@ -70,12 +83,12 @@ def main() -> int:
 
     metrics: dict = {}
     if args.mode == "bench":
-        match = re.search(r"uk-llama-cpu: pp512=([0-9.]+) tg128=([0-9.]+)", log)
-        passed = bool(match and "uk-llama-cpu: PASS" in log)
+        match = re.search(r"uk-llama-upstream: pp512=([0-9.]+) tg128=([0-9.]+)", log)
+        passed = bool(match and "uk-llama-upstream: PASS" in log)
         if match:
             metrics = {"pp512": float(match.group(1)), "tg128": float(match.group(2))}
     else:
-        match = re.search(r"uk-llama-cpu-server: READY ([^\n]+)", log)
+        match = re.search(r"uk-llama-upstream-server: READY ([^\n]+)", log)
         passed = bool(match)
         if match:
             metrics = {"ready": match.group(0).strip()}

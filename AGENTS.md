@@ -36,4 +36,4 @@ Recent history uses short, imperative subjects, sometimes with a scope prefix su
 
 ## Security & Configuration Tips
 
-External roots are declared in `config/external_paths.json` and can be overridden with environment variables such as `LLAMA_ROOT`, `VENUS_PROTOCOL_ROOT`, `VK_INC`, and `VK_LIB`. Never treat `blocked:*` result rows as passing evidence.
+External roots are declared in `config/deps.json` and can be overridden with environment variables such as `LLAMA_ROOT`, `VENUS_PROTOCOL_ROOT`, `VK_INC`, and `VK_LIB`. Never treat `blocked:*` result rows as passing evidence.
