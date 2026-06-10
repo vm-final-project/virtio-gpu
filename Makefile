@@ -21,7 +21,10 @@ endif
 KRAFT_TARGET ?= qemu/$(ARCH)
 EXTERNAL_DEPS_DIR ?= $(CURDIR)/.deps/src
 QEMU ?= $(if $(filter $(ARCH),arm64),qemu-system-aarch64,qemu-system-x86_64)
-MODEL ?= $(CURDIR)/models/model.gguf
+# Default model: prefer models/model.gguf, otherwise fall back to the sole
+# *.gguf present under models/ (so a freshly downloaded model works without
+# renaming). Override explicitly with MODEL=/path/to/model.gguf.
+MODEL ?= $(or $(wildcard $(CURDIR)/models/model.gguf),$(firstword $(wildcard $(CURDIR)/models/*.gguf)))
 RUN_TIMEOUT ?= 120
 
 LLAMA_ROOT             ?= $(realpath $(EXTERNAL_DEPS_DIR)/llama.cpp)

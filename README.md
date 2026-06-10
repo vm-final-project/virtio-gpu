@@ -131,6 +131,30 @@ Notes:
   built for `arm64`, but runtime verification still depends on a Linux host
   Vulkan/Venus stack and is not claimed on macOS.
 
+### Build & run CPU llama (arm64 / Apple Silicon — validated path)
+
+This is the build-and-run path validated in this repo. It targets **arm64** under `qemu-system-aarch64` with `hvf` acceleration.
+
+```sh
+make deps                              # fetch upstreams + reapply tracked patches
+make llama-cpu-server-build ARCH=arm64 # or: llama-cpu-build
+make llama-cpu-run ARCH=arm64          # boots the appliance under QEMU
+```
+
+The run mounts a model into the guest over virtio-9p. `MODEL` defaults to `models/model.gguf`, falling back to the sole `*.gguf` in `models/`. Override explicitly when you keep several models:
+
+```sh
+make llama-cpu-run ARCH=arm64 MODEL=models/your-model.gguf
+```
+
+**Toolchain caveats (macOS + GCC 16).** Unikraft 0.21.0 is validated against GCC 11-14, but this host uses GCC 16, so the Makefile:
+
+- prepends Homebrew GNU make (`gnubin`) to `PATH` (KraftKit's sub-make needs GNU make >= 4.1; macOS ships 3.81),
+- injects `UK_CFLAGS=-std=gnu17` / `UK_CXXFLAGS=-std=gnu++17 -fpermissive` so the GCC-16 C23 default does not break the build,
+- reapplies a tracked `extern "C"` patch to unikraft's `ectx.h` via `make deps` (see `patches/unikraft/`).
+
+**Other targets.** The `x86_64` CPU path and the Vulkan targets (`llama-vk`, `llama-vk-server`) are build-designed but not verified in this round; they may need their own toolchain adjustments.
+
 ## Linux GPU/Venus Workflow
 
 Build the GPU appliances for either architecture:
