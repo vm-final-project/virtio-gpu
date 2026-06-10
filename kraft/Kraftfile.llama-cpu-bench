@@ -7,8 +7,7 @@ name: vogue-llama-cpu-bench
 # cmake/unikraft-clang.cmake; upstream lib-musl supplies the POSIX surface.
 
 unikraft:
-  source: https://github.com/unikraft/unikraft.git
-  version: f6f00b2d9cf4826ed9729bb62738947f82bf1f6e
+  source: @@UNIKRAFT_LOCAL@@
   kconfig:
     CONFIG_APP_LLAMA_CPU: 'y'
     CONFIG_APP_LLAMA_CPU_ROOTFS_9PFS: 'y'
