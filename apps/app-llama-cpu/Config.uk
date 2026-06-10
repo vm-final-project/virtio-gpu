@@ -55,3 +55,25 @@ config APP_LLAMA_CPU_PROMPT_CACHE
 	  Re-use llama.cpp's KV cache for matching prompt prefixes. The server
 	  prints a per-decode `prompt_cache=` line so the eval gate can attribute
 	  TTFT wins to this knob.
+
+config APP_LLAMA_CPU_CTX
+	int "Context window per slot (tokens)"
+	default 512
+	help
+	  Per-slot context length. Aggregate KV memory ≈ PARALLEL × CTX × 2 ×
+	  layers × dim — keep small while iterating on plan-optimize.md L2.5.
+
+config APP_LLAMA_CPU_BATCH
+	int "Logical batch size"
+	default 2048
+	help
+	  plan-optimize.md L2.2 — logical maximum batch size for prompt processing.
+	  Keep this aligned with upstream llama-server's batching controls.
+
+config APP_LLAMA_CPU_UBATCH
+	int "Physical batch size"
+	default 512
+	help
+	  plan-optimize.md L2.2 — physical maximum batch size. Upstream server
+	  guidance recommends tuning this together with the logical batch size.
+
