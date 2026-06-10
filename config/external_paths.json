@@ -1,13 +1,8 @@
 {
-  "schema_version": 3,
-  "purpose": "Centralized external dependency manifest for build/test scripts. Official Unikraft core and libraries come from KraftKit package sources; repo-local Git checkouts below cover non-Kraft upstreams such as llama.cpp and Vulkan headers. Override any path via the matching environment variable.",
+  "schema_version": 5,
   "kraftkit": {
     "manifest": "https://manifests.kraftkit.sh/index.yaml",
-    "unikraft": {
-      "source": "https://github.com/unikraft/unikraft.git",
-      "version": "f6f00b2d9cf4826ed9729bb62738947f82bf1f6e"
-    },
-    "libraries": {
+    "packages": {
       "musl": "stable",
       "libcxx": "stable",
       "libcxxabi": "stable",
@@ -16,62 +11,50 @@
       "lwip": "stable"
     }
   },
-  "paths": {
-    "LLAMA_ROOT": {
-      "default": ".deps/src/llama.cpp",
-      "description": "Pinned upstream llama.cpp checkout. Sources are compiled in-tree; the Vulkan preparation target generates SPIR-V shader sources.",
-      "git": {
-        "repo": "https://github.com/ggml-org/llama.cpp.git",
-        "rev": "35c9b1f39ebe5a7bb83986d64415a079218be78d"
-      },
-      "env": "LLAMA_ROOT"
+  "git_sources": {
+    "unikraft": {
+      "path": ".deps/src/unikraft",
+      "repo": "https://github.com/unikraft/unikraft.git",
+      "rev": "RELEASE-0.21.0",
+      "ref_type": "tag",
+      "patches": [
+        "patches/unikraft/0001-pal-ectx-extern-c-linkage.patch"
+      ],
+      "description": "Unikraft core. Kraftfiles reference this via the @@UNIKRAFT_LOCAL@@ placeholder resolved by mk/llama.mk. Patches in patches/unikraft/ are re-applied after every checkout/refresh (see scripts/deps.py)."
     },
-    "VENUS_PROTOCOL_ROOT": {
-      "default": ".deps/src/venus-protocol",
-      "description": "Pinned venus-protocol checkout providing protocol headers for libukvulkan_venus and host tests.",
-      "git": {
-        "repo": "https://gitlab.freedesktop.org/virgl/venus-protocol.git",
-        "rev": "70991d4c7e4e5a7bfa2fbb8a6e77e4eac350145d"
-      },
-      "env": "VENUS_PROTOCOL_ROOT"
+    "llama_cpp": {
+      "path": ".deps/src/llama.cpp",
+      "env": "LLAMA_ROOT",
+      "repo": "https://github.com/ggml-org/llama.cpp.git",
+      "rev": "b9581",
+      "ref_type": "tag",
+      "description": "Upstream llama.cpp. Sources compiled in-tree; Vulkan prep target generates SPIR-V shaders."
     },
-    "VULKAN_HEADERS_INCLUDE": {
-      "default": ".deps/src/Vulkan-Headers/include",
-      "description": "Pinned Vulkan-Hpp/Vulkan-Headers include dir used by ggml-vulkan and the Unikraft Vulkan shim.",
-      "git": {
-        "repo": "https://github.com/KhronosGroup/Vulkan-Headers.git",
-        "rev": "v1.3.302"
-      },
-      "env": "VULKAN_HEADERS_INCLUDE"
+    "venus_protocol": {
+      "path": ".deps/src/venus-protocol",
+      "env": "VENUS_PROTOCOL_ROOT",
+      "repo": "https://gitlab.freedesktop.org/virgl/venus-protocol.git",
+      "rev": "70991d4c7e4e5a7bfa2fbb8a6e77e4eac350145d",
+      "ref_type": "commit",
+      "description": "Venus protocol headers for libukvulkan_venus and host tests."
     },
-    "SPIRV_HEADERS_INCLUDE": {
-      "default": ".deps/src/SPIRV-Headers/include",
-      "description": "Pinned SPIR-V headers used by ggml-vulkan upstream compile.",
-      "git": {
-        "repo": "https://github.com/KhronosGroup/SPIRV-Headers.git",
-        "rev": "sdk-1.3.268.0"
-      },
-      "env": "SPIRV_HEADERS_INCLUDE"
+    "vulkan_headers": {
+      "path": ".deps/src/Vulkan-Headers",
+      "env": "VULKAN_HEADERS_INCLUDE",
+      "env_suffix": "/include",
+      "repo": "https://github.com/KhronosGroup/Vulkan-Headers.git",
+      "rev": "vulkan-sdk-1.4.350.0",
+      "ref_type": "tag",
+      "description": "Pinned Vulkan-Hpp/Vulkan-Headers. VULKAN_HEADERS_INCLUDE points to the include/ subdir."
     },
-    "VK_INC": {
-      "default": ".deps/src/venus-protocol/include",
-      "description": "Vulkan + Venus headers used by host-side vulkan_compute_test (tests/Makefile).",
-      "env": "VK_INC"
-    },
-    "VK_LIB": {
-      "default": "/usr/lib/x86_64-linux-gnu/libvulkan.so.1",
-      "description": "Host Vulkan loader linked into vulkan_compute_test. Path is system-default on Debian/Ubuntu; override on other hosts.",
-      "env": "VK_LIB"
-    },
-    "HOST_CXX_INCLUDE": {
-      "default": "",
-      "description": "Optional: host C++ standard-library include dir injected into the cmake toolchain. Leave unset to use the compiler's default search path.",
-      "env": "HOST_CXX_INCLUDE"
-    },
-    "HOST_GCC_LIB": {
-      "default": "",
-      "description": "Optional: host GCC runtime library dir injected into the cmake toolchain.",
-      "env": "HOST_GCC_LIB"
+    "spirv_headers": {
+      "path": ".deps/src/SPIRV-Headers",
+      "env": "SPIRV_HEADERS_INCLUDE",
+      "env_suffix": "/include",
+      "repo": "https://github.com/KhronosGroup/SPIRV-Headers.git",
+      "rev": "vulkan-sdk-1.4.350.0",
+      "ref_type": "tag",
+      "description": "SPIR-V headers used by ggml-vulkan upstream compile."
     }
   }
 }

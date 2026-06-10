@@ -1,5 +1,23 @@
 #!/usr/bin/env python3
-"""Fetch and report external VOGUE dependencies."""
+"""Fetch and report external VOGUE dependencies.
+
+Reads config/external_paths.json.  The top-level sections are:
+
+  kraftkit.packages  — KraftKit package-registry libraries (musl, libcxx, …).
+                       Resolved at `kraft build` time; deps.py only registers
+                       the manifest and refreshes the index.
+
+  git_sources        — Repos that must be cloned locally before building.
+                       Each entry has: path, repo, rev.
+                       Optional fields:
+                         env        — environment variable that overrides `path`
+                         env_suffix — appended to `path` when deriving env value
+                                      (e.g. "/include" for header-only checkouts)
+                         patches    — list of repo-root-relative .patch files
+                                      re-applied (idempotently) after every
+                                      checkout/refresh, so local fixes to a
+                                      pinned upstream survive deps-refresh.
+"""
 from __future__ import annotations
 
 import argparse
@@ -16,25 +34,23 @@ def load_config() -> dict:
     return json.loads(CONFIG.read_text())
 
 
-def rel_default(entry: dict) -> Path:
-    default = entry.get("default", "")
-    if not default:
-        raise ValueError("entry has no default path")
-    return ROOT / default
+def resolved_path(entry: dict) -> Path:
+    """Return the local clone path for a git_sources entry.
 
-
-def resolved_path(entry: dict) -> Path | None:
-    override = os.environ.get(entry["env"])
-    if override:
-        return Path(override).expanduser().resolve()
-    default = entry.get("default", "")
-    if not default:
-        return None
-    return rel_default(entry).resolve()
-
-
-def is_optional(entry: dict) -> bool:
-    return not entry.get("default")
+    If the entry has an 'env' key and that variable is set, use it (stripping
+    any env_suffix so the returned path is always the repo root, not a subdir).
+    Otherwise fall back to ROOT / entry['path'].
+    """
+    env_key = entry.get("env")
+    suffix = entry.get("env_suffix", "")
+    if env_key:
+        override = os.environ.get(env_key)
+        if override:
+            p = Path(override).expanduser().resolve()
+            if suffix and str(p).endswith(suffix):
+                p = Path(str(p)[: -len(suffix)])
+            return p
+    return (ROOT / entry["path"]).resolve()
 
 
 def run(command: list[str], *, check: bool = True) -> int:
@@ -45,96 +61,110 @@ def run(command: list[str], *, check: bool = True) -> int:
     return completed.returncode
 
 
-def ensure_git_checkout(path: Path, repo: str, rev: str, refresh: bool) -> None:
+def ensure_git_checkout(path: Path, repo: str, rev: str, ref_type: str, refresh: bool) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
-        run(["git", "clone", repo, str(path)])
+        if ref_type == "commit":
+            # Shallow clone of default branch, then fetch the specific commit.
+            # GitHub and GitLab allow fetching reachable SHAs shallowly.
+            run(["git", "clone", "--depth=1", "--single-branch", repo, str(path)])
+            run(["git", "-C", str(path), "fetch", "--depth=1", "origin", rev])
+            run(["git", "-C", str(path), "checkout", "FETCH_HEAD"])
+        elif ref_type == "tag":
+            run(["git", "clone", "--depth=1", "--single-branch", "-b", rev, repo, str(path)])
+        else:  # branch
+            run(["git", "clone", "--depth=1", "--single-branch", "-b", rev, repo, str(path)])
     elif refresh:
-        run(["git", "-C", str(path), "fetch", "--tags", "origin"])
-    run(["git", "-C", str(path), "checkout", rev])
+        if ref_type == "commit":
+            run(["git", "-C", str(path), "fetch", "--depth=1", "origin", rev])
+            run(["git", "-C", str(path), "checkout", "FETCH_HEAD"])
+        elif ref_type == "tag":
+            run(["git", "-C", str(path), "fetch", "--depth=1", "origin",
+                 f"refs/tags/{rev}:refs/tags/{rev}"])
+            run(["git", "-C", str(path), "checkout", rev])
+        else:  # branch
+            run(["git", "-C", str(path), "fetch", "--depth=1", "origin",
+                 f"refs/heads/{rev}:refs/remotes/origin/{rev}"])
+            run(["git", "-C", str(path), "checkout", rev])
+
+
+def apply_patches(path: Path, patches: list[str]) -> None:
+    """Apply repo-tracked patches to a checkout, idempotently.
+
+    A patch that already applies in reverse is treated as present and skipped,
+    so this is safe to run on both fresh clones and existing checkouts.
+    """
+    for patch in patches:
+        patch_abs = ROOT / patch
+        already = subprocess.run(
+            ["git", "-C", str(path), "apply", "--reverse", "--check", str(patch_abs)],
+            cwd=ROOT, check=False, capture_output=True,
+        )
+        if already.returncode == 0:
+            print(f"= patch already applied: {patch}")
+            continue
+        run(["git", "-C", str(path), "apply", str(patch_abs)])
 
 
 def fetch(refresh: bool) -> None:
     config = load_config()
+
+    # Register the KraftKit manifest and refresh the package index so that
+    # `kraft build` can resolve packages (musl, libcxx, …) at build time.
     manifest = config["kraftkit"]["manifest"]
     run(["kraft", "pkg", "source", manifest], check=False)
     run(["kraft", "pkg", "update"])
 
-    for entry in config["paths"].values():
-        git_entry = entry.get("git")
-        if not git_entry:
-            continue
+    # Clone every git_source declared in config/external_paths.json, then
+    # re-apply any local patches it carries.
+    for name, entry in config["git_sources"].items():
         path = resolved_path(entry)
-        if path is None:
-            raise SystemExit(f"{entry['env']} has no default path; set the environment variable before fetch")
-        ensure_git_checkout(
-            path,
-            git_entry["repo"],
-            git_entry["rev"],
-            refresh,
-        )
-
-    kraftfiles = [
-        "Kraftfile",
-        "kraft/Kraftfile.kmscube-vgpu-gl",
-        "kraft/Kraftfile.llama-cpu",
-        "kraft/Kraftfile.llama-cpu-bench",
-        "kraft/Kraftfile.llama-cpu-server",
-        "kraft/Kraftfile.llama-vk",
-        "kraft/Kraftfile.llama-vk-server",
-    ]
-    for kraftfile in kraftfiles:
-        command = ["kraft", "fetch", "--kraftfile", kraftfile]
-        if refresh:
-            command += ["--no-cache"]
-        run(command)
+        ensure_git_checkout(path, entry["repo"], entry["rev"], entry["ref_type"], refresh)
+        if entry.get("patches"):
+            apply_patches(path, entry["patches"])
 
 
 def status() -> int:
     config = load_config()
     missing = False
-    print("Kraft manifest:", config["kraftkit"]["manifest"])
-    print("Pinned Unikraft:", config["kraftkit"]["unikraft"]["version"])
-    print("Official libraries:")
-    for name, version in config["kraftkit"]["libraries"].items():
+
+    print("KraftKit manifest:", config["kraftkit"]["manifest"])
+    print("KraftKit packages:")
+    for name, version in config["kraftkit"]["packages"].items():
         print(f"  {name}: {version}")
 
-    print("External Git sources:")
-    for name, entry in config["paths"].items():
+    print("Git sources:")
+    for name, entry in config["git_sources"].items():
         path = resolved_path(entry)
-        if path is None:
-            print(f"  {name}: [unset optional]")
-            continue
-        state = "ok" if path.exists() else "missing"
-        print(f"  {name}: {path} [{state}]")
+        suffix = entry.get("env_suffix", "")
+        env_key = entry.get("env")
+        env_note = f" (via ${env_key})" if env_key and os.environ.get(env_key) else ""
+        state = "ok" if path.exists() else "MISSING"
+        print(f"  {name}: {path}{suffix}{env_note} [{state}]")
         if not path.exists():
-            if not is_optional(entry):
-                missing = True
+            missing = True
             continue
-        git_entry = entry.get("git")
-        if git_entry:
-            completed = subprocess.run(
-                ["git", "-C", str(path), "rev-parse", "HEAD"],
-                cwd=ROOT,
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            if completed.returncode == 0:
-                print(f"    HEAD={completed.stdout.strip()} expected={git_entry['rev']}")
-            else:
-                print("    not a Git checkout")
-                missing = True
+        completed = subprocess.run(
+            ["git", "-C", str(path), "rev-parse", "HEAD"],
+            cwd=ROOT, check=False, capture_output=True, text=True,
+        )
+        if completed.returncode == 0:
+            print(f"    HEAD={completed.stdout.strip()[:12]}  expected={entry['rev']}")
+        else:
+            print("    not a git checkout")
+            missing = True
+
     return 1 if missing else 0
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
-
-    fetch_parser = sub.add_parser("fetch")
-    fetch_parser.add_argument("--refresh", action="store_true")
-    sub.add_parser("status")
+    fetch_parser = sub.add_parser("fetch", help="Clone / update all git_sources")
+    fetch_parser.add_argument("--refresh", action="store_true",
+                              help="Re-fetch even if the checkout already exists")
+    sub.add_parser("status", help="Show state of all git_sources")
 
     args = parser.parse_args()
     if args.command == "fetch":
