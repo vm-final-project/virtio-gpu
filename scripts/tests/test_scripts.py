@@ -8,8 +8,25 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import common
-import llama_cpu
-import llama_vk
+import importlib.util
+
+
+def _load(alias: str, filename: str):
+    """Load a hyphen-named sibling script under an importable alias.
+
+    The runtime scripts use hyphenated filenames that match their make targets
+    (e.g. ``app-llama-vk.py``), which cannot be imported with a plain ``import``
+    statement. Load them by path instead.
+    """
+    path = Path(__file__).resolve().parents[1] / filename
+    spec = importlib.util.spec_from_file_location(alias, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+llama_cpu = _load("llama_cpu", "app-llama-cpu.py")
+llama_vk = _load("llama_vk", "app-llama-vk.py")
 
 
 class CommonTests(unittest.TestCase):
@@ -40,6 +57,13 @@ class CommonTests(unittest.TestCase):
         self.assertEqual(common.normalize_arch("aarch64"), "arm64")
         self.assertEqual(common.default_console("arm64"), "ttyAMA0")
         self.assertEqual(common.image_suffix("arm64"), "qemu-arm64")
+
+    def test_smp_args_omitted_for_single_vcpu(self) -> None:
+        self.assertEqual(common.smp_args(1), [])
+        self.assertEqual(common.smp_args(0), [])
+
+    def test_smp_args_emits_flag_for_multiple_vcpus(self) -> None:
+        self.assertEqual(common.smp_args(4), ["-smp", "4"])
 
 
 class CommandTests(unittest.TestCase):

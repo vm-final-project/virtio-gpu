@@ -74,6 +74,19 @@ def machine_and_cpu_args(arch: str, accel: str) -> list[str]:
     return ["-machine", f"accel={accel}", "-cpu", cpu]
 
 
+def smp_args(count: int) -> list[str]:
+    """QEMU -smp fragment for booting `count` guest vCPUs.
+
+    count <= 1 returns [] so the historical single-vCPU command (and the
+    baselines captured with it) is preserved byte-for-byte unless SMP is
+    explicitly requested. The guest must additionally be built with
+    CONFIG_UKPLAT_CPU_MAXCOUNT >= count for the extra vCPUs to come online.
+    """
+    if count <= 1:
+        return []
+    return ["-smp", str(count)]
+
+
 def result(
     status: str,
     command: list[str] | str = "",
