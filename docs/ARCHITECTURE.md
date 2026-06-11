@@ -20,10 +20,10 @@ The root `Makefile` owns dependency ordering and is the public interface.
 Scripts are private implementation details:
 
 - `common.py`: shared QEMU, timeout, model, and JSON helpers.
-- `vulkan_sample_probe.py`: QEMU VirtIO-GPU probes (runs app-vulkan-sample).
-- `vulkan_check.py`: host Vulkan output parsing.
-- `llama_cpu.py`: CPU bench and server capture.
-- `llama_vk.py`: Vulkan bench and server capture.
+- `app-vulkan-sample.py`: QEMU VirtIO-GPU probes (runs app-vulkan-sample).
+- `vulkan_compute_test_runner.py`: host Vulkan output parsing.
+- `app-llama-cpu.py`: CPU bench and server capture.
+- `app-llama-vk.py`: Vulkan bench and server capture.
 - `linux_vulkan_baseline.py`: stock Linux guest comparison.
 
 There is no cross-result database or generated summary. Each target updates one

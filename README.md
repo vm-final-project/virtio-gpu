@@ -37,7 +37,7 @@ in [§7](#7-host-setup-x86_64-venus-stack)** — do not hand-roll their QEMU com
 | `libs/` | First-party Unikraft libraries — the reusable VirtIO-GPU / Venus / Vulkan substrate. |
 | `kraft/` | `Kraftfile.*` per appliance/target: Unikraft core, libraries, KConfig, and QEMU targets. |
 | `mk/` | Make includes: `llama.mk` (appliances), `tests.mk`, `check.mk`. |
-| `scripts/` | Python runners (`llama_cpu.py`, `llama_vk.py`, `deps.py`, probes) that drive QEMU and emit JSON results. |
+| `scripts/` | Python runners (`app-llama-cpu.py`, `app-llama-vk.py`, `deps.py`, probes) that drive QEMU and emit JSON results. |
 | `tests/` | Host-native C test suite (fake VirtIO-GPU backend, no QEMU/GPU needed) — the fast CI gate. |
 | `config/` | Tracked reference `.config` snapshots for static evidence gates. |
 | `results/` | JSON result captures (one schema, see [§8](#8-results)). |
@@ -173,7 +173,7 @@ make llama-cpu-server-run  ARCH=x86_64 MODEL=models/google_gemma-3-1b-it-Q4_K_M.
 
 ### 4.2 Vulkan appliances (need the §7 host Venus stack)
 
-`scripts/llama_vk.py` (driven by the `llama-vk*-run` targets) assembles the full
+`scripts/app-llama-vk.py` (driven by the `llama-vk*-run` targets) assembles the full
 QEMU command for you — the `virtio-gpu-gl-pci,venus=true,blob=true` device, the
 `egl-headless` display, the model/network devices, and KVM auto-selection.
 
@@ -195,7 +195,7 @@ env \
   VIRGL_RENDER_SERVER_EXEC_PATH="$VIRGL_PREFIX/libexec/virgl_render_server" \
   MESA_LOADER_DRIVER_OVERRIDE=kms_swrast LIBGL_ALWAYS_SOFTWARE=1 \
   VOGUE_EGL_RENDERNODE=/dev/dri/card0 \
-  python3 scripts/llama_vk.py --arch x86_64 --mode server \
+  python3 scripts/app-llama-vk.py --arch x86_64 --mode server \
     --model models/google_gemma-3-1b-it-Q4_K_M.gguf \
     --qemu "$VENUS_QEMU" --timeout 280
 # --mode bench for the bench appliance
@@ -348,7 +348,7 @@ Reproducing the Vulkan runs needs a host environment the default
    `VIRGL_RENDER_SERVER_EXEC_PATH=$VIRGL_PREFIX/libexec/virgl_render_server`.
 2. **EGL render node.** `egl-headless` needs a DRM render node. On a box with no
    GPU render node, point it at a primary KMS node driven by software:
-   `VOGUE_EGL_RENDERNODE=/dev/dri/card0` (honoured by `scripts/llama_vk.py`) with
+   `VOGUE_EGL_RENDERNODE=/dev/dri/card0` (honoured by `scripts/app-llama-vk.py`) with
    `MESA_LOADER_DRIVER_OVERRIDE=kms_swrast LIBGL_ALWAYS_SOFTWARE=1`.
 3. **KVM, not TCG.** The model is built with AVX-512 (`-march=native`); QEMU TCG
    raises `#UD` on some AVX-512 ops during C++ static init. The run script
@@ -375,7 +375,7 @@ Reproducing the Vulkan runs needs a host environment the default
 
 With the above, `make llama-vk-server-run` reaches `uk-llama-upstream-vk-server:
 READY`, serves `/health` (200) and `/completion` (200) over the Venus GPU path,
-and `scripts/llama_vk.py` records `status: pass`.
+and `scripts/app-llama-vk.py` records `status: pass`.
 
 See [`docs/VENUS-BRINGUP.md`](docs/VENUS-BRINGUP.md) for the runtime probes and
 the `make venus-check` targets.

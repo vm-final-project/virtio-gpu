@@ -23,7 +23,7 @@ tests are necessary; removing any would lose coverage or break a gate:
   — each is the sole guard of a distinct VOGUE substrate module.
 - `virtgpu_drm_compat_test` — the **only** guard of the optional `libukvirtgpu_drm`
   Linux-DRM shim; removing it would leave that library untested (`test-compat`).
-- `vulkan_compute_test` — the host Vulkan baseline; `scripts/vulkan_check.py`
+- `vulkan_compute_test` — the host Vulkan baseline; `scripts/vulkan_compute_test_runner.py`
   consumes its output for `vulkan_perf.json`, so `make vulkan-check` / `make
   verify` depend on it. It is a baseline probe rather than a substrate unit test
   (it links the host `libvulkan` and is `BLOCKED` without `VK_LIB`), but it is

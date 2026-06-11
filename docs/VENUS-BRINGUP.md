@@ -31,7 +31,7 @@ host bring-up"**; the essentials:
   `VIRGL_RENDER_SERVER_EXEC_PATH=<prefix>/libexec/virgl_render_server`.
 - **EGL render node.** On a box with no GPU render node, point `egl-headless` at
   a primary KMS node driven by software: `VOGUE_EGL_RENDERNODE=/dev/dri/card0`
-  (honoured by `scripts/llama_vk.py`) with `MESA_LOADER_DRIVER_OVERRIDE=kms_swrast
+  (honoured by `scripts/app-llama-vk.py`) with `MESA_LOADER_DRIVER_OVERRIDE=kms_swrast
   LIBGL_ALWAYS_SOFTWARE=1`.
 - **KVM, not TCG.** The model carries AVX-512 (`-march=native`) that QEMU TCG
   `#UD`s on; the run script auto-selects KVM when `/dev/kvm` is writable.

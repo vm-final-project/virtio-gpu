@@ -52,22 +52,22 @@ llama-cpu-bench-build:
 	$(call kraft_build,kraft/Kraftfile.llama-cpu)
 
 llama-cpu-bench-run: llama-cpu-bench-build
-	python3 scripts/llama_cpu.py --arch "$(ARCH)" --mode bench --model "$(MODEL)" --qemu "$(QEMU)" --timeout "$(RUN_TIMEOUT)"
+	python3 scripts/app-llama-cpu.py --arch "$(ARCH)" --mode bench --model "$(MODEL)" --qemu "$(QEMU)" --timeout "$(RUN_TIMEOUT)"
 
 llama-cpu-server-build:
 	$(call kraft_build,kraft/Kraftfile.llama-cpu-server)
 
 llama-cpu-server-run: llama-cpu-server-build
-	python3 scripts/llama_cpu.py --arch "$(ARCH)" --mode server --model "$(MODEL)" --qemu "$(QEMU)" --timeout "$(RUN_TIMEOUT)"
+	python3 scripts/app-llama-cpu.py --arch "$(ARCH)" --mode server --model "$(MODEL)" --qemu "$(QEMU)" --timeout "$(RUN_TIMEOUT)"
 
 llama-vk-bench-build: llama-vk-prepare
 	$(call kraft_build,kraft/Kraftfile.llama-vk)
 
 llama-vk-bench-run: llama-vk-bench-build
-	python3 scripts/llama_vk.py --arch "$(ARCH)" --mode bench --model "$(MODEL)" --qemu "$(QEMU)" --timeout "$(RUN_TIMEOUT)"
+	python3 scripts/app-llama-vk.py --arch "$(ARCH)" --mode bench --model "$(MODEL)" --qemu "$(QEMU)" --timeout "$(RUN_TIMEOUT)"
 
 llama-vk-server-build: llama-vk-prepare
 	$(call kraft_build,kraft/Kraftfile.llama-vk-server)
 
 llama-vk-server-run: llama-vk-server-build
-	python3 scripts/llama_vk.py --arch "$(ARCH)" --mode server --model "$(MODEL)" --qemu "$(QEMU)" --timeout "$(RUN_TIMEOUT)"
+	python3 scripts/app-llama-vk.py --arch "$(ARCH)" --mode server --model "$(MODEL)" --qemu "$(QEMU)" --timeout "$(RUN_TIMEOUT)"
