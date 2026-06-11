@@ -19,7 +19,8 @@
       "ref_type": "tag",
       "patches": [
         "patches/unikraft/0001-pal-ectx-extern-c-linkage.patch",
-        "patches/unikraft/0002-ukpod-anon-include-assert.patch"
+        "patches/unikraft/0002-ukpod-anon-include-assert.patch",
+        "patches/unikraft/0001-virtio-pci-modern-device-support.patch"
       ],
       "description": "Unikraft core. Kraftfiles reference this via the @@UNIKRAFT_LOCAL@@ placeholder resolved by mk/llama.mk. Patches in patches/unikraft/ are re-applied after every checkout/refresh (see scripts/deps.py)."
     },

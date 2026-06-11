@@ -1,8 +1,0 @@
-{
-  "status": "blocked:binary-missing",
-  "generated_utc": "2026-06-09T11:28:17.507247Z",
-  "command": "",
-  "inputs": {},
-  "metrics": {},
-  "error": "missing test binary: /Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu-refactor/tests/build/vulkan_compute_test"
-}

@@ -18,7 +18,7 @@ Run commands from the repository root:
 - `make help`: list supported reviewer and test targets.
 - `make test-fast`: daily gate for native tests and protocol checks.
 - `make test-native` or `make -C tests native`: run host-native tests without QEMU/GPU/model dependencies.
-- `make artifact-quick`: fast artifact gate covering native tests, Vulkan API coverage, docs, and generated evidence checks.
+- `make venus-check` / `make vulkan-check`: Venus probes / host Vulkan + dispatch checks.
 - `make verify`: broad release gate; may require QEMU/Venus/GPU availability.
 - `make clean`: remove generated test outputs.
 
@@ -28,7 +28,7 @@ Follow the surrounding C style: tabs for indentation where existing files use ta
 
 ## Testing Guidelines
 
-Add or update focused tests in `tests/` for library behavior. Test files generally use descriptive names ending in `_test.c`, and single targets can be run via `make -C tests <target>` such as `venus-cs`, `virgl-enc`, or `test-dispatch`. After touching apps or libraries, run `make test-fast`.
+Add or update focused tests in `tests/` for library behavior. Test files generally use descriptive names ending in `_test.c`, and single targets can be run via `make -C tests <target>` such as `venus-encoder-core`, `virgl-encoder-core`, or `vulkan-dispatch-core`. After touching apps or libraries, run `make test-fast`.
 
 ## Commit & Pull Request Guidelines
 

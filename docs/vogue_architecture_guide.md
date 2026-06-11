@@ -64,7 +64,7 @@ VOGUE 的路徑：
 
 兩者說一樣的 VirtIO-GPU 協定，但 VOGUE 只需 **4 個 library**，Linux 需要 **13+ 個 DRM/KMS/GEM kernel objects + 整個 Mesa**。
 
-> 📖 這在 `docs/ARCHITECTURE.md` 的 View A（"The Collapse"）有視覺化呈現，可執行 `make depgraph` 生成。
+> 📖 這在 `docs/ARCHITECTURE.md` 的 View A（"The Collapse"）有視覺化呈現。
 
 ---
 
@@ -142,9 +142,10 @@ Kraftfile（根目錄）                         → kmscube 圖形 appliance
 | **`libs/libukvirtio_gpu/virgl_encoder.c`** | ~660 | **Virgl 3D 命令編碼器**：產生 Gallium 層級的 3D 指令（kmscube 路徑用） |
 | **`libs/libukvirtio_gpu/virgl_hw.h`** | ~220 | Virgl 硬體定義：`VIRGL_CCMD_*` 指令碼、capset 結構（V1/V2/Venus）、資源類型 |
 | **`libs/libukvirtio_gpu/virtio_gpu_pci.c`** | ~160 | PCI probing：匹配 `PCI_VENDOR_VIRTIO` + `PCI_DEVICE_VIRTIO_GPU` |
-| **`libs/libukvirtio_gpu/virtio_pci_shm_region.c`** | ~95 | 共享記憶體區域發現：`virtio_pci_shm_region_get()` 用於 Venus ring buffer 的 host-visible blob |
 | **`libs/libukvirtio_gpu/virtio_gpu_capsets.c`** | ~100 | Capset 協商：`virtio_gpu_get_capset_info`、`virtio_gpu_get_capset` — 探測 virgl/venus 支援 |
 | **`libs/libukvirtio_gpu/fake_virtio_gpu_backend.c`** | ~400 | **測試用 fake backend**：記憶體中模擬 VirtIO-GPU 設備，追蹤已提交的命令、資源、fence。host-native 測試不需 QEMU/GPU |
+
+> **注意（最新狀態）**：上表反映較早的分檔佈局。目前 `libs/libukvirtio_gpu/` 的實際來源檔已整併為 `virtio_gpu_real.c`、`virtio_gpu_real_priv.h`、`virgl_encoder.c`、`virtio_gpu_proto.h`（其餘 `virtio_gpu.c` / `*_pci.c` / `*_capsets.c` / `fake_*` 等檔名已不存在）。`virtio_pci_shm_region_get()` 不在 `libukvirtio_gpu` 內，而是由 modern virtio-pci 傳輸層提供（`patches/unikraft/0001-virtio-pci-modern-device-support.patch`，解析 cfg_type 8 共享記憶體 capability），並由 `virtio_gpu_real.c` 以 `extern` 呼叫；該 host-visible blob 路徑在軟體 host Vulkan 驅動上無法完成，故 llama Vulkan appliance 以 `--no-host` 讓權重保持 device-local（見 README「x86_64 Vulkan-server host bring-up」與 `docs/VENUS-BRINGUP.md`）。
 
 #### 關鍵函式簽名
 
@@ -217,7 +218,7 @@ int virtio_gpu_wait_fence(struct virtio_gpu_dev *dev, uint64_t fence_id);
 | **`venus_query.c`** | ~100 | Query pool 和 timestamp 命令 |
 | **`venus_wire.h`** | ~180 | Wire 格式：Venus command header struct、opcode ID、reply 格式定義 |
 | **`venus_types.h`** | ~120 | 內部型別：`struct uk_venus_device`、`struct uk_venus_ring`、模式 flag |
-| **`generated/`** | 目錄 | **自動產生的 Venus 編碼器**：從 `../venus-protocol` XML 生成。每個 Vulkan 呼叫對應一個 `venus_encode_*.h`。用 `make gen-libukvenus` 重新生成 |
+| **`generated/`** | 目錄 | **自動產生的 Venus 編碼器**：從 `../venus-protocol` XML 生成。每個 Vulkan 呼叫對應一個 `venus_encode_*.h`。手動從上游生成器重新產生（見 `GENERATOR.md`） |
 | **`GENERATOR.md`** | — | 描述從 venus-protocol XML 到 C header 的 codegen 流程 |
 
 #### 關鍵函式簽名與呼叫流程
@@ -260,7 +261,7 @@ int uk_venus_ring_create(struct uk_venus_device *dev);
 | 3 | `__asm__("pause")` 在 busy-poll | spin-wait 時讓出 core 給 host `ring_thread` | 減少 single vCPU 上的 spin 壓力 | `venus_ring.c`, `venus_cs.c` |
 | 4 | Ring stream 模型 | `vkCmd*` 直接寫入 host-visible ring circular buffer，host 非同步 drain | 0 malloc、request-response → streaming | `venus_ring.c` |
 
-Native 測試（`make -C tests venus-hotpath`）的量化結果：
+Native 測試（`make -C tests venus-ring-core`）的量化結果：
 
 | 模式 | SUBMIT_3D / step | vs per-call |
 |------|-------------------|-------------|
@@ -286,7 +287,7 @@ Native 測試（`make -C tests venus-hotpath`）的量化結果：
 | **Collabora Blog: Venus 技術文章（必讀）** | https://www.collabora.com/news-and-blog/blog/2021/10/12/venus-a-new-vulkan-driver-for-virtualized-gpus/ | Venus 架構深入解說：thin-layer 設計、wire format、ring buffer 模型、host-guest 同步。最完整的技術介紹 |
 | **Collabora Blog: Venus on VirtIO-GPU NEXT** | https://www.collabora.com/news-and-blog/blog/2023/04/28/venus-on-virtio-gpu-next/ | Venus 進階：blob memory、cross-device memory、效能優化 |
 | **Mesa Venus 驅動文件** | https://docs.mesa3d.org/drivers/venus.html | Mesa 官方 Venus ICD 說明。VOGUE 重新實作了相同的功能 |
-| **venus-protocol GitLab** | https://gitlab.freedesktop.org/vn/venus-protocol | 協定定義 XML。本專案的 codegen 來源（`make gen-libukvenus`） |
+| **venus-protocol GitLab** | https://gitlab.freedesktop.org/vn/venus-protocol | 協定定義 XML。本專案的 codegen 來源（手動生成，見 `GENERATOR.md`） |
 | **Mesa 原始碼: vn_ring.c** | https://gitlab.freedesktop.org/mesa/mesa/-/blob/main/src/virtio/vulkan/vn_ring.c | Mesa 的 ring buffer 實作。VOGUE 的 `venus_ring.c` 鏡像此設計 |
 | **Mesa 原始碼: vn_renderer_virtgpu.c** | https://gitlab.freedesktop.org/mesa/mesa/-/blob/main/src/virtio/vulkan/vn_renderer_virtgpu.c | Mesa 怎麼透過 Linux DRM 到 Venus。VOGUE 跳過此層，用 native `libukvirtio_gpu` |
 | **FOSDEM 2022: Venus – Vulkan in VMs** | https://archive.fosdem.org/2022/schedule/event/vai_venus/ | 會議演講（有投影片和影片），解釋 Venus 架構和效能目標 |
@@ -457,7 +458,7 @@ make test-core     # 只跑 core / venus / dispatch 群組
 | 跑 host-native 測試（**本專案的 CI gate**） | `make test-fast` / `make native-tests`（不需 GPU/QEMU） |
 | 跨架構編譯 x86_64 target | `brew install x86_64-elf-binutils x86_64-elf-gcc` |
 | 修改 library 原始碼、撰寫測試 | 完全沒問題 |
-| Governance / docs 檢查 | `make governance-check lib-readme-check app-port-check` |
+| Host-native 測試 / docs 檢查 | `make test-fast` |
 
 #### ❌ Mac 上做不到的
 
@@ -465,7 +466,7 @@ make test-core     # 只跑 core / venus / dispatch 群組
 |------|------|
 | 跑 `virtio-gpu-gl,venus=true` 的 QEMU | Mac 沒有 `/dev/dri/renderD*`（Linux DRI），QEMU 的 EGL headless + virglrenderer 需要 Linux |
 | KVM 加速 QEMU | KVM 是 Linux-only。Mac 有 HVF 但 Unikraft QEMU 不完整支援 |
-| `make llm-server-vk-*`、`make kmscube-check` | 需要 Venus + GPU |
+| `make llama-vk-server-run`、`make kmscube-build` 後的 GPU 評測 | 需要 Venus + GPU |
 | 跑 `make test-qemu` | 需要 QEMU VirtIO-GPU |
 
 #### 🔧 推薦的 Mac 開發流程
@@ -473,7 +474,7 @@ make test-core     # 只跑 core / venus / dispatch 群組
 ```
 Mac 本機 ──修改程式碼──→ make test-fast ──通過──→ git push
                                                      ↓
-Linux GPU 機器 ←──SSH──→ make llm-server-vk-throughput-check
+Linux GPU 機器 ←──SSH──→ make llama-vk-server-run
 ```
 
 #### Mac 環境安裝步驟

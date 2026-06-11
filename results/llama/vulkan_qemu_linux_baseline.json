@@ -1,6 +1,6 @@
 {
   "status": "blocked:guest-image-missing",
-  "generated_utc": "2026-06-09T11:28:17.331274Z",
+  "generated_utc": "2026-06-11T04:35:57.519452Z",
   "command": "",
   "inputs": {
     "kernel": "/boot/vmlinuz",

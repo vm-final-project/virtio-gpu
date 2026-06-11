@@ -12,8 +12,8 @@ Bench and server modes are separate images with direct entrypoints — no shell,
 `/mnt/model/model.gguf` and never downloads from Hugging Face or a URL.
 
 ```sh
-make llama-vk-run        ARCH=x86_64 MODEL=/path/to/model.gguf   # bench
-make llama-vk-server-run ARCH=x86_64 MODEL=/path/to/model.gguf   # HTTP server
+make llama-vk-bench-run   ARCH=x86_64 MODEL=/path/to/model.gguf   # bench
+make llama-vk-server-run  ARCH=x86_64 MODEL=/path/to/model.gguf   # HTTP server
 ```
 
 Results go to `results/llama/llama_vk*.json` and `llama_server_vk*.json` (the
@@ -36,3 +36,21 @@ The same Unikraft-specific concerns as the CPU port apply (see
 raised `CONFIG_STACK_SIZE_PAGE_ORDER` (9 / 2 MiB) — the VK path has extra stack
 pressure from ggml-vulkan's async pipeline-compile workers. arm64 Kraftfiles also
 select `CONFIG_LIBUKINTCTLR_GICV2`.
+
+Both VK Kraftfiles (`Kraftfile.llama-vk{,-server}`) also set `CONFIG_LIBUKPAGING`
+so the boot allocator maps all RAM into one contiguous heap — without it the
+model/compute buffers land in fragmented physical regions (or the PCI hole) and
+allocation fails or crashes. Both entrypoints load with `mparams.no_host = true`
+(and the server passes `--no-host`) to keep all weights in device-local `Vulkan0`
+memory: the default pinned `Vulkan_Host` buffer is backed by a host-visible
+VirtIO-GPU blob whose upload does not complete on a software host Vulkan driver
+over Venus and otherwise deadlocks model load just before `READY`.
+
+## Runtime status
+
+All four x86_64 llama appliances pass (`results/llama/llama_vk*.json`,
+`llama_server_vk*.json`): bench and HTTP server both run the model on the GPU over
+Venus. Reproducing the Vulkan runs needs the host Venus stack (Venus-capable
+virglrenderer + QEMU rebuilt against it, a software EGL render node, and KVM) —
+see [`../../docs/VENUS-BRINGUP.md`](../../docs/VENUS-BRINGUP.md) and the README
+section "x86_64 Vulkan-server host bring-up".

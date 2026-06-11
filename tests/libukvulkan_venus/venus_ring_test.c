@@ -6,11 +6,11 @@
 
 #include <uk/venus.h>
 
-#include "test_harness.h"
+#include "test_utils.h"
 
 int main(void)
 {
-	struct test_state t = { .suite = "venus_ring_core_test" };
+	struct test_state t = { .suite = "venus_ring_test" };
 	struct uk_virtio_gpu_dev *dev = NULL;
 	struct uk_venus_ring ring = { 0 };
 	struct uk_venus_encoder enc;
@@ -19,7 +19,7 @@ int main(void)
 	volatile uint32_t *tail_ptr;
 	int rc;
 
-	TEST_CHECK(&t, "probe fake device", uk_virtio_gpu_probe(&dev) == 0 && dev != NULL);
+	dev = test_device_init(&t);
 	if (!dev)
 		return test_finish(&t);
 
@@ -62,6 +62,6 @@ int main(void)
 	TEST_CHECK(&t, "ring unregister", uk_venus_ring_unregister(dev, &ring) == 0);
 	TEST_CHECK(&t, "protocol cleared", !ring.protocol_ready && ring.ring_id == 0);
 	uk_venus_ring_destroy(dev, &ring);
-	free(dev);
+	test_device_cleanup(dev);
 	return test_finish(&t);
 }

@@ -10,10 +10,10 @@
  * `make -C tests proto-abi` reports this test as BLOCKED instead of making
  * the current fake-backend native suite fail.
  */
-#include "../libs/libukvirtio_gpu/virtio_gpu_proto.h"
+#include "../../libs/libukvirtio_gpu/virtio_gpu_proto.h"
 
 #define FAIL_IF(cond, code) \
-	do { if (cond) { printf("virtio_gpu_proto_abi_test FAIL code=%d line=%d\n", (code), __LINE__); return (code); } } while (0)
+	do { if (cond) { printf("proto_abi_test FAIL code=%d line=%d\n", (code), __LINE__); return (code); } } while (0)
 
 #define ASSERT_SIZE(type, expected) \
 	_Static_assert(sizeof(type) == (expected), #type " size must match VirtIO-GPU wire ABI")
@@ -173,7 +173,7 @@ int main(void)
 	if (rc != 0)
 		return rc;
 
-	printf("virtio_gpu_proto_abi_test passed ctrl_hdr=%zu display_info=%zu edid=%zu\n",
+	printf("proto_abi_test passed ctrl_hdr=%zu display_info=%zu edid=%zu\n",
 	       sizeof(struct virtio_gpu_ctrl_hdr),
 	       sizeof(struct virtio_gpu_resp_display_info),
 	       sizeof(struct virtio_gpu_resp_edid));

@@ -22,9 +22,11 @@ arguments and calls the generated `vn_encode_vk*`, so the emitted wire format
 **is** the Mesa Venus format. See `GENERATOR.md`. The transport stays
 `libukvirtio_gpu`; this driver never imports Mesa's `vn_renderer_virtgpu.c`.
 
-Status: Venus command encoding, ring protocol, QEMU transport, and llama.cpp
-Vulkan runtime rows pass on the evaluation host. HTTP serving and broader Vulkan
-benchmark rendering remain separate gates.
+Status: Venus command encoding, ring protocol, QEMU transport, the llama.cpp
+Vulkan bench, and the llama.cpp Vulkan HTTP server (`/health` 200, `/completion`
+200) all pass on the x86_64 bring-up host over the Venus GPU path
+(`results/llama/llama_vk.json`, `llama_server_vk.json`). Broader Vulkan benchmark
+rendering (e.g. vkmark scene FPS) remains a separate gate.
 
 ## Architecture
 

@@ -8,9 +8,12 @@ Mako templates into header-only encoders. VOGUE *consumes* that generator
 through the sibling `../venus-protocol/` checkout — it never forks the 3,000+
 lines of Python or the 30+ Mako templates.
 
-This is now a **real, reproducible flow** (not a plan): the generated driver
-headers are committed verbatim and CI proves they still match a fresh upstream
-regen.
+The generated driver headers are **committed verbatim** under `generated/` (with
+`GENERATED.lock` and `config/venus_command_manifest.json`) and are the source of
+truth used by the image build. They were produced from Mesa's upstream
+venus-protocol generator; regeneration is a manual upstream-sync step (the
+`make gen-libukvenus*` wrappers and `venus-parity`/`venus-gen-compile` gates
+referenced in older notes are not wired into this checkout).
 
 ## Layout
 
@@ -26,20 +29,13 @@ libs/libukvulkan_venus/vn_ring_shim.c         # transport thunk (test-only; see 
 libs/libukvulkan_venus/{venus_cs,venus_init,venus_compute}.c  # in-image encoders
 ```
 
-## Workflow
+## Regeneration
 
-```sh
-make gen-libukvenus-plan        # JSON plan: artifacts, slices, source script
-make gen-libukvenus-check       # verify ../venus-protocol checkout + mako
-make gen-libukvenus             # regenerate libs/libukvulkan_venus/generated/* + lock
-make gen-libukvenus-verify      # regenerate to a temp dir + diff (CI gate)
-make gen-libukvenus-selftest    # run the pin/extract/manifest/generate/coverage tests
-```
-
-The generator runs `../venus-protocol/vn_protocol.py --outdir <dir>` (no
-`--renderer` ⇒ driver/guest variant), then writes `GENERATED.lock` with a
-sha256 of every emitted header. `gen-libukvenus-verify` is a prerequisite of
-`make test-fast`, so a drifted tree fails the deterministic gate.
+The committed `generated/` tree is produced by Mesa's upstream venus-protocol
+generator (`vn_protocol.py`, driver/guest variant — no `--renderer`) run against
+the sibling `../venus-protocol/` checkout, with `GENERATED.lock` holding a sha256
+of every emitted header. This is a manual upstream-sync step (see *Upgrade
+procedure* below); it is not wrapped by a `make` target in this checkout.
 
 ## Slicing for image size
 
@@ -48,9 +44,9 @@ and Vulkan core version; it does not slice per command. Every `vn_encode_*`
 is `static inline`, so the encoders ggml never calls are dropped by
 compile-time dead-code elimination. `config/venus_command_manifest.json` is the
 deterministic list of the Venus wire commands ggml-vulkan actually uses
-(derived from the pinned ggml-vulkan source); `make
-gen-libukvenus-selftest` asserts every one of them has a generated encoder
-(the generated coverage manifest). Loader-only and blob-mapped-memory commands
+(derived from the pinned ggml-vulkan source); every one of them has a generated
+encoder in the committed tree (the coverage manifest). Loader-only and
+blob-mapped-memory commands
 (`vkGetInstanceProcAddr`, `vkMapMemory`, ...) are listed under `client_side` and
 intentionally excluded — they are serviced guest-side, never serialized.
 
@@ -68,8 +64,9 @@ by two hand-written headers:
   vn_ring_submit_command` used by the `vn_submit_*`/`vn_call_*` wrappers, plus a
   no-op `VN_TRACE_FUNC`.
 
-`tests/venus_generated_compile_test.c` (the `venus-gen-compile` gate) compiles
-the generated tree through this shim and exercises real encoders.
+The host-native venus tests (`make -C tests venus-encoder-core`,
+`venus-ring-core`) compile the generated tree through this shim and exercise real
+encoders.
 
 ## Source-of-truth model: the image uses the generated encoders
 
@@ -82,11 +79,10 @@ therefore compiles against the generated tree and the Vulkan headers
 exactly like `libukggml_vulkan`; the generated tree is verified to build against
 the kraft Vulkan-Headers (VK_HEADER_VERSION 352).
 
-Guards: `tests/venus_parity_test.c` (the `venus-parity` gate) plus the focused
-`venus_encoder_test` byte-oracle regression confirm the bridges emit the
-expected streams, and `venus-gen-compile` keeps the generated tree compiling
-through the shim. The Vulkan/Venus llama.cpp server boots over real
-virtio-gpu-gl Venus on the evaluation host through this exact path.
+Guards: the host-native venus encoder/ring tests confirm the bridges emit the
+expected streams and keep the generated tree compiling through the shim. The
+Vulkan/Venus llama.cpp server boots over real virtio-gpu-gl Venus on the
+evaluation host through this exact path.
 
 `vn_ring_shim.c` provides the four `vn_ring_*` functions the generated
 `vn_submit_*`/`vn_call_*` wrappers reference; the encode-only image path never
@@ -95,11 +91,11 @@ tests + the optional `vn_call_*` round-trip path.
 
 ## Upgrade procedure
 
-1. `git -C ../venus-protocol pull` (or move to the desired Mesa SHA) and update
-   `commit` in `scripts/venus/pin.json`.
-2. `make gen-libukvenus` to regenerate `libs/libukvulkan_venus/generated/` + lock.
-3. `make gen-libukvenus-selftest` and `make -C tests venus-parity` to confirm
-   coverage and wire-format parity. If a `vn_encode_*` byte layout changed,
+1. `git -C ../venus-protocol pull` (or move to the desired Mesa SHA).
+2. Run the upstream `vn_protocol.py` generator into
+   `libs/libukvulkan_venus/generated/` and refresh `GENERATED.lock`.
+3. Run `make -C tests venus-encoder-core` / `venus-ring-core` to confirm the
+   in-image encoder bridges still match. If a `vn_encode_*` byte layout changed,
    update the matching in-image encoder until parity is restored — the
    generated output wins.
-4. Commit `scripts/venus/pin.json` + `libs/libukvulkan_venus/generated/`.
+4. Commit `libs/libukvulkan_venus/generated/` + `GENERATED.lock`.

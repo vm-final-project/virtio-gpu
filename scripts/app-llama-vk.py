@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import socket
@@ -46,10 +47,17 @@ def free_port() -> int:
 def qemu_command(qemu: str, model: Path, mode: str, timeout: int, port: int, arch: str) -> list[str]:
     del model, timeout
     accel = acceleration(arch)
+    # Hosts without a GPU render node (renderD*) can point egl-headless at a
+    # primary KMS node driven by software (e.g. VOGUE_EGL_RENDERNODE=/dev/dri/card0
+    # with MESA_LOADER_DRIVER_OVERRIDE=kms_swrast). Empty -> let QEMU auto-scan.
+    egl_display = "egl-headless,gl=on"
+    rendernode = os.environ.get("VOGUE_EGL_RENDERNODE")
+    if rendernode:
+        egl_display += f",rendernode={rendernode}"
     command = [
         qemu, *machine_and_cpu_args(arch, accel), "-m", "3072",
         "-no-reboot", "-kernel", str(image(mode, arch)),
-        "-display", "egl-headless,gl=on", "-vga", "none",
+        "-display", egl_display, "-vga", "none",
         "-device", "virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true",
         "-append", f"console={default_console(arch)}", "-serial", "mon:stdio", "-monitor", "none",
     ]
@@ -143,7 +151,7 @@ def main() -> int:
                 proc.kill()
                 log, _ = proc.communicate()
                 metrics = {}
-            ready = "uk-llama-vk-server: READY" in log
+            ready = "uk-llama-upstream-vk-server: READY" in log
             passed = (
                 ready
                 and metrics.get("http_status") == 200

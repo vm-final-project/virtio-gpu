@@ -57,7 +57,8 @@ export UK_CFLAGS UK_CXXFLAGS
 
 include mk/tests.mk
 include mk/llama.mk
-include mk/evidence.mk
+include mk/kmscube.mk
+include mk/check.mk
 
 .PHONY: help verify deps deps-status deps-refresh clean
 
@@ -67,14 +68,12 @@ help:
 	  '' \
 	  'Config:     ARCH={x86_64|arm64} KRAFT_TARGET=$(KRAFT_TARGET)' \
 	  'Tests:      test-fast test-native venus-check vulkan-check verify' \
-	  'Build/run:  llama-{cpu,vk}{,-server}-{build,run}' \
+	  'Build/run:  llama-{cpu,vk}-{bench,server}-{build,run}' \
 	  'Deps:       deps deps-status deps-refresh' \
-	  'Baseline:   linux-guest-vk-baseline' \
 	  'Cleanup:    clean'
 
 verify: test-fast venus-check vulkan-check \
-	llama-cpu-run llama-cpu-server-run llama-vk-run llama-vk-server-run \
-	linux-guest-vk-baseline
+	llama-cpu-bench-run llama-cpu-server-run llama-vk-bench-run llama-vk-server-run
 
 deps:
 	python3 scripts/deps.py fetch

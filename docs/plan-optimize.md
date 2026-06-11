@@ -87,7 +87,28 @@ From `apps/app-llama-vk/common.h`:
 
 Repository status gate:
 
-- `make current-stage-check` currently reports `current_stage_report: pass checks=16 eval_rows=27 benchmark_rows=8`
+- Current status is evidenced by the canonical `results/llama/*.json` captures
+  (see *Latest verified runs* below); `make test-fast` is the host-native gate.
+
+### Latest verified runs (x86_64 bring-up host, 2026-06-10)
+
+The numbers above are the dated V100/NVIDIA capture. A subsequent x86_64 bring-up
+on a software-Vulkan host (lavapipe over Venus) re-verified all four llama
+appliances end-to-end (gemma-3-1b Q4_K_M):
+
+- `results/llama/llama_cpu.json` → `pass` (`pp512=31.2`, `tg128=10.9`)
+- `results/llama/llama_vk.json` → `pass` (`pp512=4582.6`, `tg128=353.8`)
+- `results/llama/llama_server_vk.json` → `pass` (`/health` 200, `/completion` 200, `tokens_per_s=79.9`)
+
+This required getting the host Venus stack working (Venus-capable virglrenderer +
+QEMU rebuilt against it, software EGL render node, KVM) and the in-tree fixes
+documented in the README "x86_64 Vulkan-server host bring-up" section and
+`docs/VENUS-BRINGUP.md`: `CONFIG_LIBUKPAGING` on all four llama Kraftfiles, the
+registered modern virtio-pci patch with `virtio_pci_shm_region_get` + BAR mapping,
+a page-consistent `minMemoryMapAlignment`, and `--no-host` (device-local weights).
+The appliance entrypoints are `apps/app-llama-vk/llama-vk-server-entry.cpp` and the
+shared `apps/llama-common/llama-uk-common.h` loader (the older `server.cpp` /
+`common.h` filenames referenced above have been superseded).
 
 ## Already shipped background
 
@@ -370,11 +391,13 @@ network bottleneck.
 
 ## Verification gates
 
-Required repo checks for this plan and for future updates built from it:
+Repo checks that exist today and gate this plan and future updates built from it:
 
-- `make current-stage-check`
-- `make llm-server-vk-throughput-check`
-- `make model-load-time-check`
+- `make test-fast` — host-native suite + protocol/ABI checks
+- `make verify` — broad release gate (adds Venus/Vulkan/llama runtime captures)
+
+Per-metric gates (throughput / model-load-time) are **proposed** for this plan
+and are not yet implemented as make targets.
 
 When the next optimization step lands, the new artifact must beat the exact
 baseline it claims to improve. Do not replace a baseline statement with a new

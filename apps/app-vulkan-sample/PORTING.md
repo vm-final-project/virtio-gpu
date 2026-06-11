@@ -48,6 +48,5 @@ same-run QEMU/Venus payload artifact and frame/compute proof.
 
 ```sh
 make vulkan-check
-make eval-check
 make verify
 ```

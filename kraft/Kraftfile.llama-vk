@@ -27,6 +27,10 @@ unikraft:
     # empirically fixed at order 9 (2 MiB), so match it here for headroom.
     CONFIG_STACK_SIZE_PAGE_ORDER: '9'
     CONFIG_AUXSTACK_SIZE_PAGE_ORDER: '7'
+    # Map all RAM into one contiguous heap (as the server appliance does):
+    # without it the boot allocator hands out fragmented physical regions / PCI-
+    # hole addresses and model + compute-buffer allocations fail or crash.
+    CONFIG_LIBUKPAGING: 'y'
     CONFIG_LIBMUSL: 'y'
     CONFIG_LIBCXX: 'y'
     CONFIG_CXX_THREADS: 'y'

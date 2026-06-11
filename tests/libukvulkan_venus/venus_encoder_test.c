@@ -5,7 +5,7 @@
 
 #include <uk/venus.h>
 
-#include "test_harness.h"
+#include "test_utils.h"
 
 static uint32_t read_u32(const uint8_t *p, size_t off)
 {
@@ -25,7 +25,7 @@ static uint64_t read_u64(const uint8_t *p, size_t off)
 
 int main(void)
 {
-	struct test_state t = { .suite = "venus_encoder_core_test" };
+	struct test_state t = { .suite = "venus_encoder_test" };
 	struct uk_venus_encoder enc;
 	uint8_t buf[2048];
 	uint64_t handles[2] = { 0x100000001ull, 0x100000002ull };
