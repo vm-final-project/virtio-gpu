@@ -488,6 +488,23 @@ Expected: no llama.cpp changes — the win came purely from the scheduler.
 
 ---
 
+## Single-request latency mode (low-latency profile)
+
+A3 is usually framed for *aggregate* throughput, but it is also the enabler for the **lowest single-request latency** (minimise TTFT and per-token time) on the **CPU appliance**. The intuition often quoted — "no global scheduler ⇒ threads stay pinned, zero drift, deterministic" — has the right *goal* but the wrong *premise*: stock 0.21.0 does not pin threads, it leaves the secondary vCPUs unused (`boot.c:360-364` starts only the BSP scheduler; `schedcoop.c:274` is single-LCPU). So `-smp N -t N` on stock 0.21.0 puts all N ggml workers on **one** vCPU and is *slower* than `-t 1`. The deterministic, cache-local, zero-noise behaviour is a **product of A3**, not of omitting a scheduler.
+
+Once A3 (this plan) is in place, the low-latency profile is:
+
+| Knob | Setting | Why | Verified note |
+|---|---|---|---|
+| `-smp N` (`VOGUE_SMP=N`) | N = physical cores you grant the VM | one vCPU per ggml worker | A3 kernel pins one worker per LCPU |
+| `CONFIG_APP_LLAMA_CPU_THREADS` | = N | ggml splits the matmul into N equal shares | one share per pinned core |
+| `--parallel 1` | 1 slot | entire VM (CPU + memory bandwidth) serves this one request; no slot contention | already a build knob in the appliances |
+| `-march`/`-mtune` | concrete target (or `native` when build CPU == run CPU) | enables AVX2/AVX512/NEON matmul kernels — single-core speedup of several× | already `LLAMA_MARCH ?= native`, overridable (`plan-optimize.md` P2) |
+| `-C` / `--cpu-mask` | **do NOT use** | llama.cpp's `-C` calls `pthread_setaffinity_np` (`ggml-cpu.c:2143-2183`); stock Unikraft has no per-core run queue to honour it (no affinity support in core), so it is a no-op/warning. **A3 already pins in-kernel, making `-C` redundant.** | — |
+| `--mlock` | optional / mostly redundant | a unikernel has no swap/page-out by default, so weights are already resident; `mlock()` is likely a no-op here. Harmless. Note the VK path uses `--no-mmap` (9pfs), different semantics. | — |
+
+**Scope caveat — this profile is for the CPU appliance.** The VK appliance offloads all layers to the GPU (`-ngl 99`), so its decode is **GPU-bound**: CPU thread count, in-kernel pinning, and `-march` barely move its latency. For lowest VK single-request latency, focus on the Venus/dispatch path and `--parallel 1`; `-smp 1 -t 1` is already near-optimal there. There is **no userspace shortcut** to use more than one core for CPU-path single-request latency — A3 is the only path, because `-C` cannot work without the kernel-side per-LCPU scheduler this plan builds.
+
 ## Success criteria
 
 1. A fresh, patched Unikraft checkout builds the appliances (`make llama-cpu-bench` from clean `.deps`).
