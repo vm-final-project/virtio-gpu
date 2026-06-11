@@ -26,6 +26,7 @@ from common import (
     resolve_qemu,
     result,
     result_path,
+    smp_args,
     write_json,
 )
 
@@ -44,7 +45,7 @@ def free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def qemu_command(qemu: str, model: Path, mode: str, timeout: int, port: int, arch: str) -> list[str]:
+def qemu_command(qemu: str, model: Path, mode: str, timeout: int, port: int, arch: str, smp: int = 1) -> list[str]:
     del model, timeout
     accel = acceleration(arch)
     # Hosts without a GPU render node (renderD*) can point egl-headless at a
@@ -55,7 +56,7 @@ def qemu_command(qemu: str, model: Path, mode: str, timeout: int, port: int, arc
     if rendernode:
         egl_display += f",rendernode={rendernode}"
     command = [
-        qemu, *machine_and_cpu_args(arch, accel), "-m", "3072",
+        qemu, *machine_and_cpu_args(arch, accel), *smp_args(smp), "-m", "3072",
         "-no-reboot", "-kernel", str(image(mode, arch)),
         "-display", egl_display, "-vga", "none",
         "-device", "virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true",
@@ -109,6 +110,7 @@ def main() -> int:
     parser.add_argument("--model", type=Path, required=True)
     parser.add_argument("--qemu")
     parser.add_argument("--timeout", type=int, default=300)
+    parser.add_argument("--smp", type=int, default=int(os.environ.get("VOGUE_SMP", "1")))
     args = parser.parse_args()
     arch = normalize_arch(args.arch)
     qemu_name = args.qemu or default_qemu_binary(arch)
@@ -117,8 +119,8 @@ def main() -> int:
     model = resolve_model(args.model)
     qemu = resolve_qemu(qemu_name)
     port = 0
-    base = qemu_command(qemu or qemu_name, args.model, args.mode, args.timeout, port, arch)
-    inputs = {"mode": args.mode, "arch": arch, "model": str(args.model), "image": str(image(args.mode, arch))}
+    base = qemu_command(qemu or qemu_name, args.model, args.mode, args.timeout, port, arch, smp=args.smp)
+    inputs = {"mode": args.mode, "arch": arch, "model": str(args.model), "image": str(image(args.mode, arch)), "smp": args.smp}
     blocker = (
         ("blocked:qemu-missing", "QEMU executable not found") if not qemu else
         ("blocked:model-missing", "Model file not found") if not model else
@@ -131,7 +133,7 @@ def main() -> int:
         return 0
     if args.mode == "server":
         port = free_port()
-        base = qemu_command(qemu, args.model, args.mode, args.timeout, port, arch)
+        base = qemu_command(qemu, args.model, args.mode, args.timeout, port, arch, smp=args.smp)
 
     with tempfile.TemporaryDirectory(prefix="vogue-model-") as directory:
         shutil.copy(model, Path(directory) / "model.gguf")

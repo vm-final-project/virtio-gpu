@@ -86,6 +86,12 @@ class CommandTests(unittest.TestCase):
         self.assertNotIn("hostfwd", " ".join(bench))
         self.assertIn("hostfwd", " ".join(server))
 
+    def test_vk_smp_flag_present_only_when_multivcpu(self) -> None:
+        one = llama_vk.qemu_command("qemu", Path("model"), "server", 10, 18080, "x86_64", smp=1)
+        four = llama_vk.qemu_command("qemu", Path("model"), "server", 10, 18080, "x86_64", smp=4)
+        self.assertNotIn("-smp", one)
+        self.assertEqual(four[four.index("-smp") + 1], "4")
+
     def test_result_path_keeps_x86_and_suffixes_arm64(self) -> None:
         root = Path("/tmp/results")
         self.assertEqual(common.result_path(root, "llama_cpu.json", "x86_64"), root / "llama_cpu.json")
