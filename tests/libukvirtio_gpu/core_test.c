@@ -8,7 +8,7 @@
 #include <uk/sglist.h>
 #include <uk/virtio_gpu.h>
 
-#include "test_harness.h"
+#include "test_utils.h"
 
 #define CORE_WIDTH  64u
 #define CORE_HEIGHT 64u
@@ -24,7 +24,7 @@ static void fill_frame(uint32_t *pixels, uint32_t width, uint32_t height)
 
 int main(void)
 {
-	struct test_state t = { .suite = "virtio_gpu_core_test" };
+	struct test_state t = { .suite = "core_test" };
 	struct uk_alloc *alloc = uk_alloc_get_default();
 	struct uk_virtio_gpu_dev *dev = NULL;
 	struct uk_virtio_gpu_caps caps;
@@ -51,7 +51,7 @@ int main(void)
 	uint8_t apir_reply_buf[8] = { 1, 0, 0, 0, 2, 0, 0, 0 };
 
 	TEST_CHECK(&t, "alloc default available", alloc != NULL);
-	TEST_CHECK(&t, "probe fake device", uk_virtio_gpu_probe(&dev) == 0 && dev != NULL);
+	dev = test_device_init(&t);
 	if (!dev)
 		return test_finish(&t);
 
@@ -70,7 +70,7 @@ int main(void)
 	TEST_CHECK(&t, "aligned frame alloc",
 		   uk_posix_memalign(alloc, &frame, 4096, frame_len) == 0 && frame != NULL);
 	if (!frame) {
-		free(dev);
+		test_device_cleanup(dev);
 		return test_finish(&t);
 	}
 	TEST_CHECK(&t, "frame alignment", ((uintptr_t)frame % 4096u) == 0);
@@ -116,6 +116,6 @@ int main(void)
 	TEST_CHECK(&t, "resource unref", uk_virtio_gpu_gl_resource_unref(dev, res) == 0);
 
 	uk_free(alloc, frame);
-	free(dev);
+	test_device_cleanup(dev);
 	return test_finish(&t);
 }

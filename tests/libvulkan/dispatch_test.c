@@ -5,7 +5,7 @@
 
 #include <uk/vulkan.h>
 
-#include "test_harness.h"
+#include "test_utils.h"
 
 typedef uint64_t VkInstance;
 typedef uint64_t VkDevice;
@@ -25,7 +25,7 @@ static PFN_vkVoidFunction get_proc(const char *name)
 
 int main(void)
 {
-	struct test_state t = { .suite = "vulkan_dispatch_core_test" };
+	struct test_state t = { .suite = "dispatch_test" };
 	struct uk_vulkan_info info = { 0 };
 	const char *required[] = {
 		"vkCreateInstance",

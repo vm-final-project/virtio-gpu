@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: BSD-2-Clause */
+/* SPDX-License-Identifier: BSD-3-Clause */
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -8,11 +8,11 @@
 #include <uk/drm_virtgpu.h>
 #include <uk/drm_virtgpu_fdio.h>
 
-#include "test_harness.h"
+#include "test_utils.h"
 
 int main(void)
 {
-	struct test_state t = { .suite = "virtgpu_drm_compat_test" };
+	struct test_state t = { .suite = "drm_compat_test" };
 	struct uk_drm_virtgpu_dev dev;
 	struct uk_drm_virtgpu_file file0;
 	struct uk_drm_virtgpu_file file1;
