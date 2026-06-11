@@ -430,13 +430,13 @@ and is wired into a gate (none are duplicate or unused):
 
 | Test | Guards | Gate |
 |------|--------|------|
-| `virtio_gpu_core_test` | libukvirtio_gpu core (fake backend) | `test-core` |
-| `virtio_gpu_proto_abi_test` | VirtIO-GPU wire-ABI structs/features | `proto-abi` |
-| `virgl_encoder_core_test` | libukvirtio_gpu virgl encoder | `test-core` |
-| `venus_encoder_core_test` | libukvulkan_venus encoders | `test-venus` |
-| `venus_ring_core_test` | libukvulkan_venus ring transport | `test-venus` |
-| `vulkan_dispatch_core_test` | libvulkan dispatch | `test-dispatch` |
-| `virtgpu_drm_compat_test` | libukvirtgpu_drm (optional DRM shim) | `test-compat` |
+| `core_test` | libukvirtio_gpu core (fake backend) | `test-core` |
+| `proto_abi_test` | VirtIO-GPU wire-ABI structs/features | `proto-abi` |
+| `virgl_encoder_test` | libukvirtio_gpu virgl encoder | `test-core` |
+| `venus_encoder_test` | libukvulkan_venus encoders | `test-venus` |
+| `venus_ring_test` | libukvulkan_venus ring transport | `test-venus` |
+| `dispatch_test` | libvulkan dispatch | `test-dispatch` |
+| `drm_compat_test` | libukvirtgpu_drm (optional DRM shim) | `test-compat` |
 
 The venus/dispatch tests compile the generated Venus tree, which needs the
 repo-pinned Vulkan-Headers (`VK_HEADER_VERSION 352`); `tests/Makefile` defaults
