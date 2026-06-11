@@ -57,7 +57,8 @@ export UK_CFLAGS UK_CXXFLAGS
 
 include mk/tests.mk
 include mk/llama.mk
-include mk/evidence.mk
+include mk/kmscube.mk
+include mk/check.mk
 
 .PHONY: help verify deps deps-status deps-refresh clean
 

@@ -24,7 +24,7 @@ define kraft_build
 		--target $(KRAFT_TARGET) --kraftfile $(KRAFT_GEN_DIR)/$(notdir $(1)) .
 endef
 
-.PHONY: llama-vk-prepare kmscube-build \
+.PHONY: llama-vk-prepare \
 	llama-cpu-bench-build llama-cpu-bench-run llama-cpu-server-build llama-cpu-server-run \
 	llama-vk-bench-build llama-vk-bench-run llama-vk-server-build llama-vk-server-run
 
@@ -47,10 +47,6 @@ $(LLAMA_VK_SHADER_STAMP):
 	@touch $@
 
 llama-vk-prepare: $(LLAMA_VK_SHADER_STAMP)
-
-kmscube-build:
-	mkdir -p results/kmscube_vgpu_gl/run
-	$(call kraft_build,kraft/Kraftfile.kmscube-vgpu-gl)
 
 llama-cpu-bench-build:
 	$(call kraft_build,kraft/Kraftfile.llama-cpu)

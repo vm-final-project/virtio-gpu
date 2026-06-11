@@ -36,7 +36,7 @@ in [§7](#7-host-setup-x86_64-venus-stack)** — do not hand-roll their QEMU com
 | `apps/` | One directory per appliance. Each boots directly into a single entrypoint (no shell, no `fork`/`exec`). |
 | `libs/` | First-party Unikraft libraries — the reusable VirtIO-GPU / Venus / Vulkan substrate. |
 | `kraft/` | `Kraftfile.*` per appliance/target: Unikraft core, libraries, KConfig, and QEMU targets. |
-| `mk/` | Make includes: `llama.mk` (appliances), `tests.mk`, `evidence.mk`. |
+| `mk/` | Make includes: `llama.mk` (appliances), `tests.mk`, `check.mk`. |
 | `scripts/` | Python runners (`llama_cpu.py`, `llama_vk.py`, `deps.py`, probes) that drive QEMU and emit JSON results. |
 | `tests/` | Host-native C test suite (fake VirtIO-GPU backend, no QEMU/GPU needed) — the fast CI gate. |
 | `config/` | Tracked reference `.config` snapshots for static evidence gates. |
