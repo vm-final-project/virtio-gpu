@@ -1,12 +1,15 @@
 {
-  "status": "blocked:qemu-missing",
-  "generated_utc": "2026-06-09T11:28:54.740253Z",
-  "command": "/tmp/vogue-missing-qemu -machine accel=tcg -cpu max -m 4096 -nographic -no-reboot -kernel /Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu-refactor/.unikraft/build/vogue-llama-cpu-server_qemu-x86_64",
+  "status": "pass",
+  "generated_utc": "2026-06-11T04:31:31.395016Z",
+  "command": "/usr/local/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -m 4096 -nographic -no-reboot -kernel /mydata/JerryT/virtio-gpu-smp/.unikraft/build/vogue-llama-cpu-server_qemu-x86_64 -fsdev local,id=model,path=/tmp/vogue-model-h2nd0sct,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model -append console=ttyS0",
   "inputs": {
     "mode": "server",
-    "model": "/tmp/vogue-missing.gguf",
-    "image": "/Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu-refactor/.unikraft/build/vogue-llama-cpu-server_qemu-x86_64"
+    "arch": "x86_64",
+    "model": "/mydata/JerryT/virtio-gpu-smp/models/google_gemma-3-1b-it-Q4_K_M.gguf",
+    "image": "/mydata/JerryT/virtio-gpu-smp/.unikraft/build/vogue-llama-cpu-server_qemu-x86_64"
   },
-  "metrics": {},
-  "error": "QEMU executable not found"
+  "metrics": {
+    "ready": "uk-llama-upstream-server: READY model=/mnt/model/model.gguf threads=1 slots=1 ctx_per_slot=512 batch_size=2048 ubatch_size=512 prompt_cache=1 mode=single-app no_fork_exec=1"
+  },
+  "error": null
 }

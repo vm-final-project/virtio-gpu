@@ -106,17 +106,22 @@ static int llama_server_main(void)
      * (llama.cpp issue #9572). Deterministic off beats the AUTO default. */
     static char fa_f[]       = "--flash-attn";
     static char fa[]         = "off";
+    /* Keep all weights in device-local Vulkan0 memory: the default pinned
+     * Vulkan_Host buffer is a host-visible VirtIO-GPU blob whose upload does not
+     * complete on a software host Vulkan driver over Venus (deadlocks load).
+     * Must match the readiness-probe load (load_model_common sets no_host). */
+    static char nohost[]     = "--no-host";
 #if CONFIG_APP_LLAMA_VK_PROMPT_CACHE
     static char cache[]      = "--cache-prompt";
     char *argv[] = {arg0, model_f, model, host_f, host, port_f, port,
                     ctx_f, ctx, batch_f, batch, ubatch_f, ubatch,
                     parallel_f, parallel, threads_f, threads,
-                    ngl_f, ngl, nommap, fa_f, fa, cache};
+                    ngl_f, ngl, nommap, fa_f, fa, nohost, cache};
 #else
     char *argv[] = {arg0, model_f, model, host_f, host, port_f, port,
                     ctx_f, ctx, batch_f, batch, ubatch_f, ubatch,
                     parallel_f, parallel, threads_f, threads,
-                    ngl_f, ngl, nommap, fa_f, fa};
+                    ngl_f, ngl, nommap, fa_f, fa, nohost};
 #endif
 
     return llama_server((int)(sizeof(argv) / sizeof(argv[0])), argv);

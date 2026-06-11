@@ -40,6 +40,21 @@ unikraft:
     # reports a synchronous external abort). Order 9 = 2 MiB gives ample margin.
     # This default also sizes pthread worker stacks used for inference.
     CONFIG_STACK_SIZE_PAGE_ORDER: '9'
+    # Enable Unikraft virtual memory / paging so the boot allocator maps ALL
+    # physical RAM (including memory above the 4 GiB boundary) into one
+    # contiguous heap (ukboot heap_init() LIBUKBOOT_HEAP_BASE path).
+    #
+    # Without paging, ukboot feeds the raw physical FREE memory regions straight
+    # to the buddy allocator, so the largest single allocation is bounded by the
+    # largest *contiguous* free region rather than total RAM. On arm64/virt RAM
+    # is one contiguous block from 0x40000000, so a 762 MiB model buffer fits
+    # even at -m 4096. On x86_64/q35 the 32-bit PCI MMIO hole fragments low RAM
+    # and the static boot page table maps only the first 4 GiB, so the largest
+    # contiguous buddy block stays below the model size and ggml_aligned_malloc
+    # fails ("insufficient memory") regardless of -m (verified 2G..24G).
+    # LIBUKPAGING enables LIBUKPLAT_NATIVE_PAGING (selected by PLAT_KVM) and the
+    # x86_64/arm64 direct map, giving a single large contiguous heap on both.
+    CONFIG_LIBUKPAGING: 'y'
     CONFIG_APP_LLAMA_CPU: 'y'
     CONFIG_APP_LLAMA_CPU_ROOTFS_9PFS: 'y'
     CONFIG_APP_LLAMA_CPU_MODE_SERVER: 'y'

@@ -5,8 +5,8 @@ llama.cpp on the ggml CPU backend. Bench and server modes build as separate
 images and call upstream code directly — no shell, `fork()`, or `exec()`.
 
 ```sh
-make llama-cpu-run        ARCH=arm64 MODEL=/path/to/model.gguf   # bench
-make llama-cpu-server-run ARCH=arm64 MODEL=/path/to/model.gguf   # HTTP server
+make llama-cpu-bench-run   ARCH=arm64 MODEL=/path/to/model.gguf   # bench
+make llama-cpu-server-run  ARCH=arm64 MODEL=/path/to/model.gguf   # HTTP server
 ```
 
 The model is exposed over VirtIO-9P at `/mnt/model/model.gguf`. Results go to
@@ -35,6 +35,11 @@ external checkout, which `make deps` populates at `.deps/src/llama.cpp`.
   (`llm_graph_result::reset()` alone uses ~25 KiB), so the Kraftfile raises
   `CONFIG_STACK_SIZE_PAGE_ORDER` to 9 (2 MiB); the 64 KiB default overflows
   during `llama_context::graph_reserve()`.
+- **Paging / contiguous heap.** Both CPU Kraftfiles (`Kraftfile.llama-cpu{,-server}`)
+  set `CONFIG_LIBUKPAGING` so the boot allocator maps all RAM into one contiguous
+  heap. Without it `x86_64`/q35 fragments low RAM (32-bit PCI MMIO hole) and the
+  large model/compute buffers fail with `ggml_aligned_malloc: insufficient memory`
+  regardless of `-m`. `arm64`/virt is unaffected (single contiguous RAM block).
 - **Web UI.** Upstream generates `ui.h`/`ui.cpp` via CMake; the direct
   `Makefile.uk` build supplies a dummy `ui.h` and omits the embedded frontend.
 - **Cross-compile `-march`.** `-march=native` is invalid when cross-compiling

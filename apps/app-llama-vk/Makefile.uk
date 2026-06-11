@@ -29,13 +29,26 @@ GGML_SPIRV_INC  ?= $(SPIRV_HEADERS_INCLUDE)
 # application-facing vk* ABI is owned by libvulkan (CONFIG_LIBVULKAN), which
 # this app selects; ggml-vulkan.cpp resolves its vk* calls there at final link.
 
+# ggml-impl.h / ggml-cpu-impl.h pull the compiler's own SIMD intrinsics header
+# (<arm_neon.h> on arm64, <immintrin.h> on x86). That header lives in the
+# compiler's builtin include dir, which unikraft's -nostdinc drops; add it back
+# explicitly. GCC exposes it via -print-file-name=include, clang via
+# -print-resource-dir. Using $(CC) keeps this correct across both toolchains.
+ifeq ($(COMPILER),clang)
+APPLLAMA_VK_BUILTIN_INC := $(shell $(CC) -print-resource-dir)/include
+else
+APPLLAMA_VK_BUILTIN_INC := $(shell $(CC) -print-file-name=include)
+endif
+
 # Include paths
 # compat/ provides Unikraft/musl build shims for upstream Linux-isms (e.g.
 # <linux/limits.h> in common/{arg,download}.cpp). Placed first so it wins.
 APPLLAMA_VK_CINCLUDES-y   += -I$(APPLLAMA_VK_BASE)/compat -I$(APPLLAMA_VK_BASE)/../llama-common
 APPLLAMA_VK_CXXINCLUDES-y += -I$(APPLLAMA_VK_BASE)/compat -I$(APPLLAMA_VK_BASE)/../llama-common
-APPLLAMA_VK_CINCLUDES-y   += -I$(GGML_INC) -I$(GGML_SRC) -I$(GGML_SRC)/ggml-cpu
-APPLLAMA_VK_CXXINCLUDES-y += -I$(LLAMA_ROOT)/include -I$(LLAMA_SRC) \
+APPLLAMA_VK_CINCLUDES-y   += -I$(GGML_INC) -I$(GGML_SRC) -I$(GGML_SRC)/ggml-cpu \
+                                      -isystem $(APPLLAMA_VK_BUILTIN_INC)
+APPLLAMA_VK_CXXINCLUDES-y += -isystem $(APPLLAMA_VK_BUILTIN_INC) \
+                                      -I$(LLAMA_ROOT)/include -I$(LLAMA_SRC) \
                                       -I$(LLAMA_SRC)/models \
                                       -I$(LLAMA_COMMON) -I$(LLAMA_ROOT)/vendor \
                                       -I$(LLAMA_SERVER) -I$(LLAMA_MTMD) \
@@ -59,7 +72,7 @@ APPLLAMA_VK_COMMON_DEFS := -DGGML_VERSION=\"0.12.0\" -DGGML_COMMIT=\"fcae601e4\"
                                      -D_GNU_SOURCE -DGGML_NO_NATIVE=1 -DGGML_USE_CPU=1 \
                                      -DGGML_USE_VULKAN=1 \
                                      -march=$(LLAMA_MARCH) -mtune=$(LLAMA_MTUNE) \
-                                     -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
+                                     -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0
 APPLLAMA_VK_COLD_FLAGS   := -Os -ffunction-sections -fdata-sections
 APPLLAMA_VK_C_COLD_EXTRA := -fno-asynchronous-unwind-tables -fno-unwind-tables
 APPLLAMA_VK_HOT_FLAGS    := -O3 -funroll-loops -fno-math-errno -fno-trapping-math

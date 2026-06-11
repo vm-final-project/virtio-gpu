@@ -75,8 +75,5 @@ until broader coverage and conformance gates exist.
 
 ```sh
 make -C tests test-dispatch
-make llama-vulkan-api-coverage
-make llama-ggml-vk-dispatch
-make lib-readme-check
 make verify
 ```

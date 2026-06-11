@@ -9,6 +9,29 @@ EGL render node** — it is the fast inner loop and the primary CI gate.
 llama.cpp runtime coverage lives in the upstream single-application appliances;
 this suite only proves the support code.
 
+## Necessity & duplication audit
+
+The suite was audited for unused/duplicate tests. **None were found** — every
+test binary compiles a *distinct* source set and uniquely guards one module, and
+each is wired into a gate (`make test-fast`, or `make vulkan-check` for the host
+baseline). A test is kept only if it (a) uniquely guards a project module no
+other test covers, or (b) is load-bearing for a gate. By that rule all current
+tests are necessary; removing any would lose coverage or break a gate:
+
+- `virtio_gpu_core_test`, `virgl_encoder_core_test`, `venus_encoder_core_test`,
+  `venus_ring_core_test`, `vulkan_dispatch_core_test`, `virtio_gpu_proto_abi_test`
+  — each is the sole guard of a distinct VOGUE substrate module.
+- `virtgpu_drm_compat_test` — the **only** guard of the optional `libukvirtgpu_drm`
+  Linux-DRM shim; removing it would leave that library untested (`test-compat`).
+- `vulkan_compute_test` — the host Vulkan baseline; `scripts/vulkan_check.py`
+  consumes its output for `vulkan_perf.json`, so `make vulkan-check` / `make
+  verify` depend on it. It is a baseline probe rather than a substrate unit test
+  (it links the host `libvulkan` and is `BLOCKED` without `VK_LIB`), but it is
+  load-bearing and therefore retained.
+
+If a future change retires `libukvirtgpu_drm` or moves the host baseline out of
+the test tree, drop the matching test together with its gate and evidence rows.
+
 ## Quick start
 
 Run everything from the **repository root** — the root `Makefile` wraps each
@@ -58,6 +81,16 @@ Or build and run one binary by path:
 ```sh
 make -C tests build/virtio_gpu_core_test && tests/build/virtio_gpu_core_test
 ```
+
+## Vulkan headers (`VK_INC`)
+
+The venus encoder/ring and dispatch tests compile the generated Venus tree, which
+references `VK_HEADER_VERSION 352` types. `VK_INC` therefore defaults to the
+repo-pinned `.deps/src/Vulkan-Headers/include` (fetched by `make deps`, the same
+headers the image build uses), via `VULKAN_HEADERS_INCLUDE` when invoked from the
+root `Makefile`. Override with `make -C tests <target> VK_INC=/path`. (The old
+default pointed at a sibling `../../venus-protocol` checkout; when absent, the
+build fell back to a stale system `vulkan.h` and failed on newer Vulkan types.)
 
 ## Conditional targets
 

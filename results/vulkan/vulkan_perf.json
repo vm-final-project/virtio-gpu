@@ -1,8 +1,14 @@
 {
-  "status": "blocked:binary-missing",
-  "generated_utc": "2026-06-09T11:28:17.507247Z",
-  "command": "",
+  "status": "pass",
+  "generated_utc": "2026-06-11T04:27:07.952457Z",
+  "command": "/mydata/JerryT/virtio-gpu-smp/tests/build/vulkan_compute_test",
   "inputs": {},
-  "metrics": {},
-  "error": "missing test binary: /Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu-refactor/tests/build/vulkan_compute_test"
+  "metrics": {
+    "output_tail": "vulkan_compute_test: Vulkan API surface baseline\nvulkan_compute_test: reference Khronos Vulkan-Samples=/home/jerrytsai/Vulkan-Samples\nvulkan_compute_test: physical_devices=1\nvulkan_compute_test:   gpu0=llvmpipe (LLVM 15.0.7, 256 bits) type=cpu api=1.3\nvulkan_compute_test: selected=llvmpipe (LLVM 15.0.7, 256 bits)\nvulkan_compute_test: memory_heaps=1 memory_types=1\nvulkan_compute_test: compute_queue_family=0\nvulkan_compute_test: reps=32 buf_size=65536\nvulkan_compute_test: alloc_avg_us=0 map_avg_us=1 fence_avg_us=55\nvulkan_compute_test: fence_signals=32 device=llvmpipe (LLVM 15.0.7, 256 bits)\nvulkan_compute_test: device_extensions=114\nvulkan_compute_test: PASS devices=1 compute_queue=0 fence_signals=32\n",
+    "alloc_avg_us": 0,
+    "map_avg_us": 1,
+    "fence_avg_us": 55,
+    "device_extensions": 114
+  },
+  "error": null
 }

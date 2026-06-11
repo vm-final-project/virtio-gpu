@@ -70,6 +70,12 @@ static inline llama_model *load_model_common(const char *model_path,
     llama_model_params mparams = llama_model_default_params();
     mparams.use_mmap     = false;
     mparams.n_gpu_layers = n_gpu_layers;
+    /* Bypass the pinned Vulkan_Host buffer type (used by default for weights
+     * like token_embd to speed host->GPU batch transfers). Over Venus that
+     * buffer is backed by a host-visible VirtIO-GPU blob whose upload/mapping
+     * does not complete on a software host driver, deadlocking model load.
+     * no_host keeps all weights in device-local Vulkan0 memory instead. */
+    mparams.no_host      = true;
 
     double t0 = now_sec();
     llama_model *model = llama_model_load_from_file(model_path, mparams);

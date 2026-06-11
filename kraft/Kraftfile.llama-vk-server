@@ -61,6 +61,13 @@ unikraft:
     # TCG: synchronous external abort with SP below RAM base 0x40000000).
     CONFIG_STACK_SIZE_PAGE_ORDER: '9'
     CONFIG_AUXSTACK_SIZE_PAGE_ORDER: '7'
+    # Enable Unikraft virtual memory / paging so the boot allocator maps ALL
+    # physical RAM into one contiguous heap instead of feeding ukboot the raw
+    # fragmented physical FREE regions. Without it, allocations (and even early
+    # C++ static init) can be handed addresses in the PCI hole just above the
+    # RAM top (observed: TCG crash dereferencing ~0xbf3da000 with -m 3072),
+    # exactly as the CPU appliance documents. Required for the llama heap.
+    CONFIG_LIBUKPAGING: 'y'
     CONFIG_LIBMUSL: 'y'
     CONFIG_LIBCXX: 'y'
     CONFIG_CXX_THREADS: 'y'

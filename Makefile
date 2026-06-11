@@ -67,13 +67,13 @@ help:
 	  '' \
 	  'Config:     ARCH={x86_64|arm64} KRAFT_TARGET=$(KRAFT_TARGET)' \
 	  'Tests:      test-fast test-native venus-check vulkan-check verify' \
-	  'Build/run:  llama-{cpu,vk}{,-server}-{build,run}' \
+	  'Build/run:  llama-{cpu,vk}-{bench,server}-{build,run}' \
 	  'Deps:       deps deps-status deps-refresh' \
 	  'Baseline:   linux-guest-vk-baseline' \
 	  'Cleanup:    clean'
 
 verify: test-fast venus-check vulkan-check \
-	llama-cpu-run llama-cpu-server-run llama-vk-run llama-vk-server-run \
+	llama-cpu-bench-run llama-cpu-server-run llama-vk-bench-run llama-vk-server-run \
 	linux-guest-vk-baseline
 
 deps:

@@ -755,7 +755,16 @@ static void stub_vkGetPhysicalDeviceProperties(VkPhysicalDevice physdev,
      * Vulkan_Host buffer type alignment is this value; if 0, GGML_PAD(size,0)=0
      * makes pinned host buffers (e.g. token_embd.weight) compute a 0-size and
      * fail to allocate ("unable to allocate Vulkan_Host buffer"). */
-    *(uint64_t *)(b + 600) = 4096ULL;      /* minMemoryMapAlignment */
+    /* Must be nonzero (ggml-vulkan's pinned Vulkan_Host buffer type uses this as
+     * its tensor alignment; 0 makes GGML_PAD(size,0)=0 -> 0-size host buffers).
+     * Must NOT be larger than a tensor's natural nbytes alignment, though: the
+     * host buffer is sized from raw ggml_nbytes but tensors are placed padded to
+     * this value, so an oversized alignment (e.g. a 4096 page) overflows the
+     * buffer (observed: token_embd.weight needed 320864256 vs available
+     * 320863392). 64 matches real-hardware minMemoryMapAlignment and divides
+     * ggml's row-aligned tensor sizes. The host-visible blob mapping itself is
+     * still page-aligned by virtio-gpu independently of this value. */
+    *(uint64_t *)(b + 600) = 64ULL;        /* minMemoryMapAlignment */
     *(uint64_t *)(b + 616) = 256ULL;       /* minUniformBufferOffsetAlignment */
     *(uint64_t *)(b + 624) = 16ULL;        /* minStorageBufferOffsetAlignment */
 }

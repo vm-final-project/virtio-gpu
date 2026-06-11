@@ -49,6 +49,5 @@ score requires native Venus render payload gates and same-run frame proof.
 
 ```sh
 make vulkan-check
-make eval-check
 make verify
 ```

@@ -1,12 +1,15 @@
 {
-  "status": "blocked:qemu-missing",
-  "generated_utc": "2026-06-09T11:29:16.215159Z",
-  "command": "/tmp/vogue-missing-qemu -machine accel=tcg -cpu max -m 3072 -no-reboot -kernel /Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu-refactor/.unikraft/build/vogue-llama-vk-server_qemu-x86_64 -display egl-headless,gl=on -vga none -device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true -append console=ttyS0 -serial mon:stdio -monitor none -netdev user,id=net0,hostfwd=tcp:127.0.0.1:0-10.0.2.15:8080 -device virtio-net-pci,netdev=net0",
+  "status": "blocked:no-pass-marker",
+  "generated_utc": "2026-06-11T04:35:57.488700Z",
+  "command": "/usr/local/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -m 3072 -no-reboot -kernel /mydata/JerryT/virtio-gpu-smp/.unikraft/build/vogue-llama-vk-server_qemu-x86_64 -display egl-headless,gl=on -vga none -device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true -append console=ttyS0 -serial mon:stdio -monitor none -netdev user,id=net0,hostfwd=tcp:127.0.0.1:43261-10.0.2.15:8080 -device virtio-net-pci,netdev=net0 -fsdev local,id=model,path=/tmp/vogue-model-s1rp8c1k,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model",
   "inputs": {
     "mode": "server",
-    "model": "/tmp/vogue-missing.gguf",
-    "image": "/Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu-refactor/.unikraft/build/vogue-llama-vk-server_qemu-x86_64"
+    "arch": "x86_64",
+    "model": "/mydata/JerryT/virtio-gpu-smp/models/google_gemma-3-1b-it-Q4_K_M.gguf",
+    "image": "/mydata/JerryT/virtio-gpu-smp/.unikraft/build/vogue-llama-vk-server_qemu-x86_64"
   },
-  "metrics": {},
-  "error": "QEMU executable not found"
+  "metrics": {
+    "ready": false
+  },
+  "error": "MESA-LOADER: failed to retrieve device information\nMESA-LOADER: failed to open vgem: /usr/lib/dri/vgem_dri.so: cannot open shared object file: No such file or directory (search paths /usr/lib/x86_64-linux-gnu/dri:\\$${ORIGIN}/dri:/usr/lib/dri, suffix _dri)\nMESA-LOADER: failed to retrieve device information\nMESA-LOADER: failed to retrieve device information\nqemu-system-x86_64: -device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true: old virglrenderer, blob resources unsupported\n"
 }

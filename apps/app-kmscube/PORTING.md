@@ -50,8 +50,7 @@ PASS artifacts, or `gfx.kmscube.sw` software-render evidence (path no longer exi
 ## Verification
 
 ```sh
-make app-port-check
-make app-perf-check
-make kmscube-check
-make eval-check
+make kmscube-build   # build the virgl-proof appliance
+make test-core       # virgl encoder + VirtIO-GPU core unit tests (the virgl path)
+make test-fast       # full host-native gate
 ```

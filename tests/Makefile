@@ -28,8 +28,14 @@ CFLAGS ?= -D_POSIX_C_SOURCE=200112L -std=c11 -Wall -Wextra \
 	-I../libs/libvulkan/include \
 	-Ishim
 
-# Default to the sibling venus-protocol checkout; system loader on the host.
-VK_INC ?= $(realpath ../../venus-protocol/include)
+# Vulkan headers for the venus generated tree (regenerated against VK_HEADER_VERSION
+# 352) and the host compute baseline. Use the repo-pinned Vulkan-Headers that
+# `make deps` fetches and the image build compiles against (VULKAN_HEADERS_INCLUDE
+# exported by the root Makefile); fall back to the local `.deps/src` checkout when
+# running `make -C tests` directly. The old sibling `../../venus-protocol/include`
+# default left VK_INC empty here, so the build picked up the stale system
+# `vulkan.h` (v204) and failed on newer Vulkan types.
+VK_INC ?= $(or $(VULKAN_HEADERS_INCLUDE),$(realpath ../.deps/src/Vulkan-Headers/include))
 VK_LIB ?= /usr/lib/x86_64-linux-gnu/libvulkan.so.1
 BUILD := build
 PROTO_HDR := ../libs/libukvirtio_gpu/virtio_gpu_proto.h
