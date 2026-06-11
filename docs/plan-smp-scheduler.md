@@ -178,7 +178,18 @@ git add scripts/smp_topology.py scripts/tests/test_scripts.py
 git commit -m "feat(smp-a3): round-robin thread->LCPU placement policy + tests"
 ```
 
-## Task 3: Kernel — per-CPU current scheduler + secondary bootstrap
+## Design amendments (confirmed in Task 1 — `docs/notes-smp-source.md`)
+
+These findings from the source-confirmation note **override** the skeletons below where they conflict. They are verified against `.deps/src/unikraft` (RELEASE-0.21.0).
+
+- **A. No new per-CPU scheduler pointer needed (simplifies Task 3).** `uk_sched_current()` (`lib/uksched/include/uk/sched.h:53`) already derives the scheduler from `uk_thread_current()->sched`, and the current-thread pointer `__uk_sched_thread_current` is already per-CPU (`__uk_pcpuvar`, `lib/uksched/include/uk/thread.h:97`). So once each AP runs its own bootstrap that sets the per-CPU current thread (whose `->sched` points to that AP's local scheduler), `uk_sched_current()` is automatically correct per-CPU. **Do NOT add `__uk_sched_current`.** Task 3 = add `uk_sched_start_secondary()` only.
+- **B. `uk_lcpu_start` is array-based and the AP arg is fixed (changes Task 4).** Prototype: `int uk_lcpu_start(const __u64 lcpuidx[], unsigned int *num, __u64 sp[], __u64 entry[], unsigned long flags)` (`lib/uklcpu/include/uk/lcpu/pm.h:118`, def `lib/uklcpu/lcpu.c:297`). The per-AP argument is **hard-coded** to `(struct uk_lcpu *)lcpu` (`lcpu.c:~350`), so the entry function signature is fixed to `void entry(struct uk_lcpu *)` and **cannot** receive the scheduler pointer. → The bring-up driver must store the per-LCPU scheduler instances in a **global array** `static struct uk_sched *coop_sched_by_lcpu[CONFIG_UKPLAT_CPU_MAXCOUNT];`, and the AP entry recovers its instance via its own index: `coop_sched_by_lcpu[uk_pcpuvar_current_get(uk_pcpuvar_cpu_idx)]`.
+- **C. `uk_lcpu_mp_init()` is already called at boot (removes a step from Task 4).** Called on the BSP under `CONFIG_HAVE_SMP` at `plat/kvm/x86/setup.c:150` and `plat/kvm/arm/setup.c:110`. **Do NOT call it again** in the driver. The driver just allocates a stack per AP and calls `uk_lcpu_start` for indices `1..CONFIG_UKPLAT_CPU_MAXCOUNT-1`, using the `num` out-parameter to learn how many actually started.
+- **D. No `struct uk_lcpu.idx` field (fixes the smoke spike + all index uses).** `struct uk_lcpu` (`lib/uklcpu/include/uk/lcpu.h:95`) has only `state`, `error_code`, `fn`. Get the current LCPU index with `uk_pcpuvar_current_get(uk_pcpuvar_cpu_idx)` (`lib/ukpcpuvar/include/uk/pcpuvar.h:36`), NOT `uk_lcpu_get_current()->idx`.
+- **E. Thread pinning is mandatory, not optional (confirms Task 5).** New pthreads are created via `lib/posix-process/clone.c` (`s = uk_sched_current()` at `:143`, `uk_sched_thread_add(s, th)` at `:400`) — they bind to the *creating* CPU's scheduler. llama.cpp spawns all workers from `main` on the BSP, so without an explicit round-robin placement hook they ALL pile on the BSP scheduler and the A3 benefit is lost. Task 5 must intercept thread-add and distribute across `coop_sched_by_lcpu[]` (waking the target LCPU via `uk_lcpu_wakeup`).
+- **F. Patch format (confirms Task 6).** `scripts/deps.py:106` applies patches with `git apply` (default `-p1`), idempotency-checked via `git apply --reverse --check` (`:100`). Export a plain reversible `git diff` (with `a/`…`b/` prefixes).
+
+## Task 3: Kernel — secondary scheduler bootstrap (`uk_sched_start_secondary`)
 
 Work inside `.deps/src/unikraft`; the patch is exported in Task 6. Use the exact signatures recorded in `docs/notes-smp-source.md` (Task 1).
 
