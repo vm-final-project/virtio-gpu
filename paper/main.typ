@@ -6,25 +6,39 @@
   VOGUE: VirtIO-GPU on Unikraft for Graphics Virtualization
 ]
 
+// ACM-style: each author carries its own affiliation lines. `email` is the
+// mailto target on the name; the trailing `mail` line shows it as text.
+#let ntu     = [National Taiwan University]
+#let country = [Taipei, Taiwan]
 #let authors = (
   (
-    name: "Paper #001",
-    email: "",
-    mark: super(sym.suit.diamond),
+    name: [Chao-Wei Tsai],
+    email: "B11902040@csie.ntu.edu.tw",
+    institution: ntu,
+    country: country,
+    mail: [B11902040\@csie.ntu.edu.tw],
   ),
-)
-#let affiliations = (
   (
-    name: [Anonymous Institution],
-    mark: super(sym.suit.diamond),
-    department: [Department of Computer Systems],
+    name: [Min-Yao Chang],
+    email: "B11902084@csie.ntu.edu.tw",
+    institution: ntu,
+    country: country,
+    mail: [B11902084\@csie.ntu.edu.tw],
+  ),
+  (
+    name: [Shau-Shun Tsao],
+    email: "B11902145@csie.ntu.edu.tw",
+    institution: ntu,
+    country: country,
+    mail: [B11902145\@csie.ntu.edu.tw],
   ),
 )
+#let affiliations = ()
 #let conference = (
-  name:  [ACM Symposium on Operating Systems Principles],
+  name: [ACM Symposium on Operating Systems Principles],
   short: [SOSP],
-  year:  [2026],
-  date:  [September 30-October 3],
+  year: [2026],
+  date: [September 30-October 3],
   venue: [TBD],
 )
 #let doi = "https://doi.org/10.1145/0000000000"
@@ -38,7 +52,7 @@
   // ACM copyright/permission block removed: not an ACM submission.
   copyright: none,
   // Set review to submission ID for the review process or to "none" for the final version.
-  review: [\#001],
+  review: none,
   font-size: 10pt,
   leading: 0.2em,
 )
