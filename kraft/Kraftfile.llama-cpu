@@ -45,6 +45,10 @@ unikraft:
     CONFIG_LIB9PFS: 'y'
     CONFIG_LIBPTHREAD_EMBEDDED: 'y'
     CONFIG_LIBPOSIX_LIBDL: 'y'
+    # A3: per-LCPU cooperative scheduler (SMP). UKPLAT_CPU_MAXCOUNT > 1 also
+    # auto-selects HAVE_SMP. TODO: finalise SMP wiring in a later task.
+    CONFIG_UKPLAT_CPU_MAXCOUNT: '4'
+    CONFIG_LIBUKSCHEDCOOP_SMP: 'y'
 
 targets:
   - qemu/x86_64
