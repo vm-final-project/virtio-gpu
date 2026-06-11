@@ -8,6 +8,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import common
+import smp_topology
 import importlib.util
 
 
@@ -102,6 +103,18 @@ class CommandTests(unittest.TestCase):
         root = Path("/tmp/results")
         self.assertEqual(common.result_path(root, "llama_cpu.json", "x86_64"), root / "llama_cpu.json")
         self.assertEqual(common.result_path(root, "llama_cpu.json", "arm64"), root / "llama_cpu_arm64.json")
+
+
+class SmpTopologyTests(unittest.TestCase):
+    def test_round_robin_pins_one_worker_per_lcpu(self) -> None:
+        # 4 vCPUs, 4 ggml workers -> one each, distinct LCPUs
+        self.assertEqual([smp_topology.place(i, 4) for i in range(4)], [0, 1, 2, 3])
+
+    def test_wraps_when_more_threads_than_lcpus(self) -> None:
+        self.assertEqual([smp_topology.place(i, 4) for i in range(6)], [0, 1, 2, 3, 0, 1])
+
+    def test_single_lcpu_pins_all_to_zero(self) -> None:
+        self.assertEqual([smp_topology.place(i, 1) for i in range(3)], [0, 0, 0])
 
 
 if __name__ == "__main__":
