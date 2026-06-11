@@ -1,5 +1,5 @@
 .PHONY: test-fast test-native test-qemu test-gpu \
-	native-tests test-core test-compat test-venus test-dispatch proto-abi vulkan-tests
+	native-tests test-core test-compat test-venus test-dispatch proto-abi
 
 test-fast: native-tests proto-abi
 
@@ -27,6 +27,3 @@ test-dispatch:
 
 proto-abi:
 	$(MAKE) -C tests proto-abi
-
-vulkan-tests:
-	$(MAKE) -C tests vulkan

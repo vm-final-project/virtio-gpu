@@ -37,7 +37,7 @@ in [§7](#7-host-setup-x86_64-venus-stack)** — do not hand-roll their QEMU com
 | `libs/` | First-party Unikraft libraries — the reusable VirtIO-GPU / Venus / Vulkan substrate. |
 | `kraft/` | `Kraftfile.*` per appliance/target: Unikraft core, libraries, KConfig, and QEMU targets. |
 | `mk/` | Make includes: `llama.mk` (appliances), `tests.mk`, `check.mk`. |
-| `scripts/` | Python runners (`app-llama-cpu.py`, `app-llama-vk.py`, `deps.py`, probes) that drive QEMU and emit JSON results. |
+| `scripts/` | Python runners (`app-llama-cpu.py`, `app-llama-vk.py`, `deps.py`, `app-vulkan-sample.py`) that drive QEMU and emit JSON results. |
 | `tests/` | Host-native C test suite (fake VirtIO-GPU backend, no QEMU/GPU needed) — the fast CI gate. |
 | `config/` | Tracked reference `.config` snapshots for static evidence gates. |
 | `results/` | JSON result captures (one schema, see [§8](#8-results)). |
@@ -223,8 +223,8 @@ env LD_LIBRARY_PATH="$VIRGL_PREFIX/lib/x86_64-linux-gnu" \
 make verify MODEL=/abs/path/model.gguf
 ```
 
-Runs `test-fast` → `venus-check` → `vulkan-check` → all four llama modes →
-`linux-guest-vk-baseline`. Missing QEMU, images, models, or GPU capabilities are
+Runs `test-fast` → `venus-check` → `vulkan-check` → all four llama modes.
+Missing QEMU, images, models, or GPU capabilities are
 reported as structured `blocked:<reason>` JSON, **not** hard failures (and a
 `blocked:*` row is never counted as passing evidence).
 
@@ -398,8 +398,8 @@ Every runner writes one JSON file (`_arm64.json` suffix for arm64 runs) under
 }
 ```
 
-Canonical files include `results/llama/llama_{cpu,server_cpu,vk,server_vk}.json`,
-`results/venus/*.json`, and `results/vulkan/vulkan_perf.json`. Runtime logs,
+Canonical files include `results/llama/llama_{cpu,server_cpu,vk,server_vk}.json`
+and `results/venus/*.json`. Runtime logs,
 frame dumps, and QMP files are local and gitignored.
 
 ---
@@ -437,7 +437,6 @@ and is wired into a gate (none are duplicate or unused):
 | `venus_ring_core_test` | libukvulkan_venus ring transport | `test-venus` |
 | `vulkan_dispatch_core_test` | libvulkan dispatch | `test-dispatch` |
 | `virtgpu_drm_compat_test` | libukvirtgpu_drm (optional DRM shim) | `test-compat` |
-| `vulkan_compute_test` | host Vulkan baseline (`vulkan_perf.json`) | `vulkan-check` |
 
 The venus/dispatch tests compile the generated Venus tree, which needs the
 repo-pinned Vulkan-Headers (`VK_HEADER_VERSION 352`); `tests/Makefile` defaults

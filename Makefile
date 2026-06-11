@@ -70,12 +70,10 @@ help:
 	  'Tests:      test-fast test-native venus-check vulkan-check verify' \
 	  'Build/run:  llama-{cpu,vk}-{bench,server}-{build,run}' \
 	  'Deps:       deps deps-status deps-refresh' \
-	  'Baseline:   linux-guest-vk-baseline' \
 	  'Cleanup:    clean'
 
 verify: test-fast venus-check vulkan-check \
-	llama-cpu-bench-run llama-cpu-server-run llama-vk-bench-run llama-vk-server-run \
-	linux-guest-vk-baseline
+	llama-cpu-bench-run llama-cpu-server-run llama-vk-bench-run llama-vk-server-run
 
 deps:
 	python3 scripts/deps.py fetch

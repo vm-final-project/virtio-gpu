@@ -13,8 +13,7 @@ this suite only proves the support code.
 
 The suite was audited for unused/duplicate tests. **None were found** — every
 test binary compiles a *distinct* source set and uniquely guards one module, and
-each is wired into a gate (`make test-fast`, or `make vulkan-check` for the host
-baseline). A test is kept only if it (a) uniquely guards a project module no
+each is wired into a gate (`make test-fast` or `make vulkan-check`). A test is kept only if it (a) uniquely guards a project module no
 other test covers, or (b) is load-bearing for a gate. By that rule all current
 tests are necessary; removing any would lose coverage or break a gate:
 
@@ -23,14 +22,8 @@ tests are necessary; removing any would lose coverage or break a gate:
   — each is the sole guard of a distinct VOGUE substrate module.
 - `virtgpu_drm_compat_test` — the **only** guard of the optional `libukvirtgpu_drm`
   Linux-DRM shim; removing it would leave that library untested (`test-compat`).
-- `vulkan_compute_test` — the host Vulkan baseline; `scripts/vulkan_compute_test_runner.py`
-  consumes its output for `vulkan_perf.json`, so `make vulkan-check` / `make
-  verify` depend on it. It is a baseline probe rather than a substrate unit test
-  (it links the host `libvulkan` and is `BLOCKED` without `VK_LIB`), but it is
-  load-bearing and therefore retained.
 
-If a future change retires `libukvirtgpu_drm` or moves the host baseline out of
-the test tree, drop the matching test together with its gate and evidence rows.
+If a future change retires `libukvirtgpu_drm`, drop the matching test together with its gate and evidence rows.
 
 ## Quick start
 
@@ -44,7 +37,6 @@ make test-compat        # group 2: virtgpu DRM compatibility facade
 make test-venus         # group 3: Venus protocol helpers
 make test-dispatch      # group 4: libvulkan static dispatch
 make proto-abi          # VirtIO-GPU wire-ABI struct/feature check
-make vulkan-tests       # optional host Vulkan compute baseline (VK_LIB + VK_INC)
 ```
 
 `make test-fast` (root) bundles the native suite and `proto-abi`.
@@ -61,7 +53,7 @@ The same targets exist on this component `Makefile` if you are working inside
 | Compat | `test-compat` | `virtgpu_drm_compat_test` | `vk.drm-core`, `vk.drm-fdio` |
 | Venus | `test-venus` | `venus_encoder_core_test`, `venus_ring_core_test` | `proto.venus-enc`, `proto.venus-ring`, `vk.readiness` |
 | ggml-vulkan dispatch | `test-dispatch` | `vulkan_dispatch_core_test` | `vk.ggml-dispatch` |
-| Conditional | `vulkan`, `proto-abi` | `vulkan_compute_test`, `virtio_gpu_proto_abi_test` | host Vulkan baseline, `proto.real-driver` |
+| Conditional | `proto-abi` | `virtio_gpu_proto_abi_test` | `proto.real-driver` |
 
 ## Running a single test
 
@@ -95,9 +87,6 @@ build fell back to a stale system `vulkan.h` and failed on newer Vulkan types.)
 ## Conditional targets
 
 * `proto-abi` runs only when `../libs/libukvirtio_gpu/virtio_gpu_proto.h` exists.
-* `vulkan` runs the host Vulkan compute baseline only when `VK_LIB` and `VK_INC`
-  resolve (llvmpipe/lavapipe is fine); otherwise it prints a `BLOCKED` line and
-  exits 0. Override the paths via `make -C tests vulkan VK_LIB=… VK_INC=…`.
 
 ## Expected PASS output
 
