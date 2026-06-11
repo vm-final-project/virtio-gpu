@@ -1,0 +1,23 @@
+diff --git a/plat/native/pal/include/uk/plat/pal/ectx.h b/plat/native/pal/include/uk/plat/pal/ectx.h
+index 77660cd..6215274 100644
+--- a/plat/native/pal/include/uk/plat/pal/ectx.h
++++ b/plat/native/pal/include/uk/plat/pal/ectx.h
+@@ -23,6 +23,9 @@
+ 	UK_PLAT_NATIVE_ECTX_ALIGN
+ 
+ #if !__ASSEMBLY__
++#ifdef __cplusplus
++extern "C" {
++#endif
+ struct uk_pal_ectx;
+ 
+ __isr static inline void uk_pal_ectx_sanitize(struct uk_pal_ectx *state)
+@@ -50,5 +53,8 @@ __isr static inline void uk_pal_ectx_assert_equal(struct uk_pal_ectx *state)
+ 	uk_plat_native_ectx_assert_equal((struct uk_plat_native_ectx *)state);
+ }
+ 
++#ifdef __cplusplus
++}
++#endif
+ #endif /* !__ASSEMBLY__ */
+ #endif /* __UK_PLAT_PAL_ECTX_H__ */

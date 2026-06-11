@@ -1,0 +1,55 @@
+menuconfig LIBUKVULKAN_VENUS
+	bool "libukvulkan_venus: Unikraft-native Venus Vulkan driver"
+	default n
+	select LIBUKVIRTIO_GPU
+	help
+	  Unikraft-native Venus Vulkan driver implementation.  Implements the
+	  Venus (Vulkan-over-VirtIO-GPU) driver behind libvulkan: Venus protocol
+	  encode/decode (generated from the pinned ../venus-protocol), Venus
+	  instance/device/queue/command behaviour, and the Venus
+	  capset/context/ring/reply transport policy over the VirtIO-GPU
+	  SUBMIT_3D command (capset id 4 / Venus).
+
+	  It owns the driver-facing primitives uk_venus_probe(),
+	  uk_venus_context_create(), uk_venus_submit(), uk_venus_ring_*(), and the
+	  low-level uk_venus_encode_*() generated-protocol bridges, plus the
+	  driver-open surface in include/uk/vulkan_venus.h.
+
+	  This is the Vulkan *driver* layer; the application-facing vk* ABI and
+	  loader/runtime semantics live in libvulkan (CONFIG_LIBVULKAN), which
+	  statically links this driver.  Full Vulkan/vkmark support still requires
+	  broader command coverage and same-run frame-proof evidence (see README
+	  for the claim boundary).
+
+config LIBUKVULKAN_VENUS_USE_DRM_COMPAT
+	bool "Use Linux virtgpu DRM UAPI compatibility path"
+	depends on LIBUKVULKAN_VENUS
+	default n
+	select LIBUKVIRTGPU_DRM
+	select LIBUKVIRTGPU_DRM_FDIO
+	help
+	  Route the Venus driver's device-open/substrate bootstrap through the
+	  Linux virtgpu DRM UAPI fd compatibility shim (libukvirtgpu_drm) instead
+	  of calling libukvirtio_gpu directly.
+
+	  The default native Unikraft path is a direct libukvirtio_gpu transport
+	  call path: the Venus driver's device-open bootstrap (venus_driver.c)
+	  probes the device through libukvirtio_gpu with no DRM UAPI. This option
+	  additionally pulls libukvirtgpu_drm for code that deliberately emulates
+	  the Linux/Mesa DRM virtgpu UAPI. Default n: nothing in the Venus path
+	  requires the DRM shim (the former libukvk_icd bootstrap that used it has
+	  been retired).
+
+config LIBUKVULKAN_VENUS_TEST
+	bool "Enable unit tests"
+	depends on LIBUKVULKAN_VENUS
+	default n
+	select LIBUKTEST
+
+config LIBUKVULKAN_VENUS_TEST_ENCODER
+	bool "Encoder helper tests"
+	depends on LIBUKVULKAN_VENUS_TEST
+	default y
+	help
+	  Small uktest suite for the generated-protocol bridge helpers and
+	  encoder overflow handling.

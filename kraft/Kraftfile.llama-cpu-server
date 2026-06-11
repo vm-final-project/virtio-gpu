@@ -1,0 +1,133 @@
+spec: v0.6
+
+name: vogue-llama-cpu-server
+
+# Server-only upstream llama.cpp CPU single-application appliance.
+# Uses unmodified upstream llama.cpp linked as libllama.a via
+# cmake/unikraft-clang.cmake; upstream lib-musl supplies the POSIX surface.
+#
+# Reference QEMU invocation (arm64 / Apple Silicon, HVF):
+#   mkdir -p /tmp/my-model
+#   cp models/your-model.gguf /tmp/my-model/model.gguf
+#   qemu-system-aarch64 -machine virt,accel=hvf -cpu host -m 4096 \
+#       -nographic -no-reboot \
+#       -kernel .unikraft/build/vogue-llama-cpu-server_qemu-arm64 \
+#       -fsdev local,id=model,path=/tmp/my-model,security_model=none \
+#       -device virtio-9p-pci,fsdev=model,mount_tag=model \
+#       -netdev user,id=net0,hostfwd=tcp:127.0.0.1:18080-10.0.2.15:8080 \
+#       -device virtio-net-pci,netdev=net0 \
+#       -append "console=ttyAMA0 random.seed=1 2 3 4 5 6 7 8"
+#   # then: curl http://127.0.0.1:18080/health  ->  {"status":"ok"}
+#
+# For x86_64 swap qemu-system-aarch64 -> qemu-system-x86_64,
+#   -machine virt,accel=hvf -> -machine accel=kvm,  console=ttyAMA0 -> ttyS0,
+#   and the kernel suffix _qemu-arm64 -> _qemu-x86_64.
+
+unikraft:
+  source: @@UNIKRAFT_LOCAL@@
+  kconfig:
+    # Explicitly select QEMU as the VMM (default, but stated for clarity).
+    # This avoids any ambiguity with KVM_VMM_FIRECRACKER and ensures the correct
+    # boot protocol (lxboot on arm64 / multiboot on x86_64) and console drivers
+    # (pl011 on arm64, ns16550 on x86_64) are implied automatically.
+    CONFIG_KVM_VMM_QEMU: 'y'
+    # ARM64 interrupt controller: QEMU virt machine uses GICv2 by default.
+    CONFIG_LIBUKINTCTLR_GICV2: 'y'
+    # llama.cpp graph building has deep call chains and large stack frames
+    # (e.g. llm_graph_result::reset() alone uses ~25 KiB for a llm_graph_params
+    # local). The 64 KiB default stack (order 4) overflows below RAM base during
+    # llama_context::graph_reserve(), faulting with ISV=0 (HVF asserts; TCG
+    # reports a synchronous external abort). Order 9 = 2 MiB gives ample margin.
+    # This default also sizes pthread worker stacks used for inference.
+    CONFIG_STACK_SIZE_PAGE_ORDER: '9'
+    # Enable Unikraft virtual memory / paging so the boot allocator maps ALL
+    # physical RAM (including memory above the 4 GiB boundary) into one
+    # contiguous heap (ukboot heap_init() LIBUKBOOT_HEAP_BASE path).
+    #
+    # Without paging, ukboot feeds the raw physical FREE memory regions straight
+    # to the buddy allocator, so the largest single allocation is bounded by the
+    # largest *contiguous* free region rather than total RAM. On arm64/virt RAM
+    # is one contiguous block from 0x40000000, so a 762 MiB model buffer fits
+    # even at -m 4096. On x86_64/q35 the 32-bit PCI MMIO hole fragments low RAM
+    # and the static boot page table maps only the first 4 GiB, so the largest
+    # contiguous buddy block stays below the model size and ggml_aligned_malloc
+    # fails ("insufficient memory") regardless of -m (verified 2G..24G).
+    # LIBUKPAGING enables LIBUKPLAT_NATIVE_PAGING (selected by PLAT_KVM) and the
+    # x86_64/arm64 direct map, giving a single large contiguous heap on both.
+    CONFIG_LIBUKPAGING: 'y'
+    CONFIG_APP_LLAMA_CPU: 'y'
+    CONFIG_APP_LLAMA_CPU_ROOTFS_9PFS: 'y'
+    CONFIG_APP_LLAMA_CPU_MODE_SERVER: 'y'
+    CONFIG_APP_LLAMA_CPU_THREADS: '1'
+    CONFIG_OPTIMIZE_DEADELIM: 'y'
+    CONFIG_LIBMUSL: 'y'
+    CONFIG_LIBCXX: 'y'
+    CONFIG_CXX_THREADS: 'y'
+    CONFIG_LIBCXXABI: 'y'
+    CONFIG_LIBUNWIND: 'y'
+    CONFIG_LIBCOMPILER_RT: 'y'
+    CONFIG_LIBPOSIX_TTY: 'y'
+    CONFIG_LIBPOSIX_TTY_STDIO: 'y'
+    CONFIG_LIBPOSIX_TTY_STDOUT_SERIAL: 'y'
+    CONFIG_LIBPOSIX_TTY_STDIN_NULL: 'y'
+    CONFIG_LIBPOSIX_PROCESS: 'y'
+    CONFIG_LIBPOSIX_TIME: 'y'
+    CONFIG_LIBPOSIX_MMAP: 'y'
+    CONFIG_LIBPOSIX_VFS: 'y'
+    CONFIG_LIBVFSCORE: 'y'
+    CONFIG_LIBRAMFS: 'y'
+    CONFIG_LIBVFSCORE_AUTOMOUNT_CI: 'y'
+    CONFIG_LIBVFSCORE_AUTOMOUNT_CI_RAMFS: 'y'
+    CONFIG_LIBUK9P: 'y'
+    CONFIG_LIBVIRTIO_9P: 'y'
+    CONFIG_LIB9PFS: 'y'
+    CONFIG_LIBPTHREAD_EMBEDDED: 'y'
+    CONFIG_LIBPOSIX_LIBDL: 'y'
+    # posix-socket provides socket()/bind()/listen()/accept() used by cpp-httplib;
+    # lwIP (below) registers the AF_INET family so the HTTP listener actually binds
+    # 0.0.0.0:8080 and serves requests inside the unikernel.
+    CONFIG_LIBPOSIX_SOCKET: 'y'
+    # --- TCP/IP networking for the upstream llama.cpp HTTP server -------------
+    # virtio-net NIC -> libuknetdev -> lwIP (sockets API).
+    # QEMU user-mode networking (-netdev user,hostfwd=...) forwards a host port
+    # to guest 8080. See the reference QEMU invocation above.
+    CONFIG_LIBVIRTIO_NET: 'y'
+    CONFIG_LIBUKNETDEV: 'y'
+    CONFIG_LIBUKNETDEV_EINFO_LIBPARAM: 'y'
+    CONFIG_LIBUKSCHED: 'y'
+    CONFIG_LIBLWIP: 'y'
+    CONFIG_LWIP_UNIKRAFT21X: 'y'
+    CONFIG_LWIP_UKNETDEV: 'y'
+    CONFIG_LWIP_AUTOIFACE: 'y'
+    # QEMU user-mode networking runs a built-in DHCP server that hands the guest
+    # 10.0.2.15; lwIP's DHCP client configures the interface from it.
+    CONFIG_LWIP_DHCP: 'y'
+    CONFIG_LWIP_IPV4: 'y'
+    CONFIG_LWIP_UDP: 'y'
+    CONFIG_LWIP_TCP: 'y'
+    CONFIG_LWIP_THREADS: 'y'
+    CONFIG_LWIP_SOCKET: 'y'
+    CONFIG_LWIP_NETIF_STATUS_PRINT: 'y'
+    # cpp-httplib uses std::random_device which opens /dev/urandom; provide it
+    # via ukrandom devfs. Seed from the kernel command line (random.seed=<8 u32
+    # words>) because QEMU/arm64 has no x86 RDRAND.
+    CONFIG_LIBUKRANDOM: 'y'
+    CONFIG_LIBUKRANDOM_CMDLINE_SEED: 'y'
+    CONFIG_LIBUKRANDOM_GETRANDOM: 'y'
+    CONFIG_LIBUKRANDOM_DEVFS: 'y'
+    CONFIG_LIBDEVFS: 'y'
+    CONFIG_LIBDEVFS_AUTOMOUNT: 'y'
+
+targets:
+  - qemu/x86_64
+  - qemu/arm64
+
+libraries:
+  musl: stable
+  libcxx: stable
+  libcxxabi: stable
+  libunwind: stable
+  compiler-rt: stable
+  lwip: stable
+  app-llama-cpu:
+    source: ./apps/app-llama-cpu

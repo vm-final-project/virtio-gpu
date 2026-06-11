@@ -1,7 +1,7 @@
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
-#include <uk/dma.h>
+#include <uk/sglist.h>
 
 typedef uint32_t uk_gpu_res_id;
 typedef uint32_t uk_gpu_ctx_id;
@@ -188,7 +188,7 @@ struct uk_virtio_gpu_metrics {
 int uk_virtio_gpu_probe(struct uk_virtio_gpu_dev **dev);
 int uk_virtio_gpu_get_display_info(struct uk_virtio_gpu_dev *dev);
 int uk_virtio_gpu_resource_create_2d(struct uk_virtio_gpu_dev *dev, uint32_t width, uint32_t height, uint32_t format, uk_gpu_res_id *res);
-int uk_virtio_gpu_resource_attach_backing(struct uk_virtio_gpu_dev *dev, uk_gpu_res_id res, const struct uk_dma_sg *sg, size_t nr_sg);
+int uk_virtio_gpu_resource_attach_backing(struct uk_virtio_gpu_dev *dev, uk_gpu_res_id res, const struct uk_sglist *sg);
 int uk_virtio_gpu_transfer_to_host_2d(struct uk_virtio_gpu_dev *dev, uk_gpu_res_id res, const struct uk_gpu_rect *r, uk_gpu_fence_id *fence);
 int uk_virtio_gpu_resource_flush(struct uk_virtio_gpu_dev *dev, uk_gpu_res_id res, const struct uk_gpu_rect *r, uk_gpu_fence_id *fence);
 

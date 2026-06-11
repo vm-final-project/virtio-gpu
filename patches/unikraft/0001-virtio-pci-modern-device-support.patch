@@ -1,5 +1,5 @@
 diff --git a/drivers/virtio/pci/virtio_pci.c b/drivers/virtio/pci/virtio_pci.c
-index 8f79e75..73fe902 100644
+index 0eac8af..96a2a94 100644
 --- a/drivers/virtio/pci/virtio_pci.c
 +++ b/drivers/virtio/pci/virtio_pci.c
 @@ -33,11 +33,13 @@
@@ -51,7 +51,7 @@ index 8f79e75..73fe902 100644
  static struct uk_alloc *a;
  
  /**
-@@ -54,12 +84,23 @@ static struct uk_alloc *a;
+@@ -54,12 +84,24 @@ static struct uk_alloc *a;
  struct virtio_pci_dev {
  	/* Virtio Device */
  	struct virtio_dev vdev;
@@ -72,12 +72,13 @@ index 8f79e75..73fe902 100644
 +	volatile void *modern_device_cfg;
 +	volatile void *modern_shm_base;
 +	__u64 modern_shm_len;
++	__u8 modern_shm_id;
 +	/* Per-queue notify offset, populated during vq_setup */
 +	__u16 modern_notify_offs[VPCI_MODERN_MAX_QUEUES];
  };
  
  /**
-@@ -95,6 +136,9 @@ static int virtio_pci_handle(void *arg);
+@@ -95,6 +137,9 @@ static int virtio_pci_handle(void *arg);
  static int vpci_legacy_notify(struct virtio_dev *vdev, __u16 queue_id);
  static int virtio_pci_legacy_add_dev(struct pci_device *pci_dev,
  				     struct virtio_pci_dev *vpci_dev);
@@ -87,7 +88,7 @@ index 8f79e75..73fe902 100644
  
  /**
   * Configuration operations legacy PCI device.
-@@ -133,14 +177,15 @@ static int virtio_pci_handle(void *arg)
+@@ -133,8 +178,11 @@ static int virtio_pci_handle(void *arg)
  
  	UK_ASSERT(arg);
  
@@ -99,17 +100,9 @@ index 8f79e75..73fe902 100644
 +	else
 +		isr_status = virtio_cread8((void *)d->pci_isr_addr, 0);
  
--	if (isr_status & VIRTIO_PCI_ISR_CONFIG) {
--		/* We don't support configuration interrupt on the device */
--		uk_pr_warn_isr("Unsupported config change interrupt received on virtio-pci device %p\n",
-+	if (isr_status & VIRTIO_PCI_ISR_CONFIG)
-+		uk_pr_warn_isr("Unsupported config change interrupt on virtio-pci device %p\n",
- 			       d);
--	}
- 
- 	if (isr_status & VIRTIO_PCI_ISR_HAS_INTR)
- 		UK_TAILQ_FOREACH(vq, &d->vdev.vqs, next)
-@@ -394,6 +439,481 @@ static int virtio_pci_legacy_add_dev(struct pci_device *pci_dev,
+ 	if (isr_status & VIRTIO_PCI_ISR_CONFIG) {
+ 		/* We don't support configuration interrupt on the device */
+@@ -393,6 +441,511 @@ static int virtio_pci_legacy_add_dev(struct pci_device *pci_dev,
  }
  
  
@@ -250,6 +243,9 @@ index 8f79e75..73fe902 100644
 +				   (unsigned long long)(bar_base + cap_off));
 +			break;
 +		case VIRTIO_PCI_CAP_SHARED_MEM_CFG: {
++			/* The shared-memory cap carries a region id at cap+5 and a
++			 * 64-bit offset/length (lo at cap+8/+12, hi at cap+16/+20). */
++			__u8  shm_id  = vpci_cfg_read8(pdev, (__u8)(cap_ptr + 5));
 +			__u32 off_hi  = vpci_cfg_read32(pdev, (__u8)(cap_ptr + 16));
 +			__u32 len_hi  = vpci_cfg_read32(pdev, (__u8)(cap_ptr + 20));
 +			__u64 full_off = ((__u64)off_hi << 32) | cap_off;
@@ -257,7 +253,9 @@ index 8f79e75..73fe902 100644
 +			vpci_dev->modern_shm_base =
 +				(volatile void *)(unsigned long)(bar_base + full_off);
 +			vpci_dev->modern_shm_len = full_len;
-+			uk_pr_info("[VOGUE] virtio-pci modern: shm @ 0x%llx len=0x%llx\n",
++			vpci_dev->modern_shm_id = shm_id;
++			uk_pr_info("[VOGUE] virtio-pci modern: shm id=%u @ 0x%llx len=0x%llx\n",
++				   shm_id,
 +				   (unsigned long long)(bar_base + full_off),
 +				   (unsigned long long)full_len);
 +			break;
@@ -541,7 +539,7 @@ index 8f79e75..73fe902 100644
 +	UK_TAILQ_REMOVE(&vpdev->vdev.vqs, vq, next);
 +	uk_lcpu_restore_irqf(flags);
 +
-+	virtqueue_destroy(VIRTIO_PCI_VRING_ALIGN, vq, alloc);
++	virtqueue_destroy(vq, alloc);
 +}
 +
 +static struct virtio_config_ops vpci_modern_ops = {
@@ -586,12 +584,37 @@ index 8f79e75..73fe902 100644
 +	return 0;
 +}
 +
++/* Resolve a virtio shared-memory region (PCI cfg_type 8) by id to its mapped
++ * host-visible MMIO window. Consumed by libukvirtio_gpu for host-visible blob
++ * mapping (MAP_BLOB). Returns 0 with *base/*len set on success; -ENOTSUP when
++ * the device is legacy or exposed no shared-memory region; -ENOENT when no
++ * region matches `id`. Non-static so the (extern) caller in libukvirtio_gpu
++ * binds to this strong definition at final link. */
++int virtio_pci_shm_region_get(struct virtio_dev *vdev, __u8 id,
++			      void **base, __u64 *len)
++{
++	struct virtio_pci_dev *vpdev;
++
++	if (unlikely(!vdev || !base || !len))
++		return -EINVAL;
++
++	vpdev = to_virtiopcidev(vdev);
++	if (!vpdev->is_modern || !vpdev->modern_shm_base || !vpdev->modern_shm_len)
++		return -ENOTSUP;
++	if (vpdev->modern_shm_id != id)
++		return -ENOENT;
++
++	*base = (void *)(unsigned long)vpdev->modern_shm_base;
++	*len = vpdev->modern_shm_len;
++	return 0;
++}
++
 +/* ---- End of modern VirtIO-PCI support ---- */
 +
  static int virtio_pci_add_dev(struct pci_device *pci_dev)
  {
  	struct virtio_pci_dev *vpci_dev = NULL;
-@@ -401,7 +921,7 @@ static int virtio_pci_add_dev(struct pci_device *pci_dev)
+@@ -400,7 +953,7 @@ static int virtio_pci_add_dev(struct pci_device *pci_dev)
  
  	UK_ASSERT(pci_dev != NULL);
  
@@ -600,7 +623,7 @@ index 8f79e75..73fe902 100644
  	if (!vpci_dev) {
  		uk_pr_err("Failed to allocate virtio-pci device\n");
  		return -ENOMEM;
-@@ -411,14 +931,14 @@ static int virtio_pci_add_dev(struct pci_device *pci_dev)
+@@ -410,14 +963,14 @@ static int virtio_pci_add_dev(struct pci_device *pci_dev)
  	vpci_dev->pdev = pci_dev;
  	vpci_dev->pci_base_addr = pci_dev->base;
  

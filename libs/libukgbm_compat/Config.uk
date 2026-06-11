@@ -1,6 +1,0 @@
-config LIBUKGBM_COMPAT
-	bool "bounded GBM compatibility facade for kmscube proof"
-	default n
-	select LIBUKDMA
-	help
-	  Narrow GBM buffer-object compatibility surface for the K1 kmscube proof.

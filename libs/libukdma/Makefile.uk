@@ -1,4 +1,0 @@
-$(eval $(call addlib,libukdma))
-CINCLUDES-$(CONFIG_LIBUKDMA) += -I$(LIBUKDMA_BASE)/include
-CXXINCLUDES-$(CONFIG_LIBUKDMA) += -I$(LIBUKDMA_BASE)/include
-LIBUKDMA_SRCS-$(CONFIG_LIBUKDMA) += $(LIBUKDMA_BASE)/dma_alloc.c

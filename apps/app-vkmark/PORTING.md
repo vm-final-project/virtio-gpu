@@ -11,7 +11,7 @@
 
 | Row | Status | Claim |
 |-----|--------|-------|
-| `gfx.vkmark` | `pass` | vkmark Unikraft port uses libukvk_icd (vk.icd) over libukvirtgpu_drm (vk.drm-shim); ICD init and Venus context creation PASS; 10 scenes documented with host llvmpipe/NVIDIA baselines |
+| `gfx.vkmark` | `pass` | vkmark Unikraft port uses the native Venus driver (libukvulkan_venus) over libukvirtio_gpu; Venus driver open and context creation PASS; 10 scenes documented with host llvmpipe/NVIDIA baselines |
 
 Current stage: the substrate row passes, but Unikraft-internal vkmark scene FPS
 is still not claimed. The next gate is a QEMU/Venus run with non-empty render
@@ -25,29 +25,29 @@ Full vkmark scene execution is not claimed because it requires the complete Mesa
 
 ## Unikraft build system
 
-- `Config.uk` — declares `CONFIG_APP_VKMARK` and selects `libukvk_icd` (vk.icd), `libukvirtgpu_drm` (vk.drm-shim)
+- `Config.uk` — declares `CONFIG_APP_VKMARK` and selects `libukvulkan_venus` (native Venus driver)
 - `Makefile.uk` — registers with `addlib`, uses `APPVKMARK_*` variables, lists `main.c`; vkmark meson build system is not reproduced
 - `exportsyms.uk` — exports only `main`
-- No dedicated `kraft/Kraftfile.*` — the substrate is exercised through `make vulkan-check` and `make app-multi-env-bench`.
+- No dedicated `kraft/Kraftfile.*`; the substrate is exercised through
+  `make vulkan-check`.
 
 ## Scene baselines
 
-Host llvmpipe/NVIDIA scene-fps comparisons are tracked alongside same-run
-evidence in `results/llama-bench/` and the multi-environment table generated
-by `make app-multi-env-bench`; they do not live in this file so the port
-metadata stays small. Unikraft-internal fps requires the vk.drm-shim + vk.icd
-gates plus same-run frame proof and is not claimed in this revision.
+Host llvmpipe/NVIDIA scene-fps comparisons belong in canonical Vulkan evidence;
+they do not live in this file so the port
+metadata stays small. Unikraft-internal fps requires native Venus render payload
+support plus same-run frame proof and is not claimed in this revision.
 
 ## Claim boundaries
 
 **Allowed**: `gfx.vkmark` — scene enumeration, build substrate, ICD init, Venus context creation, host baselines documented.
 
-**Forbidden**: vkmark fps scores inside Unikraft, GPU acceleration claims; full score requires K1 + vk.drm-shim + vk.icd gates and same-run frame proof.
+**Forbidden**: vkmark fps scores inside Unikraft, GPU acceleration claims; full
+score requires native Venus render payload gates and same-run frame proof.
 
 ## Verification
 
 ```sh
 make vulkan-check
-make eval-check
 make verify
 ```

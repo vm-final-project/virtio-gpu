@@ -1,367 +1,460 @@
-# VOGUE: VirtIO-GPU on Unikraft for Graphics and llama.cpp
+# VOGUE: VirtIO-GPU on Unikraft
 
-VOGUE runs graphics, Vulkan, and llama.cpp workloads **inside Unikraft
-unikernels** that talk to the host GPU over QEMU's `virtio-gpu-gl` /
-[Mesa Venus](https://docs.mesa3d.org/drivers/venus.html) path — **without
-importing Linux DRM/KMS or Mesa into the guest**. It is a governance-gated
-research artifact: every capability is backed by a same-run evidence row, and
-claims are bounded explicitly.
+VOGUE is a research artifact for running **VirtIO-GPU, Venus, Vulkan, and
+llama.cpp** as single-application [Unikraft](https://unikraft.org) unikernels.
+It targets both `x86_64` and `arm64` QEMU.
+
+- **CPU llama appliances** build and run anywhere (incl. Apple Silicon `arm64`).
+- **GPU/Vulkan llama appliances** build for either arch but need a Linux host
+  with a Venus-capable Vulkan stack to run (see [§7](#7-host-setup-x86_64-venus-stack)).
+
+`make` is the stable automation interface — run `make help` for the full list.
 
 ---
 
-## Project Architecture
+## Status at a glance
 
-### Core purpose
+All four `x86_64` llama appliances are runtime-verified (`status: pass`,
+gemma-3-1b Q4_K_M):
 
-Reach the *same host-facing VirtIO-GPU / Venus contract that a Linux guest uses*
-through a **much thinner Unikraft library stack** (the paper calls this a
-*dependency collapse*). Local code stays small: first-party Unikraft libraries
-own the VirtIO-GPU / Venus / Vulkan glue, while upstream applications
-(llama.cpp, kmscube, glmark2) keep their own logic and are consumed unmodified
-through one-line include shims.
+| Appliance | Command | Result |
+|-----------|---------|--------|
+| CPU bench | `make llama-cpu-bench-run` | `pass` — pp512 31.2 / tg128 10.9 tok/s |
+| Vulkan bench | `make llama-vk-bench-run` | `pass` — pp512 4582.6 / tg128 353.8 tok/s |
+| CPU server | `make llama-cpu-server-run` | `pass` — `/health` 200, `/completion` 200 |
+| Vulkan server | `make llama-vk-server-run` | `pass` — `/health` 200, `/completion` 200 |
 
-### The guest-to-host accelerated path
+CPU runs need only QEMU/KVM. **Vulkan runs additionally need the host Venus stack
+in [§7](#7-host-setup-x86_64-venus-stack)** — do not hand-roll their QEMU command.
+
+---
+
+## Project structure
+
+| Path | What it holds |
+|------|---------------|
+| `apps/` | One directory per appliance. Each boots directly into a single entrypoint (no shell, no `fork`/`exec`). |
+| `libs/` | First-party Unikraft libraries — the reusable VirtIO-GPU / Venus / Vulkan substrate. |
+| `kraft/` | `Kraftfile.*` per appliance/target: Unikraft core, libraries, KConfig, and QEMU targets. |
+| `mk/` | Make includes: `llama.mk` (appliances), `tests.mk`, `check.mk`. |
+| `scripts/` | Python runners (`app-llama-cpu.py`, `app-llama-vk.py`, `deps.py`, `app-vulkan-sample.py`) that drive QEMU and emit JSON results. |
+| `tests/` | Host-native C test suite (fake VirtIO-GPU backend, no QEMU/GPU needed) — the fast CI gate. |
+| `config/` | Tracked reference `.config` snapshots for static evidence gates. |
+| `results/` | JSON result captures (one schema, see [§8](#8-results)). |
+| `rootfs/` | Optional model/shader staging for the llama appliances. |
+| `.deps/src/` | Pinned non-Kraft upstreams fetched by `make deps` (not vendored in git). |
+
+### Appliances (`apps/`)
+
+| App | Kraftfile(s) | Stack |
+|-----|--------------|-------|
+| `app-llama-cpu` | `Kraftfile.llama-cpu{,-server}` | upstream llama.cpp on the CPU backend |
+| `app-llama-vk` | `Kraftfile.llama-vk{,-server}` | llama.cpp → ggml-vulkan → Vulkan/Venus |
+| `app-kmscube` | `Kraftfile.kmscube-vgpu-gl` | virgl command-stream graphics proof |
+| `app-vkmark`, `app-vulkan-sample` | (via `make vulkan-check`) | Venus/Vulkan substrate probes |
+| `llama-common/` | — | shared headers for the CPU + Vulkan llama appliances |
+
+### The Vulkan stack (`libs/`)
 
 ```text
-upstream llama.cpp bench / server      (apps/app-llama-upstream[-vk])
-  └─ libukggml_vk      static Vulkan/Venus dispatch for ggml-vulkan
-       └─ libukvenus        guest-side Venus encoder + ring protocol
-            └─ libukvirtgpu_drm   DRM virtgpu shim (Linux ABI)
-                 └─ libukvirtio_gpu    VirtIO-GPU frontend
-                      └─ QEMU virtio-gpu-gl-pci,blob=true,venus=true
-                           └─ host Vulkan driver (e.g. NVIDIA V100)
+application / llama.cpp  ->  upstream ggml-vulkan / Vulkan-Hpp
+  -> libvulkan            app-facing vk* ABI, dispatch, Hpp loader (compute-first subset)
+  -> libukvulkan_venus    native Venus Vulkan driver (encode/decode, ring, context)
+  -> libukvirtio_gpu      VirtIO-GPU guest frontend: SUBMIT_3D, blobs, fences
+  -> QEMU virtio-gpu-gl + virglrenderer (Venus)  ->  host Vulkan driver
 ```
 
-The graphics appliances (kmscube, glmark2) use the lower half of the same stack
-through the Linux-ABI shims (`libukdrm_compat`, `libukgbm_compat`, `libukegl`).
-
-### Design principles
-
-* **One image, one purpose.** Each appliance boots straight into a single
-  entrypoint — no shell, no native `fork()`/`exec()` launcher — and compiles
-  only the source for the selected mode (`bench.cpp` *or* `server.cpp`, never
-  both). `-Os -ffunction-sections -fdata-sections -Wl,--gc-sections` let the
-  linker drop every unreached symbol.
-* **Upstream stays upstream.** No custom GGUF/ggml/llama runtime lives under
-  `libs/`; upstream llama.cpp is pulled from the sibling `../llama.cpp` checkout
-  through six one-line `#include` shims.
-* **Evidence over assertion.** A `PASS` row means the command reproduced locally
-  in the same run; a `blocked:*` row is a documented blocker, never throughput
-  or acceleration evidence (see *Evidence & Claim Discipline*).
-
-### Current stage (2026-06-02)
-
-On the evaluation host (QEMU 11.0.1 `virtio-gpu-gl-pci,blob=true,venus=true`,
-Venus-enabled virglrenderer, Tesla V100 render node) the 27-row evaluation
-matrix is **27/27 PASS, 0 blocked** (`results/vogue_evaluation_matrix.md`).
-Highlights:
-
-* **llama.cpp Vulkan bench** runs end-to-end on the GPU via real Venus
-  (`pp512=2232.1`, `tg128=160.2` t/s, latest same-run artifact).
-* **llama.cpp Vulkan server now serves HTTP.** The appliance carries an
-  in-guest TCP/IP stack (`virtio-net → libuknetdev → lwIP`, DHCP) and runs the
-  upstream `llama_server()` listener on `0.0.0.0:8080`. A same-run host probe
-  records `GET /health → 200`, `GET /v1/models → 200`, and `POST /completion →
-  200` over the real V100/Venus path (`make llm-server-vk-check` →
-  `runtime=pass http=pass`). It is tuned with continuous-batching slots
-  (`--parallel 4`), `--ctx-size = parallel × per-slot`, prompt cache, and
-  `--flash-attn off` (the V100 has no Vulkan coopmat2). Throughput is
-  **measured** by `make llm-server-vk-throughput-check`: latest same-run
-  **decode 140.6 tok/s** (88 % of the in-guest Vulkan bench `tg128=160`),
-  prefill 866 tok/s. A stock-Linux-guest-over-Venus baseline
-  (`make linux-guest-vk-baseline`) shows the headroom is in VOGUE's guest-side
-  stack, not the Venus transport — see *Performance vs native* below.
-* **Graphics**: `xport.qemu-vgpu`, `proto.venus-ring`, `gfx.kmscube.submit`,
-  and `gfx.kmscube.frame` all have same-run PASS artifacts.
+`libukvirtgpu_drm` is an optional Linux/Mesa virtgpu-UAPI shim; native builds do
+not use it. The CPU llama appliance bypasses this stack entirely (ggml CPU
+backend). Each library has its own README with API and design boundaries.
 
 ---
 
-## Directory Analysis
+## Workflow overview
 
-This tree is the first-party project (`virtio-gpu/`). It resolves vendored
-sibling checkouts (`../unikraft`, `../llama.cpp`, `../lib-musl`, `../lib-lwip`,
-`../venus-protocol`, …) via `config/external_paths.json`.
+```text
+1. Prerequisites   ->  2. make deps   ->  3. Build   ->  4. Run   ->  5. Talk to the server
+                                                          │
+                                          CPU: plain make ┤
+                                          Vulkan: needs §7 host Venus stack
+```
 
-| Directory | Function |
-|---|---|
-| `libs/` | **First-party Unikraft libraries** — the substrate under test. DMA & buffer pool (`libukdma`, `libukdma_pool`), VirtIO-GPU frontend + virgl encoder (`libukvirtio_gpu`), DRM virtgpu shim (`libukvirtgpu_drm`), Venus encoder/ring (`libukvenus`), Vulkan ICD (`libukvk_icd`), static ggml-vulkan dispatch (`libukggml_vk`), Linux-ABI shims (`libukdrm_compat`, `libukgbm_compat`, `libukegl`), software renderer (`libukswrender`). Each carries a `README.md` contract enforced by `make lib-readme-check`. |
-| `apps/` | **Unikraft applications.** Graphics: `app-kmscube`, `app-glmark2`, `app-vulkan-smoke`, `app-vkmark`. llama.cpp: `app-llama-upstream` (CPU) and `app-llama-upstream-vk` (Vulkan), each with `bench.cpp` + `server.cpp`. Each app carries a `PORTING.md` (provenance, evidence rows, claim boundaries) enforced by `make app-port-check`. |
-| `kraft/` | One `Kraftfile.<name>` per single-purpose appliance (the *one image, one purpose* rule). The root `Kraftfile` is the kmscube graphics image. |
-| `tests/` | **Host-native deterministic C suite** against the fake VirtIO-GPU backend — no QEMU/GPU needed. The fast inner loop and primary CI gate. See `tests/README.md`. |
-| `scripts/` | Python evidence generators and claim gates invoked by the `Makefile` (eval matrix, governance, perf, boot/model-load time, Venus/Vulkan probes, llama runners, the HTTP server capture/gate). |
-| `config/` | Governance + environment metadata: `external_paths.json` (vendored sibling roots), `llama_env_matrix.json` (llama.cpp env/thread/backend selection), `governance.json` + `perf_baseline.json` (drive the gates). |
-| `cmake/` | `unikraft-clang.cmake` toolchain file used to cross-build upstream llama.cpp (`libllama.a`, ggml backends) for the unikernel. |
-| `results/` | Generated evidence consumed by the README, paper, and gates (`vogue_evaluation_matrix.md`, `llama/*.json`, `venus/`, `kmscube_vgpu_gl/`, …). |
-| `docs/` | Long-form docs: `ARCHITECTURE.md`, `GOVERNANCE.md`, `VENUS-BRINGUP.md`, the llama.cpp porting plan, and the Venus runtime enablement plan. |
-| `paper/` | Typst paper + generated tables (`make paper`). |
-| `rootfs/` | Host-shared assets mounted into appliances over 9pfs (e.g. the llama model directory). |
-| `patches/`, `design/`, `idea/`, `resource/`, `slides/` | Supporting material: vendored patches, design notes, scratch ideas, figures, and presentation assets. Not part of the build/test path. |
-
-Top-level reference files: `plan-optimize.md` (perf levers → gates),
-`plan-fix.md` (current blockers and their fixes), `unikraft-porting.md`,
-`AGENTS.md`.
-
-Reproducibility metadata (manifests describing the VM/host runs) is owned by the
-sibling `../manifest/` tree (`../manifest/manifests/vogue-main.yaml`), not
-duplicated here; governance ownership rules live in `docs/GOVERNANCE.md` and
-`config/governance.json`.
-
-### Applications & governance status
-
-Each app's status is declared in `config/governance.json` and enforced against
-this table by `make app-port-check` / `make governance-check`.
-
-| App | Status | Purpose | Evidence rows |
-|---|---|---|---|
-| `app-kmscube` | canonical | VirtIO-GPU 3D graphics via virgl over Venus | `gfx.kmscube.sw/.submit/.frame` |
-| `app-glmark2` | benchmark | OpenGL software-substrate benchmark | `gfx.glmark2.sw` |
-| `app-vulkan-smoke` | demo | Minimal Vulkan substrate smoke test | `vk.smoke` |
-| `app-vkmark` | experimental | Vulkan benchmark substrate | `gfx.vkmark` |
-| `app-llama-upstream` | canonical | Upstream llama.cpp CPU bench / server | `llm.bench.cpu`, `llm.server.cpu` |
-| `app-llama-upstream-vk` | canonical | Upstream llama.cpp Vulkan bench / HTTP server | `llm.bench.vk`, `llm.server.vk` |
+The rest of this document follows that order.
 
 ---
 
-## How to Find What You Need
+## 1. Prerequisites
 
-| If you want to… | Go to… |
-|---|---|
-| Understand the big picture | `docs/ARCHITECTURE.md`, then this file's *Project Architecture*. |
-| Find **VirtIO-GPU frontend / virgl** logic | `libs/libukvirtio_gpu/` (`virgl_encoder.c`, `virtio_gpu_proto.h`). |
-| Find **Venus encoder / ring protocol** | `libs/libukvenus/` (`venus_cs.c`, `venus_init.c`, `venus_compute.c`; generator in `GENERATOR.md`). |
-| Find the **Vulkan ICD / DRM virtgpu shim** | `libs/libukvk_icd/` and `libs/libukvirtgpu_drm/`. |
-| Find **3D rendering / GPU dispatch for ggml** | `libs/libukggml_vk/` (`uk_vulkan_dispatch.c`). |
-| Find **2D/KMS graphics (kmscube)** | `apps/app-kmscube/` + shims `libs/libukdrm_compat/`, `libs/libukgbm_compat/`. |
-| Find the **llama.cpp app entrypoints** | `apps/app-llama-upstream{,-vk}/{bench,server}.cpp` + `common.h`. |
-| Understand the **HTTP server / networking** | `apps/app-llama-upstream-vk/server.cpp`, `kraft/Kraftfile.llama-upstream-vk-server` (lwIP/netdev Kconfig), `scripts/llama_server_vk_capture.py` (boot + HTTP probe), `scripts/llm_server_vk_check.py` (gate). |
-| Change which appliance is built | `kraft/Kraftfile.<name>` and the matching `make *-build` target. |
-| Change llama env / threads / backend | `config/llama_env_matrix.json` (`make llama-env-list` / `-check`). |
-| Resolve a vendored sibling path | `config/external_paths.json`. |
-| **Run unit tests** | `make native-tests` (or `test-core` / `test-venus` / `test-dispatch`); details in `tests/README.md`. |
-| Run the daily gate before committing | `make test-fast`. |
-| Regenerate the evidence matrix | `make eval-check` → `results/vogue_evaluation_matrix.md`. |
-| Add/verify a governance contract | `config/governance.json`, then `make governance-check lib-readme-check app-port-check`. |
-| Reproduce the HTTP llama server | `make llama-upstream-vk-server-build` → `python3 scripts/llama_server_vk_capture.py` → `make llm-server-vk-check`. |
-| Build the paper | `make paper` (PDF) / `make paper-check` (consistency). |
-
----
-
-## Make Targets Summary
-
-All targets run from `virtio-gpu/`. `make` (no target) prints the grouped help.
-The root `Makefile` is the single entry point; it delegates the C suite to
-`tests/Makefile` and the heavy lifting to `scripts/` and KraftKit.
-
-### Everyday gates
-
-| Target | Purpose |
-|---|---|
-| `make test-fast` | Daily gate: governance + app/lib docs + native + wire-ABI tests (no QEMU/GPU). |
-| `make test-native` | Host-native C suite + wire-ABI test. |
-| `make test-qemu` | QEMU VirtIO-GPU / Venus probes (kmscube + Venus); blocked rows off-host. |
-| `make test-gpu` | Host Vulkan + static Venus / ggml-vulkan dispatch checks. |
-| `make verify` | Broad release gate; QEMU-dependent steps degrade to blocked rows. |
-
-### VirtIO-GPU / Venus host checks
-
-| Target | Purpose |
-|---|---|
-| `make venus-check` | VirtIO-GPU wire-ABI + Venus encoder/ring/probe checks. |
-| `make stage-check` | Unikraft alignment + stage audit (builds on `venus-check`). |
-| `make benchmark-check` | Regenerate the benchmark summary from same-run artifacts. |
-
-### Host-native test groups (wrap `tests/Makefile`)
-
-| Target | Purpose |
-|---|---|
-| `make native-tests` | Full deterministic C suite (primary CI gate). |
-| `make test-core` / `test-venus` / `test-dispatch` | Core / Venus / ggml-vulkan groups. |
-| `make proto-abi` | VirtIO-GPU wire-ABI struct/feature check. |
-| `make vulkan-tests` | Optional host Vulkan compute baseline (needs `VK_LIB`/`VK_INC`). |
-
-### Appliances (KraftKit; need `../unikraft` + external roots)
-
-| Target | Purpose |
-|---|---|
-| `make kmscube-build` / `kmscube-check` | Build / evaluate the VirtIO-GPU graphics appliance. |
-| `make llama-upstream-cpu-build` | CPU bench appliance (`llm.bench.cpu`). |
-| `make llama-upstream-vk-build` | Vulkan/Venus bench appliance (`llm.bench.vk`). |
-| `make llama-upstream-vk-server-build` | Vulkan/Venus **HTTP server** appliance (`llm.server.vk`). |
-| `make llama-env-check` / `llama-env-list` | Validate / list the llama.cpp environment matrix. |
-
-### Evidence, governance & docs
-
-| Target | Purpose |
-|---|---|
-| `make governance-check` | Validate app/lib/claim governance metadata. |
-| `make app-port-check` / `lib-readme-check` | Validate every `PORTING.md` / `README.md`. |
-| `make eval-check` | Regenerate the evidence matrix (blocked rows stay explicit). |
-| `make llm-server-vk-check` | llama.cpp Vulkan HTTP server contract + same-run HTTP probe. |
-| `make llm-server-vk-throughput-check` | Measured HTTP throughput (decode/prefill tok/s, TTFT, requests/s). |
-| `make linux-guest-vk-baseline` | Stock-Linux-guest + Venus Vulkan baseline (same QEMU path) for comparison. |
-| `make perf-check` / `image-size-check` / `boot-time-check` / `model-load-time-check` | Performance & resource budgets. |
-| `make current-stage-check` | Assert the documented current-stage report. |
-| `make paper` / `paper-check` | Build / consistency-check the Typst paper. |
-| `make clean` | Remove generated test/paper/generator outputs. |
-
-### Artifact bundles
-
-`make artifact-quick` (fast) · `make artifact-check` (functional) ·
-`make artifact-full` (broadest, including paper + claim discipline).
-
----
-
-## Running the production llama.cpp Vulkan HTTP server (`llm.server.vk`)
-
-The production server appliance boots straight into the upstream
-`llama_server()` listener, loads the model on the host GPU over real Venus, and
-serves HTTP on `0.0.0.0:8080` through an in-guest lwIP stack
-(`virtio-net → libuknetdev → lwIP`, DHCP). No shell, no `fork`/`exec`, one
-image one purpose.
-
-### Prerequisites
-
-* A QEMU with Venus support — the project auto-selects one that advertises
-  `virtio-gpu-gl-pci,venus=...` (system `qemu-system-x86_64` or the sibling
-  `../qemu-src/build/qemu-system-x86_64`).
-* A host GPU + readable render node (`/dev/dri/renderD*`); `egl-headless,gl=on`
-  with Venus-enabled `virglrenderer`.
-* A GGUF model (any size; the gates use `models/qwen3-0.6b/…`).
-* `kraft` (KraftKit) plus the Vulkan/SPIR-V header roots exported so the
-  upstream ggml-vulkan cross-build can find them:
-
-  ```sh
-  export VULKAN_HEADERS_INCLUDE=$(realpath ../Vulkan-Headers/include)
-  export SPIRV_HEADERS_INCLUDE=$(realpath ../SPIRV-Headers/include)
-  ```
-
-### 1. Build the appliance
+### 1.1 Host tools (all appliances)
 
 ```sh
-make llama-upstream-vk-server-build
-# -> .unikraft/build/vogue-llama-upstream-vk-server_qemu-x86_64
+# macOS
+brew install kraftkit qemu python
+# Linux: install kraftkit (https://unikraft.org/docs/cli/install), qemu, python3
 ```
 
-This cross-builds upstream llama.cpp with the server tool + ggml-vulkan
-(`make llama-upstream-cmake-vk-server`) and links the unikernel from
-`kraft/Kraftfile.llama-upstream-vk-server`.
+### 1.2 Vulkan **build** tools (only for `llama-vk*` targets)
 
-### 2a. Run + verify automatically (recommended)
-
-`scripts/llama_server_vk_capture.py` boots the image over real Venus, waits for
-the model-loaded `READY` line, then issues a same-run HTTP probe from the host
-through a QEMU `hostfwd` port and records the proof:
+The Vulkan targets build ggml-vulkan on the host first, which needs two tools on
+`PATH`:
 
 ```sh
-# Picks a model from VOGUE_VK_MODEL, config/llama_env_matrix.json, or ../models/*.gguf
-VOGUE_VK_MODEL=$(pwd)/../models/qwen3-0.6b/Qwen3-0.6B-Q4_K_M.gguf \
-  python3 scripts/llama_server_vk_capture.py
-
-make llm-server-vk-check      # -> llm-server-vk: runtime=pass http=pass
+sudo apt-get install cmake          # configures/builds the SPIR-V shader prep step
+sudo apt-get install shaderc        # provides glslc, required by ggml-vulkan
 ```
 
-Evidence lands in `results/llama/upstream_server_vk.json` (HTTP `/health`,
-`/v1/models`, `/completion` status + the model card) and the serial log in
-`results/llama/upstream_server_vk_serial.log`.
+`glslc` ships in the `shaderc` package; where it is not packaged, install the
+[LunarG Vulkan SDK](https://packages.lunarg.com/). The `llama-vk-prepare` target
+fails fast with a clear message if either is missing.
 
-### 2b. Run manually and curl it
+### 1.3 Vulkan **runtime** host stack (only to *run* `llama-vk*`)
 
-The canonical QEMU command lives in
-`scripts/run_llama_upstream_vk_server.sh`. Place a model at
-`rootfs/llama/model.gguf` (or point `MODEL_DIR` at a directory containing
-`model.gguf`), then:
-
-```sh
-cp ../models/qwen3-0.6b/Qwen3-0.6B-Q4_K_M.gguf rootfs/llama/model.gguf
-HOSTPORT=18080 scripts/run_llama_upstream_vk_server.sh      # boots; serves on 8080
-
-# from another shell, once "server is listening on http://0.0.0.0:8080" appears:
-curl http://127.0.0.1:18080/health                          # {"status":"ok"}
-curl http://127.0.0.1:18080/v1/models
-curl -X POST http://127.0.0.1:18080/completion \
-     -H 'Content-Type: application/json' \
-     -d '{"prompt":"Hello from VOGUE on Unikraft.","n_predict":16}'
-```
-
-`HOSTPORT` (default `18080`) is forwarded to the guest's `10.0.2.15:8080`
-(QEMU user-mode networking assigns that lease via DHCP). Override `IMAGE`,
-`MODEL_DIR`, `HOSTMEM`, `MEM`, or `ACCEL` as needed.
-
-### 3. Measure throughput (optional)
-
-```sh
-make llm-server-vk-throughput-check   # boots, drives a bounded completion burst
-# -> results/llama/server_vk_throughput.json
-#    (decode tok/s, prefill tok/s, end-to-end tok/s, TTFT, requests/s)
-```
-
-### Performance vs native
-
-Same V100, same GGUF (`Qwen3-0.6B-Q4_K_M`), same upstream `llama-bench` binary,
-three environments — two are para-virtualised over the **identical**
-`virtio-gpu-gl venus=true` path, isolating *unikernel-vs-Linux* from
-*virtualised-vs-bare-metal*:
-
-1. **Bare-metal host Vulkan** — no VM (`results/llama/vulkan_linux_baseline.json`).
-2. **Stock Linux guest in QEMU + Venus** — normal Linux kernel, Mesa Venus guest
-   ICD, same QEMU device (`results/llama/vulkan_qemu_linux_baseline.json`,
-   reproduce with `make linux-guest-vk-baseline`).
-3. **VOGUE Unikraft + Venus** — the unikernel port.
-
-| Metric | ① Bare-metal host | ② Linux guest + Venus (QEMU) | ③ VOGUE Unikraft + Venus |
-|---|---|---|---|
-| `pp512` prefill | 5586.9 t/s | **4948.2 t/s** | bench 2232.1 · server 865.7 |
-| `tg128` decode | 239.2 t/s | **323.6 t/s** | bench 160.2 · **server 140.6** |
-
-**What the Linux-guest baseline reveals.** A *stock Linux guest* over the same
-Venus path reaches ~89 % of bare-metal prefill and matches/exceeds its decode
-(decode of a 0.6 B model is small and run-to-run variable). In other words, the
-**Venus para-virtualisation transport is not the main bottleneck** — a mature
-guest stack rides it at near-native speed. The Unikraft port currently reaches
-**~45 % of the Linux-guest prefill and ~50 % of its decode**; that remaining gap
-lives in **VOGUE's own guest-side stack** (the `libukvenus` encoder + the
-`libukggml_vk` static dispatch vs Mesa's mature Venus ICD, plus the single guest
-vCPU), which is real optimisation headroom — not an unavoidable virtualisation
-tax. Within the Unikraft image, the **server decode rate (140.6 t/s) is 88 % of
-its own bench (160.2)**, so the HTTP request path itself is efficient; the work
-is in the dispatch/encoder layer and in guest SMP (`plan-optimize.md` Phase 3).
-
-> Claim boundary: liveness + completion are proven and throughput is a **bounded
-> same-run measurement** (`results/llama/server_vk_throughput.json`); the
-> baselines are same-host, same-model references, not cross-host/peak-capacity
-> claims. `tg128` for a 0.6 B model is variance-prone — read `pp512` as the
-> cleaner ordering (① > ② > ③).
+Running the Vulkan appliances needs a Venus-capable virglrenderer, a QEMU rebuilt
+against it, an EGL render node, and KVM. This is a one-time host setup — see
+[§7](#7-host-setup-x86_64-venus-stack). CPU appliances need none of it.
 
 ---
 
-## Evidence & Claim Discipline
+## 2. Fetch dependencies
 
-This artifact treats claims strictly — read before editing results or reporting
-numbers:
+```sh
+make deps          # fetch Kraft manifest + pinned git upstreams into .deps/src/, run kraft fetch
+make deps-status   # show pinned Unikraft rev, library channels, checkout state
+make deps-refresh  # refresh git checkouts and re-run kraft fetch (cache-busting)
+```
 
-* A **`PASS`** row means the command reproduced locally **in the same run**. A
-  **`blocked:*`** row (e.g. `blocked:unikraft-image-missing`,
-  `blocked:wrong-domain-artifact`) is a documented blocker — **never** report it
-  as acceleration / throughput evidence.
-* Do **not** claim Unikraft llama.cpp token/s or GPU throughput without same-run
-  PASS artifacts; do **not** use host-Linux baseline JSON as Unikraft runtime
-  evidence; do **not** reintroduce a custom GGUF/ggml/llama runtime under `libs/`.
-* The HTTP server claim is bounded to **liveness + completion** (`/health`,
-  `/v1/models`, `/completion`) plus a **bounded same-run throughput
-  measurement** (`make llm-server-vk-throughput-check`); peak-capacity and
-  cross-host/cross-model comparisons remain out of scope.
-* After touching `libs/`, `apps/`, or claims, run
-  `make governance-check lib-readme-check app-port-check` and keep the README
-  status columns in sync with `config/governance.json`.
+Non-Kraft upstreams (`llama.cpp`, `venus-protocol`, `Vulkan-Headers`,
+`SPIRV-Headers`) land in `.deps/src/`. Every external path can be overridden via
+the environment variables documented in [`config/deps.json`](config/deps.json).
+
+Get a model (any GGUF works; the docs use gemma-3-1b):
+
+```sh
+hf download bartowski/google_gemma-3-1b-it-GGUF \
+  --include "google_gemma-3-1b-it-Q4_K_M.gguf" --local-dir models
+```
 
 ---
 
-## Key documents
+## 3. Build
 
-* `docs/ARCHITECTURE.md` — the big picture and library boundaries.
-* `docs/GOVERNANCE.md` — the gate catalogue and ownership rules.
-* `docs/VENUS-BRINGUP.md` — Venus enablement walkthrough.
-* `libs/libukvenus/GENERATOR.md` — Venus encoder autogeneration from
-  `../venus-protocol`.
-* `plan-optimize.md` / `plan-fix.md` — perf levers and current blockers.
-* `tests/README.md` — the host-native test suite guide.
+Common variables (override on the `make` line):
+
+```make
+ARCH   ?= x86_64                # arm64 for Apple Silicon
+MODEL  ?= models/model.gguf     # falls back to the sole *.gguf under models/
+```
+
+| Appliance | Build | Run |
+|-----------|-------|-----|
+| CPU bench | `make llama-cpu-bench-build` | `make llama-cpu-bench-run` |
+| CPU server | `make llama-cpu-server-build` | `make llama-cpu-server-run` |
+| Vulkan bench | `make llama-vk-bench-build` | `make llama-vk-bench-run` |
+| Vulkan server | `make llama-vk-server-build` | `make llama-vk-server-run` |
+| KMSCube (virgl) | `make kmscube-build` | — |
+
+The run targets build first if needed, so you can skip the explicit build step.
+
+---
+
+## 4. Run
+
+The run targets boot the appliance under QEMU, capture all output, and write one
+JSON result (see [§8](#8-results)). `MODEL` is mounted into the guest over
+virtio-9p at `/mnt/model/model.gguf` (local model only — no remote download).
+
+### 4.1 CPU appliances (no special host setup)
+
+```sh
+make llama-cpu-bench-run   ARCH=x86_64 MODEL=models/google_gemma-3-1b-it-Q4_K_M.gguf  # bench
+make llama-cpu-server-run  ARCH=x86_64 MODEL=models/google_gemma-3-1b-it-Q4_K_M.gguf  # HTTP server
+# ARCH=arm64 on Apple Silicon (HVF; falls back to TCG)
+```
+
+### 4.2 Vulkan appliances (need the §7 host Venus stack)
+
+`scripts/app-llama-vk.py` (driven by the `llama-vk*-run` targets) assembles the full
+QEMU command for you — the `virtio-gpu-gl-pci,venus=true,blob=true` device, the
+`egl-headless` display, the model/network devices, and KVM auto-selection.
+
+> **Do not hand-roll the QEMU line for the Vulkan appliances.** Omitting the Venus
+> GPU device makes the server fail immediately with
+> `uk-llama-upstream-vk-server: FAIL dispatch_init failed` (it cannot open a Vulkan
+> device), and a stock `qemu-system-x86_64` reports `old virglrenderer, venus
+> unsupported`. Use the runner with the host Venus stack in the environment.
+
+Point these at your Venus-capable virglrenderer prefix and the QEMU you rebuilt
+against it ([§7](#7-host-setup-x86_64-venus-stack)), then run:
+
+```sh
+export VIRGL_PREFIX=/path/to/venus-virglrenderer-install
+export VENUS_QEMU=/path/to/qemu-built-against-it/qemu-system-x86_64
+
+env \
+  LD_LIBRARY_PATH="$VIRGL_PREFIX/lib/x86_64-linux-gnu" \
+  VIRGL_RENDER_SERVER_EXEC_PATH="$VIRGL_PREFIX/libexec/virgl_render_server" \
+  MESA_LOADER_DRIVER_OVERRIDE=kms_swrast LIBGL_ALWAYS_SOFTWARE=1 \
+  VOGUE_EGL_RENDERNODE=/dev/dri/card0 \
+  python3 scripts/app-llama-vk.py --arch x86_64 --mode server \
+    --model models/google_gemma-3-1b-it-Q4_K_M.gguf \
+    --qemu "$VENUS_QEMU" --timeout 280
+# --mode bench for the bench appliance
+# result -> results/llama/llama_server_vk.json  (or llama_vk.json for bench)
+```
+
+Equivalently via Make (it calls the same runner) — pass the same env plus the
+rebuilt QEMU:
+
+```sh
+env LD_LIBRARY_PATH="$VIRGL_PREFIX/lib/x86_64-linux-gnu" \
+    VIRGL_RENDER_SERVER_EXEC_PATH="$VIRGL_PREFIX/libexec/virgl_render_server" \
+    MESA_LOADER_DRIVER_OVERRIDE=kms_swrast LIBGL_ALWAYS_SOFTWARE=1 \
+    VOGUE_EGL_RENDERNODE=/dev/dri/card0 \
+  make llama-vk-server-run QEMU="$VENUS_QEMU" \
+    MODEL=models/google_gemma-3-1b-it-Q4_K_M.gguf
+```
+
+`/dev/dri/card0` and `/dev/kvm` must be readable/writable by your user
+(`sudo chmod 666 /dev/dri/card0 /dev/kvm`, or join the `render`/`kvm` groups).
+
+### 4.3 Release gate
+
+```sh
+make verify MODEL=/abs/path/model.gguf
+```
+
+Runs `test-fast` → `venus-check` → `vulkan-check` → all four llama modes.
+Missing QEMU, images, models, or GPU capabilities are
+reported as structured `blocked:<reason>` JSON, **not** hard failures (and a
+`blocked:*` row is never counted as passing evidence).
+
+---
+
+## 5. Run directly with QEMU
+
+The `make ...-run` targets hide the boot log and print only pass/fail. To watch
+the boot log, keep the server up, or run without the Python runner, invoke QEMU
+yourself. First build the appliance (`make llama-…-build`), then stage the model
+— it mounts over **virtio-9p** at `/mnt/model/model.gguf`:
+
+```sh
+mkdir -p /tmp/my-model
+cp models/google_gemma-3-1b-it-Q4_K_M.gguf /tmp/my-model/model.gguf
+```
+
+The forwarded port `18080` is what you curl in [§6](#6-talk-to-the-server). Exit
+QEMU with **Ctrl-A X**. (The exact command of the last successful runner run is
+also saved under the `"command"` key of the matching `results/llama/*.json`.)
+
+### 5.1 CPU server — arm64 (Apple Silicon, HVF)
+
+```sh
+qemu-system-aarch64 \
+  -machine virt,accel=hvf -cpu host -m 4096 -nographic -no-reboot \
+  -kernel .unikraft/build/vogue-llama-cpu-server_qemu-arm64 \
+  -fsdev local,id=model,path=/tmp/my-model,security_model=none \
+  -device virtio-9p-pci,fsdev=model,mount_tag=model \
+  -netdev user,id=net0,hostfwd=tcp:127.0.0.1:18080-10.0.2.15:8080 \
+  -device virtio-net-pci,netdev=net0 \
+  -append "console=ttyAMA0"
+```
+
+### 5.2 CPU server — x86_64 (Linux/KVM)
+
+```sh
+qemu-system-x86_64 \
+  -machine q35,accel=kvm -cpu host -m 4G -nographic -no-reboot \
+  -kernel .unikraft/build/vogue-llama-cpu-server_qemu-x86_64 \
+  -fsdev local,id=model,path=/tmp/my-model,security_model=none \
+  -device virtio-9p-pci,fsdev=model,mount_tag=model \
+  -netdev user,id=net0,hostfwd=tcp:127.0.0.1:18080-10.0.2.15:8080 \
+  -device virtio-net-pci,netdev=net0 \
+  -append "console=ttyS0"
+```
+
+`-m 4G` is plenty for the 1B model (paging makes the whole `-m` usable). Without
+KVM use `-machine accel=tcg -cpu max` (much slower). Swap the kernel to
+`vogue-llama-cpu_qemu-x86_64` for the **bench** appliance (no `-netdev`/`-net`
+needed).
+
+### 5.3 Vulkan server — x86_64
+
+The Vulkan appliance additionally needs the Venus GPU device, an `egl-headless`
+GL display, and the host Venus stack from [§7](#7-host-setup-x86_64-venus-stack)
+in the environment. A missing GPU device is exactly the `dispatch_init failed`
+case; a stock QEMU reports `old virglrenderer, venus unsupported`. The verified
+invocation (`export` `$VIRGL_PREFIX` / `$VENUS_QEMU` as in §4.2; build them per
+[§7](#7-host-setup-x86_64-venus-stack)):
+
+```sh
+env \
+  LD_LIBRARY_PATH="$VIRGL_PREFIX/lib/x86_64-linux-gnu" \
+  VIRGL_RENDER_SERVER_EXEC_PATH="$VIRGL_PREFIX/libexec/virgl_render_server" \
+  MESA_LOADER_DRIVER_OVERRIDE=kms_swrast LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
+  "$VENUS_QEMU" \
+    -machine q35,accel=kvm -cpu host -m 8G -no-reboot \
+    -kernel .unikraft/build/vogue-llama-vk-server_qemu-x86_64 \
+    -display egl-headless,gl=on,rendernode=/dev/dri/card0 -vga none \
+    -device virtio-gpu-gl-pci,hostmem=2G,blob=true,venus=true \
+    -append "console=ttyS0" -serial mon:stdio -monitor none \
+    -netdev user,id=net0,hostfwd=tcp:127.0.0.1:18080-10.0.2.15:8080 \
+    -device virtio-net-pci,netdev=net0 \
+    -fsdev local,id=model,path=/tmp/my-model,security_model=none \
+    -device virtio-9p-pci,fsdev=model,mount_tag=model
+```
+
+Differences vs. the CPU line: the `virtio-gpu-gl-pci,venus=true,blob=true`
+device, `-display egl-headless,gl=on,rendernode=…` (not `-nographic`, which is
+`-display none` and conflicts with the GL device), the rebuilt `$VENUS_QEMU`, and
+the Venus/EGL environment variables. Use the `vogue-llama-vk_qemu-x86_64` kernel
+for the **bench** appliance.
+
+---
+
+## 6. Talk to the server
+
+The server prints `uk-llama-upstream[-vk]-server: READY ...` once the model is
+loaded and the HTTP server is listening on the forwarded port (`18080` above).
+From a second terminal:
+
+```sh
+curl http://127.0.0.1:18080/health                       # {"status":"ok"}
+
+curl http://127.0.0.1:18080/completion \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "hello!", "n_predict": 128}'
+
+curl http://127.0.0.1:18080/v1/chat/completions \        # OpenAI-compatible
+  -H "Content-Type: application/json" \
+  -d '{"messages": [{"role": "user", "content": "Hello"}], "stream": true}'
+```
+
+---
+
+## 7. Host setup: x86_64 Venus stack
+
+Reproducing the Vulkan runs needs a host environment the default
+`qemu-system-x86_64` on a stock box does **not** provide.
+
+1. **Venus-capable virglrenderer + QEMU rebuilt against it.** Stock distro
+   virglrenderer (0.9.1) is too old for Venus/blob, and QEMU gates Venus/blob at
+   *compile* time on the virglrenderer version it was configured against. Build a
+   recent virglrenderer (`meson -Dvenus=true -Dplatforms=egl`; pass the repo
+   `Vulkan-Headers/include` so the bundled venus protocol finds the `vk_video`
+   std headers), install it to `$VIRGL_PREFIX`, then re-`meson setup
+   --reconfigure` and rebuild QEMU against it
+   (`PKG_CONFIG_PATH=$VIRGL_PREFIX/lib/.../pkgconfig`, meson ≥ 1.5). Run QEMU with
+   `LD_LIBRARY_PATH=$VIRGL_PREFIX/lib/...` and
+   `VIRGL_RENDER_SERVER_EXEC_PATH=$VIRGL_PREFIX/libexec/virgl_render_server`.
+2. **EGL render node.** `egl-headless` needs a DRM render node. On a box with no
+   GPU render node, point it at a primary KMS node driven by software:
+   `VOGUE_EGL_RENDERNODE=/dev/dri/card0` (honoured by `scripts/app-llama-vk.py`) with
+   `MESA_LOADER_DRIVER_OVERRIDE=kms_swrast LIBGL_ALWAYS_SOFTWARE=1`.
+3. **KVM, not TCG.** The model is built with AVX-512 (`-march=native`); QEMU TCG
+   raises `#UD` on some AVX-512 ops during C++ static init. The run script
+   auto-selects KVM when `/dev/kvm` is writable.
+
+### Guest-side fixes already in-tree for this path
+
+- **`CONFIG_LIBUKPAGING`** on all four llama Kraftfiles — maps all RAM into one
+  contiguous heap. Without it the boot allocator hands out fragmented physical
+  regions / PCI-hole addresses and model/compute-buffer allocation fails or
+  crashes (see [§9](#9-background-paging--heap)).
+- **Modern virtio-pci transport patch**
+  (`patches/unikraft/0001-virtio-pci-modern-device-support.patch`, registered in
+  `config/deps.json`) including `virtio_pci_shm_region_get` and 1:1 MMIO BAR
+  mapping under paging (high 64-bit BARs are otherwise unmapped once native
+  paging replaces the static boot direct-map).
+- **Page-consistent `minMemoryMapAlignment`** in the Venus dispatch so
+  model-weight buffers are sized to fit aligned tensor placement.
+- **`--no-host` / `mparams.no_host`** in the server entry and the shared loader so
+  weights stay in device-local `Vulkan0` memory. The default pinned `Vulkan_Host`
+  buffer (used for `token_embd.weight`) is a host-visible VirtIO-GPU blob whose
+  upload does not complete on a software host Vulkan driver over Venus, which
+  previously deadlocked model load just before `READY`.
+
+With the above, `make llama-vk-server-run` reaches `uk-llama-upstream-vk-server:
+READY`, serves `/health` (200) and `/completion` (200) over the Venus GPU path,
+and `scripts/app-llama-vk.py` records `status: pass`.
+
+See [`docs/VENUS-BRINGUP.md`](docs/VENUS-BRINGUP.md) for the runtime probes and
+the `make venus-check` targets.
+
+---
+
+## 8. Results
+
+Every runner writes one JSON file (`_arm64.json` suffix for arm64 runs) under
+`results/`, all sharing this schema:
+
+```json
+{
+  "status": "pass | fail | blocked:<reason>",
+  "generated_utc": "...",
+  "command": "...",
+  "inputs": {},
+  "metrics": {},
+  "error": null
+}
+```
+
+Canonical files include `results/llama/llama_{cpu,server_cpu,vk,server_vk}.json`
+and `results/venus/*.json`. Runtime logs,
+frame dumps, and QMP files are local and gitignored.
+
+---
+
+## 9. Background: paging & heap
+
+The CPU server is runtime-verified on `x86_64` (QEMU/KVM, q35): it loads the
+Gemma-3-1B Q4_K_M model and serves chat completions. All four llama Kraftfiles
+set `CONFIG_LIBUKPAGING=y`. Without paging, ukboot hands the raw physical FREE
+regions to the buddy allocator, so the largest single allocation is bounded by
+the largest *contiguous* region. On `x86_64`/q35 the 32-bit PCI MMIO hole
+fragments low RAM and the static boot page table maps only the first 4 GiB, so a
+~762 MiB model buffer (and the bench's ~516 MiB compute buffer) fail with
+`ggml_aligned_malloc: insufficient memory` regardless of `-m` (2 G…24 G all fail).
+Enabling paging maps all RAM (incl. >4 GiB) into one contiguous heap. `arm64`/virt
+is unaffected because its RAM is a single contiguous block.
+
+---
+
+## 10. Testing
+
+```sh
+make test-fast        # host-native C suite + VirtIO-GPU wire-ABI check (primary CI gate)
+```
+
+The native suite needs no QEMU/GPU/model. Every test guards a distinct module
+and is wired into a gate (none are duplicate or unused):
+
+| Test | Guards | Gate |
+|------|--------|------|
+| `core_test` | libukvirtio_gpu core (fake backend) | `test-core` |
+| `proto_abi_test` | VirtIO-GPU wire-ABI structs/features | `proto-abi` |
+| `virgl_encoder_test` | libukvirtio_gpu virgl encoder | `test-core` |
+| `venus_encoder_test` | libukvulkan_venus encoders | `test-venus` |
+| `venus_ring_test` | libukvulkan_venus ring transport | `test-venus` |
+| `dispatch_test` | libvulkan dispatch | `test-dispatch` |
+| `drm_compat_test` | libukvirtgpu_drm (optional DRM shim) | `test-compat` |
+
+The venus/dispatch tests compile the generated Venus tree, which needs the
+repo-pinned Vulkan-Headers (`VK_HEADER_VERSION 352`); `tests/Makefile` defaults
+`VK_INC` to `.deps/src/Vulkan-Headers/include` (from `make deps`) so the suite
+builds without a separate `venus-protocol` checkout. See
+[`tests/README.md`](tests/README.md) for the per-group breakdown.
+
+---
+
+## Platform notes
+
+**Apple Silicon / arm64.** The CPU appliance on `qemu/arm64` is a first-class
+path: `ARCH=arm64` selects `qemu-system-aarch64`, the `virt` machine, and
+`ttyAMA0`; the runner prefers HVF and falls back to TCG. The Vulkan targets build
+on arm64 but are not runtime-verified there (the Venus host stack is Linux/KVM).
+
+**Toolchain caveats (macOS + GCC 16).** Unikraft 0.21.0 is validated against GCC
+11–14, so the Makefile prepends Homebrew GNU make to `PATH` (KraftKit needs GNU
+make ≥ 4.1; macOS ships 3.81), injects `-std=gnu17` / `-std=gnu++17 -fpermissive`
+to tame the GCC-16 C23 default, and reapplies a tracked `extern "C"` patch to
+unikraft's `ectx.h` via `make deps` (see `patches/unikraft/`).

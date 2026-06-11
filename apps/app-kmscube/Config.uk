@@ -1,13 +1,12 @@
 config APP_KMSCUBE
-	bool "KMScube VirtIO-GPU-GL application"
+	bool "KMScube VirtIO-GPU-GL application (virgl path)"
 	default n
-	select LIBUKSWRENDER
-	select LIBUKEGL
-	select LIBUKDMA
+	select LIBUKSGLIST
+	select LIBUKALLOC
 	select LIBUKVIRTIO_GPU
-	select LIBUKVENUS
+	select LIBUKVULKAN_VENUS
 	help
-	  KMScube ported to Unikraft.  Uses the software render path (gfx.kmscube.sw)
-	  backed by libukswrender and virtio-gpu 2D scanout.  The upstream
-	  cube-smooth GLES2 path compiles against libukegl but renders via
-	  the CPU rasterizer until a virgl encoder is complete (K1).
+	  KMScube ported to Unikraft. Renders via the virgl/Gallium path
+	  directly through libukvirtio_gpu (uk_virgl_encode_* + SUBMIT_3D).
+	  Evidence rows: gfx.kmscube.submit, gfx.kmscube.frame.
+	  No EGL, GBM, DRM compat, or software renderer required.

@@ -2,15 +2,16 @@ config APP_VKMARK
 	bool "vkmark Vulkan benchmark substrate port"
 	default n
 	select LIBUKVIRTIO_GPU
-	select LIBUKDMA
-	select LIBUKVIRTGPU_DRM
-	select LIBUKVK_ICD
+	select LIBUKSGLIST
+	select LIBUKVULKAN_VENUS
 	help
-	  vkmark Vulkan benchmark ported to Unikraft as a vk.drm-shim+vk.icd substrate proof.
-	  vkmark is an open-source Vulkan benchmarking tool that exercises scenes
-	  similar to glmark2 but using the Vulkan API instead of OpenGL ES.
+	  vkmark Vulkan benchmark ported to Unikraft as a Venus driver substrate
+	  proof. vkmark is an open-source Vulkan benchmarking tool that exercises
+	  scenes similar to glmark2 but using the Vulkan API instead of OpenGL ES.
 	  Upstream: https://github.com/vkmark/vkmark
-	  Uses libukvk_icd (vk.icd) over libukvirtgpu_drm (vk.drm-shim) to initialize a
-	  Venus/Vulkan context, enumerate 10 scenes, and document the blocked
-	  rendering path (requires Venus command encoder for fps evidence).
-	  Evidence row: gfx.vkmark (pass-substrate: vk.drm-shim+vk.icd init + scene enumeration).
+	  Uses the native Venus Vulkan driver (libukvulkan_venus) over
+	  libukvirtio_gpu to open a Venus/Vulkan context, enumerate 10 scenes, and
+	  document the blocked rendering path (requires the Venus command encoder
+	  for fps evidence).
+	  Evidence row: gfx.vkmark (pass-substrate: Venus driver open + scene
+	  enumeration).

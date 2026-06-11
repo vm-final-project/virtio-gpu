@@ -3,7 +3,7 @@
  * virtgpu_drm.h — subset of Linux 6.18 include/uapi/drm/virtgpu_drm.h
  *
  * Source: /home/jerrytsai/linux-version/linux-6.18/include/uapi/drm/virtgpu_drm.h
- * Reproduced for the libukvirtgpu_drm UAPI shim (vk.drm-shim gate).
+ * Reproduced for the libukvirtgpu_drm UAPI shim (vk.drm-core gate).
  * Only the definitions used by Mesa Venus guest driver are retained.
  */
 #ifndef VIRTGPU_DRM_H
@@ -156,6 +156,24 @@ struct drm_virtgpu_context_init {
     uint64_t ctx_set_params;
 };
 
+/* ── Minimal generic DRM structs used by Mesa's virtgpu renderer ─────────── */
+
+struct drm_gem_close {
+    uint32_t handle;
+    uint32_t pad;
+};
+
+struct drm_prime_handle {
+    uint32_t handle;
+    uint32_t flags;
+    int32_t fd;
+};
+
+struct drm_syncobj_create {
+    uint32_t handle;
+    uint32_t flags;
+};
+
 /* ── Ioctl command numbers (matching Linux DRM_COMMAND_BASE=0x40) ─────────── */
 #define DRM_VIRTGPU_MAP                 0x00
 #define DRM_VIRTGPU_EXECBUFFER          0x01
@@ -176,6 +194,15 @@ struct drm_virtgpu_context_init {
 #define DRM_IOR(nr,type)    _IOR(DRM_IOCTL_BASE, nr, type)
 #define DRM_IOW(nr,type)    _IOW(DRM_IOCTL_BASE, nr, type)
 #define DRM_IOWR(nr,type)   _IOWR(DRM_IOCTL_BASE, nr, type)
+
+#define DRM_IOCTL_GEM_CLOSE \
+    DRM_IOW(0x09, struct drm_gem_close)
+#define DRM_IOCTL_PRIME_HANDLE_TO_FD \
+    DRM_IOWR(0x2d, struct drm_prime_handle)
+#define DRM_IOCTL_PRIME_FD_TO_HANDLE \
+    DRM_IOWR(0x2e, struct drm_prime_handle)
+#define DRM_IOCTL_SYNCOBJ_CREATE \
+    DRM_IOWR(0xbf, struct drm_syncobj_create)
 
 #define DRM_IOCTL_VIRTGPU_MAP \
     DRM_IOWR(DRM_COMMAND_BASE + DRM_VIRTGPU_MAP, struct drm_virtgpu_map)

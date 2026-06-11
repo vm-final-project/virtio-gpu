@@ -22,3 +22,21 @@ config LIBUKVIRTIO_GPU_BACKEND_REAL
 	  virtio bus, control queue, and resource commands. The control queue is
 	  serialised with a uk_mutex (mirrors the Linux virtio-gpu ctrlq.qlock) so
 	  ggml-vulkan's concurrent pipeline-compile threads can share it safely.
+
+if LIBUKVIRTIO_GPU
+
+config LIBUKVIRTIO_GPU_TEST
+	bool "Enable unit tests"
+	default n
+	select LIBUKTEST
+	depends on LIBUKVIRTIO_GPU_BACKEND_REAL
+
+config LIBUKVIRTIO_GPU_TEST_CORE
+	bool "Core helper tests"
+	default y
+	depends on LIBUKVIRTIO_GPU_TEST
+	help
+	  Small uktest suite for the stable helper surface: capset naming and
+	  APIR header encode/decode helpers.
+
+endif

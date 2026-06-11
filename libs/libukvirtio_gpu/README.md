@@ -6,13 +6,8 @@ Unikraft virtio-bus backend for QEMU/PCI VirtIO-GPU evidence. The real backend
 also contains the control-queue surface required by future virgl/Venus work:
 contexts, 3D submit, resource blobs, UUID assignment, map/unmap, and metrics.
 
-Current stage: the real backend reaches QEMU/Venus and supports passing
-transport, ring, kmscube frame, and llama.cpp Vulkan runtime rows on the
-evaluation host. The `real-path` hygiene gate is also resolved there:
-`make current-stage-check` now treats a CPU-only latest
-`.unikraft/build/config` as not applicable when the production graphics/Vulkan
-configs, real backend object files, compile database, and QEMU Venus probe all
-pass; see `plan-fix.md`.
+Status: the real backend reaches QEMU/Venus and passes the transport, ring,
+kmscube-frame, and llama.cpp-Vulkan runtime rows on the evaluation host.
 
 ## Configuring applications to use `libukvirtio_gpu`
 
@@ -56,7 +51,8 @@ The public API is declared in `include/uk/virtio_gpu.h` and includes:
 
 - `virtio_gpu_config` is **20 bytes** (5 fields): `events_read`, `events_clear`, `num_scanouts`, `num_capsets`, and `blob_alignment` (at offset 16).
 - `VIRTIO_GPU_F_BLOB_ALIGNMENT` (bit 5) is negotiated when the host offers it, subject to `VIRTIO_GPU_F_RESOURCE_BLOB` also being offered.  When negotiated, the driver reads `blob_alignment` from config space and aligns all `RESOURCE_CREATE_BLOB` sizes to that value before issuing the command.  If the value is zero or not a power-of-two the driver falls back to 4096-byte alignment.
-- `BLOB_MEM_GUEST` blob staging for Venus ring buffers works without `F_BLOB_ALIGNMENT`.  Host-visible blob mapping (`MAP_BLOB`) requires the upstream Unikraft virtio-pci SHM BAR helper, which is not yet available; that path returns `-ENOTSUP` until the upstream adds `virtio_pci_shm_region_get`.
+- `BLOB_MEM_GUEST` blob staging for Venus ring buffers works without `F_BLOB_ALIGNMENT`.  Host-visible blob mapping (`MAP_BLOB`) needs the virtio-pci SHM BAR helper `virtio_pci_shm_region_get`, which is provided by `patches/unikraft/0001-virtio-pci-modern-device-support.patch` (it parses the cfg_type 8 shared-memory capability and exposes the mapped window by region id).  When the device exposes no SHM region — e.g. a legacy/transitional transport — that path degrades to `-ENOTSUP`.
+  - Operational note: a guest host-visible upload through this window still depends on the host completing the host-visible blob export. On a software host Vulkan driver (lavapipe over Venus) that export does not complete and the upload deadlocks, so the llama Vulkan appliances keep all weights device-local (`--no-host` / `mparams.no_host`) and do not exercise this path during model load.
 
 ## Design boundaries
 
@@ -68,10 +64,10 @@ Run:
 
 ```console
 make -C tests proto-abi
+make -C tests test-core
 make venus-check
-make stage-check
 make verify
 ```
 
-Relevant result artifacts are written under `results/venus/`, `results/stage/`,
-and `results/vogue_evaluation_matrix.*`.
+Relevant result artifacts are written under `results/venus/` and
+`results/vogue_evaluation_matrix.*`.
