@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import shutil
 import subprocess
@@ -21,6 +22,7 @@ from common import (
     resolve_qemu,
     result,
     result_path,
+    smp_args,
     write_json,
 )
 
@@ -33,10 +35,10 @@ def image(mode: str, arch: str) -> Path:
     return ROOT / ".unikraft/build" / f"{name}_{image_suffix(arch)}"
 
 
-def qemu_command(qemu: str, model: Path, mode: str, timeout: int, arch: str) -> list[str]:
+def qemu_command(qemu: str, model: Path, mode: str, timeout: int, arch: str, smp: int = 1) -> list[str]:
     del model, timeout
     accel = acceleration(arch)
-    return [qemu, *machine_and_cpu_args(arch, accel), "-m", "4096", "-nographic", "-no-reboot", "-kernel", str(image(mode, arch))]
+    return [qemu, *machine_and_cpu_args(arch, accel), *smp_args(smp), "-m", "4096", "-nographic", "-no-reboot", "-kernel", str(image(mode, arch))]
 
 
 def main() -> int:
@@ -46,6 +48,7 @@ def main() -> int:
     parser.add_argument("--model", type=Path, required=True)
     parser.add_argument("--qemu")
     parser.add_argument("--timeout", type=int, default=120)
+    parser.add_argument("--smp", type=int, default=int(os.environ.get("VOGUE_SMP", "1")))
     args = parser.parse_args()
     arch = normalize_arch(args.arch)
     qemu_name = args.qemu or default_qemu_binary(arch)
@@ -53,8 +56,8 @@ def main() -> int:
     output = result_path(RESULTS, f"llama_{'server_' if args.mode == 'server' else ''}cpu.json", arch)
     model = resolve_model(args.model)
     qemu = resolve_qemu(qemu_name)
-    base = qemu_command(qemu or qemu_name, args.model, args.mode, args.timeout, arch)
-    inputs = {"mode": args.mode, "arch": arch, "model": str(args.model), "image": str(image(args.mode, arch))}
+    base = qemu_command(qemu or qemu_name, args.model, args.mode, args.timeout, arch, smp=args.smp)
+    inputs = {"mode": args.mode, "arch": arch, "model": str(args.model), "image": str(image(args.mode, arch)), "smp": args.smp}
     blocker = (
         ("blocked:qemu-missing", "QEMU executable not found") if not qemu else
         ("blocked:model-missing", "Model file not found") if not model else
