@@ -106,15 +106,37 @@ class CommandTests(unittest.TestCase):
 
 
 class SmpTopologyTests(unittest.TestCase):
-    def test_round_robin_pins_one_worker_per_lcpu(self) -> None:
-        # 4 vCPUs, 4 ggml workers -> one each, distinct LCPUs
-        self.assertEqual([smp_topology.place(i, 4) for i in range(4)], [0, 1, 2, 3])
+    def test_effective_mask_intersects_requested_and_online(self) -> None:
+        self.assertEqual(
+            smp_topology.effective_mask(0b1110, 0b0011),
+            0b0010,
+        )
 
-    def test_wraps_when_more_threads_than_lcpus(self) -> None:
-        self.assertEqual([smp_topology.place(i, 4) for i in range(6)], [0, 1, 2, 3, 0, 1])
+    def test_empty_effective_mask_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            smp_topology.effective_mask(0b1000, 0b0011)
 
-    def test_single_lcpu_pins_all_to_zero(self) -> None:
-        self.assertEqual([smp_topology.place(i, 1) for i in range(3)], [0, 0, 0])
+    def test_keep_current_owner_when_allowed(self) -> None:
+        self.assertEqual(
+            smp_topology.choose_target(0b1010, current=3),
+            3,
+        )
+
+    def test_choose_lowest_allowed_when_current_disallowed(self) -> None:
+        self.assertEqual(
+            smp_topology.choose_target(0b1010, current=0),
+            1,
+        )
+
+    def test_worker_masks_are_one_hot(self) -> None:
+        self.assertEqual(
+            smp_topology.worker_masks(4, 4),
+            [0b0001, 0b0010, 0b0100, 0b1000],
+        )
+
+    def test_reject_more_workers_than_lcpus(self) -> None:
+        with self.assertRaises(ValueError):
+            smp_topology.worker_masks(5, 4)
 
 
 if __name__ == "__main__":
