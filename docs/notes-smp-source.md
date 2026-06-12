@@ -141,15 +141,35 @@ that AP's current scheduler correct with no new per-CPU field.
 
 ## Q4 — pthread → scheduler binding
 
-**`CONFIG_LIBPTHREAD_EMBEDDED` does NOT exist in this pinned tree** —
+**`CONFIG_LIBPTHREAD_EMBEDDED` does NOT exist in this pinned core tree** —
 `grep -rn LIBPTHREAD_EMBEDDED .deps/src/unikraft` returns nothing, and there is
-no in-tree `lib/pthread*`. pthreads are provided by an **external** lib
-(musl / pthread-embedded port) pulled in via the build, not by core unikraft.
-NOT FOUND after searching `lib/*/Config.uk`, all of `lib/`, and the whole tree.
+no in-tree `lib/pthread*`. The current application build uses the external
+Unikraft `lib-musl` port as both libc and pthread provider. This distinction is
+important: the official `lib-musl` README says musl provides thread support
+natively and “must not be built with” `pthread-embedded`:
+https://github.com/unikraft/lib-musl#readme.
 
-What core unikraft DOES provide, and what musl's `pthread_create` ultimately
-hits, is the `clone()` syscall in **`lib/posix-process`**. New threads are bound
-to the scheduler as follows (`lib/posix-process/clone.c:143` and `:400`):
+The current build's symbol graph confirms the provider and call path:
+
+```text
+appllama_cpu.ld.o:  U pthread_create
+libmusl.ld.o:       T __pthread_create
+libmusl.ld.o:       W pthread_create
+libmusl.ld.o:       U __clone
+libmuslglue.ld.o:   T __clone
+final image:        T uk_syscall_r_clone
+final image:        t uk_clone
+```
+
+The x86-64 `__clone` wrapper calls `uk_syscall_e_clone` at
+`.unikraft/libs/musl/arch/x86_64/__clone.S:52`. This disproves the later,
+stale claim that the current pthread implementation bypasses the
+`lib/posix-process/clone.c` path.
+
+What core Unikraft provides, and what musl's `pthread_create` ultimately hits,
+is the `clone()` syscall in **`lib/posix-process`**. In upstream
+`RELEASE-0.21.0`, new threads are bound to the scheduler as follows
+(`lib/posix-process/clone.c:143` and `:400`):
 
 ```c
 s = uk_sched_current();              /* clone.c:143  */
@@ -167,6 +187,34 @@ per-LCPU schedulers every worker would pile onto the BSP scheduler and never
 spread. **Task 5 MUST add an explicit placement hook** (round-robin pick a
 target per-LCPU scheduler at thread-add time, or pin via setaffinity-style
 logic) — `uk_sched_current()` alone will not spread the threads.
+
+That hook now exists in the project-patched tree:
+
+```c
+#if CONFIG_LIBUKSCHEDCOOP_SMP
+	s = uk_schedcoop_smp_pick();
+#else
+	s = uk_sched_current();
+#endif
+...
+ret = uk_sched_thread_add(s, child);
+```
+
+References:
+- Project patch:
+  `.deps/src/unikraft/lib/posix-process/clone.c:145-154,410-411`.
+- Round-robin implementation:
+  `.deps/src/unikraft/lib/ukschedcoop/smp.c:254-272`.
+- Upstream comparison:
+  https://github.com/unikraft/unikraft/blob/RELEASE-0.21.0/lib/posix-process/clone.c
+- ggml pthread mapping and worker creation:
+  `.deps/src/llama.cpp/ggml/src/ggml-cpu/ggml-cpu.c:435,465,3286`.
+
+This source graph proves that the placement hook is reachable in the current
+image. It does **not** prove that each worker executes on the selected LCPU.
+That requires runtime instrumentation of the selected scheduler in
+`uk_clone()`, the target scheduler/LCPU in `schedcoop_thread_add()`, and the
+actual LCPU at `ggml_graph_compute_secondary_thread` entry.
 
 ---
 

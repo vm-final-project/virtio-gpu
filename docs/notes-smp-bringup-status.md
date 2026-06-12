@@ -64,11 +64,66 @@ Keep APs parked in the default IPI handler and dispatch ggml compute via `uk_lcp
 
 **Measured (real 806 MB model):** smp4 is **slower**, not faster: pp512 31.0→21.3 (0.69x), tg128 10.7→7.8 (0.73x). Host has 56 cores (not oversubscribed).
 
-**Why no speedup (root-caused):** the ggml worker threads are **not actually distributed** to the AP schedulers. Instrumenting `schedcoop_thread_add` showed **0 placement calls** during the bench — `libpthread_embedded` (a fetched KraftKit package) creates threads via a path that bypasses `clone.c`/`uk_sched_thread_add`/`schedcoop_thread_add`, so all workers stay on the BSP (4 threads on 1 vCPU) while the 3 APs idle, and the extra SMP machinery just adds overhead.
+**Why no speedup (current evidence, corrected 2026-06-12):** the earlier
+conclusion that a fetched `libpthread_embedded` implementation bypassed
+`clone.c` is stale and contradicted by the current build. The llama CPU object
+has an undefined `pthread_create`; `libmusl.ld.o` provides
+`__pthread_create`/`pthread_create` and references `__clone`;
+`libmuslglue.ld.o` provides `__clone`. The x86-64 wrapper calls
+`uk_syscall_e_clone`, and the final image contains `uk_syscall_r_clone` and
+`uk_clone`. Therefore the current call path is:
+
+```text
+ggml_thread_create
+  -> musl pthread_create
+  -> libmuslglue __clone
+  -> uk_syscall_e_clone / uk_syscall_r_clone
+  -> uk_clone
+  -> uk_sched_thread_add
+```
+
+The old observation that instrumentation reported zero
+`schedcoop_thread_add` placement calls must be re-measured against the current
+musl-only image; it cannot be used as proof that pthread bypasses clone.
+The measured slowdown remains valid, but its precise runtime cause is now
+**open**. The next run must trace the scheduler selected in `uk_clone`, the
+target LCPU in `schedcoop_thread_add`, and the LCPU on which each ggml worker
+actually starts. Likely remaining causes include a placement/registry defect,
+remote wakeup or cooperative barrier overhead, or another SMP-unsafe shared
+subsystem.
 
 **Path to an actual speedup (remaining work):**
-1. Intercept thread placement on the embedded-pthread creation path (need that package's source / the right `uk_sched_thread_create` hook), or apply CPU affinity there, so the N ggml workers land one-per-vCPU.
-2. Keep workers co-scheduled (polling threadpool — already added to `bench.cpp`).
-3. Address cooperative cross-LCPU co-scheduling/wakeup overhead (tight ggml barriers) — may need a gang/affinity-aware policy.
+1. Instrument the current musl path at `uk_clone`,
+   `schedcoop_thread_add`, and the ggml worker entry to prove whether workers
+   land one-per-vCPU.
+2. If placement is wrong, fix `uk_schedcoop_smp_pick()` or the per-LCPU
+   scheduler registry; do not add another pthread-specific creation path.
+3. Keep workers co-scheduled (polling threadpool — already added to `bench.cpp`).
+4. Address cooperative cross-LCPU co-scheduling/wakeup overhead (tight ggml barriers) — may need a gang/affinity-aware policy.
+
+**References and reproducible checks:**
+- Unikraft `lib-musl` states that musl is the recommended libc, provides
+  native thread support, and must not be built with `pthread-embedded`:
+  https://github.com/unikraft/lib-musl#readme
+- ggml maps `ggml_thread_create` to `pthread_create` and creates secondary
+  graph workers with it:
+  `.deps/src/llama.cpp/ggml/src/ggml-cpu/ggml-cpu.c:435,465,3286`.
+- The musl x86-64 clone wrapper calls `uk_syscall_e_clone`:
+  `.unikraft/libs/musl/arch/x86_64/__clone.S:12-67`.
+- The project patch selects `uk_schedcoop_smp_pick()` in `uk_clone` and then
+  calls `uk_sched_thread_add(s, child)`:
+  `.deps/src/unikraft/lib/posix-process/clone.c:145-154,410-411`.
+- Upstream Unikraft `RELEASE-0.21.0` instead selects
+  `uk_sched_current()` before the same `uk_sched_thread_add` call:
+  https://github.com/unikraft/unikraft/blob/RELEASE-0.21.0/lib/posix-process/clone.c
+- Reproduce symbol resolution with:
+
+  ```sh
+  nm -An .unikraft/build/appllama_cpu.ld.o \
+    .unikraft/build/libmusl.ld.o \
+    .unikraft/build/libmuslglue.ld.o \
+    .unikraft/build/vogue-llama-cpu_qemu-x86_64.dbg |
+    grep -E 'pthread_create|__clone|uk_syscall_r_clone|uk_clone'
+  ```
 
 This is genuinely research-grade work that Unikraft upstream itself has not completed (x86 SMP "on-going work"; no SMP scheduler or SMP-safe allocator on any branch).

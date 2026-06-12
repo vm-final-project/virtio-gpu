@@ -32,7 +32,14 @@ All claims below were verified against the **exact pinned source** (`config/deps
           return NULL;
   ```
   in `schedcoop_idle_thread()`. `ukschedcoop` is the only scheduler shipped in `lib/` at this tag.
-- **Consequence:** booting `-smp 4` brings the secondary vCPUs *online* (AP start, per-CPU vars, IPIs all function), but threads created through `libpthread_embedded → uksched` are all scheduled on the boot LCPU (LCPU0). The secondary vCPUs idle. Therefore **`llama.cpp --threads 4` does not, by itself, achieve CPU parallelism across vCPUs** on the stock 0.21.0 cooperative scheduler.
+- **Consequence:** booting `-smp 4` brings the secondary vCPUs *online* (AP
+  start, per-CPU vars, and IPIs function), but stock Unikraft 0.21.0 assigns a
+  cloned thread to `uk_sched_current()`. Because llama.cpp creates its workers
+  from the BSP main thread, all workers join the BSP scheduler unless an
+  explicit placement policy selects another per-LCPU scheduler. The current
+  project uses musl pthreads and patches `uk_clone()` to call
+  `uk_schedcoop_smp_pick()`; whether that patch produces real worker execution
+  on the APs requires runtime tracing.
 - The official architecture doc's line *"each CPU core can run a different scheduler"* describes the design intent / pluggability, not an out-of-the-box SMP run-queue in `ukschedcoop`.
 
 ### What this means for the plan
@@ -587,9 +594,19 @@ A3 was implemented (`docs/plan-smp-scheduler.md`) on branch `smp-a3-per-lcpu-sch
 
 **What A3 delivers:** the per-LCPU cooperative scheduler the plan's **P0** required — 4 vCPUs each running their own `ukschedcoop`, with multi-vCPU boot proven and correctness preserved. This is past what upstream Unikraft exercises (no in-tree `uk_lcpu_start` caller; x86 SMP is "on-going work").
 
-**Honest performance outcome (per the plan's stop condition — no win claimed without an artifact that beats baseline):** A3 does **NOT yet beat** the single-vCPU baseline. CPU bench: `pp512` smp1≈31.0 → smp4≈20.6 (**0.66–0.69×**), `tg128` ≈10.7 → ≈7.9 (**0.73×**). Root cause (instrumented: `schedcoop_thread_add` saw **0 placement calls** during the bench): the ggml worker threads are created by the fetched `libpthread_embedded` package via a path that **bypasses** `clone.c`/`uk_sched_thread_add`/`schedcoop_thread_add`, so they are **not distributed** to the AP schedulers — all workers stay on the BSP (4 threads on 1 vCPU) while the 3 APs idle, and the extra SMP machinery adds overhead. Details + remaining steps in `docs/notes-smp-bringup-status.md`.
+**Honest performance outcome (per the plan's stop condition — no win claimed without an artifact that beats baseline):** A3 does **NOT yet beat** the single-vCPU baseline. CPU bench: `pp512` smp1≈31.0 → smp4≈20.6 (**0.66–0.69×**), `tg128` ≈10.7 → ≈7.9 (**0.73×**). The previous explanation that `libpthread_embedded` bypassed `clone.c` is stale: the current image resolves `pthread_create` from `libmusl`, resolves `__clone` from `libmuslglue`, and the wrapper calls `uk_syscall_e_clone`, which reaches the patched `uk_clone()` placement path. The slowdown is real, but the exact cause must be re-established with current-image tracing at `uk_clone`, `schedcoop_thread_add`, and the ggml worker entry. See `docs/notes-smp-bringup-status.md` for the corrected call graph, references, and reproducible symbol checks.
 
-**Remaining for an actual throughput win (tracked, not yet done):** route thread placement onto the embedded-pthread creation path (or apply CPU affinity there) so the N ggml workers land one-per-vCPU; keep them co-scheduled (polling threadpool already added to `apps/app-llama-cpu/bench.cpp`); address cooperative cross-LCPU wakeup overhead. Also: export the kernel change as `patches/unikraft/0002-*.patch` + register in `config/deps.json` (plan-smp-scheduler.md Task 6), and re-enable VK-server path (Phase 2). A correctness lesson banked: **test SMP under KVM, not TCG** (the `unordered_set` crash seen during bring-up was a TCG emulation artifact).
+**Remaining for an actual throughput win (tracked, not yet done):** trace the
+musl clone path and prove the selected scheduler, target LCPU, and worker's
+actual execution LCPU; repair `uk_schedcoop_smp_pick()` or the per-LCPU
+scheduler registry if those differ; keep workers co-scheduled (polling
+threadpool already added to `apps/app-llama-cpu/bench.cpp`); and measure
+cooperative cross-LCPU wakeup/barrier overhead. Do not add an
+embedded-pthread-specific hook: the current build does not use that provider.
+Also: export the kernel change as `patches/unikraft/0002-*.patch` + register in
+`config/deps.json` (plan-smp-scheduler.md Task 6), and re-enable VK-server path
+(Phase 2). A correctness lesson banked: **test SMP under KVM, not TCG** (the
+`unordered_set` crash seen during bring-up was a TCG emulation artifact).
 
 ---
 
