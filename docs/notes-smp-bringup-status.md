@@ -127,3 +127,18 @@ subsystem.
   ```
 
 This is genuinely research-grade work that Unikraft upstream itself has not completed (x86 SMP "on-going work"; no SMP scheduler or SMP-safe allocator on any branch).
+
+## pthread placement trace baseline (2026-06-12)
+
+Evidence: `docs/results-smp/pthread-affinity-before.log`.
+
+- build result: `make llama-cpu-bench-build` exited 0
+- worker clone count: 0
+- selected target LCPUs: not observed; no worker clone reached `uk_clone`
+- enqueue target LCPUs: not observed; no worker enqueue reached `schedcoop_thread_add`
+- actual execution LCPUs: not yet observable
+
+The run observed four `SMPPLACE online` records for LCPUs 0, 1, 2, and 3.
+The repository model fixture is not a valid runnable GGUF model, so model
+loading failed before ggml worker creation. This run therefore proves scheduler
+bring-up tracing only; it does not prove worker placement or execution.
