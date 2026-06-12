@@ -575,17 +575,37 @@ Once chosen, write the selected variant as its own focused plan using the writin
 
 ---
 
+## COMPLETION — A3 implemented & verified (2026-06-12)
+
+A3 was implemented (`docs/plan-smp-scheduler.md`) on branch `smp-a3-per-lcpu-scheduler` and **freshly verified** (per superpowers:verification-before-completion — commands run this session, outputs read):
+
+**Verified evidence:**
+- **Build:** `make llama-cpu-bench-build` → `exit 0`.
+- **Multi-vCPU boot + per-LCPU schedulers online (KVM `-smp 4`):** `docs/results-smp/a3-cpu-smp4-schedulers-online-kvm.log` shows `SMP: scheduler online on LCPU 1`, `LCPU 2`, `LCPU 3`, and `brought up 3 secondary scheduler(s) (4 total LCPUs)`.
+- **Correctness:** fresh `VOGUE_SMP=4 … app-llama-cpu.py --mode bench` (real 806 MB model) → `status=pass`, `inputs.smp=4`, `metrics pp512=20.6 tg128=7.9`. The 4-vCPU A3 build boots and runs the llama CPU bench correctly.
+- Kernel change committed in `.deps/src/unikraft` (`lib/ukschedcoop/smp.c` bring-up + `ap_entry`, per-instance run-queue spinlock, SMP-safe `bbuddy`, `boot.c` hook, `clone.c` placement hook); VOGUE evidence committed under `docs/results-smp/`.
+
+**What A3 delivers:** the per-LCPU cooperative scheduler the plan's **P0** required — 4 vCPUs each running their own `ukschedcoop`, with multi-vCPU boot proven and correctness preserved. This is past what upstream Unikraft exercises (no in-tree `uk_lcpu_start` caller; x86 SMP is "on-going work").
+
+**Honest performance outcome (per the plan's stop condition — no win claimed without an artifact that beats baseline):** A3 does **NOT yet beat** the single-vCPU baseline. CPU bench: `pp512` smp1≈31.0 → smp4≈20.6 (**0.66–0.69×**), `tg128` ≈10.7 → ≈7.9 (**0.73×**). Root cause (instrumented: `schedcoop_thread_add` saw **0 placement calls** during the bench): the ggml worker threads are created by the fetched `libpthread_embedded` package via a path that **bypasses** `clone.c`/`uk_sched_thread_add`/`schedcoop_thread_add`, so they are **not distributed** to the AP schedulers — all workers stay on the BSP (4 threads on 1 vCPU) while the 3 APs idle, and the extra SMP machinery adds overhead. Details + remaining steps in `docs/notes-smp-bringup-status.md`.
+
+**Remaining for an actual throughput win (tracked, not yet done):** route thread placement onto the embedded-pthread creation path (or apply CPU affinity there) so the N ggml workers land one-per-vCPU; keep them co-scheduled (polling threadpool already added to `apps/app-llama-cpu/bench.cpp`); address cooperative cross-LCPU wakeup overhead. Also: export the kernel change as `patches/unikraft/0002-*.patch` + register in `config/deps.json` (plan-smp-scheduler.md Task 6), and re-enable VK-server path (Phase 2). A correctness lesson banked: **test SMP under KVM, not TCG** (the `unordered_set` crash seen during bring-up was a TCG emulation artifact).
+
+---
+
 ## Verification gates
 
 - `make test-fast` — host-native suite + protocol/ABI checks. **Must stay green after every Phase 0 task** (the `smp_args` + runner changes are covered by `scripts/tests/test_scripts.py`).
 - Per-phase runtime artifacts under `docs/results-smp/` back every measurement claim. Each "after" JSON must cite the exact "before" JSON it beats.
 - `make verify` — broad release gate (Venus/Vulkan/llama runtime captures) before declaring the SMP work done.
 
-## Success criteria
+## Success criteria — final status (2026-06-12)
 
-1. **Phase 0 (definitely achievable):** a guest built with `CONFIG_UKPLAT_CPU_MAXCOUNT>1` boots N vCPUs when launched with `VOGUE_SMP=N`, proven by `docs/results-smp/*-boot.log`; `make test-fast` green.
-2. **Phase 1/2 (measurement, not guaranteed a win):** before/after JSON pairs exist for the CPU bench and VK server. A throughput *win* is claimed **only** if the 4-vCPU artifact beats the exact single-vCPU baseline.
-3. **Phase 3 (conditional):** entered only if Phase 1/2 prove the scheduler ceiling; produces the `uk_lcpu_run` spike artifact and a chosen, separately-planned unlock.
+1. **Phase 0 — ✅ MET.** `smp_args()` + `--smp`/`VOGUE_SMP` wired into `common.py` + both runners (host-native tests pass); a guest built with `CONFIG_UKPLAT_CPU_MAXCOUNT=4` boots 4 vCPUs under `VOGUE_SMP=4` (evidence: `docs/results-smp/a3-cpu-smp4-schedulers-online-kvm.log`).
+2. **Phase 1 — ✅ MET (measurement done, scheduler ceiling confirmed).** CPU bench before/after captured (`docs/results-smp/a3_*.json`); the single-LCPU ceiling was confirmed and drove the A3 decision. **Phase 2 (VK server) — ⏸ not done** (effort focused on the CPU path). A throughput *win* is **not** claimed — smp4 does not beat smp1 (see COMPLETION section).
+3. **Phase 3 — ✅ A3 BUILT & VERIFIED.** Per-LCPU cooperative scheduler implemented (`docs/plan-smp-scheduler.md`), 4 schedulers online under KVM, bench passes (correctness). The throughput optimization (distributing ggml threads onto the AP schedulers) remains open — see COMPLETION section.
+
+**Overall:** the plan's SMP objective (multi-vCPU boot + per-LCPU scheduling, A3) is implemented and verified; the *performance* win is documented as not-yet-achieved with a root cause and remaining steps, per the plan's evidence-first stop condition.
 
 ## Risks & honest caveats
 
