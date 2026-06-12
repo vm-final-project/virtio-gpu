@@ -143,5 +143,24 @@ class SmpTopologyTests(unittest.TestCase):
             smp_topology.worker_masks(5, 4)
 
 
+class UnikraftAffinitySourceTests(unittest.TestCase):
+    def test_sched_affinity_syscalls_are_not_stubbed(self) -> None:
+        sched_c = (
+            Path(__file__).resolve().parents[2]
+            / ".deps/src/unikraft/lib/uksched/sched.c"
+        ).read_text()
+        self.assertIn("UK_SYSCALL_R_DEFINE(int, sched_getaffinity", sched_c)
+        self.assertIn("UK_SYSCALL_R_DEFINE(int, sched_setaffinity", sched_c)
+        self.assertNotIn("UK_WARN_STUBBED();", sched_c)
+
+    def test_posix_process_exports_tid_lookup_without_posix_thread_type(self) -> None:
+        process_h = (
+            Path(__file__).resolve().parents[2]
+            / ".deps/src/unikraft/lib/posix-process/include/uk/process.h"
+        ).read_text()
+        self.assertIn("struct uk_thread *uk_posix_thread_from_tid(int tid);", process_h)
+        self.assertNotIn("struct posix_thread", process_h)
+
+
 if __name__ == "__main__":
     unittest.main()

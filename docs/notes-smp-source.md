@@ -235,9 +235,58 @@ run(["git", "-C", str(path), "apply", str(patch_abs)])                          
 - Method: **`git apply`** (NOT `patch -p1`, NOT `git am`).
 - Flags on the real apply call: **none** (default strip level `-p1`, no
   `--3way`, no `--index`). Idempotency is achieved by a pre-check
-  `git apply --reverse --check`, so a patch that already applies in reverse is
-  skipped.
+`git apply --reverse --check`, so a patch that already applies in reverse is
+skipped.
 - It is driven from `config/deps.json` → `unikraft.patches` array
+
+---
+
+## Q6 — musl pthread affinity ABI (2026-06-12)
+
+The built musl tree confirms that pthread affinity wrappers pass the pthread's
+kernel TID through the affinity syscalls, so Unikraft must resolve **positive
+TIDs**, not only `pid == 0`.
+
+Observed in `.unikraft/build/libmusl/origin/musl-1.2.3/src/sched/affinity.c`:
+
+```c
+int pthread_setaffinity_np(pthread_t td, size_t size, const cpu_set_t *set)
+{
+	return -__syscall(SYS_sched_setaffinity, td->tid, size, set);
+}
+
+int pthread_getaffinity_np(pthread_t td, size_t size, cpu_set_t *set)
+{
+	return -do_getaffinity(td->tid, size, set);
+}
+```
+
+And the linked musl object exports the wrappers while leaving the syscall
+resolvers to Unikraft:
+
+```text
+$ nm -An .unikraft/build/libmusl.ld.o | rg 'affinity'
+libmusl.ld.o: T pthread_getaffinity_np
+libmusl.ld.o: T pthread_setaffinity_np
+libmusl.ld.o: T sched_getaffinity
+libmusl.ld.o: T sched_setaffinity
+libmusl.ld.o: U uk_syscall_r_sched_getaffinity
+libmusl.ld.o: U uk_syscall_r_sched_setaffinity
+```
+
+Therefore the correct Unikraft-side contract is:
+
+1. `sched_{get,set}affinity(pid=0, ...)` operates on `uk_thread_current()`.
+2. `sched_{get,set}affinity(pid>0, ...)` resolves the live pthread by TID.
+3. Missing TIDs must fail rather than silently succeed.
+
+References:
+- musl source tree:
+  https://git.musl-libc.org/cgit/musl/tree/src/sched/affinity.c
+- pthread affinity man page:
+  https://man7.org/linux/man-pages/man3/pthread_setaffinity_np.3.html
+- sched affinity man page:
+  https://man7.org/linux/man-pages/man2/sched_setaffinity.2.html
   (`config/deps.json:20-24`), applied after checkout in
   `apply_patches(path, entry["patches"])` (`scripts/deps.py:123-124`).
 - Existing patches are plain `git diff` format with `a/`…`b/` prefixes
