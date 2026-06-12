@@ -1,8 +1,22 @@
 # A3 — Per-LCPU Cooperative Scheduler for Unikraft (SMP) Implementation Plan
 
+> **Superseded for pthread placement (2026-06-12):** Tasks and conclusions in
+> this document that rely on `CONFIG_LIBPTHREAD_EMBEDDED`, global clone
+> round-robin, or the claim that scheduler-online logs prove ggml worker
+> pinning are stale. The current build uses musl pthreads, whose clone path
+> reaches `uk_clone()`, while Unikraft's affinity syscalls are still stubs.
+> The approved replacement design is
+> `docs/superpowers/specs/2026-06-12-pthread-affinity-smp-design.md`; the
+> detailed implementation and testing plan is
+> `docs/superpowers/plans/2026-06-12-pthread-affinity-smp.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: this plan is executed with superpowers:subagent-driven-development — a fresh implementer subagent per task, followed by spec-compliance then code-quality review, in this same session. Subagents follow superpowers:test-driven-development. Steps use checkbox (`- [ ]`) syntax.
 
-**Goal:** Make Unikraft `RELEASE-0.21.0` run a cooperative scheduler instance on each online vCPU so that the llama.cpp appliances' threads (ggml workers, HTTP, lwIP) execute on multiple vCPUs — with one ggml worker pinned per vCPU — and beat the single-vCPU baseline, with no changes to llama.cpp.
+**Historical goal:** Make Unikraft `RELEASE-0.21.0` run a cooperative scheduler
+instance on each online vCPU. Per-LCPU scheduler bring-up was achieved. The
+remaining pthread-placement and performance work is governed by the replacement
+plan linked above; this document no longer defines the active placement
+implementation.
 
 **Architecture:** This is variant **A3** from `docs/plan-smp-vcpu.md` Phase 3. The SMP bring-up plumbing already exists in 0.21.0 (`uklcpu`, `ukpcpuvar`, IPIs, APIC/ACPI); only the *scheduler* is single-LCPU. A3 keeps the existing `ukschedcoop` (each instance is already self-contained: its own run queue + idle thread) and instantiates **one instance per online LCPU**, starts a scheduling loop on each secondary vCPU via the lcpu secondary-entry mechanism, makes the "current scheduler" a per-CPU variable, and adds a thread-placement policy. It is delivered as a **patch under `patches/unikraft/`** (VOGUE patches Unikraft rather than forking — see `config/deps.json` + `scripts/deps.py`), plus VOGUE-side Kconfig/Kraftfile wiring.
 
@@ -95,7 +109,11 @@ Read the listed files and record answers in `docs/notes-smp-source.md`:
 1. **AP start call.** Is there a public `uk_lcpu_start(...)` (it is in `lib/uklcpu/exportsyms.uk`)? Find its signature and how an entry function + stack + arg are passed (grep `uk_lcpu_start`, `UK_LCPU_SENTRY_SYM`, `sstackp`, `sarg` in `lib/uklcpu/lcpu.c` and `lib/uklcpu/include/uk/lcpu.h`). Record the exact signature.
 2. **MP discovery.** Where/when is `uk_lcpu_mp_init()` called today (grep the tree)? If nowhere, A3's driver must call it on the BSP before starting APs. Record the call site or its absence.
 3. **Per-CPU current scheduler.** How does code get "the scheduler for this CPU" today? Find `uk_sched_current()` (grep `lib/uksched/`), and whether it reads a global or a per-CPU var. Record the symbol A3 must make per-CPU.
-4. **pthread → scheduler binding.** Which lib backs `CONFIG_LIBPTHREAD_EMBEDDED`? Find where a new pthread chooses its scheduler (grep `uk_sched_current\|uk_sched_thread_add\|uk_sched_thread_create` under the pthread lib). Record whether new threads join "current" scheduler (→ they'll land on the creating LCPU's scheduler) or a fixed default.
+4. **pthread → scheduler binding (corrected):** confirm that the active provider
+   is musl, verify `pthread_create -> __clone -> uk_clone`, and inspect
+   `sched_getaffinity`/`sched_setaffinity`. Current evidence shows the clone
+   path is reachable and both affinity syscalls are stubbed in
+   `lib/uksched/sched.c`.
 5. **Patch application.** Confirm `scripts/deps.py` applies every entry in `config/deps.json` `unikraft.patches` after checkout, and the patch format it expects (`git apply` vs `patch -p1`). Record it.
 6. **`struct uk_lcpu` fields.** Confirm the index field name used by `uk_lcpu_get_current()` (the smoke spike in `plan-smp-vcpu.md` assumed `->idx`). Record the real field.
 
@@ -339,7 +357,13 @@ git -C .deps/src/unikraft add -A   # staged in the source tree for export
 git commit --allow-empty -m "feat(smp-a3): per-LCPU coop bring-up driver + boot hook (kernel)"
 ```
 
-## Task 5: Kernel — pin threads via the placement policy
+## Task 5: Historical Clone-Order Placement Spike
+
+> **Superseded:** This task implemented a bring-up spike, not durable pthread
+> affinity. Global round-robin is sensitive to unrelated HTTP/lwIP thread
+> creation and does not represent Linux's per-thread affinity contract. Replace
+> it with the affinity and migration tasks in
+> `docs/superpowers/plans/2026-06-12-pthread-affinity-smp.md`.
 
 **Files (in `.deps/src/unikraft`):**
 - Modify: thread-creation path so a new thread is added to the scheduler of its target LCPU (per `smp_topology.place`), and pinned there.
@@ -500,12 +524,17 @@ Once A3 (this plan) is in place, the low-latency profile is:
 | `CONFIG_APP_LLAMA_CPU_THREADS` | = N | ggml splits the matmul into N equal shares | one share per pinned core |
 | `--parallel 1` | 1 slot | entire VM (CPU + memory bandwidth) serves this one request; no slot contention | already a build knob in the appliances |
 | `-march`/`-mtune` | concrete target (or `native` when build CPU == run CPU) | enables AVX2/AVX512/NEON matmul kernels — single-core speedup of several× | already `LLAMA_MARCH ?= native`, overridable (`plan-optimize.md` P2) |
-| `-C` / `--cpu-mask` | **do NOT use** | llama.cpp's `-C` calls `pthread_setaffinity_np` (`ggml-cpu.c:2143-2183`); stock Unikraft has no per-core run queue to honour it (no affinity support in core), so it is a no-op/warning. **A3 already pins in-kernel, making `-C` redundant.** | — |
+| `-C` / `--cpu-mask` | **Use after affinity implementation** | ggml already computes per-worker masks and calls `pthread_setaffinity_np`. The replacement plan implements the missing Unikraft affinity/migration behavior and enables strict one-worker-per-vCPU masks. | Validate with the pthread probe and worker resume trace. |
 | `--mlock` | optional / mostly redundant | a unikernel has no swap/page-out by default, so weights are already resident; `mlock()` is likely a no-op here. Harmless. Note the VK path uses `--no-mmap` (9pfs), different semantics. | — |
 
 **Scope caveat — this profile is for the CPU appliance.** The VK appliance offloads all layers to the GPU (`-ngl 99`), so its decode is **GPU-bound**: CPU thread count, in-kernel pinning, and `-march` barely move its latency. For lowest VK single-request latency, focus on the Venus/dispatch path and `--parallel 1`; `-smp 1 -t 1` is already near-optimal there. There is **no userspace shortcut** to use more than one core for CPU-path single-request latency — A3 is the only path, because `-C` cannot work without the kernel-side per-LCPU scheduler this plan builds.
 
 ## Success criteria
+
+> **Historical criteria:** Items below describe the original A3 bring-up plan.
+> Scheduler-online evidence proves AP scheduler availability, not pthread
+> placement. Active completion criteria are in
+> `docs/superpowers/plans/2026-06-12-pthread-affinity-smp.md`.
 
 1. A fresh, patched Unikraft checkout builds the appliances (`make llama-cpu-bench` from clean `.deps`).
 2. Boot log shows one cooperative scheduler online per vCPU (`docs/results-smp/a3-cpu-bench-smp4-boot.log`).
@@ -516,7 +545,10 @@ Once A3 (this plan) is in place, the low-latency profile is:
 
 - **This is real kernel work.** AP bring-up, per-CPU scheduler bootstrap, and cross-LCPU thread placement are subtle (stacks, TLS, IRQ state, wakeups). Budget for debugging with superpowers:systematic-debugging; a hang is a bug to fix, never evidence to wave away.
 - **Task 1 may change the code.** The skeletons in Tasks 3–5 use verified APIs but two spots (exact `uk_lcpu_start` signature; how the AP recovers its scheduler pointer) are confirmed in Task 1 — adjust the code to the real signatures; do not force the skeleton if the source differs.
-- **pthread binding.** If `CONFIG_LIBPTHREAD_EMBEDDED` creates all threads against a fixed default scheduler rather than "current", Task 5 must hook that path (recorded in Task 1 Q4) — otherwise threads won't spread even with per-LCPU schedulers running.
+- **pthread binding (corrected).** The active provider is musl, and its
+  `__clone` wrapper reaches the patched `uk_clone()`. The unresolved mechanism
+  is real per-thread affinity and migration; do not add a
+  `libpthread_embedded`-specific hook.
 - **Cooperative within an LCPU still doesn't preempt.** A3 spreads threads across vCPUs but each LCPU is still cooperative. With one ggml worker pinned per vCPU this is fine; if a workload puts >1 CPU-bound non-yielding thread on one LCPU, that LCPU serialises (escalate to A1/A2 only if a real workload needs it).
 - **VK upside is bounded.** `-ngl 99` keeps decode on the GPU; don't overclaim a decode-rate win on the VK path.
 - **Upstream alignment.** Track any upstream SMP-scheduler work before investing further; keep the change isolated in one patch for easy rebase.
@@ -539,6 +571,11 @@ Same sources as `docs/plan-smp-vcpu.md` (see its **References** section), with t
 - Unikraft v0.21.0 notes: https://unikraft.org/blog/2026-04-20-unikraft-releases-v0.21.0
 
 ## Self-review (performed against this plan)
+
+> **Historical self-review:** The original review predates confirmation that
+> musl is the pthread provider and that Unikraft affinity syscalls return
+> success without enforcing placement. It is retained as implementation
+> history, not as validation of the current pthread design.
 
 - **Coverage:** A3 decision → kernel per-LCPU scheduler (Tasks 3–5) + delivery patch (Task 6) + appliance enable (Task 7) + measurement (Task 8) + gates (Task 9); "no llama.cpp change" enforced (Task 9 Step 2). ✓
 - **Placeholders:** code skeletons use verified APIs; the two source-dependent spots are gated behind Task 1's concrete source-confirmation note (with a fixed 6-question checklist + go/no-go), not hand-waved. ✓

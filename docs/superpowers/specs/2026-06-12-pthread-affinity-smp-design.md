@@ -185,6 +185,12 @@ ggml already maps the global mask into per-worker masks and invokes its
 affinity helper from each worker. No source change is made under
 `.deps/src/llama.cpp`.
 
+In pinned llama.cpp `b9581`, secondary workers are created and assigned masks
+before the main worker receives its mask. For four workers and mask `0xf`, the
+deterministic assignment is secondary workers `ith=1,2,3` to LCPUs `0,1,2`
+and main worker `ith=0` to LCPU3. The required invariant is one distinct
+allowed LCPU per active worker, not `ith == lcpu`.
+
 Server and bench entry points must use the same threadpool policy. If the
 server path constructs threadpool parameters through upstream common code,
 the VOGUE entry point supplies equivalent command-line CPU-mask settings rather
