@@ -128,6 +128,10 @@ class SmpTopologyTests(unittest.TestCase):
             1,
         )
 
+    def test_reject_empty_mask_when_choosing_target(self) -> None:
+        with self.assertRaises(ValueError):
+            smp_topology.choose_target(0, current=0)
+
     def test_worker_masks_are_one_hot(self) -> None:
         self.assertEqual(
             smp_topology.worker_masks(4, 4),

@@ -10,6 +10,8 @@ def effective_mask(requested: int, online: int) -> int:
 
 
 def choose_target(effective: int, current: int) -> int:
+    if effective == 0:
+        raise ValueError("affinity has no online CPU")
     if effective & (1 << current):
         return current
     return (effective & -effective).bit_length() - 1
