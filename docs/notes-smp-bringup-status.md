@@ -51,3 +51,24 @@ Keep APs parked in the default IPI handler and dispatch ggml compute via `uk_lcp
 - `-smp 1`: boots to the app (reaches 9pfs mount) — baseline OK.
 - `-smp 4` pre-fix: triple-faulted in `ap_entry` (high-vaddr stack).
 - `-smp 4` post-fix: 0 triple faults, BSP banner prints, APs start; crashes later in BSP C++ app init (shared-state corruption).
+
+---
+
+## FINAL STATUS (2026-06-12) — A3 functional; perf win not yet achieved
+
+**The "crash" saga was a TCG emulation artifact.** The `unordered_set` crash only happened under `qemu accel=tcg`; under **KVM** everything boots. Always test SMP under KVM.
+
+**Achieved (KVM `-smp 4`, CPU appliance):**
+- 4 per-LCPU cooperative `ukschedcoop` instances come online ("SMP: scheduler online on LCPU 1/2/3", "brought up 3 secondary scheduler(s)"); app boots and the bench PASSES — correctness preserved. Evidence: `docs/results-smp/a3-cpu-smp4-schedulers-online-kvm.log`.
+- Real x86 AP bring-up working (beyond what upstream exercises): low `.bss` bootstrap stack; AP adopts runtime CR3 after matching `EFER.NXE`; `uk_lcpu_init()` in the custom AP entry; SMP-safe bbuddy allocator; per-instance schedcoop run-queue spinlock.
+
+**Measured (real 806 MB model):** smp4 is **slower**, not faster: pp512 31.0→21.3 (0.69x), tg128 10.7→7.8 (0.73x). Host has 56 cores (not oversubscribed).
+
+**Why no speedup (root-caused):** the ggml worker threads are **not actually distributed** to the AP schedulers. Instrumenting `schedcoop_thread_add` showed **0 placement calls** during the bench — `libpthread_embedded` (a fetched KraftKit package) creates threads via a path that bypasses `clone.c`/`uk_sched_thread_add`/`schedcoop_thread_add`, so all workers stay on the BSP (4 threads on 1 vCPU) while the 3 APs idle, and the extra SMP machinery just adds overhead.
+
+**Path to an actual speedup (remaining work):**
+1. Intercept thread placement on the embedded-pthread creation path (need that package's source / the right `uk_sched_thread_create` hook), or apply CPU affinity there, so the N ggml workers land one-per-vCPU.
+2. Keep workers co-scheduled (polling threadpool — already added to `bench.cpp`).
+3. Address cooperative cross-LCPU co-scheduling/wakeup overhead (tight ggml barriers) — may need a gang/affinity-aware policy.
+
+This is genuinely research-grade work that Unikraft upstream itself has not completed (x86 SMP "on-going work"; no SMP scheduler or SMP-safe allocator on any branch).
