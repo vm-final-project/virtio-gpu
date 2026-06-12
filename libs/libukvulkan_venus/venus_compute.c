@@ -574,3 +574,106 @@ void uk_venus_encode_vkQueueWaitIdle(struct uk_venus_encoder *enc,
 	ENC(enc);
 	vn_encode_vkQueueWaitIdle(&_vn, 0, H(VkQueue, queue));
 }
+
+/* ── Query pools (GGML_VK_PERF_LOGGER timestamp path) ───────────────────── */
+
+void uk_venus_encode_vkCreateQueryPool(struct uk_venus_encoder *enc,
+				       uint64_t device, uint64_t pool_handle,
+				       uint32_t query_type, uint32_t query_count)
+{
+	ENC(enc);
+	VkQueryPoolCreateInfo ci = {
+		.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+		.queryType = (VkQueryType)query_type,
+		.queryCount = query_count,
+	};
+	VkQueryPool out = H(VkQueryPool, pool_handle);
+	vn_encode_vkCreateQueryPool(&_vn, 0, H(VkDevice, device), &ci, NULL,
+				    &out);
+}
+
+void uk_venus_encode_vkDestroyQueryPool(struct uk_venus_encoder *enc,
+					uint64_t device, uint64_t pool)
+{
+	ENC(enc);
+	vn_encode_vkDestroyQueryPool(&_vn, 0, H(VkDevice, device),
+				     H(VkQueryPool, pool), NULL);
+}
+
+void uk_venus_encode_vkResetQueryPool(struct uk_venus_encoder *enc,
+				      uint64_t device, uint64_t pool,
+				      uint32_t first, uint32_t count)
+{
+	ENC(enc);
+	vn_encode_vkResetQueryPool(&_vn, 0, H(VkDevice, device),
+				   H(VkQueryPool, pool), first, count);
+}
+
+void uk_venus_encode_vkCmdResetQueryPool(struct uk_venus_encoder *enc,
+					 uint64_t cmd_buf, uint64_t pool,
+					 uint32_t first, uint32_t count)
+{
+	ENC(enc);
+	vn_encode_vkCmdResetQueryPool(&_vn, 0, H(VkCommandBuffer, cmd_buf),
+				      H(VkQueryPool, pool), first, count);
+}
+
+void uk_venus_encode_vkCmdWriteTimestamp(struct uk_venus_encoder *enc,
+					 uint64_t cmd_buf, uint32_t stage,
+					 uint64_t pool, uint32_t query)
+{
+	ENC(enc);
+	vn_encode_vkCmdWriteTimestamp(&_vn, 0, H(VkCommandBuffer, cmd_buf),
+				      (VkPipelineStageFlagBits)stage,
+				      H(VkQueryPool, pool), query);
+}
+
+void uk_venus_encode_vkGetQueryPoolResults(struct uk_venus_encoder *enc,
+					   uint64_t device, uint64_t pool,
+					   uint32_t first, uint32_t count,
+					   uint64_t data_size, uint64_t stride,
+					   uint32_t flags)
+{
+	ENC(enc);
+	/* pData is an output: the encoder only emits its array_size (the host
+	 * writes the data into the reply stream), so any non-NULL marker works. */
+	vn_encode_vkGetQueryPoolResults(&_vn, 0, H(VkDevice, device),
+					H(VkQueryPool, pool), first, count,
+					(size_t)data_size, (void *)1, stride,
+					flags);
+}
+
+/* ── Reply decode helpers (generated decoders over the vn_cs shim) ──────── */
+
+/*
+ * uk_venus_props_reply_timestamp_period — extract limits.timestampPeriod (and
+ * timestampComputeAndGraphics) from a raw vkGetPhysicalDeviceProperties reply
+ * as captured by uk_venus_query_device_properties(). Uses the generated
+ * vn_decode path, so no hand-computed wire offsets. Returns 0 on success.
+ */
+int uk_venus_props_reply_timestamp_period(const void *reply, unsigned int len,
+					  float *period_out,
+					  uint32_t *compute_ts_out)
+{
+	struct vn_cs_decoder dec = {
+		.cur = (const uint8_t *)reply,
+		.end = (const uint8_t *)reply + len,
+	};
+	VkPhysicalDeviceProperties props;
+	uint32_t cmd_type;
+
+	if (!reply || len < 12 || !period_out)
+		return -1;
+	memcpy(&cmd_type, reply, 4);
+	if (cmd_type != VK_COMMAND_TYPE_vkGetPhysicalDeviceProperties_EXT)
+		return -1;
+	memset(&props, 0, sizeof(props));
+	vn_decode_vkGetPhysicalDeviceProperties_reply(&dec, (VkPhysicalDevice)0,
+						      &props);
+	if (dec.fatal)
+		return -1;
+	*period_out = props.limits.timestampPeriod;
+	if (compute_ts_out)
+		*compute_ts_out = (uint32_t)props.limits.timestampComputeAndGraphics;
+	return 0;
+}

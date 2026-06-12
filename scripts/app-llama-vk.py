@@ -44,7 +44,8 @@ def free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def qemu_command(qemu: str, model: Path, mode: str, timeout: int, port: int, arch: str) -> list[str]:
+def qemu_command(qemu: str, model: Path, mode: str, timeout: int, port: int, arch: str,
+                 perf_logger: bool = False) -> list[str]:
     del model, timeout
     accel = acceleration(arch)
     # Hosts without a GPU render node (renderD*) can point egl-headless at a
@@ -54,12 +55,16 @@ def qemu_command(qemu: str, model: Path, mode: str, timeout: int, port: int, arc
     rendernode = os.environ.get("VOGUE_EGL_RENDERNODE")
     if rendernode:
         egl_display += f",rendernode={rendernode}"
+    append = f"console={default_console(arch)}"
+    if perf_logger:
+        # App arg parsed by apps/app-llama-vk/bench.cpp -> GGML_VK_PERF_LOGGER=1
+        append += " -- ggml-vk-perf-logger"
     command = [
         qemu, *machine_and_cpu_args(arch, accel), "-m", "3072",
         "-no-reboot", "-kernel", str(image(mode, arch)),
         "-display", egl_display, "-vga", "none",
         "-device", "virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true",
-        "-append", f"console={default_console(arch)}", "-serial", "mon:stdio", "-monitor", "none",
+        "-append", append, "-serial", "mon:stdio", "-monitor", "none",
     ]
     if mode == "server":
         command += [
@@ -67,6 +72,35 @@ def qemu_command(qemu: str, model: Path, mode: str, timeout: int, port: int, arc
             "-device", "virtio-net-pci,netdev=net0",
         ]
     return command
+
+
+def write_perf_logger_result(log: str, command: list[str], bench: dict) -> None:
+    """Parse GGML_VK_PERF_LOGGER 'Vulkan Timings:' console blocks into
+    results/profile/ggml_vk_perf.json (docs/plan-profile.md Phase 2)."""
+    ops: dict[str, dict] = {}
+    total_us = None
+    # Per-op lines: "<NAME ...>: <count> x <avg> us = <total> us[ (<g> GFLOPS/s)]"
+    op_re = re.compile(
+        r"^(.*?): (\d+) x ([0-9.]+) us = ([0-9.]+) us(?: \(([0-9.e+-]+) GFLOPS/s\))?")
+    for line in log.splitlines():
+        if line.startswith("Total time:"):
+            found = re.search(r"Total time: ([0-9.]+) us", line)
+            total_us = float(found.group(1)) if found else total_us
+            continue
+        match = op_re.match(line.strip())
+        if match:
+            entry = ops.setdefault(match.group(1), {"count": 0, "total_us": 0.0})
+            entry["count"] += int(match.group(2))
+            entry["total_us"] = round(entry["total_us"] + float(match.group(4)), 1)
+            if match.group(5):
+                entry["gflops_s"] = float(match.group(5))
+    metrics = {**bench, "ops": ops, "op_kinds": len(ops),
+               "last_block_total_us": total_us}
+    status = "pass" if ops else "blocked:no-perf-logger-output"
+    output = ROOT / "results/profile/ggml_vk_perf.json"
+    write_json(output, result(status, command, metrics=metrics,
+                              error=None if ops else log[-2000:]))
+    print(f"llama-vk-bench[perf-logger]: {status} -> {output.relative_to(ROOT)}")
 
 
 def http_metrics(port: int, deadline: float) -> dict:
@@ -109,6 +143,9 @@ def main() -> int:
     parser.add_argument("--model", type=Path, required=True)
     parser.add_argument("--qemu")
     parser.add_argument("--timeout", type=int, default=300)
+    parser.add_argument("--perf-logger", action="store_true",
+                        help="bench only: enable GGML_VK_PERF_LOGGER in-guest and "
+                             "capture per-op GPU timings to results/profile/")
     args = parser.parse_args()
     arch = normalize_arch(args.arch)
     qemu_name = args.qemu or default_qemu_binary(arch)
@@ -117,7 +154,9 @@ def main() -> int:
     model = resolve_model(args.model)
     qemu = resolve_qemu(qemu_name)
     port = 0
-    base = qemu_command(qemu or qemu_name, args.model, args.mode, args.timeout, port, arch)
+    perf_logger = bool(args.perf_logger and args.mode == "bench")
+    base = qemu_command(qemu or qemu_name, args.model, args.mode, args.timeout, port, arch,
+                        perf_logger)
     inputs = {"mode": args.mode, "arch": arch, "model": str(args.model), "image": str(image(args.mode, arch))}
     blocker = (
         ("blocked:qemu-missing", "QEMU executable not found") if not qemu else
@@ -171,6 +210,8 @@ def main() -> int:
                 {"pp512": float(match.group(1)), "tg128": float(match.group(2))}
                 if match else {}
             )
+            if perf_logger:
+                write_perf_logger_result(log, command, metrics)
 
     status = "pass" if passed else "blocked:no-pass-marker"
     write_json(output, result(status, command, inputs=inputs, metrics=metrics,

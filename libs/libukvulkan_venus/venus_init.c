@@ -864,6 +864,117 @@ int uk_venus_query_device_name(struct uk_virtio_gpu_dev *dev,
 }
 
 /*
+ * uk_venus_query_device_properties — same round-trip as
+ * uk_venus_query_device_name but returns the RAW reply bytes so the caller can
+ * decode any field (e.g. limits.timestampPeriod via
+ * uk_venus_props_reply_timestamp_period). Returns reply byte count or <0.
+ */
+int uk_venus_query_device_properties(struct uk_virtio_gpu_dev *dev,
+				     struct uk_virtio_gpu_context *ctx,
+				     uint64_t physdev_handle,
+				     void *reply_out, unsigned int reply_cap)
+{
+	struct uk_venus_encoder q;
+	uint8_t qbuf[64];
+
+	if (!reply_out || reply_cap < 16)
+		return -EINVAL;
+	if (uk_venus_encoder_init(&q, qbuf, sizeof(qbuf)))
+		return -EINVAL;
+	uk_venus_encode_vkGetPhysicalDeviceProperties(&q, physdev_handle);
+	if (q.overflow)
+		return -ENOSPC;
+	return uk_venus_query_roundtrip(dev, ctx, q.buf, q.pos, reply_out,
+					reply_cap);
+}
+
+/*
+ * uk_venus_query_pool_results — REAL Venus round-trip for vkGetQueryPoolResults
+ * (the GGML_VK_PERF_LOGGER timestamp read-back). Reply wire layout:
+ *   [u32 cmd=49][i32 VkResult][u64 array_size][blob pData]
+ * The persistent reply blob is 4 KB, but a llama graph has >1500 nodes
+ * (>12 KB of u64 timestamps), so the call is CHUNKED into multiple
+ * round-trips of at most UK_VENUS_QPR_CHUNK bytes each.
+ * Returns 0 with *vk_result_out set on a completed exchange, <0 on transport
+ * failure. Not reentrant (shares the single reply blob), same as the other
+ * uk_venus_query_* helpers.
+ */
+#define UK_VENUS_QPR_HDR   16u
+#define UK_VENUS_QPR_CHUNK (UK_VENUS_REPLY_BLOB_SIZE - 64u)
+
+int uk_venus_query_pool_results(struct uk_virtio_gpu_dev *dev,
+				struct uk_virtio_gpu_context *ctx,
+				uint64_t device_handle, uint64_t pool_handle,
+				uint32_t first_query, uint32_t query_count,
+				uint64_t data_size, void *data_out,
+				uint64_t stride, uint32_t flags,
+				int32_t *vk_result_out)
+{
+	static uint8_t r[UK_VENUS_REPLY_BLOB_SIZE];
+	uint32_t done = 0;
+	int32_t worst = 0; /* VK_SUCCESS */
+
+	if (!data_out || !stride || !query_count)
+		return -EINVAL;
+
+	while (done < query_count) {
+		struct uk_venus_encoder q;
+		uint8_t qbuf[96];
+		uint32_t chunk = (uint32_t)(UK_VENUS_QPR_CHUNK / stride);
+		uint64_t out_off, chunk_bytes;
+		uint32_t cmd_type;
+		uint64_t array_size;
+		int32_t res;
+		int n;
+
+		if (chunk == 0)
+			return -EINVAL;
+		if (chunk > query_count - done)
+			chunk = query_count - done;
+		out_off = (uint64_t)done * stride;
+		if (out_off >= data_size)
+			break;
+		chunk_bytes = (uint64_t)chunk * stride;
+		if (chunk_bytes > data_size - out_off)
+			chunk_bytes = data_size - out_off;
+
+		if (uk_venus_encoder_init(&q, qbuf, sizeof(qbuf)))
+			return -EINVAL;
+		uk_venus_encode_vkGetQueryPoolResults(&q, device_handle,
+						      pool_handle,
+						      first_query + done, chunk,
+						      chunk_bytes, stride,
+						      flags);
+		if (q.overflow)
+			return -ENOSPC;
+		/* Patch the command flags word to request a reply. */
+		if (q.pos >= 8)
+			*(uint32_t *)(q.buf + 4) = 0x1u; /* GENERATE_REPLY */
+		n = uk_venus_query_roundtrip(dev, ctx, q.buf, q.pos, r,
+					     sizeof(r));
+		if (n < (int)UK_VENUS_QPR_HDR)
+			return -1;
+		memcpy(&cmd_type, r, 4);
+		if (cmd_type != (uint32_t)VN_CMD_vkGetQueryPoolResults)
+			return -1;
+		memcpy(&res, r + 4, 4);
+		memcpy(&array_size, r + 8, 8);
+		if (array_size > chunk_bytes)
+			array_size = chunk_bytes;
+		if (array_size > (uint64_t)n - UK_VENUS_QPR_HDR)
+			array_size = (uint64_t)n - UK_VENUS_QPR_HDR;
+		memcpy((uint8_t *)data_out + out_off, r + UK_VENUS_QPR_HDR,
+		       (size_t)array_size);
+		if (res != 0)
+			worst = res; /* VK_NOT_READY or error dominates */
+		done += chunk;
+	}
+	if (vk_result_out)
+		*vk_result_out = worst;
+	return 0;
+}
+
+/*
  * uk_venus_query_memory_properties — real Venus round-trip filling a
  * VkPhysicalDeviceMemoryProperties (520-byte LP64 struct) with the host's real
  * memory types/heaps. Reply wire layout (host

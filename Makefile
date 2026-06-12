@@ -59,6 +59,7 @@ include mk/tests.mk
 include mk/llama.mk
 include mk/kmscube.mk
 include mk/check.mk
+include mk/profile.mk
 
 .PHONY: help verify deps deps-status deps-refresh clean
 

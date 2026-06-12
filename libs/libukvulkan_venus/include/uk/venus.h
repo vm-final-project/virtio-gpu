@@ -48,6 +48,11 @@
 #define VN_CMD_vkUnmapMemory                     24u
 #define VN_CMD_vkBindBufferMemory                28u
 #define VN_CMD_vkGetBufferMemoryRequirements     30u
+/* Query pools */
+#define VN_CMD_vkCreateQueryPool                 47u
+#define VN_CMD_vkDestroyQueryPool                48u
+#define VN_CMD_vkGetQueryPoolResults             49u
+#define VN_CMD_vkResetQueryPool                  171u
 /* Synchronization */
 #define VN_CMD_vkCreateFence                     35u
 #define VN_CMD_vkDestroyFence                    36u
@@ -282,6 +287,31 @@ int uk_venus_query_memory_properties(struct uk_virtio_gpu_dev *dev,
 				     struct uk_virtio_gpu_context *ctx,
 				     uint64_t physdev_handle,
 				     void *props_out);
+
+/* Same round-trip as uk_venus_query_device_name but returns the RAW
+ * vkGetPhysicalDeviceProperties reply bytes (decode any field from it).
+ * Returns reply byte count or <0. */
+int uk_venus_query_device_properties(struct uk_virtio_gpu_dev *dev,
+				     struct uk_virtio_gpu_context *ctx,
+				     uint64_t physdev_handle,
+				     void *reply_out, unsigned int reply_cap);
+
+/* Decode limits.timestampPeriod (+ timestampComputeAndGraphics) from a raw
+ * properties reply via the generated vn_decode path. Returns 0 on success. */
+int uk_venus_props_reply_timestamp_period(const void *reply, unsigned int len,
+					  float *period_out,
+					  uint32_t *compute_ts_out);
+
+/* REAL Venus round-trip for vkGetQueryPoolResults (chunked through the 4 KB
+ * reply blob; GGML_VK_PERF_LOGGER timestamp read-back). Returns 0 with
+ * *vk_result_out set on a completed exchange, <0 on transport failure. */
+int uk_venus_query_pool_results(struct uk_virtio_gpu_dev *dev,
+				struct uk_virtio_gpu_context *ctx,
+				uint64_t device_handle, uint64_t pool_handle,
+				uint32_t first_query, uint32_t query_count,
+				uint64_t data_size, void *data_out,
+				uint64_t stride, uint32_t flags,
+				int32_t *vk_result_out);
 
 /* Create the device via Venus and read the host VkResult back (reply
  * round-trip), so the caller can detect a failing device creation. */
@@ -582,6 +612,27 @@ void uk_venus_encode_vkCmdFillBuffer(struct uk_venus_encoder *enc,
 void uk_venus_encode_vkCmdPipelineBarrier(struct uk_venus_encoder *enc,
 					  uint64_t cmd_buf,
 					  uint32_t src_stage, uint32_t dst_stage);
+
+/* Query pools (GGML_VK_PERF_LOGGER timestamp path) */
+void uk_venus_encode_vkCreateQueryPool(struct uk_venus_encoder *enc,
+				       uint64_t device, uint64_t pool_handle,
+				       uint32_t query_type, uint32_t query_count);
+void uk_venus_encode_vkDestroyQueryPool(struct uk_venus_encoder *enc,
+					uint64_t device, uint64_t pool);
+void uk_venus_encode_vkResetQueryPool(struct uk_venus_encoder *enc,
+				      uint64_t device, uint64_t pool,
+				      uint32_t first, uint32_t count);
+void uk_venus_encode_vkCmdResetQueryPool(struct uk_venus_encoder *enc,
+					 uint64_t cmd_buf, uint64_t pool,
+					 uint32_t first, uint32_t count);
+void uk_venus_encode_vkCmdWriteTimestamp(struct uk_venus_encoder *enc,
+					 uint64_t cmd_buf, uint32_t stage,
+					 uint64_t pool, uint32_t query);
+void uk_venus_encode_vkGetQueryPoolResults(struct uk_venus_encoder *enc,
+					   uint64_t device, uint64_t pool,
+					   uint32_t first, uint32_t count,
+					   uint64_t data_size, uint64_t stride,
+					   uint32_t flags);
 
 /* Fences */
 void uk_venus_encode_vkCreateFence(struct uk_venus_encoder *enc,

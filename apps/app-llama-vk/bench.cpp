@@ -14,12 +14,25 @@
 #if CONFIG_APP_LLAMA_VK_MODE_BENCH
 
 #include <cstdlib>
+#include <cstring>
 
-int main(void)
+int main(int argc, char *argv[])
 {
     setenv("GGML_VK_DISABLE_ASYNC", "1", 1);
     setenv("GGML_VK_DISABLE_HOST_VISIBLE_VIDMEM", "1", 1);
     setenv("UK_GGML_VK_DISPATCH_BATCH", "1", 1);
+
+    /* Profiling toggle (docs/plan-profile.md Phase 2): the runner appends
+     * "ggml-vk-perf-logger[=freq]" to the kernel cmdline app args; scan the
+     * whole argv so it works with or without a "--" separator. */
+    for (int i = 1; i < argc; i++) {
+        if (strncmp(argv[i], "ggml-vk-perf-logger", 19) != 0)
+            continue;
+        setenv("GGML_VK_PERF_LOGGER", "1", 1);
+        if (argv[i][19] == '=' && argv[i][20])
+            setenv("GGML_VK_PERF_LOGGER_FREQUENCY", argv[i] + 20, 1);
+        uk_puts("uk-llama-upstream-vk: GGML_VK_PERF_LOGGER enabled\n");
+    }
 
     const char *model_path = "/mnt/model/model.gguf";
     llama_model *model = load_model_vk(model_path, "uk-llama-upstream-vk");

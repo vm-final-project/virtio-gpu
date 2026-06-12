@@ -17,8 +17,10 @@
  * memory for compute buffers and host-visible for staging.
  *
  * Not implemented (Venus ring-buffer reads required):
- *   vkGetQueryPoolResults, vkGetEventStatus, pipeline statistics.
+ *   vkGetEventStatus, pipeline statistics.
  * These stubs return VK_SUCCESS / 0 so ggml-vulkan skips the optional paths.
+ * Query pools (incl. vkGetQueryPoolResults) are real Venus objects so the
+ * GGML_VK_PERF_LOGGER timestamp path works (docs/plan-profile.md Phase 2).
  *
  * vk.ggml-dispatch gate: LLAMA-VK-vk.ggml-dispatch-DISPATCH.
  */
@@ -299,7 +301,7 @@ static void uk_dispatch_ring_lazy_init(void)
 
 /* Number of vk* commands wired into the static dispatch table (k_procs[]).
  * Kept in sync with the table by a _Static_assert after its definition. */
-#define UK_VULKAN_SUPPORTED_COMMAND_COUNT 93u
+#define UK_VULKAN_SUPPORTED_COMMAND_COUNT 95u
 
 /* plan-optimize.md L3.4: surface the host-blob mapping state and the L3.1
  * batching flag so the appliance can log them and the perf gate can record
@@ -435,12 +437,14 @@ static VkResult stub_vkFlushMappedMemoryRanges(VkDevice, uint32_t, const void *)
 static VkResult stub_vkInvalidateMappedMemoryRanges(VkDevice, uint32_t, const void *);
 static VkResult stub_vkCreateQueryPool(VkDevice, const void *, const void *, VkQueryPool *);
 static void     stub_vkDestroyQueryPool(VkDevice, VkQueryPool, const void *);
+static VkResult stub_vkResetQueryPool(VkDevice, VkQueryPool, uint32_t, uint32_t);
 static VkResult stub_vkGetQueryPoolResults(VkDevice, VkQueryPool, uint32_t, uint32_t, size_t, void *, VkDeviceSize, uint32_t);
 static void     stub_vkCmdResetQueryPool(VkCommandBuffer, VkQueryPool, uint32_t, uint32_t);
 static void     stub_vkCmdWriteTimestamp(VkCommandBuffer, uint32_t, VkQueryPool, uint32_t);
 static void     stub_vkCmdBeginQuery(VkCommandBuffer, VkQueryPool, uint32_t, uint32_t);
 static void     stub_vkCmdEndQuery(VkCommandBuffer, VkQueryPool, uint32_t);
 /* KHR alias forward declarations */
+static VkResult stub_vkResetQueryPoolEXT(VkDevice, VkQueryPool, uint32_t, uint32_t);
 static void     stub_vkGetPhysicalDeviceProperties2KHR(VkPhysicalDevice, void *);
 static void     stub_vkGetPhysicalDeviceFeatures2KHR(VkPhysicalDevice, void *);
 static void     stub_vkGetPhysicalDeviceMemoryProperties2KHR(VkPhysicalDevice, void *);
@@ -544,6 +548,8 @@ static const struct uk_vk_proc k_procs[] = {
     PROC(vkDestroySemaphore),
     PROC(vkCreateQueryPool),
     PROC(vkDestroyQueryPool),
+    PROC(vkResetQueryPool),
+    PROC(vkResetQueryPoolEXT),
     PROC(vkGetQueryPoolResults),
     PROC(vkCmdResetQueryPool),
     PROC(vkCmdWriteTimestamp),
@@ -767,6 +773,31 @@ static void stub_vkGetPhysicalDeviceProperties(VkPhysicalDevice physdev,
     *(uint64_t *)(b + 600) = 64ULL;        /* minMemoryMapAlignment */
     *(uint64_t *)(b + 616) = 256ULL;       /* minUniformBufferOffsetAlignment */
     *(uint64_t *)(b + 624) = 16ULL;        /* minStorageBufferOffsetAlignment */
+    /* timestampComputeAndGraphics @716 / timestampPeriod @720 (limits +420/424).
+     * The GGML_VK_PERF_LOGGER path multiplies timestamp deltas by this period;
+     * the previous zeroed value nulled every measurement. Read the host's real
+     * value over the Venus reply path once; fall back to 1.0 ns (the common
+     * discrete-GPU value, and harmless on the fake backend). */
+    static float real_ts_period;
+    static int   real_ts_state; /* 0=untried, 1=have real, -1=failed */
+    if (real_ts_state == 0 && g_gpu && g_ctx) {
+        uint8_t props_reply[1024];
+        float period = 0.0f;
+        int n = uk_venus_query_device_properties(g_gpu, g_ctx, UK_H_PHYSDEV,
+                                                 props_reply, sizeof(props_reply));
+        if (n > 0
+            && uk_venus_props_reply_timestamp_period(props_reply, (unsigned)n,
+                                                     &period, NULL) == 0
+            && period > 0.0f) {
+            real_ts_period = period;
+            real_ts_state = 1;
+            printf("uk-ggml-vk: venus timestamp_period=%f\n", (double)period);
+        } else {
+            real_ts_state = -1;
+        }
+    }
+    *(uint32_t *)(b + 716) = 1u; /* timestampComputeAndGraphics */
+    *(float *)(b + 720) = (real_ts_state == 1) ? real_ts_period : 1.0f;
 }
 
 /* VkPhysicalDeviceProperties2 — fills base properties then walks pNext chain.
@@ -1803,35 +1834,81 @@ static VkResult stub_vkFlushMappedMemoryRanges(VkDevice d, uint32_t c, const voi
 static VkResult stub_vkInvalidateMappedMemoryRanges(VkDevice d, uint32_t c, const void *r)
 { (void)d; (void)c; (void)r; return VK_SUCCESS; }
 
+/* Query pools are REAL Venus objects (docs/plan-profile.md Phase 2): the
+ * GGML_VK_PERF_LOGGER path brackets every graph node with vkCmdWriteTimestamp
+ * and reads the timestamps back through vkGetQueryPoolResults. */
 static VkResult stub_vkCreateQueryPool(VkDevice dev, const void *ci, const void *a,
                                         VkQueryPool *pPool)
 {
-    (void)dev; (void)ci; (void)a;
-    *pPool = (VkQueryPool)uk_vk_alloc_handle();
+    (void)dev; (void)a;
+    uint64_t h = uk_vk_alloc_handle();
+    /* VkQueryPoolCreateInfo: sType@0, pNext@8, flags@16,
+     * queryType@20, queryCount@24, pipelineStatistics@28 */
+    uint32_t query_type  = rd_u32(ci, 20);
+    uint32_t query_count = rd_u32(ci, 24);
+    UK_ENC_BEGIN();
+    uk_venus_encode_vkCreateQueryPool(&_enc, UK_H_DEVICE, h,
+                                      query_type, query_count);
+    UK_ENC_SUBMIT();
+    *pPool = (VkQueryPool)h;
     return VK_SUCCESS;
 }
 static void stub_vkDestroyQueryPool(VkDevice d, VkQueryPool p, const void *a)
 {
-    (void)d; (void)p; (void)a;
+    (void)d; (void)a;
+    uk_dispatch_destroy_dev_handle(uk_venus_encode_vkDestroyQueryPool,
+                                   (uint64_t)p);
+}
+static VkResult stub_vkResetQueryPool(VkDevice d, VkQueryPool p, uint32_t f,
+                                       uint32_t c)
+{
+    (void)d;
+    UK_ENC_BEGIN();
+    uk_venus_encode_vkResetQueryPool(&_enc, UK_H_DEVICE, (uint64_t)p, f, c);
+    UK_ENC_SUBMIT();
+    return VK_SUCCESS;
 }
 static VkResult stub_vkGetQueryPoolResults(VkDevice d, VkQueryPool p, uint32_t f,
                                             uint32_t cnt, size_t sz, void *data,
                                             VkDeviceSize stride, uint32_t flags)
 {
-    (void)d;(void)p;(void)f;(void)cnt;(void)stride;(void)flags;
-    if (data && sz > 0) memset(data, 0, sz);
-    return VK_NOT_READY;
+    (void)d;
+    int32_t vk_result = VK_NOT_READY;
+    if (!data || !sz)
+        return VK_NOT_READY;
+    memset(data, 0, sz);
+    if (uk_venus_query_pool_results(g_gpu, g_ctx, UK_H_DEVICE, (uint64_t)p,
+                                    f, cnt, sz, data, stride, flags,
+                                    &vk_result) != 0)
+        return VK_ERROR_DEVICE_LOST;
+    return (VkResult)vk_result;
 }
 static void stub_vkCmdResetQueryPool(VkCommandBuffer cb, VkQueryPool p,
-                                      uint32_t f, uint32_t c) { (void)cb;(void)p;(void)f;(void)c; }
+                                      uint32_t f, uint32_t c)
+{
+    UK_ENC_BEGIN();
+    uk_venus_encode_vkCmdResetQueryPool(&_enc, (uint64_t)cb, (uint64_t)p, f, c);
+    UK_ENC_SUBMIT();
+}
 static void stub_vkCmdWriteTimestamp(VkCommandBuffer cb, uint32_t stage,
-                                      VkQueryPool p, uint32_t q) { (void)cb;(void)stage;(void)p;(void)q; }
+                                      VkQueryPool p, uint32_t q)
+{
+    UK_ENC_BEGIN();
+    uk_venus_encode_vkCmdWriteTimestamp(&_enc, (uint64_t)cb, stage,
+                                        (uint64_t)p, q);
+    UK_ENC_SUBMIT();
+}
 static void stub_vkCmdBeginQuery(VkCommandBuffer cb, VkQueryPool p, uint32_t q,
                                    uint32_t f) { (void)cb;(void)p;(void)q;(void)f; }
 static void stub_vkCmdEndQuery(VkCommandBuffer cb, VkQueryPool p, uint32_t q)
 {
     (void)cb;(void)p;(void)q;
 }
+
+/* VK_EXT_host_query_reset alias (Vulkan-Hpp may resolve either name) */
+static VkResult stub_vkResetQueryPoolEXT(VkDevice d, VkQueryPool p, uint32_t f,
+                                          uint32_t c)
+{ return stub_vkResetQueryPool(d, p, f, c); }
 
 /* KHR aliases — same signature as the non-KHR version (all return void) */
 static void stub_vkGetPhysicalDeviceProperties2KHR(VkPhysicalDevice p, void *v)
