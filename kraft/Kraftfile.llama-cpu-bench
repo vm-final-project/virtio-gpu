@@ -35,7 +35,6 @@ unikraft:
     CONFIG_LIBUK9P: 'y'
     CONFIG_LIBVIRTIO_9P: 'y'
     CONFIG_LIB9PFS: 'y'
-    CONFIG_LIBPTHREAD_EMBEDDED: 'y'
     CONFIG_LIBPOSIX_LIBDL: 'y'
 
 targets:

@@ -81,7 +81,6 @@ unikraft:
     CONFIG_LIBUK9P: 'y'
     CONFIG_LIBVIRTIO_9P: 'y'
     CONFIG_LIB9PFS: 'y'
-    CONFIG_LIBPTHREAD_EMBEDDED: 'y'
     CONFIG_LIBPOSIX_LIBDL: 'y'
     # posix-socket provides socket()/bind()/listen()/accept() used by cpp-httplib;
     # lwIP (below) registers the AF_INET family so the HTTP listener actually binds

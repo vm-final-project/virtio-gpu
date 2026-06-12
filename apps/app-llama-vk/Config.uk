@@ -6,7 +6,6 @@ config APP_LLAMA_VK
 	select LIBCXX
 	select LIBCXXABI
 	select LIBUNWIND
-	select LIBPTHREAD_EMBEDDED
 	help
 	  Upstream llama.cpp Vulkan path. Builds the upstream ggml stack
 	  (ggml core + ggml-vulkan.cpp + SPIRV shader blobs) in-tree and uses the

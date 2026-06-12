@@ -43,7 +43,6 @@ unikraft:
     CONFIG_LIBUK9P: 'y'
     CONFIG_LIBVIRTIO_9P: 'y'
     CONFIG_LIB9PFS: 'y'
-    CONFIG_LIBPTHREAD_EMBEDDED: 'y'
     CONFIG_LIBPOSIX_LIBDL: 'y'
     # A3: per-LCPU cooperative scheduler (SMP). UKPLAT_CPU_MAXCOUNT > 1 also
     # auto-selects HAVE_SMP. TODO: finalise SMP wiring in a later task.
