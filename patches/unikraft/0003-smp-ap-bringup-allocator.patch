@@ -1,3 +1,24 @@
+diff --git a/lib/posix-sysinfo/sysinfo.c b/lib/posix-sysinfo/sysinfo.c
+index f131487..3d0bb0e 100644
+--- a/lib/posix-sysinfo/sysinfo.c
++++ b/lib/posix-sysinfo/sysinfo.c
+@@ -39,6 +39,7 @@
+ #include <uk/essentials.h>
+ #include <uk/config.h>
+ #include <sys/sysinfo.h>
++#include <uk/pcpuvar.h>
+ #include <uk/syscall.h>
+ 
+ #ifdef CONFIG_LIBUKPAGING
+@@ -216,7 +217,7 @@ UK_SYSCALL_R_DEFINE(int, getcpu, unsigned int *, cpu, unsigned int *, node,
+ 	/* tcache is ignored since Linux 2.6.24 */
+ 
+ 	if (cpu)
+-		*cpu = 0;
++		*cpu = (unsigned int)uk_pcpuvar_current_get(uk_pcpuvar_cpu_idx);
+ 
+ 	if (node)
+ 		*node = 0;
 diff --git a/lib/ukallocbbuddy/bbuddy.c b/lib/ukallocbbuddy/bbuddy.c
 index 3e39480..84b760f 100644
 --- a/lib/ukallocbbuddy/bbuddy.c
@@ -98,3 +119,62 @@ index 0cd058c..0c1810d 100644
  #endif /* CONFIG_LIBUKBOOT_INITSCHED */
  
  	ictx.cmdline.argc = boot_argc;
+diff --git a/lib/ukprint/Config.uk b/lib/ukprint/Config.uk
+index bebcdd9..20aee6e 100644
+--- a/lib/ukprint/Config.uk
++++ b/lib/ukprint/Config.uk
+@@ -8,6 +8,7 @@ if LIBUKPRINT
+ 
+ menuconfig LIBUKPRINT_PRINTK
+ 	bool "Kernel messages (uk_printk)"
++	select LIBUKLOCK
+ 	default y
+ 	help
+ 		Enables kernel message console.
+diff --git a/lib/ukprint/console.c b/lib/ukprint/console.c
+index 624bfe8..881f8d5 100644
+--- a/lib/ukprint/console.c
++++ b/lib/ukprint/console.c
+@@ -15,6 +15,7 @@
+ #include <uk/print.h>
+ #include <uk/errptr.h>
+ #include <uk/lcpu.h>
++#include <uk/spinlock.h>
+ #if CONFIG_LIBUKPRINT_PRINT_THREAD
+ #include <uk/thread.h>
+ #endif /* CONFIG_LIBUKPRINT_PRINT_THREAD */
+@@ -27,6 +28,7 @@
+ #include "print.h"
+ 
+ unsigned int uk_print_console_lvl = UK_PRINT_KLVL_MAX;
++static struct uk_spinlock console_lock = UK_SPINLOCK_INITIALIZER();
+ 
+ #if CONFIG_LIBUKPRINT_ANSI_COLOR
+ #define LVLC_RESET	UK_ANSI_MOD_RESET
+@@ -190,6 +192,7 @@ void uk_print_console_write(struct uk_print_msg *msg)
+ {
+ 	char lbuf[BUFLEN];
+ 	int len, llen;
++	unsigned long flags;
+ 	const char *msghdr = __NULL;
+ 	const char *lptr = __NULL;
+ 	const char *nlptr = __NULL;
+@@ -203,6 +206,11 @@ void uk_print_console_write(struct uk_print_msg *msg)
+ 		return;
+ #endif /* CONFIG_LIBUKPRINT_PRINTK_UKSTORE */
+ 
++	/* A printk is assembled from multiple console writes. Serialize the
++	 * complete message so output from another LCPU cannot split a record.
++	 */
++	uk_spin_lock_irqsave(&console_lock, flags);
++
+ 	/*
+ 	 * Note: We reset the console colors earlier in order to exclude
+ 	 *       background colors for trailing white spaces.
+@@ -307,4 +315,6 @@ void uk_print_console_write(struct uk_print_msg *msg)
+ 		len -= llen;
+ 		lptr = nlptr + 1;
+ 	}
++
++	uk_spin_unlock_irqrestore(&console_lock, flags);
+ }

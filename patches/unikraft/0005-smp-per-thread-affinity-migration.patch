@@ -1,3 +1,146 @@
+diff --git a/arch/arm/arm64/ctx.S b/arch/arm/arm64/ctx.S
+index 7895f7c..1e44768 100644
+--- a/arch/arm/arm64/ctx.S
++++ b/arch/arm/arm64/ctx.S
+@@ -157,6 +157,51 @@ ENTRY(ukarch_ctx_switch)
+ 
+ 	ret
+ 
++ENTRY(ukarch_ctx_switch_cb)
++
++	str x18, [sp, #-16]!
++
++	sub sp, sp, #96
++	stp x19, x20, [sp, #16 * 0]
++	stp x21, x22, [sp, #16 * 1]
++	stp x23, x24, [sp, #16 * 2]
++	stp x25, x26, [sp, #16 * 3]
++	stp x27, x28, [sp, #16 * 4]
++	stp x29, x30, [sp, #16 * 5]
++
++	mov x19, x1
++	mov x20, x2
++	mov x21, x3
++
++	adrp x30, restore_point_cb
++	add x30, x30, :lo12:restore_point_cb
++
++	mov x2, sp
++	stp x30, x2, [x0]
++
++	cbz x20, 1f
++	mov x0, x21
++	blr x20
++1:
++	ldp x30, x2, [x19]
++	mov sp, x2
++
++	ret
++
++restore_point_cb:
++	ldp x19, x20, [sp, #16 * 0]
++	ldp x21, x22, [sp, #16 * 1]
++	ldp x23, x24, [sp, #16 * 2]
++	ldp x25, x26, [sp, #16 * 3]
++	ldp x27, x28, [sp, #16 * 4]
++	ldp x29, x30, [sp, #16 * 5]
++
++	add sp, sp, #96
++
++	ldr x18, [sp], #16
++
++	ret
++
+ restore_point:
+ 	/* Restore the callee-saved registers */
+ 	ldp x19, x20, [sp, #16 * 0]
+@@ -172,4 +217,3 @@ restore_point:
+ 	ldr x18, [sp], #16
+ 
+ 	ret
+-
+diff --git a/arch/x86/x86_64/ctx.S b/arch/x86/x86_64/ctx.S
+index 3ee46cb..02675ce 100644
+--- a/arch/x86/x86_64/ctx.S
++++ b/arch/x86/x86_64/ctx.S
+@@ -103,6 +103,37 @@ ENTRY(ukarch_ctx_switch)
+ 						       */
+ 	ret
+ 
++ENTRY(ukarch_ctx_switch_cb)
++	pushq %rbp
++	pushq %rbx
++	pushq %r12
++	pushq %r13
++	pushq %r14
++	pushq %r15
++	movq %rsi, %r12
++	movq %rdx, %r13
++	movq %rcx, %r14
++	movq %rsp, UKARCH_CTX_OFFSETOF_SP(%rdi)
++	lea .Lresume_cb(%rip), %rbx
++	movq %rbx, UKARCH_CTX_OFFSETOF_IP(%rdi)
++	testq %r13, %r13
++	jz .Lload_cb
++	movq %r14, %rdi
++	call *%r13
++.Lload_cb:
++	movq UKARCH_CTX_OFFSETOF_SP(%r12), %rsp
++	pushq UKARCH_CTX_OFFSETOF_IP(%r12)
++	ret
++
++.Lresume_cb:
++	popq %r15
++	popq %r14
++	popq %r13
++	popq %r12
++	popq %rbx
++	popq %rbp
++	ret
++
+ .Lresume:
+ 	popq %r15
+ 	popq %r14
+diff --git a/include/uk/arch/ctx.h b/include/uk/arch/ctx.h
+index 1697b1b..34d279d 100644
+--- a/include/uk/arch/ctx.h
++++ b/include/uk/arch/ctx.h
+@@ -341,6 +341,17 @@ void ukarch_ctx_init_entry2(struct ukarch_ctx *ctx,
+  */
+ void ukarch_ctx_switch(struct ukarch_ctx *store, struct ukarch_ctx *load);
+ 
++/**
++ * Switch the current logical CPU to context `load`, storing the current
++ * context in `store`, and invoke `postsave(arg)` after `store` has been
++ * fully saved but before `load` is restored.
++ *
++ * This is intended for scheduler handoff paths that must publish a context
++ * only after its saved state is valid.
++ */
++void ukarch_ctx_switch_cb(struct ukarch_ctx *store, struct ukarch_ctx *load,
++			  void (*postsave)(void *), void *arg);
++
+ /**
+  * Without saving or restoring anything, directly switch to stack pointer
+  * and jump to instruction pointer stored in the context structure.
+diff --git a/lib/uksched/Config.uk b/lib/uksched/Config.uk
+index ceca800..152d25e 100644
+--- a/lib/uksched/Config.uk
++++ b/lib/uksched/Config.uk
+@@ -17,6 +17,13 @@ config LIBUKSCHED_TCB_INIT
+ config LIBUKSCHED_DEBUG
+ 	bool "Enable debug messages"
+ 
++config LIBUKSCHED_PLACEMENT_TRACE
++	bool "Trace thread placement and migration"
++	default n
++	help
++	  Emit machine-parseable SMPPLACE records for clone, enqueue,
++	  migration, and actual execution. Enable only for correctness runs.
++
+ config LIBUKSCHED_STATS
+ 	bool "Scheduler statistics"
+ 	depends on LIBUKSTORE # circular dependency
 diff --git a/lib/uksched/exportsyms.uk b/lib/uksched/exportsyms.uk
 index 47e6a7d..bccab29 100644
 --- a/lib/uksched/exportsyms.uk
@@ -60,7 +203,7 @@ index b143589..4ec771e 100644
  {
  	struct uk_sched *s;
 diff --git a/lib/uksched/include/uk/sched_impl.h b/lib/uksched/include/uk/sched_impl.h
-index 134bdb2..7e6ef47 100644
+index 134bdb2..6253d9c 100644
 --- a/lib/uksched/include/uk/sched_impl.h
 +++ b/lib/uksched/include/uk/sched_impl.h
 @@ -64,7 +64,7 @@ int uk_sched_register(struct uk_sched *s);
@@ -80,8 +223,48 @@ index 134bdb2..7e6ef47 100644
  		(s)->thread_blocked   = thread_blocked_func; \
  		(s)->thread_woken     = thread_woken_func; \
  		(s)->thread_woken_isr = thread_woken_isr_func; \
+@@ -132,6 +133,39 @@ void uk_sched_thread_switch(struct uk_thread *next)
+ 	ukarch_ctx_switch(&prev->ctx, &next->ctx);
+ }
+ 
++static inline
++void uk_sched_thread_switch_cb(struct uk_thread *next,
++			       void (*postsave)(void *), void *arg)
++{
++	struct uk_thread *prev;
++
++	prev = uk_pcpuvar_current_get(__uk_sched_thread_current);
++
++	UK_ASSERT(prev);
++
++	uk_pcpuvar_current_set(__uk_sched_thread_current, next);
++
++	prev->tlsp = uk_lcpu_tlsp_get();
++
++	uk_lcpu_tlsp_set(next->tlsp);
++	uk_lcpu_set_auxsp(next->auxsp);
++	ukarch_ctx_switch_cb(&prev->ctx, &next->ctx, postsave, arg);
++}
++
++static inline __noreturn
++void uk_sched_thread_jump(struct uk_thread *next)
++{
++	struct uk_thread *prev;
++
++	prev = uk_pcpuvar_current_get(__uk_sched_thread_current);
++	UK_ASSERT(prev);
++
++	uk_pcpuvar_current_set(__uk_sched_thread_current, next);
++	uk_lcpu_tlsp_set(next->tlsp);
++	uk_lcpu_set_auxsp(next->auxsp);
++	ukarch_ctx_jump(&next->ctx);
++}
++
+ /* These should be used to instrument a scheduler implementation for
+  * statistics. For more info on metrics see include/uk/sched/store.h
+  */
 diff --git a/lib/uksched/include/uk/thread.h b/lib/uksched/include/uk/thread.h
-index 7834b4a..5189e62 100644
+index 7834b4a..a268eff 100644
 --- a/lib/uksched/include/uk/thread.h
 +++ b/lib/uksched/include/uk/thread.h
 @@ -38,6 +38,7 @@
@@ -106,20 +289,27 @@ index 7834b4a..5189e62 100644
  typedef void (*uk_thread_dtor_t)(struct uk_thread *);
  typedef void (*uk_thread_gc_t)(struct uk_thread *, void *);
  
-@@ -64,6 +72,7 @@ struct uk_thread {
+@@ -64,6 +72,11 @@ struct uk_thread {
  	uint32_t flags;
  	__snsec wakeup_time;
  	struct uk_sched *sched;
++	unsigned int affinity_target_lcpu;
++	bool migrate_pending;
++	bool migrate_ready;
++	bool affinity_migrate_pending;
 +	struct uk_sched_cpu_mask affinity;
  	struct uk_waitq_ticket wait_ticket;
  
  	struct {
 diff --git a/lib/uksched/sched.c b/lib/uksched/sched.c
-index e8f1b75..3295a69 100644
+index e8f1b75..b2f628b 100644
 --- a/lib/uksched/sched.c
 +++ b/lib/uksched/sched.c
-@@ -44,11 +44,49 @@
+@@ -42,13 +42,52 @@
+ #include <uk/lcpu.h>
+ #include <uk/sched.h>
  #include <uk/syscall.h>
++#include <uk/syscall_exittab.h>
  #include <uk/wait.h>
  #include <uk/pcpuvar.h>
 +#include <uk/atomic.h>
@@ -168,7 +358,7 @@ index e8f1b75..3295a69 100644
  int uk_sched_register(struct uk_sched *s)
  {
  	struct uk_sched *this = uk_sched_head;
-@@ -66,6 +104,80 @@ int uk_sched_register(struct uk_sched *s)
+@@ -66,6 +105,80 @@ int uk_sched_register(struct uk_sched *s)
  	return 0;
  }
  
@@ -249,7 +439,7 @@ index e8f1b75..3295a69 100644
  struct uk_thread *uk_sched_thread_create_fn0(struct uk_sched *s,
  					     uk_thread_fn0_t fn0,
  					     size_t stack_len,
-@@ -246,7 +358,7 @@ int uk_sched_start(struct uk_sched *s)
+@@ -246,7 +359,7 @@ int uk_sched_start(struct uk_sched *s)
  	ret = s->sched_start(s, main_thread);
  	if (ret < 0)
  		goto err_unset_thread_current;
@@ -258,10 +448,11 @@ index e8f1b75..3295a69 100644
  
  #if CONFIG_LIBUKSCHED_STATS
  	s->start_time = (__u64)ukplat_monotonic_clock();
-@@ -393,6 +505,59 @@ int uk_sched_thread_remove(struct uk_thread *t)
+@@ -393,7 +506,95 @@ int uk_sched_thread_remove(struct uk_thread *t)
  	return 0;
  }
  
+-UK_SYSCALL_R_DEFINE(int, sched_yield)
 +int uk_sched_thread_migrate_current(struct uk_sched *target)
 +{
 +	struct uk_thread *thread;
@@ -287,12 +478,22 @@ index e8f1b75..3295a69 100644
 +
 +static struct uk_thread *resolve_affinity_thread(int pid)
 +{
++	struct uk_thread *current = uk_thread_current();
++
 +	if (pid == 0)
-+		return uk_thread_current();
++		return current;
 +
 +#if CONFIG_LIBPOSIX_PROCESS_MULTITHREADING
-+	if (pid > 0)
++	if (pid > 0) {
++		if (current) {
++			pid_t current_tid = uk_sys_gettid();
++
++			if (current_tid > 0 && pid == current_tid)
++				return current;
++		}
++
 +		return uk_posix_thread_from_tid(pid);
++	}
 +#endif
 +
 +	return NULL;
@@ -315,10 +516,36 @@ index e8f1b75..3295a69 100644
 +#endif
 +}
 +
- UK_SYSCALL_R_DEFINE(int, sched_yield)
++static void uk_sched_affinity_migrate_exit(struct uk_syscall_exit_ctx *exit_ctx)
++{
++#if CONFIG_LIBUKSCHEDCOOP_SMP
++	struct uk_thread *thread;
++
++	UK_ASSERT(exit_ctx);
++
++	thread = uk_thread_current();
++	UK_ASSERT(thread);
++
++	if (!thread->affinity_migrate_pending)
++		return;
++
++	if (!exit_ctx->execenv)
++		return;
++	thread->affinity_migrate_pending = false;
++	uk_schedcoop_smp_migrate_current_execenv(thread->affinity_target_lcpu,
++						 exit_ctx->execenv);
++#else
++	(void)exit_ctx;
++#endif
++}
++
++uk_syscall_exittab_prio(uk_sched_affinity_migrate_exit, UK_PRIO_LATEST);
++
++UK_SYSCALL_R_E_DEFINE(int, sched_yield)
  {
  	uk_sched_yield();
-@@ -431,26 +596,77 @@ void uk_sched_dumpk_threads(int klvl, struct uk_sched *s)
+ 	return 0;
+@@ -431,26 +632,95 @@ void uk_sched_dumpk_threads(int klvl, struct uk_sched *s)
  UK_SYSCALL_R_DEFINE(int, sched_getaffinity, int, pid, long, cpusetsize,
  						unsigned long*, mask)
  {
@@ -332,13 +559,13 @@ index e8f1b75..3295a69 100644
 -	memset(mask, 0, cpusetsize);
 +	struct uk_thread *thread;
 +	size_t mask_size;
- 
--	/* Set CPU0 */
--	*mask = 1UL << 0;
++
 +	thread = resolve_affinity_thread(pid);
 +	if (!thread)
 +		return -ESRCH;
-+
+ 
+-	/* Set CPU0 */
+-	*mask = 1UL << 0;
 +	if (!mask)
 +		return -EFAULT;
 +
@@ -353,8 +580,10 @@ index e8f1b75..3295a69 100644
 +	return (int)mask_size;
  }
  
- UK_SYSCALL_R_DEFINE(int, sched_setaffinity, int, pid, long, cpusetsize,
- 						unsigned long*, mask)
+-UK_SYSCALL_R_DEFINE(int, sched_setaffinity, int, pid, long, cpusetsize,
+-						unsigned long*, mask)
++UK_SYSCALL_R_E_DEFINE(int, sched_setaffinity, int, pid, long, cpusetsize,
++					  unsigned long*, mask)
  {
 -	UK_WARN_STUBBED();
 -	return 0;
@@ -389,6 +618,17 @@ index e8f1b75..3295a69 100644
 +	if (target < 0)
 +		return target;
 +
++	if (pid > 0) {
++		uk_pr_crit("SMPPLACE setaffinity pid=%d current=%p resolved=%p owner=%d target=%d current-tid=%d cpu=%lu\n",
++			   pid,
++			   uk_thread_current(),
++			   thread,
++			   current_owner,
++			   target,
++			   uk_sys_gettid(),
++			   (unsigned long)uk_pcpuvar_current_get(uk_pcpuvar_cpu_idx));
++	}
++
 +	previous = thread->affinity;
 +	thread->affinity = effective;
 +
@@ -398,7 +638,14 @@ index e8f1b75..3295a69 100644
 +	}
 +
 +#if CONFIG_LIBUKSCHEDCOOP_SMP
-+	rc = uk_schedcoop_smp_migrate_current((unsigned int)target);
++	if (target != current_owner) {
++		thread->affinity_target_lcpu = (unsigned int)target;
++		thread->affinity_migrate_pending = true;
++		rc = 0;
++	} else {
++		thread->affinity_migrate_pending = false;
++		rc = 0;
++	}
 +#else
 +	rc = target == 0 ? 0 : -ENOTSUP;
 +#endif
