@@ -1,0 +1,1414 @@
+diff --git a/lib/posix-process/clone.c b/lib/posix-process/clone.c
+index 228a515..7bc653e 100644
+--- a/lib/posix-process/clone.c
++++ b/lib/posix-process/clone.c
+@@ -47,6 +47,9 @@
+ #include <uk/syscall.h>
+ #include <uk/arch/limits.h>
+ #include <uk/sched.h>
++#if CONFIG_LIBUKSCHEDCOOP_SMP
++#include <uk/schedcoop.h>
++#endif /* CONFIG_LIBUKSCHEDCOOP_SMP */
+ 
+ #include "process.h"
+ 
+@@ -140,7 +143,15 @@ int uk_clone(struct clone_args *cl_args, size_t cl_args_len,
+ 	int ret;
+ 
+ 	t = uk_thread_current();
++#if CONFIG_LIBUKSCHEDCOOP_SMP
++	/* Distribute newly created threads (e.g. llama.cpp workers spawned from
++	 * the BSP main thread) round-robin across the per-LCPU schedulers so
++	 * they run in parallel instead of all piling onto the BSP.
++	 */
++	s = uk_schedcoop_smp_pick();
++#else
+ 	s = uk_sched_current();
++#endif /* CONFIG_LIBUKSCHEDCOOP_SMP */
+ 
+ 	UK_ASSERT(s);
+ 	UK_ASSERT(t);
+diff --git a/lib/posix-process/exportsyms.uk b/lib/posix-process/exportsyms.uk
+index b2016f4..21b717c 100644
+--- a/lib/posix-process/exportsyms.uk
++++ b/lib/posix-process/exportsyms.uk
+@@ -39,6 +39,7 @@ uk_sys_getppid
+ getppid
+ uk_sys_gettid
+ gettid
++uk_posix_thread_from_tid
+ exit
+ exit_group
+ brk
+diff --git a/lib/posix-process/include/uk/process.h b/lib/posix-process/include/uk/process.h
+index 0513a78..2c350d9 100644
+--- a/lib/posix-process/include/uk/process.h
++++ b/lib/posix-process/include/uk/process.h
+@@ -80,6 +80,11 @@ pid_t uk_sys_getpid(void);
+  */
+ int uk_posix_process_create_pthread(struct uk_thread *thread);
+ 
++/* Return the backing uk_thread for a POSIX TID, or NULL if it does not map
++ * to a live pthread.
++ */
++struct uk_thread *uk_posix_thread_from_tid(int tid);
++
+ #endif /* CONFIG_LIBPOSIX_PROCESS_MULTITHREADING */
+ 
+ #if CONFIG_LIBPOSIX_PROCESS_MULTIPROCESS
+diff --git a/lib/posix-process/process.c b/lib/posix-process/process.c
+index 2fdd73d..fa4b5c7 100644
+--- a/lib/posix-process/process.c
++++ b/lib/posix-process/process.c
+@@ -608,6 +608,11 @@ struct uk_thread *tid2ukthread(pid_t tid)
+ 	return pthread->thread;
+ }
+ 
++struct uk_thread *uk_posix_thread_from_tid(int tid)
++{
++	return tid2ukthread((pid_t)tid);
++}
++
+ pid_t ukthread2tid(struct uk_thread *thread)
+ {
+ 	struct posix_thread *pthread;
+diff --git a/lib/ukallocbbuddy/bbuddy.c b/lib/ukallocbbuddy/bbuddy.c
+index 3e39480..84b760f 100644
+--- a/lib/ukallocbbuddy/bbuddy.c
++++ b/lib/ukallocbbuddy/bbuddy.c
+@@ -49,6 +49,7 @@
+ #include <uk/alloc_impl.h>
+ #include <uk/arch/limits.h>
+ #include <uk/atomic.h>
++#include <uk/spinlock.h>
+ #include <uk/bitops/bitscan.h>
+ #include <uk/print.h>
+ #include <uk/assert.h>
+@@ -82,8 +83,42 @@ struct uk_bbpalloc {
+ 	unsigned long nr_free_pages;
+ 	struct uk_hlist_head free_head[FREELIST_SIZE];
+ 	struct uk_bbpalloc_memr *memr_head;
++	/* SMP: the free lists above are global mutable state. Unikraft's
++	 * allocator historically assumed a single processing LCPU; with the
++	 * A3 per-LCPU schedulers, secondary vCPUs allocate/free concurrently,
++	 * so all palloc/pfree must be serialised (cf. Linux: data shared
++	 * between cores must be spinlock-protected).
++	 */
++	__spinlock lock;
+ };
+ 
++/* SMP locking wrappers: the real work is in *_locked(); these serialise it. */
++static void *bbuddy_palloc_locked(struct uk_alloc *a, unsigned long num_pages);
++static void bbuddy_pfree_locked(struct uk_alloc *a, void *obj,
++				unsigned long num_pages);
++
++static void *bbuddy_palloc(struct uk_alloc *a, unsigned long num_pages)
++{
++	struct uk_bbpalloc *const b = (struct uk_bbpalloc *)&a->priv;
++	unsigned long flags;
++	void *res;
++
++	uk_spin_lock_irqsave(&b->lock, flags);
++	res = bbuddy_palloc_locked(a, num_pages);
++	uk_spin_unlock_irqrestore(&b->lock, flags);
++	return res;
++}
++
++static void bbuddy_pfree(struct uk_alloc *a, void *obj, unsigned long num_pages)
++{
++	struct uk_bbpalloc *const b = (struct uk_bbpalloc *)&a->priv;
++	unsigned long flags;
++
++	uk_spin_lock_irqsave(&b->lock, flags);
++	bbuddy_pfree_locked(a, obj, num_pages);
++	uk_spin_unlock_irqrestore(&b->lock, flags);
++}
++
+ #if CONFIG_LIBUKALLOCBBUDDY_FREELIST_SANITY
+ /* Provide sanity checking of freelists, walking their length and checking
+  * for consistency. Useful when suspecting memory corruption.
+@@ -356,7 +391,7 @@ static inline void bbuddy_trim(struct uk_bbpalloc *b, struct chunk_head *ch,
+ 	}
+ }
+ 
+-static void *bbuddy_palloc(struct uk_alloc *a, unsigned long num_pages)
++static void *bbuddy_palloc_locked(struct uk_alloc *a, unsigned long num_pages)
+ {
+ 	struct uk_bbpalloc *const b = (struct uk_bbpalloc *)&a->priv;
+ 	struct chunk_head *alloc_ch;
+@@ -460,7 +495,8 @@ static inline size_t bbuddy_merge(struct uk_bbpalloc *b,
+ 	return ord;
+ }
+ 
+-static void bbuddy_pfree(struct uk_alloc *a, void *obj, unsigned long num_pages)
++static void bbuddy_pfree_locked(struct uk_alloc *a, void *obj,
++				unsigned long num_pages)
+ {
+ 	struct uk_bbpalloc *const b = (struct uk_bbpalloc *)&a->priv;
+ 	char *base = obj;
+@@ -665,6 +701,7 @@ struct uk_alloc *uk_allocbbuddy_init(void *base, size_t len)
+ 	for (i = 0; i < FREELIST_SIZE; i++)
+ 		UK_INIT_HLIST_HEAD(&b->free_head[i]);
+ 	b->memr_head = NULL;
++	uk_spin_init(&b->lock);
+ 
+ 	/* initialize and register allocator interface */
+ 	uk_alloc_init_palloc(a, bbuddy_palloc, bbuddy_pfree,
+diff --git a/lib/ukboot/boot.c b/lib/ukboot/boot.c
+index 0cd058c..0c1810d 100644
+--- a/lib/ukboot/boot.c
++++ b/lib/ukboot/boot.c
+@@ -362,6 +362,13 @@ void uk_boot_entry(void)
+ 	if (unlikely(!s))
+ 		UK_CRASH("Failed to initialize scheduling\n");
+ 	uk_sched_start(s);
++#if CONFIG_LIBUKSCHEDCOOP_SMP
++	/* Bring up one cooperative scheduler instance per secondary vCPU. The
++	 * allocators a/sa/auxsa are the same ones used by uk_schedcoop_create()
++	 * just above and are in scope here.
++	 */
++	uk_schedcoop_smp_bringup(a, sa, auxsa);
++#endif /* CONFIG_LIBUKSCHEDCOOP_SMP */
+ #endif /* CONFIG_LIBUKBOOT_INITSCHED */
+ 
+ 	ictx.cmdline.argc = boot_argc;
+diff --git a/lib/uksched/exportsyms.uk b/lib/uksched/exportsyms.uk
+index 47e6a7d..bccab29 100644
+--- a/lib/uksched/exportsyms.uk
++++ b/lib/uksched/exportsyms.uk
+@@ -6,12 +6,17 @@ uk_sched_thread_create_fn1
+ uk_sched_thread_create_fn2
+ uk_sched_thread_add
+ uk_sched_thread_remove
++uk_sched_thread_migrate_current
+ uk_sched_thread_terminate
+ uk_sched_thread_sleep
+ uk_sched_thread_exit
+ uk_sched_thread_exit2
+ uk_sched_dumpk_threads
+ uk_sched_thread_gc
++uk_sched_affinity_fill
++uk_sched_affinity_intersect
++uk_sched_affinity_test
++uk_sched_affinity_target
+ uk_thread_init_bare
+ uk_thread_init_bare_fn0
+ uk_thread_init_bare_fn1
+diff --git a/lib/uksched/include/uk/sched.h b/lib/uksched/include/uk/sched.h
+index b143589..4ec771e 100644
+--- a/lib/uksched/include/uk/sched.h
++++ b/lib/uksched/include/uk/sched.h
+@@ -66,6 +66,9 @@ typedef int   (*uk_sched_thread_add_func_t)
+ 		(struct uk_sched *s, struct uk_thread *t);
+ typedef void  (*uk_sched_thread_remove_func_t)
+ 		(struct uk_sched *s, struct uk_thread *t);
++typedef int   (*uk_sched_thread_migrate_func_t)
++		(struct uk_sched *source, struct uk_thread *thread,
++		 struct uk_sched *target);
+ typedef void  (*uk_sched_thread_blocked_func_t)
+ 		(struct uk_sched *s, struct uk_thread *t);
+ typedef void  (*uk_sched_thread_woken_func_t)
+@@ -90,6 +93,7 @@ struct uk_sched {
+ 
+ 	uk_sched_thread_add_func_t      thread_add;
+ 	uk_sched_thread_remove_func_t   thread_remove;
++	uk_sched_thread_migrate_func_t  thread_migrate;
+ 	uk_sched_thread_blocked_func_t  thread_blocked;
+ 	uk_sched_thread_woken_func_t    thread_woken;
+ 	uk_sched_thread_woken_func_t    thread_woken_isr;
+@@ -129,6 +133,16 @@ int uk_sched_thread_add(struct uk_sched *s, struct uk_thread *t);
+ 
+ int uk_sched_thread_remove(struct uk_thread *t);
+ 
++int uk_sched_thread_migrate_current(struct uk_sched *target);
++
++void uk_sched_affinity_fill(struct uk_sched_cpu_mask *mask);
++int uk_sched_affinity_intersect(struct uk_sched_cpu_mask *dst,
++				const struct uk_sched_cpu_mask *requested);
++bool uk_sched_affinity_test(const struct uk_sched_cpu_mask *mask,
++			    unsigned int lcpu_idx);
++int uk_sched_affinity_target(const struct uk_sched_cpu_mask *mask,
++			     int current_lcpu);
++
+ static inline void uk_sched_thread_blocked(struct uk_thread *t)
+ {
+ 	struct uk_sched *s;
+diff --git a/lib/uksched/include/uk/sched_impl.h b/lib/uksched/include/uk/sched_impl.h
+index 134bdb2..7e6ef47 100644
+--- a/lib/uksched/include/uk/sched_impl.h
++++ b/lib/uksched/include/uk/sched_impl.h
+@@ -64,7 +64,7 @@ int uk_sched_register(struct uk_sched *s);
+ #endif /* CONFIG_LIBUKSCHED_STATS */
+ 
+ #define uk_sched_init(s, start_func, yield_func, \
+-		thread_add_func, thread_remove_func, \
++		thread_add_func, thread_remove_func, thread_migrate_func, \
+ 		thread_blocked_func, thread_woken_func, \
+ 		thread_woken_isr_func, idle_thread_func, \
+ 		sched_a, sched_a_stack, sched_a_auxstack, sched_a_uktls) \
+@@ -73,6 +73,7 @@ int uk_sched_register(struct uk_sched *s);
+ 		(s)->yield            = yield_func; \
+ 		(s)->thread_add       = thread_add_func; \
+ 		(s)->thread_remove    = thread_remove_func; \
++		(s)->thread_migrate   = thread_migrate_func; \
+ 		(s)->thread_blocked   = thread_blocked_func; \
+ 		(s)->thread_woken     = thread_woken_func; \
+ 		(s)->thread_woken_isr = thread_woken_isr_func; \
+diff --git a/lib/uksched/include/uk/thread.h b/lib/uksched/include/uk/thread.h
+index 7834b4a..5189e62 100644
+--- a/lib/uksched/include/uk/thread.h
++++ b/lib/uksched/include/uk/thread.h
+@@ -38,6 +38,7 @@
+ #include <uk/list.h>
+ #include <uk/prio.h>
+ #include <uk/essentials.h>
++#include <uk/bitops/bitmap.h>
+ 
+ #ifdef __cplusplus
+ extern "C" {
+@@ -46,6 +47,13 @@ extern "C" {
+ struct uk_sched;
+ struct uk_thread;
+ 
++#define UK_SCHED_CPU_MASK_WORDS \
++	UK_BITS_TO_LONGS(CONFIG_UKPLAT_CPU_MAXCOUNT)
++
++struct uk_sched_cpu_mask {
++	unsigned long bits[UK_SCHED_CPU_MASK_WORDS];
++};
++
+ typedef void (*uk_thread_dtor_t)(struct uk_thread *);
+ typedef void (*uk_thread_gc_t)(struct uk_thread *, void *);
+ 
+@@ -64,6 +72,7 @@ struct uk_thread {
+ 	uint32_t flags;
+ 	__snsec wakeup_time;
+ 	struct uk_sched *sched;
++	struct uk_sched_cpu_mask affinity;
+ 	struct uk_waitq_ticket wait_ticket;
+ 
+ 	struct {
+diff --git a/lib/uksched/sched.c b/lib/uksched/sched.c
+index e8f1b75..3295a69 100644
+--- a/lib/uksched/sched.c
++++ b/lib/uksched/sched.c
+@@ -44,11 +44,49 @@
+ #include <uk/syscall.h>
+ #include <uk/wait.h>
+ #include <uk/pcpuvar.h>
++#include <uk/atomic.h>
++#include <uk/bitops/bitmap.h>
++#if CONFIG_LIBPOSIX_PROCESS_MULTITHREADING
++#include <uk/process.h>
++#endif
++
++#if CONFIG_LIBUKSCHEDCOOP_SMP
++#include <uk/schedcoop.h>
++#endif
+ 
+ struct uk_sched *uk_sched_head;
+ 
+ __uk_pcpuvar struct uk_thread *__uk_sched_thread_current;
+ 
++static void uk_sched_affinity_zero(struct uk_sched_cpu_mask *mask)
++{
++	UK_ASSERT(mask);
++	uk_bitmap_zero(mask->bits, CONFIG_UKPLAT_CPU_MAXCOUNT);
++}
++
++static bool uk_sched_affinity_empty(const struct uk_sched_cpu_mask *mask)
++{
++	UK_ASSERT(mask);
++	return uk_bitmap_empty((unsigned long *)mask->bits,
++			       CONFIG_UKPLAT_CPU_MAXCOUNT);
++}
++
++static void uk_sched_affinity_ready_online(struct uk_sched_cpu_mask *mask)
++{
++	unsigned int i;
++
++	uk_sched_affinity_zero(mask);
++
++#if CONFIG_LIBUKSCHEDCOOP_SMP
++	for (i = 0; i < CONFIG_UKPLAT_CPU_MAXCOUNT; i++) {
++		if (uk_schedcoop_smp_sched(i))
++			uk_bitmap_set(mask->bits, i, 1);
++	}
++#else
++	uk_bitmap_set(mask->bits, 0, 1);
++#endif
++}
++
+ int uk_sched_register(struct uk_sched *s)
+ {
+ 	struct uk_sched *this = uk_sched_head;
+@@ -66,6 +104,80 @@ int uk_sched_register(struct uk_sched *s)
+ 	return 0;
+ }
+ 
++void uk_sched_affinity_fill(struct uk_sched_cpu_mask *mask)
++{
++	struct uk_thread *current;
++
++	UK_ASSERT(mask);
++	uk_sched_affinity_ready_online(mask);
++	current = uk_thread_current();
++
++	/*
++	 * Parentless bootstrap threads run before their local scheduler may be
++	 * published as ready. Preserve the local LCPU in the inherited mask so
++	 * AP init threads do not exclude themselves during startup.
++	 */
++	if (!current) {
++		unsigned int lcpu_idx = uk_pcpuvar_current_get(uk_pcpuvar_cpu_idx);
++
++		if (lcpu_idx < CONFIG_UKPLAT_CPU_MAXCOUNT)
++			uk_bitmap_set(mask->bits, lcpu_idx, 1);
++	}
++
++	/*
++	 * Early bootstrap threads are created before the ready scheduler
++	 * registry is populated. Keep them executable everywhere configured so
++	 * later inherited masks do not collapse to CPU0 only.
++	 */
++	if (uk_sched_affinity_empty(mask))
++		uk_bitmap_fill(mask->bits, CONFIG_UKPLAT_CPU_MAXCOUNT);
++}
++
++int uk_sched_affinity_intersect(struct uk_sched_cpu_mask *dst,
++				const struct uk_sched_cpu_mask *requested)
++{
++	struct uk_sched_cpu_mask online;
++	unsigned int i;
++
++	UK_ASSERT(dst);
++	UK_ASSERT(requested);
++
++	uk_sched_affinity_ready_online(&online);
++	for (i = 0; i < UK_SCHED_CPU_MASK_WORDS; i++)
++		dst->bits[i] = requested->bits[i] & online.bits[i];
++
++	return uk_sched_affinity_empty(dst) ? -EINVAL : 0;
++}
++
++bool uk_sched_affinity_test(const struct uk_sched_cpu_mask *mask,
++			    unsigned int lcpu_idx)
++{
++	UK_ASSERT(mask);
++
++	if (lcpu_idx >= CONFIG_UKPLAT_CPU_MAXCOUNT)
++		return false;
++
++	return uk_test_bit(lcpu_idx, mask->bits);
++}
++
++int uk_sched_affinity_target(const struct uk_sched_cpu_mask *mask,
++			     int current_lcpu)
++{
++	unsigned int target;
++
++	UK_ASSERT(mask);
++
++	if (current_lcpu >= 0 &&
++	    uk_sched_affinity_test(mask, (unsigned int)current_lcpu))
++		return current_lcpu;
++
++	target = uk_find_next_bit(mask->bits, CONFIG_UKPLAT_CPU_MAXCOUNT, 0);
++	if (target >= CONFIG_UKPLAT_CPU_MAXCOUNT)
++		return -EINVAL;
++
++	return (int)target;
++}
++
+ struct uk_thread *uk_sched_thread_create_fn0(struct uk_sched *s,
+ 					     uk_thread_fn0_t fn0,
+ 					     size_t stack_len,
+@@ -246,7 +358,7 @@ int uk_sched_start(struct uk_sched *s)
+ 	ret = s->sched_start(s, main_thread);
+ 	if (ret < 0)
+ 		goto err_unset_thread_current;
+-	s->is_started = true;
++	uk_store_n(&s->is_started, true);
+ 
+ #if CONFIG_LIBUKSCHED_STATS
+ 	s->start_time = (__u64)ukplat_monotonic_clock();
+@@ -393,6 +505,59 @@ int uk_sched_thread_remove(struct uk_thread *t)
+ 	return 0;
+ }
+ 
++int uk_sched_thread_migrate_current(struct uk_sched *target)
++{
++	struct uk_thread *thread;
++	struct uk_sched *source;
++
++	if (!target)
++		return -EINVAL;
++
++	thread = uk_thread_current();
++	UK_ASSERT(thread);
++
++	source = thread->sched;
++	UK_ASSERT(source);
++
++	if (source == target)
++		return 0;
++
++	if (!source->thread_migrate)
++		return -ENOTSUP;
++
++	return source->thread_migrate(source, thread, target);
++}
++
++static struct uk_thread *resolve_affinity_thread(int pid)
++{
++	if (pid == 0)
++		return uk_thread_current();
++
++#if CONFIG_LIBPOSIX_PROCESS_MULTITHREADING
++	if (pid > 0)
++		return uk_posix_thread_from_tid(pid);
++#endif
++
++	return NULL;
++}
++
++static int affinity_current_owner(const struct uk_thread *thread)
++{
++#if CONFIG_LIBUKSCHEDCOOP_SMP
++	int lcpu;
++
++	UK_ASSERT(thread);
++	UK_ASSERT(thread->sched);
++
++	lcpu = uk_schedcoop_smp_lcpu(thread->sched);
++	return lcpu >= 0 ? lcpu : 0;
++#else
++	UK_ASSERT(thread);
++	UK_ASSERT(thread->sched);
++	return 0;
++#endif
++}
++
+ UK_SYSCALL_R_DEFINE(int, sched_yield)
+ {
+ 	uk_sched_yield();
+@@ -431,26 +596,77 @@ void uk_sched_dumpk_threads(int klvl, struct uk_sched *s)
+ UK_SYSCALL_R_DEFINE(int, sched_getaffinity, int, pid, long, cpusetsize,
+ 						unsigned long*, mask)
+ {
+-	UK_WARN_STUBBED();
+-	/* NOTE: Some applications use this to get the count of CPUs,
+-	 *       and the result must be positive.
+-	 *       So just return CPU0 to make them run.
+-	 */
+-	UK_ASSERT(cpusetsize > 0);
+-	UK_ASSERT(mask);
+-	memset(mask, 0, cpusetsize);
++	struct uk_thread *thread;
++	size_t mask_size;
+ 
+-	/* Set CPU0 */
+-	*mask = 1UL << 0;
++	thread = resolve_affinity_thread(pid);
++	if (!thread)
++		return -ESRCH;
++
++	if (!mask)
++		return -EFAULT;
++
++	mask_size = sizeof(thread->affinity);
++	if (cpusetsize < 0 || (size_t)cpusetsize < mask_size)
++		return -EINVAL;
+ 
+-	return cpusetsize;
++	memset(mask, 0, (size_t)cpusetsize);
++	memcpy(mask, &thread->affinity, mask_size);
++
++	return (int)mask_size;
+ }
+ 
+ UK_SYSCALL_R_DEFINE(int, sched_setaffinity, int, pid, long, cpusetsize,
+ 						unsigned long*, mask)
+ {
+-	UK_WARN_STUBBED();
+-	return 0;
++	struct uk_thread *thread;
++	struct uk_sched_cpu_mask requested = { };
++	struct uk_sched_cpu_mask effective;
++	struct uk_sched_cpu_mask previous;
++	size_t mask_size;
++	int current_owner;
++	int target;
++	int rc;
++
++	thread = resolve_affinity_thread(pid);
++	if (!thread)
++		return -ESRCH;
++
++	if (!mask)
++		return -EFAULT;
++
++	mask_size = sizeof(requested);
++	if (cpusetsize < 0 || (size_t)cpusetsize < mask_size)
++		return -EINVAL;
++
++	memcpy(&requested, mask, mask_size);
++
++	rc = uk_sched_affinity_intersect(&effective, &requested);
++	if (rc < 0)
++		return rc;
++
++	current_owner = affinity_current_owner(thread);
++	target = uk_sched_affinity_target(&effective, current_owner);
++	if (target < 0)
++		return target;
++
++	previous = thread->affinity;
++	thread->affinity = effective;
++
++	if (thread != uk_thread_current()) {
++		thread->affinity = previous;
++		return -ENOTSUP;
++	}
++
++#if CONFIG_LIBUKSCHEDCOOP_SMP
++	rc = uk_schedcoop_smp_migrate_current((unsigned int)target);
++#else
++	rc = target == 0 ? 0 : -ENOTSUP;
++#endif
++	if (rc < 0)
++		thread->affinity = previous;
++
++	return rc;
+ }
+ 
+ #define MEMBARRIER_SUPPORTED_CMDS (\
+diff --git a/lib/uksched/thread.c b/lib/uksched/thread.c
+index 914c8b9..84cda9f 100644
+--- a/lib/uksched/thread.c
++++ b/lib/uksched/thread.c
+@@ -237,6 +237,7 @@ static void _uk_thread_struct_init(struct uk_thread *t,
+ 				   uk_thread_dtor_t dtor)
+ {
+ 	struct ukarch_auxspcb *auxspcb;
++	struct uk_thread *parent;
+ 
+ 	/* TLS pointer required if is_uktls is set */
+ 	UK_ASSERT(!is_uktls || tlsp);
+@@ -250,6 +251,11 @@ static void _uk_thread_struct_init(struct uk_thread *t,
+ 	t->dtor = dtor;
+ 	t->exec_time = 0;
+ 	t->wait_ticket = UK_WAITQ_TICKET_INIT_VALUE;
++	parent = uk_thread_current();
++	if (parent)
++		t->affinity = parent->affinity;
++	else
++		uk_sched_affinity_fill(&t->affinity);
+ 
+ 	if (auxsp) {
+ 		t->flags |= UK_THREADF_AUXSP;
+diff --git a/lib/ukschedcoop/Config.uk b/lib/ukschedcoop/Config.uk
+index a1987f7..9434201 100644
+--- a/lib/ukschedcoop/Config.uk
++++ b/lib/ukschedcoop/Config.uk
+@@ -4,3 +4,12 @@ config LIBUKSCHEDCOOP
+ 	select LIBNOLIBC if !HAVE_LIBC
+ 	select LIBUKSCHED
+ 	select LIBUKLCPU
++
++config LIBUKSCHEDCOOP_SMP
++	bool "Per-LCPU cooperative scheduler (SMP)"
++	depends on LIBUKSCHEDCOOP
++	depends on HAVE_SMP
++	default n
++	help
++	  Run one cooperative scheduler instance per online vCPU and provide the
++	  registry support used by per-thread CPU affinity.
+diff --git a/lib/ukschedcoop/Makefile.uk b/lib/ukschedcoop/Makefile.uk
+index c4aa985..ecc9d91 100644
+--- a/lib/ukschedcoop/Makefile.uk
++++ b/lib/ukschedcoop/Makefile.uk
+@@ -5,3 +5,4 @@ CXXINCLUDES-$(CONFIG_LIBUKSCHEDCOOP)   += -I$(LIBUKSCHEDCOOP_BASE)/include
+ 
+ LIBUKSCHEDCOOP_SRCS-y += $(LIBUKSCHEDCOOP_BASE)/schedcoop.c
+ LIBUKSCHEDCOOP_SRCS-y += $(LIBUKSCHEDCOOP_BASE)/isrwoken.c|isr
++LIBUKSCHEDCOOP_SRCS-$(CONFIG_LIBUKSCHEDCOOP_SMP) += $(LIBUKSCHEDCOOP_BASE)/smp.c
+diff --git a/lib/ukschedcoop/exportsyms.uk b/lib/ukschedcoop/exportsyms.uk
+index 01dab11..8fd9003 100644
+--- a/lib/ukschedcoop/exportsyms.uk
++++ b/lib/ukschedcoop/exportsyms.uk
+@@ -1 +1,7 @@
+ uk_schedcoop_create
++uk_schedcoop_smp_bringup
++uk_schedcoop_smp_pick
++uk_schedcoop_smp_online_count
++uk_schedcoop_smp_sched
++uk_schedcoop_smp_lcpu
++uk_schedcoop_smp_migrate_current
+diff --git a/lib/ukschedcoop/include/uk/schedcoop.h b/lib/ukschedcoop/include/uk/schedcoop.h
+index e653270..6d73b2b 100644
+--- a/lib/ukschedcoop/include/uk/schedcoop.h
++++ b/lib/ukschedcoop/include/uk/schedcoop.h
+@@ -37,6 +37,7 @@
+ #ifndef __UK_SCHEDCOOP_H__
+ #define __UK_SCHEDCOOP_H__
+ 
++#include <uk/config.h>
+ #include <uk/sched.h>
+ #include <uk/alloc.h>
+ 
+@@ -49,6 +50,61 @@ struct uk_sched *uk_schedcoop_create(struct uk_alloc *a,
+ 				     struct uk_alloc *axusa,
+ 				     struct uk_alloc *tls_a);
+ 
++#if CONFIG_LIBUKSCHEDCOOP_SMP
++/**
++ * Bring up one cooperative scheduler instance per online secondary LCPU.
++ *
++ * For each secondary LCPU index (1 .. CONFIG_UKPLAT_CPU_MAXCOUNT-1) this
++ * creates a dedicated ukschedcoop instance, allocates a bootstrap stack,
++ * starts the LCPU and has it run its own scheduler. Index 0 (the BSP) is
++ * recorded as the currently running scheduler so it is valid for placement.
++ *
++ * Must be called once on the BSP, after the BSP scheduler has been started.
++ *
++ * @param a     general-purpose allocator (for scheduler instances)
++ * @param sa    stack allocator (for idle/AP stacks)
++ * @param auxsa auxiliary-stack allocator
++ * @return 0 on success, a negative errno-type value otherwise
++ */
++int uk_schedcoop_smp_bringup(struct uk_alloc *a,
++			     struct uk_alloc *sa,
++			     struct uk_alloc *auxsa);
++
++/**
++ * Round-robin picker selecting one of the online per-LCPU scheduler
++ * instances. Used to distribute newly created threads across LCPUs.
++ *
++ * @return a valid (non-NULL) uk_sched instance.
++ */
++struct uk_sched *uk_schedcoop_smp_pick(void);
++
++/**
++ * Return the number of ready per-LCPU scheduler instances currently published.
++ */
++unsigned int uk_schedcoop_smp_online_count(void);
++
++/**
++ * Return the ready scheduler instance for an LCPU, or NULL if unavailable.
++ */
++struct uk_sched *uk_schedcoop_smp_sched(unsigned int lcpu_idx);
++
++/**
++ * Return the LCPU owning a cooperative SMP scheduler instance.
++ *
++ * @return the owning LCPU index, -EINVAL for NULL, or -ENOENT if `s` does not
++ * map to a ready cooperative scheduler instance.
++ */
++int uk_schedcoop_smp_lcpu(const struct uk_sched *s);
++
++/**
++ * Migrate the current thread to the ready scheduler instance owned by
++ * `target_lcpu`.
++ *
++ * @return 0 on success, a negative errno-style value otherwise.
++ */
++int uk_schedcoop_smp_migrate_current(unsigned int target_lcpu);
++#endif /* CONFIG_LIBUKSCHEDCOOP_SMP */
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/lib/ukschedcoop/schedcoop.c b/lib/ukschedcoop/schedcoop.c
+index 75a9a9b..12d394e 100644
+--- a/lib/ukschedcoop/schedcoop.c
++++ b/lib/ukschedcoop/schedcoop.c
+@@ -36,13 +36,23 @@
+ #include <uk/sched_impl.h>
+ #include <uk/schedcoop.h>
+ #include <uk/essentials.h>
++#include <uk/spinlock.h>
++#if CONFIG_LIBUKSCHEDCOOP_SMP
++#include <uk/pcpuvar.h>
++#endif /* CONFIG_LIBUKSCHEDCOOP_SMP */
+ #include "schedcoop.h"
+ 
++static struct uk_thread *schedcoop_schedule_locked(struct schedcoop *c,
++						   struct uk_sched *s,
++						   struct uk_thread *prev,
++						   __snsec now,
++						   bool requeue_prev);
++
+ static void schedcoop_schedule(struct uk_sched *s)
+ {
+ 	struct schedcoop *c = uksched2schedcoop(s);
+-	struct uk_thread *prev, *next, *thread, *tmp;
+-	__snsec now, min_wakeup_time;
++	struct uk_thread *prev, *next;
++	__snsec now;
+ 	unsigned long flags;
+ 
+ 	if (unlikely(uk_lcpu_irqs_disabled()))
+@@ -50,27 +60,48 @@ static void schedcoop_schedule(struct uk_sched *s)
+ 
+ 	now = ukplat_monotonic_clock();
+ 	prev = uk_thread_current();
+-	flags = uk_lcpu_save_irqf();
++	/* Take the per-instance queue lock with IRQs disabled. This both
++	 * provides local IRQ protection (as the original code did with
++	 * uk_lcpu_save_irqf()) and serialises against other LCPUs that may
++	 * mutate this instance's run/sleep queues (e.g. thread placement from
++	 * the BSP via schedcoop_thread_add()).
++	 */
++	uk_spin_lock_irqsave(&c->queue_lock, flags);
+ 
+ #if 0 //TODO
+ 	if (in_callback)
+ 		UK_CRASH("Must not call %s from a callback\n", __func__);
+ #endif
+ 
+-	/* Update execution time of current thread */
+-	/* WARNING: We assume here that scheduler `s` is only responsible for
+-	 *          the current logical CPU. Otherwise, we would have to store
+-	 *          the time of the last context switch per logical core.
++	next = schedcoop_schedule_locked(c, s, prev, now, true);
++
++	uk_spin_unlock_irqrestore(&c->queue_lock, flags);
++
++	/* Interrupting the switch is equivalent to having the next thread
++	 * interrupted at the return instruction. And therefore at safe point.
+ 	 */
++	if (prev != next) {
++		if (next != &c->idle)
++			uk_sched_stats_next_count_incr(s);
++		uk_sched_thread_switch(next);
++	}
++}
++
++static struct uk_thread *schedcoop_schedule_locked(struct schedcoop *c,
++						   struct uk_sched *s,
++						   struct uk_thread *prev,
++						   __snsec now,
++						   bool requeue_prev)
++{
++	struct uk_thread *next, *thread, *tmp;
++	__snsec min_wakeup_time;
++
++	/* Update execution time of current thread */
+ 	prev->exec_time += now - c->ts_prev_switch;
+ 	c->ts_prev_switch = now;
+ 
+-	/* Examine all sleeping threads.
+-	 * Wake up expired ones and find the time when the next timeout expires.
+-	 */
+ 	min_wakeup_time = 0;
+-	UK_TAILQ_FOREACH_SAFE(thread, &c->sleep_queue,
+-			      queue, tmp) {
++	UK_TAILQ_FOREACH_SAFE(thread, &c->sleep_queue, queue, tmp) {
+ 		if (likely(thread->wakeup_time)) {
+ 			if (thread->wakeup_time <= now)
+ 				uk_thread_wake(thread);
+@@ -85,51 +116,30 @@ static void schedcoop_schedule(struct uk_sched *s)
+ 		UK_ASSERT(next != prev);
+ 		UK_ASSERT(uk_thread_is_runnable(next));
+ 		UK_ASSERT(!uk_thread_is_exited(next));
+-		UK_TAILQ_REMOVE(&c->run_queue, next,
+-				queue);
++		UK_TAILQ_REMOVE(&c->run_queue, next, queue);
+ 
+-		/* Put previous thread on the end of the list */
+-		if ((prev != &c->idle)
++		if (requeue_prev
++		    && prev != &c->idle
+ 		    && uk_thread_is_runnable(prev)
+ 		    && !uk_thread_is_exited(prev))
+-			UK_TAILQ_INSERT_TAIL(&c->run_queue, prev,
+-					     queue);
+-	} else if (uk_thread_is_runnable(prev)
++			UK_TAILQ_INSERT_TAIL(&c->run_queue, prev, queue);
++	} else if (requeue_prev
++		   && uk_thread_is_runnable(prev)
+ 		   && !uk_thread_is_exited(prev)) {
+ 		next = prev;
+ 	} else {
+-		/*
+-		 * Schedule idle thread that will halt the CPU
+-		 * We select the idle thread only if we do not have anything
+-		 * else to execute
+-		 */
+ 		c->idle_return_time = min_wakeup_time;
+ 		next = &c->idle;
+ 		uk_sched_stats_idle_count_incr(s);
+ 	}
+ 
+ 	if (next != prev) {
+-		/*
+-		 * Queueable is used to cover the case when during a
+-		 * context switch, the thread that is about to be
+-		 * evacuated is interrupted and woken up.
+-		 */
+ 		uk_thread_set_queueable(prev);
+ 		uk_thread_clear_queueable(next);
+ 	}
+ 
+ 	uk_sched_stats_sched_count_incr(s);
+-
+-	uk_lcpu_restore_irqf(flags);
+-
+-	/* Interrupting the switch is equivalent to having the next thread
+-	 * interrupted at the return instruction. And therefore at safe point.
+-	 */
+-	if (prev != next) {
+-		if (next != &c->idle)
+-			uk_sched_stats_next_count_incr(s);
+-		uk_sched_thread_switch(next);
+-	}
++	return next;
+ }
+ 
+ static void schedcoop_yield(struct uk_sched *s)
+@@ -141,13 +151,48 @@ static void schedcoop_yield(struct uk_sched *s)
+ static int schedcoop_thread_add(struct uk_sched *s, struct uk_thread *t)
+ {
+ 	struct schedcoop *c = uksched2schedcoop(s);
++	unsigned long flags;
++#if CONFIG_LIBUKSCHED_PLACEMENT_TRACE
++	unsigned int caller_lcpu;
++	bool inserted = false;
++#endif /* CONFIG_LIBUKSCHED_PLACEMENT_TRACE */
+ 
+ 	UK_ASSERT(t);
+ 	UK_ASSERT(!uk_thread_is_exited(t));
+ 
+-	/* Add to run queue if runnable */
+-	if (uk_thread_is_runnable(t))
++	/* Add to run queue if runnable. This may be called from a *different*
++	 * LCPU than the one that owns this instance (cross-CPU thread
++	 * placement), so the run_queue mutation must be serialised.
++	 */
++	uk_spin_lock_irqsave(&c->queue_lock, flags);
++	if (uk_thread_is_runnable(t)) {
+ 		UK_TAILQ_INSERT_TAIL(&c->run_queue, t, queue);
++#if CONFIG_LIBUKSCHED_PLACEMENT_TRACE
++		inserted = true;
++#endif /* CONFIG_LIBUKSCHED_PLACEMENT_TRACE */
++	}
++	uk_spin_unlock_irqrestore(&c->queue_lock, flags);
++
++#if CONFIG_LIBUKSCHED_PLACEMENT_TRACE
++	if (inserted) {
++		caller_lcpu = uk_pcpuvar_current_get(uk_pcpuvar_cpu_idx);
++		uk_pr_info("SMPPLACE enqueue thread=%p caller=%u target=%u sched=%p\n",
++			   t, caller_lcpu, c->lcpu_idx, s);
++	}
++#endif /* CONFIG_LIBUKSCHED_PLACEMENT_TRACE */
++
++#if CONFIG_LIBUKSCHEDCOOP_SMP
++	/* If we just queued a thread onto a *remote* LCPU's scheduler, wake
++	 * that LCPU up so it can pick the thread up instead of staying halted
++	 * in its idle thread.
++	 */
++	if (c->lcpu_idx != uk_pcpuvar_current_get(uk_pcpuvar_cpu_idx)) {
++		__u64 target = c->lcpu_idx;
++		unsigned int one = 1;
++
++		uk_lcpu_wakeup(&target, &one);
++	}
++#endif /* CONFIG_LIBUKSCHEDCOOP_SMP */
+ 
+ 	return 0;
+ }
+@@ -155,11 +200,88 @@ static int schedcoop_thread_add(struct uk_sched *s, struct uk_thread *t)
+ static void schedcoop_thread_remove(struct uk_sched *s, struct uk_thread *t)
+ {
+ 	struct schedcoop *c = uksched2schedcoop(s);
++	unsigned long flags;
+ 
+ 	/* Remove from run_queue */
++	uk_spin_lock_irqsave(&c->queue_lock, flags);
+ 	if (t != uk_thread_current()
+ 	    && uk_thread_is_runnable(t))
+ 		UK_TAILQ_REMOVE(&c->run_queue, t, queue);
++	uk_spin_unlock_irqrestore(&c->queue_lock, flags);
++}
++
++static int schedcoop_thread_migrate(struct uk_sched *source_s,
++				    struct uk_thread *thread,
++				    struct uk_sched *target_s)
++{
++	struct schedcoop *source = uksched2schedcoop(source_s);
++	struct schedcoop *target = uksched2schedcoop(target_s);
++	struct schedcoop *first, *second;
++	struct uk_thread *next;
++	unsigned long flags;
++	__snsec now;
++
++	UK_ASSERT(thread == uk_thread_current());
++	UK_ASSERT(thread->sched == source_s);
++	UK_ASSERT(source_s != target_s);
++	UK_ASSERT(!uk_thread_is_exited(thread));
++
++	first = source;
++	second = target;
++	if (target->lcpu_idx < source->lcpu_idx) {
++		first = target;
++		second = source;
++	}
++
++	flags = uk_lcpu_save_irqf();
++	uk_spin_lock(&first->queue_lock);
++	if (second != first)
++		uk_spin_lock(&second->queue_lock);
++
++	now = ukplat_monotonic_clock();
++	thread->sched = target_s;
++	UK_TAILQ_REMOVE(&source_s->thread_list, thread, thread_list);
++	UK_TAILQ_INSERT_TAIL(&target_s->thread_list, thread, thread_list);
++	UK_TAILQ_INSERT_TAIL(&target->run_queue, thread, queue);
++
++#if CONFIG_LIBUKSCHED_PLACEMENT_TRACE
++	uk_pr_info("SMPPLACE migrate thread=%p source=%u target=%u\n",
++		   thread, source->lcpu_idx, target->lcpu_idx);
++#endif /* CONFIG_LIBUKSCHED_PLACEMENT_TRACE */
++
++	next = schedcoop_schedule_locked(source, source_s, thread, now, false);
++	uk_thread_clear_queueable(thread);
++
++	if (second != first)
++		uk_spin_unlock(&second->queue_lock);
++	uk_spin_unlock(&first->queue_lock);
++
++	{
++		__u64 target_lcpu = target->lcpu_idx;
++		unsigned int one = 1;
++
++		uk_lcpu_wakeup(&target_lcpu, &one);
++	}
++
++	uk_lcpu_restore_irqf(flags);
++
++	if (next != thread) {
++		if (next != &source->idle)
++			uk_sched_stats_next_count_incr(source_s);
++		uk_sched_thread_switch(next);
++	}
++
++	UK_ASSERT(uk_thread_current() == thread);
++	UK_ASSERT(thread->sched == target_s);
++
++#if CONFIG_LIBUKSCHED_PLACEMENT_TRACE
++	uk_pr_info("SMPPLACE resume thread=%p actual=%u sched=%p\n",
++		   thread,
++		   uk_pcpuvar_current_get(uk_pcpuvar_cpu_idx),
++		   thread->sched);
++#endif /* CONFIG_LIBUKSCHED_PLACEMENT_TRACE */
++
++	return 0;
+ }
+ 
+ static void schedcoop_thread_blocked(struct uk_sched *s, struct uk_thread *t)
+@@ -168,10 +290,15 @@ static void schedcoop_thread_blocked(struct uk_sched *s, struct uk_thread *t)
+ 
+ 	UK_ASSERT(uk_lcpu_irqs_disabled());
+ 
++	/* IRQs are already disabled here (asserted above), so we only need the
++	 * spinlock (no irqsave) to serialise against other LCPUs.
++	 */
++	uk_spin_lock(&c->queue_lock);
+ 	if (t != uk_thread_current())
+ 		UK_TAILQ_REMOVE(&c->run_queue, t, queue);
+ 	if (t->wakeup_time > 0)
+ 		UK_TAILQ_INSERT_TAIL(&c->sleep_queue, t, queue);
++	uk_spin_unlock(&c->queue_lock);
+ }
+ 
+ static __noreturn void idle_thread_fn(void *argp)
+@@ -293,6 +420,11 @@ struct uk_sched *uk_schedcoop_create(struct uk_alloc *a,
+ 
+ 	UK_TAILQ_INIT(&c->run_queue);
+ 	UK_TAILQ_INIT(&c->sleep_queue);
++	uk_spin_init(&c->queue_lock);
++	/* Default to the BSP; the SMP bring-up driver overrides this for AP
++	 * instances right after create.
++	 */
++	c->lcpu_idx = 0;
+ 
+ 	/* Create idle thread */
+ 	rc = uk_thread_init_fn1(&c->idle,
+@@ -314,6 +446,7 @@ struct uk_sched *uk_schedcoop_create(struct uk_alloc *a,
+ 			schedcoop_yield,
+ 			schedcoop_thread_add,
+ 			schedcoop_thread_remove,
++			schedcoop_thread_migrate,
+ 			schedcoop_thread_blocked,
+ 			schedcoop_thread_woken_isr,
+ 			schedcoop_thread_woken_isr,
+diff --git a/lib/ukschedcoop/schedcoop.h b/lib/ukschedcoop/schedcoop.h
+index d07ca7c..ac7449f 100644
+--- a/lib/ukschedcoop/schedcoop.h
++++ b/lib/ukschedcoop/schedcoop.h
+@@ -7,6 +7,7 @@
+ #define __UK_SCHEDCOOP_SCHEDCOOP_H__
+ 
+ #include <uk/schedcoop.h>
++#include <uk/spinlock.h>
+ 
+ struct schedcoop {
+ 	struct uk_sched sched;
+@@ -16,6 +17,18 @@ struct schedcoop {
+ 	struct uk_thread idle;
+ 	__nsec idle_return_time;
+ 	__nsec ts_prev_switch;
++
++	/* Protects run_queue and sleep_queue against concurrent access from
++	 * other LCPUs (e.g. a thread being placed on this instance from the
++	 * BSP via schedcoop_thread_add).
++	 */
++	__spinlock queue_lock;
++
++	/* Index of the LCPU that owns/runs this scheduler instance. Set by the
++	 * SMP bring-up driver right after uk_schedcoop_create(). Defaults to 0
++	 * (the BSP).
++	 */
++	unsigned int lcpu_idx;
+ };
+ 
+ static inline struct schedcoop *uksched2schedcoop(struct uk_sched *s)
+diff --git a/lib/ukschedcoop/smp.c b/lib/ukschedcoop/smp.c
+new file mode 100644
+index 0000000..83e6cc1
+--- /dev/null
++++ b/lib/ukschedcoop/smp.c
+@@ -0,0 +1,332 @@
++/* SPDX-License-Identifier: BSD-3-Clause */
++/* Copyright (c) 2026, Unikraft GmbH and The Unikraft Authors.
++ * Licensed under the BSD-3-Clause License (the "License").
++ * You may not use this file except in compliance with the License.
++ */
++/*
++ * A3: per-LCPU cooperative scheduler bring-up.
++ *
++ * Creates one self-contained `ukschedcoop` instance per online secondary
++ * vCPU, starts the AP on a dedicated bootstrap stack, and round-robins newly
++ * created threads across all online per-LCPU schedulers so they run in
++ * parallel.
++ */
++#include <errno.h>
++#include <uk/plat/config.h>
++#include <uk/config.h>
++#include <uk/alloc.h>
++#include <uk/sched.h>
++#include <uk/schedcoop.h>
++#include <uk/lcpu.h>
++#include <uk/lcpu/pm.h>
++#include <uk/pcpuvar.h>
++#include <uk/atomic.h>
++#include <uk/print.h>
++#include <uk/essentials.h>
++#include <uk/compiler.h>
++#include <uk/arch/ctx.h>
++#include "schedcoop.h"
++
++/* Per-LCPU scheduler instances. Index 0 is the BSP scheduler. */
++static struct uk_sched *coop_by_lcpu[CONFIG_UKPLAT_CPU_MAXCOUNT];
++
++/* Low, identity-mapped bootstrap stacks for the APs.
++ *
++ * The platform trampoline jumps to the AP entry on the limited *boot* page
++ * table with whatever SP we hand to uk_lcpu_start(). The main heap and the
++ * stack allocator are vmem-backed (high virtual addresses) that the boot page
++ * table does NOT map, so an AP would triple-fault on its first stack access
++ * before it can adopt the runtime page table. The kernel image (.bss) is
++ * identity-mapped in BOTH the boot and runtime page tables, so a static array
++ * here gives each AP a stack that is valid both before and after the CR3
++ * switch. (This mirrors how Linux gives a secondary CPU a low trampoline
++ * stack before it switches to swapper_pg_dir / its task stack.) Index 0 is
++ * unused (the BSP runs on its boot stack).
++ */
++static __align(UKARCH_SP_ALIGN)
++	char ap_bootstack[CONFIG_UKPLAT_CPU_MAXCOUNT][STACK_SIZE];
++
++/* Round-robin cursor for uk_schedcoop_smp_pick(). */
++static unsigned long rr_cursor;
++
++/* Physical address of the BSP's *runtime* page table (CR3), captured during
++ * bring-up while the BSP is running on the full paging/vmem page table. APs
++ * are started by the platform trampoline on the limited *boot* page table
++ * (x86_bpt_pml4), which does NOT map the high-virtual-address, vmem-backed
++ * stacks (idle/thread stacks come from the stack allocator `sa`). Each AP must
++ * therefore adopt this runtime page table before touching any such memory.
++ */
++static unsigned long runtime_pt_base;
++
++/* The BSP's EFER, captured during bring-up. The AP trampoline only sets
++ * EFER.LME (long mode) and NOT EFER.NXE, but the runtime page table marks
++ * data pages no-execute (NX, bit 63). Walking an NX PTE with EFER.NXE clear
++ * raises a reserved-bit #PF, so the AP must adopt the BSP's EFER (which has
++ * NXE set) BEFORE loading the runtime page table.
++ */
++static unsigned long runtime_efer;
++
++#define X86_MSR_EFER 0xc0000080u
++
++static inline void ap_adopt_runtime_pt(void)
++{
++#if defined(__X86_64__) || defined(__x86_64__)
++	/* 1) Match the BSP's EFER (notably NXE) so NX PTEs are legal. */
++	__asm__ __volatile__("wrmsr"
++			     :: "a"((unsigned int)runtime_efer),
++				"d"((unsigned int)(runtime_efer >> 32)),
++				"c"(X86_MSR_EFER));
++	/* 2) Adopt the BSP's runtime page table (maps the high-vaddr vmem
++	 *    stacks this LCPU's scheduler/threads use).
++	 */
++	__asm__ __volatile__("movq %0, %%cr3" :: "r"(runtime_pt_base) : "memory");
++#endif
++}
++
++static inline struct uk_sched *uk_schedcoop_smp_slot(unsigned int lcpu_idx)
++{
++	if (lcpu_idx >= CONFIG_UKPLAT_CPU_MAXCOUNT)
++		return NULL;
++
++	return uk_load_n(&coop_by_lcpu[lcpu_idx]);
++}
++
++/*
++ * AP entry point.
++ *
++ * NOTE: uk_lcpu_start() hard-codes the argument passed to the entry to be the
++ *       `struct uk_lcpu *` of the started CPU - we cannot pass a custom
++ *       pointer. We therefore recover our scheduler instance from the global
++ *       `coop_by_lcpu` array, indexed by *our own* LCPU index (read from the
++ *       per-CPU `uk_pcpuvar_cpu_idx`).
++ *
++ * This function must never return.
++ */
++static void __noreturn ap_entry(struct uk_lcpu *self)
++{
++	__u64 idx;
++	struct uk_sched *s;
++	int rc;
++
++	/* Finish per-CPU initialization. The default AP entry
++	 * (uk_lcpu_entry_default) calls uk_lcpu_init() before running any user
++	 * entry; because we supply our own entry to uk_lcpu_start(), the
++	 * trampoline jumps straight here and we MUST do it ourselves. This sets
++	 * up exception/trap handling for this CPU (uk_pal_except_init) and marks
++	 * it online. Runs with IRQs still disabled and on the boot page table,
++	 * exactly as the default entry expects.
++	 */
++	rc = uk_lcpu_init(self);
++	if (unlikely(rc))
++		uk_lcpu_halt();
++
++	/* The platform trampoline jumps here on the limited boot page table with
++	 * a LOW (boot-PT-mapped) bootstrap stack (see uk_schedcoop_smp_bringup).
++	 * Immediately adopt the BSP's runtime page table so the high-vaddr
++	 * vmem-backed stacks (this scheduler's idle thread, and any threads later
++	 * placed on this LCPU) are reachable. The low bootstrap stack is identity-
++	 * mapped in both page tables, so switching here is safe.
++	 */
++	ap_adopt_runtime_pt();
++
++	idx = uk_pcpuvar_current_get(uk_pcpuvar_cpu_idx);
++	s = uk_schedcoop_smp_slot((unsigned int)idx);
++
++	UK_ASSERT(s);
++
++	uk_pr_info("SMP: scheduler online on LCPU %lu\n", (unsigned long)idx);
++#if CONFIG_LIBUKSCHED_PLACEMENT_TRACE
++	uk_pr_info("SMPPLACE online lcpu=%u sched=%p\n", (unsigned int)idx, s);
++#endif /* CONFIG_LIBUKSCHED_PLACEMENT_TRACE */
++
++	/* uk_sched_start() is AP-safe as-is: on a fresh AP uk_thread_current()
++	 * is NULL and `s` is a distinct, not-yet-started instance, so its
++	 * preconditions (!s->is_started, !uk_thread_current()) hold per-AP. It
++	 * allocates the per-CPU "init"/current thread (whose ->sched is this
++	 * local instance, making uk_sched_current() correct on this LCPU) and
++	 * calls schedcoop_start() which enables IRQs.
++	 */
++	uk_sched_start(s);
++
++	/* schedcoop_start() already enables IRQs, but be explicit/defensive. */
++	uk_lcpu_enable_irq();
++
++	/* Cooperatively run whatever gets placed on this LCPU. When the run
++	 * queue is empty, schedcoop schedules its idle thread which halts the
++	 * CPU until an IRQ (e.g. a cross-CPU wakeup from schedcoop_thread_add)
++	 * arrives.
++	 */
++	for (;;)
++		uk_sched_yield();
++}
++
++int uk_schedcoop_smp_bringup(struct uk_alloc *a,
++			     struct uk_alloc *sa,
++			     struct uk_alloc *auxsa)
++{
++	unsigned int started = 0;
++	unsigned int i;
++
++	UK_ASSERT(a);
++	UK_ASSERT(sa);
++	UK_ASSERT(auxsa);
++
++	/* Record the BSP scheduler (the one currently running on this CPU) at
++	 * index 0 so it is valid for round-robin placement.
++	 */
++	uk_store_n(&coop_by_lcpu[0], uk_sched_current());
++	UK_ASSERT(coop_by_lcpu[0]);
++
++	/* Capture the BSP's runtime page table (CR3) now, while we are running on
++	 * the full paging/vmem page table. Each AP adopts it in ap_entry().
++	 */
++#if defined(__X86_64__) || defined(__x86_64__)
++	{
++		unsigned int efer_lo, efer_hi;
++
++		__asm__ __volatile__("movq %%cr3, %0" : "=r"(runtime_pt_base));
++		__asm__ __volatile__("rdmsr"
++				     : "=a"(efer_lo), "=d"(efer_hi)
++				     : "c"(X86_MSR_EFER));
++		runtime_efer = ((unsigned long)efer_hi << 32) | efer_lo;
++	}
++#endif
++
++	for (i = 1; i < CONFIG_UKPLAT_CPU_MAXCOUNT; i++) {
++		struct uk_sched *s;
++		struct schedcoop *c;
++		void *stack;
++		__u64 sp;
++		__u64 lcpuidx[1];
++		__u64 entry[1];
++		__u64 sparr[1];
++		unsigned int num = 1;
++		int rc;
++
++		s = uk_schedcoop_create(a, sa, auxsa, a);
++		if (unlikely(!s)) {
++			uk_pr_warn("SMP: failed to create scheduler for LCPU %u\n",
++				   i);
++			continue;
++		}
++
++		c = uksched2schedcoop(s);
++		c->lcpu_idx = i;
++		uk_store_n(&coop_by_lcpu[i], s);
++
++		/* Use the static, low, identity-mapped bootstrap stack for this
++		 * AP (see ap_bootstack). It must be reachable on the boot page
++		 * table the AP starts on, before ap_entry adopts the runtime PT.
++		 */
++		stack = ap_bootstack[i];
++		sp = ukarch_gen_sp(stack, STACK_SIZE);
++
++		lcpuidx[0] = i;
++		sparr[0]   = sp;
++		entry[0]   = (__u64)ap_entry;
++
++		rc = uk_lcpu_start(lcpuidx, &num, sparr, entry, 0);
++		if (unlikely(rc)) {
++			uk_pr_warn("SMP: uk_lcpu_start(LCPU %u) failed: %d\n",
++				   i, rc);
++			uk_store_n(&coop_by_lcpu[i], NULL);
++			continue;
++		}
++
++		/* `num` reflects how many of the requested CPUs actually
++		 * started (here at most 1).
++		 */
++		if (num >= 1) {
++			started++;
++		} else {
++			uk_pr_warn("SMP: LCPU %u did not start\n", i);
++			uk_store_n(&coop_by_lcpu[i], NULL);
++		}
++	}
++
++#if CONFIG_LIBUKSCHED_PLACEMENT_TRACE
++	uk_pr_info("SMPPLACE online lcpu=0 sched=%p\n", coop_by_lcpu[0]);
++#endif /* CONFIG_LIBUKSCHED_PLACEMENT_TRACE */
++
++	uk_pr_info("SMP: brought up %u secondary scheduler(s) (%u total LCPUs)\n",
++		   started, started + 1);
++
++	return 0;
++}
++
++unsigned int uk_schedcoop_smp_online_count(void)
++{
++	unsigned int i;
++	unsigned int count = 0;
++
++	for (i = 0; i < CONFIG_UKPLAT_CPU_MAXCOUNT; i++) {
++		struct uk_sched *s = uk_load_n(&coop_by_lcpu[i]);
++
++		if (s && uk_load_n(&s->is_started))
++			count++;
++	}
++
++	return count;
++}
++
++struct uk_sched *uk_schedcoop_smp_sched(unsigned int lcpu_idx)
++{
++	struct uk_sched *s;
++
++	if (lcpu_idx >= CONFIG_UKPLAT_CPU_MAXCOUNT)
++		return NULL;
++
++	s = uk_load_n(&coop_by_lcpu[lcpu_idx]);
++	if (!s || !uk_load_n(&s->is_started))
++		return NULL;
++
++	return s;
++}
++
++struct uk_sched *uk_schedcoop_smp_pick(void)
++{
++	unsigned int attempts;
++	unsigned int count;
++	unsigned long n;
++	struct uk_sched *s;
++
++	count = uk_schedcoop_smp_online_count();
++	if (!count)
++		return coop_by_lcpu[0];
++
++	/* Try up to the configured LCPU span, skipping unavailable slots. */
++	for (attempts = 0; attempts < CONFIG_UKPLAT_CPU_MAXCOUNT; attempts++) {
++		n = (unsigned long)uk_fetch_add(&rr_cursor, 1);
++		s = uk_schedcoop_smp_sched(n % CONFIG_UKPLAT_CPU_MAXCOUNT);
++		if (likely(s))
++			return s;
++	}
++
++	/* Fallback: the BSP scheduler is always present. */
++	return coop_by_lcpu[0];
++}
++
++int uk_schedcoop_smp_lcpu(const struct uk_sched *s)
++{
++	unsigned int i;
++
++	if (!s)
++		return -EINVAL;
++
++	for (i = 0; i < CONFIG_UKPLAT_CPU_MAXCOUNT; i++)
++		if (uk_schedcoop_smp_sched(i) == s)
++			return (int)i;
++
++	return -ENOENT;
++}
++
++int uk_schedcoop_smp_migrate_current(unsigned int target_lcpu)
++{
++	struct uk_sched *target;
++
++	target = uk_schedcoop_smp_sched(target_lcpu);
++	if (!target)
++		return -ENOENT;
++
++	return uk_sched_thread_migrate_current(target);
++}
