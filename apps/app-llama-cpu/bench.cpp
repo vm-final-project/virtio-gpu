@@ -22,11 +22,13 @@ int main(void)
     if (!model)
         return 1;
 
+    const unsigned int nvcpu = uk_llama_cpu_online_vcpus();
+
     llama_context_params cparams = llama_context_default_params();
     cparams.n_ctx            = 512 + 128;
     cparams.n_batch          = 512;
-    cparams.n_threads        = CONFIG_APP_LLAMA_CPU_THREADS;
-    cparams.n_threads_batch  = CONFIG_APP_LLAMA_CPU_THREADS;
+    cparams.n_threads        = (int)nvcpu;
+    cparams.n_threads_batch  = (int)nvcpu;
 
     llama_context *ctx = llama_init_from_model(model, cparams);
     if (!ctx) {
@@ -42,10 +44,15 @@ int main(void)
      * vCPUs (IPI + reschedule) at every barrier, and there are many barriers
      * per token; that wakeup latency makes multi-vCPU SLOWER than one vCPU.
      * Spinning keeps one worker hot per vCPU (co-scheduled), which is what
-     * ggml's barrier expects. Host has plenty of cores. */
+     * ggml's barrier expects. Host has plenty of cores.
+     * Pin one worker per online vCPU via one-hot cpumask so ggml's affinity
+     * path migrates each thread to its dedicated vCPU. */
     struct ggml_threadpool_params tpp =
-        ggml_threadpool_params_default(CONFIG_APP_LLAMA_CPU_THREADS);
-    tpp.poll = 100; /* aggressive polling: never sleep */
+        ggml_threadpool_params_default((int)nvcpu);
+    for (uint32_t i = 0; i < GGML_MAX_N_THREADS; i++)
+        tpp.cpumask[i] = (i < nvcpu);
+    tpp.strict_cpu = true;
+    tpp.poll       = 100;
     struct ggml_threadpool *tp = ggml_threadpool_new(&tpp);
     if (tp)
         llama_attach_threadpool(ctx, tp, tp);
