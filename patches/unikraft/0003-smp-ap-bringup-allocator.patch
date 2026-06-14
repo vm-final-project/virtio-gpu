@@ -1,0 +1,100 @@
+diff --git a/lib/ukallocbbuddy/bbuddy.c b/lib/ukallocbbuddy/bbuddy.c
+index 3e39480..84b760f 100644
+--- a/lib/ukallocbbuddy/bbuddy.c
++++ b/lib/ukallocbbuddy/bbuddy.c
+@@ -49,6 +49,7 @@
+ #include <uk/alloc_impl.h>
+ #include <uk/arch/limits.h>
+ #include <uk/atomic.h>
++#include <uk/spinlock.h>
+ #include <uk/bitops/bitscan.h>
+ #include <uk/print.h>
+ #include <uk/assert.h>
+@@ -82,8 +83,42 @@ struct uk_bbpalloc {
+ 	unsigned long nr_free_pages;
+ 	struct uk_hlist_head free_head[FREELIST_SIZE];
+ 	struct uk_bbpalloc_memr *memr_head;
++	/* SMP: the free lists above are global mutable state. Unikraft's
++	 * allocator historically assumed a single processing LCPU; with the
++	 * A3 per-LCPU schedulers, secondary vCPUs allocate/free concurrently,
++	 * so all palloc/pfree must be serialised (cf. Linux: data shared
++	 * between cores must be spinlock-protected).
++	 */
++	__spinlock lock;
+ };
+ 
++/* SMP locking wrappers: the real work is in *_locked(); these serialise it. */
++static void *bbuddy_palloc_locked(struct uk_alloc *a, unsigned long num_pages);
++static void bbuddy_pfree_locked(struct uk_alloc *a, void *obj,
++				unsigned long num_pages);
++
++static void *bbuddy_palloc(struct uk_alloc *a, unsigned long num_pages)
++{
++	struct uk_bbpalloc *const b = (struct uk_bbpalloc *)&a->priv;
++	unsigned long flags;
++	void *res;
++
++	uk_spin_lock_irqsave(&b->lock, flags);
++	res = bbuddy_palloc_locked(a, num_pages);
++	uk_spin_unlock_irqrestore(&b->lock, flags);
++	return res;
++}
++
++static void bbuddy_pfree(struct uk_alloc *a, void *obj, unsigned long num_pages)
++{
++	struct uk_bbpalloc *const b = (struct uk_bbpalloc *)&a->priv;
++	unsigned long flags;
++
++	uk_spin_lock_irqsave(&b->lock, flags);
++	bbuddy_pfree_locked(a, obj, num_pages);
++	uk_spin_unlock_irqrestore(&b->lock, flags);
++}
++
+ #if CONFIG_LIBUKALLOCBBUDDY_FREELIST_SANITY
+ /* Provide sanity checking of freelists, walking their length and checking
+  * for consistency. Useful when suspecting memory corruption.
+@@ -356,7 +391,7 @@ static inline void bbuddy_trim(struct uk_bbpalloc *b, struct chunk_head *ch,
+ 	}
+ }
+ 
+-static void *bbuddy_palloc(struct uk_alloc *a, unsigned long num_pages)
++static void *bbuddy_palloc_locked(struct uk_alloc *a, unsigned long num_pages)
+ {
+ 	struct uk_bbpalloc *const b = (struct uk_bbpalloc *)&a->priv;
+ 	struct chunk_head *alloc_ch;
+@@ -460,7 +495,8 @@ static inline size_t bbuddy_merge(struct uk_bbpalloc *b,
+ 	return ord;
+ }
+ 
+-static void bbuddy_pfree(struct uk_alloc *a, void *obj, unsigned long num_pages)
++static void bbuddy_pfree_locked(struct uk_alloc *a, void *obj,
++				unsigned long num_pages)
+ {
+ 	struct uk_bbpalloc *const b = (struct uk_bbpalloc *)&a->priv;
+ 	char *base = obj;
+@@ -665,6 +701,7 @@ struct uk_alloc *uk_allocbbuddy_init(void *base, size_t len)
+ 	for (i = 0; i < FREELIST_SIZE; i++)
+ 		UK_INIT_HLIST_HEAD(&b->free_head[i]);
+ 	b->memr_head = NULL;
++	uk_spin_init(&b->lock);
+ 
+ 	/* initialize and register allocator interface */
+ 	uk_alloc_init_palloc(a, bbuddy_palloc, bbuddy_pfree,
+diff --git a/lib/ukboot/boot.c b/lib/ukboot/boot.c
+index 0cd058c..0c1810d 100644
+--- a/lib/ukboot/boot.c
++++ b/lib/ukboot/boot.c
+@@ -362,6 +362,13 @@ void uk_boot_entry(void)
+ 	if (unlikely(!s))
+ 		UK_CRASH("Failed to initialize scheduling\n");
+ 	uk_sched_start(s);
++#if CONFIG_LIBUKSCHEDCOOP_SMP
++	/* Bring up one cooperative scheduler instance per secondary vCPU. The
++	 * allocators a/sa/auxsa are the same ones used by uk_schedcoop_create()
++	 * just above and are in scope here.
++	 */
++	uk_schedcoop_smp_bringup(a, sa, auxsa);
++#endif /* CONFIG_LIBUKSCHEDCOOP_SMP */
+ #endif /* CONFIG_LIBUKBOOT_INITSCHED */
+ 
+ 	ictx.cmdline.argc = boot_argc;

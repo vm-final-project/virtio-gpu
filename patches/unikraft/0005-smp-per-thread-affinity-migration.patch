@@ -1,0 +1,435 @@
+diff --git a/lib/uksched/exportsyms.uk b/lib/uksched/exportsyms.uk
+index 47e6a7d..bccab29 100644
+--- a/lib/uksched/exportsyms.uk
++++ b/lib/uksched/exportsyms.uk
+@@ -6,12 +6,17 @@ uk_sched_thread_create_fn1
+ uk_sched_thread_create_fn2
+ uk_sched_thread_add
+ uk_sched_thread_remove
++uk_sched_thread_migrate_current
+ uk_sched_thread_terminate
+ uk_sched_thread_sleep
+ uk_sched_thread_exit
+ uk_sched_thread_exit2
+ uk_sched_dumpk_threads
+ uk_sched_thread_gc
++uk_sched_affinity_fill
++uk_sched_affinity_intersect
++uk_sched_affinity_test
++uk_sched_affinity_target
+ uk_thread_init_bare
+ uk_thread_init_bare_fn0
+ uk_thread_init_bare_fn1
+diff --git a/lib/uksched/include/uk/sched.h b/lib/uksched/include/uk/sched.h
+index b143589..4ec771e 100644
+--- a/lib/uksched/include/uk/sched.h
++++ b/lib/uksched/include/uk/sched.h
+@@ -66,6 +66,9 @@ typedef int   (*uk_sched_thread_add_func_t)
+ 		(struct uk_sched *s, struct uk_thread *t);
+ typedef void  (*uk_sched_thread_remove_func_t)
+ 		(struct uk_sched *s, struct uk_thread *t);
++typedef int   (*uk_sched_thread_migrate_func_t)
++		(struct uk_sched *source, struct uk_thread *thread,
++		 struct uk_sched *target);
+ typedef void  (*uk_sched_thread_blocked_func_t)
+ 		(struct uk_sched *s, struct uk_thread *t);
+ typedef void  (*uk_sched_thread_woken_func_t)
+@@ -90,6 +93,7 @@ struct uk_sched {
+ 
+ 	uk_sched_thread_add_func_t      thread_add;
+ 	uk_sched_thread_remove_func_t   thread_remove;
++	uk_sched_thread_migrate_func_t  thread_migrate;
+ 	uk_sched_thread_blocked_func_t  thread_blocked;
+ 	uk_sched_thread_woken_func_t    thread_woken;
+ 	uk_sched_thread_woken_func_t    thread_woken_isr;
+@@ -129,6 +133,16 @@ int uk_sched_thread_add(struct uk_sched *s, struct uk_thread *t);
+ 
+ int uk_sched_thread_remove(struct uk_thread *t);
+ 
++int uk_sched_thread_migrate_current(struct uk_sched *target);
++
++void uk_sched_affinity_fill(struct uk_sched_cpu_mask *mask);
++int uk_sched_affinity_intersect(struct uk_sched_cpu_mask *dst,
++				const struct uk_sched_cpu_mask *requested);
++bool uk_sched_affinity_test(const struct uk_sched_cpu_mask *mask,
++			    unsigned int lcpu_idx);
++int uk_sched_affinity_target(const struct uk_sched_cpu_mask *mask,
++			     int current_lcpu);
++
+ static inline void uk_sched_thread_blocked(struct uk_thread *t)
+ {
+ 	struct uk_sched *s;
+diff --git a/lib/uksched/include/uk/sched_impl.h b/lib/uksched/include/uk/sched_impl.h
+index 134bdb2..7e6ef47 100644
+--- a/lib/uksched/include/uk/sched_impl.h
++++ b/lib/uksched/include/uk/sched_impl.h
+@@ -64,7 +64,7 @@ int uk_sched_register(struct uk_sched *s);
+ #endif /* CONFIG_LIBUKSCHED_STATS */
+ 
+ #define uk_sched_init(s, start_func, yield_func, \
+-		thread_add_func, thread_remove_func, \
++		thread_add_func, thread_remove_func, thread_migrate_func, \
+ 		thread_blocked_func, thread_woken_func, \
+ 		thread_woken_isr_func, idle_thread_func, \
+ 		sched_a, sched_a_stack, sched_a_auxstack, sched_a_uktls) \
+@@ -73,6 +73,7 @@ int uk_sched_register(struct uk_sched *s);
+ 		(s)->yield            = yield_func; \
+ 		(s)->thread_add       = thread_add_func; \
+ 		(s)->thread_remove    = thread_remove_func; \
++		(s)->thread_migrate   = thread_migrate_func; \
+ 		(s)->thread_blocked   = thread_blocked_func; \
+ 		(s)->thread_woken     = thread_woken_func; \
+ 		(s)->thread_woken_isr = thread_woken_isr_func; \
+diff --git a/lib/uksched/include/uk/thread.h b/lib/uksched/include/uk/thread.h
+index 7834b4a..5189e62 100644
+--- a/lib/uksched/include/uk/thread.h
++++ b/lib/uksched/include/uk/thread.h
+@@ -38,6 +38,7 @@
+ #include <uk/list.h>
+ #include <uk/prio.h>
+ #include <uk/essentials.h>
++#include <uk/bitops/bitmap.h>
+ 
+ #ifdef __cplusplus
+ extern "C" {
+@@ -46,6 +47,13 @@ extern "C" {
+ struct uk_sched;
+ struct uk_thread;
+ 
++#define UK_SCHED_CPU_MASK_WORDS \
++	UK_BITS_TO_LONGS(CONFIG_UKPLAT_CPU_MAXCOUNT)
++
++struct uk_sched_cpu_mask {
++	unsigned long bits[UK_SCHED_CPU_MASK_WORDS];
++};
++
+ typedef void (*uk_thread_dtor_t)(struct uk_thread *);
+ typedef void (*uk_thread_gc_t)(struct uk_thread *, void *);
+ 
+@@ -64,6 +72,7 @@ struct uk_thread {
+ 	uint32_t flags;
+ 	__snsec wakeup_time;
+ 	struct uk_sched *sched;
++	struct uk_sched_cpu_mask affinity;
+ 	struct uk_waitq_ticket wait_ticket;
+ 
+ 	struct {
+diff --git a/lib/uksched/sched.c b/lib/uksched/sched.c
+index e8f1b75..3295a69 100644
+--- a/lib/uksched/sched.c
++++ b/lib/uksched/sched.c
+@@ -44,11 +44,49 @@
+ #include <uk/syscall.h>
+ #include <uk/wait.h>
+ #include <uk/pcpuvar.h>
++#include <uk/atomic.h>
++#include <uk/bitops/bitmap.h>
++#if CONFIG_LIBPOSIX_PROCESS_MULTITHREADING
++#include <uk/process.h>
++#endif
++
++#if CONFIG_LIBUKSCHEDCOOP_SMP
++#include <uk/schedcoop.h>
++#endif
+ 
+ struct uk_sched *uk_sched_head;
+ 
+ __uk_pcpuvar struct uk_thread *__uk_sched_thread_current;
+ 
++static void uk_sched_affinity_zero(struct uk_sched_cpu_mask *mask)
++{
++	UK_ASSERT(mask);
++	uk_bitmap_zero(mask->bits, CONFIG_UKPLAT_CPU_MAXCOUNT);
++}
++
++static bool uk_sched_affinity_empty(const struct uk_sched_cpu_mask *mask)
++{
++	UK_ASSERT(mask);
++	return uk_bitmap_empty((unsigned long *)mask->bits,
++			       CONFIG_UKPLAT_CPU_MAXCOUNT);
++}
++
++static void uk_sched_affinity_ready_online(struct uk_sched_cpu_mask *mask)
++{
++	unsigned int i;
++
++	uk_sched_affinity_zero(mask);
++
++#if CONFIG_LIBUKSCHEDCOOP_SMP
++	for (i = 0; i < CONFIG_UKPLAT_CPU_MAXCOUNT; i++) {
++		if (uk_schedcoop_smp_sched(i))
++			uk_bitmap_set(mask->bits, i, 1);
++	}
++#else
++	uk_bitmap_set(mask->bits, 0, 1);
++#endif
++}
++
+ int uk_sched_register(struct uk_sched *s)
+ {
+ 	struct uk_sched *this = uk_sched_head;
+@@ -66,6 +104,80 @@ int uk_sched_register(struct uk_sched *s)
+ 	return 0;
+ }
+ 
++void uk_sched_affinity_fill(struct uk_sched_cpu_mask *mask)
++{
++	struct uk_thread *current;
++
++	UK_ASSERT(mask);
++	uk_sched_affinity_ready_online(mask);
++	current = uk_thread_current();
++
++	/*
++	 * Parentless bootstrap threads run before their local scheduler may be
++	 * published as ready. Preserve the local LCPU in the inherited mask so
++	 * AP init threads do not exclude themselves during startup.
++	 */
++	if (!current) {
++		unsigned int lcpu_idx = uk_pcpuvar_current_get(uk_pcpuvar_cpu_idx);
++
++		if (lcpu_idx < CONFIG_UKPLAT_CPU_MAXCOUNT)
++			uk_bitmap_set(mask->bits, lcpu_idx, 1);
++	}
++
++	/*
++	 * Early bootstrap threads are created before the ready scheduler
++	 * registry is populated. Keep them executable everywhere configured so
++	 * later inherited masks do not collapse to CPU0 only.
++	 */
++	if (uk_sched_affinity_empty(mask))
++		uk_bitmap_fill(mask->bits, CONFIG_UKPLAT_CPU_MAXCOUNT);
++}
++
++int uk_sched_affinity_intersect(struct uk_sched_cpu_mask *dst,
++				const struct uk_sched_cpu_mask *requested)
++{
++	struct uk_sched_cpu_mask online;
++	unsigned int i;
++
++	UK_ASSERT(dst);
++	UK_ASSERT(requested);
++
++	uk_sched_affinity_ready_online(&online);
++	for (i = 0; i < UK_SCHED_CPU_MASK_WORDS; i++)
++		dst->bits[i] = requested->bits[i] & online.bits[i];
++
++	return uk_sched_affinity_empty(dst) ? -EINVAL : 0;
++}
++
++bool uk_sched_affinity_test(const struct uk_sched_cpu_mask *mask,
++			    unsigned int lcpu_idx)
++{
++	UK_ASSERT(mask);
++
++	if (lcpu_idx >= CONFIG_UKPLAT_CPU_MAXCOUNT)
++		return false;
++
++	return uk_test_bit(lcpu_idx, mask->bits);
++}
++
++int uk_sched_affinity_target(const struct uk_sched_cpu_mask *mask,
++			     int current_lcpu)
++{
++	unsigned int target;
++
++	UK_ASSERT(mask);
++
++	if (current_lcpu >= 0 &&
++	    uk_sched_affinity_test(mask, (unsigned int)current_lcpu))
++		return current_lcpu;
++
++	target = uk_find_next_bit(mask->bits, CONFIG_UKPLAT_CPU_MAXCOUNT, 0);
++	if (target >= CONFIG_UKPLAT_CPU_MAXCOUNT)
++		return -EINVAL;
++
++	return (int)target;
++}
++
+ struct uk_thread *uk_sched_thread_create_fn0(struct uk_sched *s,
+ 					     uk_thread_fn0_t fn0,
+ 					     size_t stack_len,
+@@ -246,7 +358,7 @@ int uk_sched_start(struct uk_sched *s)
+ 	ret = s->sched_start(s, main_thread);
+ 	if (ret < 0)
+ 		goto err_unset_thread_current;
+-	s->is_started = true;
++	uk_store_n(&s->is_started, true);
+ 
+ #if CONFIG_LIBUKSCHED_STATS
+ 	s->start_time = (__u64)ukplat_monotonic_clock();
+@@ -393,6 +505,59 @@ int uk_sched_thread_remove(struct uk_thread *t)
+ 	return 0;
+ }
+ 
++int uk_sched_thread_migrate_current(struct uk_sched *target)
++{
++	struct uk_thread *thread;
++	struct uk_sched *source;
++
++	if (!target)
++		return -EINVAL;
++
++	thread = uk_thread_current();
++	UK_ASSERT(thread);
++
++	source = thread->sched;
++	UK_ASSERT(source);
++
++	if (source == target)
++		return 0;
++
++	if (!source->thread_migrate)
++		return -ENOTSUP;
++
++	return source->thread_migrate(source, thread, target);
++}
++
++static struct uk_thread *resolve_affinity_thread(int pid)
++{
++	if (pid == 0)
++		return uk_thread_current();
++
++#if CONFIG_LIBPOSIX_PROCESS_MULTITHREADING
++	if (pid > 0)
++		return uk_posix_thread_from_tid(pid);
++#endif
++
++	return NULL;
++}
++
++static int affinity_current_owner(const struct uk_thread *thread)
++{
++#if CONFIG_LIBUKSCHEDCOOP_SMP
++	int lcpu;
++
++	UK_ASSERT(thread);
++	UK_ASSERT(thread->sched);
++
++	lcpu = uk_schedcoop_smp_lcpu(thread->sched);
++	return lcpu >= 0 ? lcpu : 0;
++#else
++	UK_ASSERT(thread);
++	UK_ASSERT(thread->sched);
++	return 0;
++#endif
++}
++
+ UK_SYSCALL_R_DEFINE(int, sched_yield)
+ {
+ 	uk_sched_yield();
+@@ -431,26 +596,77 @@ void uk_sched_dumpk_threads(int klvl, struct uk_sched *s)
+ UK_SYSCALL_R_DEFINE(int, sched_getaffinity, int, pid, long, cpusetsize,
+ 						unsigned long*, mask)
+ {
+-	UK_WARN_STUBBED();
+-	/* NOTE: Some applications use this to get the count of CPUs,
+-	 *       and the result must be positive.
+-	 *       So just return CPU0 to make them run.
+-	 */
+-	UK_ASSERT(cpusetsize > 0);
+-	UK_ASSERT(mask);
+-	memset(mask, 0, cpusetsize);
++	struct uk_thread *thread;
++	size_t mask_size;
+ 
+-	/* Set CPU0 */
+-	*mask = 1UL << 0;
++	thread = resolve_affinity_thread(pid);
++	if (!thread)
++		return -ESRCH;
++
++	if (!mask)
++		return -EFAULT;
++
++	mask_size = sizeof(thread->affinity);
++	if (cpusetsize < 0 || (size_t)cpusetsize < mask_size)
++		return -EINVAL;
+ 
+-	return cpusetsize;
++	memset(mask, 0, (size_t)cpusetsize);
++	memcpy(mask, &thread->affinity, mask_size);
++
++	return (int)mask_size;
+ }
+ 
+ UK_SYSCALL_R_DEFINE(int, sched_setaffinity, int, pid, long, cpusetsize,
+ 						unsigned long*, mask)
+ {
+-	UK_WARN_STUBBED();
+-	return 0;
++	struct uk_thread *thread;
++	struct uk_sched_cpu_mask requested = { };
++	struct uk_sched_cpu_mask effective;
++	struct uk_sched_cpu_mask previous;
++	size_t mask_size;
++	int current_owner;
++	int target;
++	int rc;
++
++	thread = resolve_affinity_thread(pid);
++	if (!thread)
++		return -ESRCH;
++
++	if (!mask)
++		return -EFAULT;
++
++	mask_size = sizeof(requested);
++	if (cpusetsize < 0 || (size_t)cpusetsize < mask_size)
++		return -EINVAL;
++
++	memcpy(&requested, mask, mask_size);
++
++	rc = uk_sched_affinity_intersect(&effective, &requested);
++	if (rc < 0)
++		return rc;
++
++	current_owner = affinity_current_owner(thread);
++	target = uk_sched_affinity_target(&effective, current_owner);
++	if (target < 0)
++		return target;
++
++	previous = thread->affinity;
++	thread->affinity = effective;
++
++	if (thread != uk_thread_current()) {
++		thread->affinity = previous;
++		return -ENOTSUP;
++	}
++
++#if CONFIG_LIBUKSCHEDCOOP_SMP
++	rc = uk_schedcoop_smp_migrate_current((unsigned int)target);
++#else
++	rc = target == 0 ? 0 : -ENOTSUP;
++#endif
++	if (rc < 0)
++		thread->affinity = previous;
++
++	return rc;
+ }
+ 
+ #define MEMBARRIER_SUPPORTED_CMDS (\
+diff --git a/lib/uksched/thread.c b/lib/uksched/thread.c
+index 914c8b9..84cda9f 100644
+--- a/lib/uksched/thread.c
++++ b/lib/uksched/thread.c
+@@ -237,6 +237,7 @@ static void _uk_thread_struct_init(struct uk_thread *t,
+ 				   uk_thread_dtor_t dtor)
+ {
+ 	struct ukarch_auxspcb *auxspcb;
++	struct uk_thread *parent;
+ 
+ 	/* TLS pointer required if is_uktls is set */
+ 	UK_ASSERT(!is_uktls || tlsp);
+@@ -250,6 +251,11 @@ static void _uk_thread_struct_init(struct uk_thread *t,
+ 	t->dtor = dtor;
+ 	t->exec_time = 0;
+ 	t->wait_ticket = UK_WAITQ_TICKET_INIT_VALUE;
++	parent = uk_thread_current();
++	if (parent)
++		t->affinity = parent->affinity;
++	else
++		uk_sched_affinity_fill(&t->affinity);
+ 
+ 	if (auxsp) {
+ 		t->flags |= UK_THREADF_AUXSP;

@@ -21,9 +21,11 @@
         "patches/unikraft/0001-pal-ectx-extern-c-linkage.patch",
         "patches/unikraft/0002-ukpod-anon-include-assert.patch",
         "patches/unikraft/0001-virtio-pci-modern-device-support.patch",
-        "patches/unikraft/0003-smp-per-lcpu-coop-scheduler-and-affinity.patch"
+        "patches/unikraft/0003-smp-ap-bringup-allocator.patch",
+        "patches/unikraft/0004-smp-per-lcpu-coop-scheduler.patch",
+        "patches/unikraft/0005-smp-per-thread-affinity-migration.patch"
       ],
-      "description": "Unikraft core. Kraftfiles reference this via the @@UNIKRAFT_LOCAL@@ placeholder resolved by mk/llama.mk. Patches in patches/unikraft/ are re-applied after every checkout/refresh (see scripts/deps.py). Patch 0003 adds the per-LCPU cooperative scheduler, per-thread CPU affinity state, and sched_{get,set}affinity syscalls needed for multi-vCPU ggml worker placement."
+      "description": "Unikraft core. Kraftfiles reference this via the @@UNIKRAFT_LOCAL@@ placeholder resolved by mk/llama.mk. Patches in patches/unikraft/ are re-applied after every checkout/refresh (see scripts/deps.py). Patches 0003-0005 add multi-vCPU SMP support: AP bring-up + SMP-safe allocator (0003), per-LCPU cooperative scheduler with round-robin placement (0004), per-thread CPU affinity state + worker migration fixes + sched_{get,set}affinity syscalls (0005). Together they enable ggml workers to run one-per-vCPU, achieving 3.83x pp512 speedup at SMP=4."
     },
     "llama_cpp": {
       "path": ".deps/src/llama.cpp",
