@@ -23,6 +23,9 @@ gemma-3-1b Q4_K_M):
 | Vulkan bench | `make llama-vk-bench-run` | `pass` — pp512 4582.6 / tg128 353.8 tok/s |
 | CPU server | `make llama-cpu-server-run` | `pass` — `/health` 200, `/completion` 200 |
 | Vulkan server | `make llama-vk-server-run` | `pass` — `/health` 200, `/completion` 200 |
+| CPU bench (SMP) | `make llama-cpu-bench-run VOGUE_SMP=N` | `pass` — pp512 3699.3 / tg128 192.3 tok/s (4 vCPU, tiny model) |
+| CPU server (SMP) | `make llama-cpu-server-run VOGUE_SMP=N` | `pass` — server_toks_per_s 54.34 (smp=1, tiny model) |
+| pthread-affinity probe | `make pthread-affinity-run` | `pass` (SMP placement verification, 4 vCPUs) |
 
 CPU runs need only QEMU/KVM. **Vulkan runs additionally need the host Venus stack
 in [§7](#7-host-setup-x86_64-venus-stack)** — do not hand-roll their QEMU command.
@@ -53,6 +56,7 @@ in [§7](#7-host-setup-x86_64-venus-stack)** — do not hand-roll their QEMU com
 | `app-kmscube` | `Kraftfile.kmscube-vgpu-gl` | virgl command-stream graphics proof |
 | `app-vkmark`, `app-vulkan-sample` | (via `make vulkan-check`) | Venus/Vulkan substrate probes |
 | `llama-common/` | — | shared headers for the CPU + Vulkan llama appliances |
+| `app-pthread-affinity` | `Kraftfile.pthread-affinity` | per-LCPU affinity probe — verifies one thread per vCPU placement under SMP |
 
 ### The Vulkan stack (`libs/`)
 
@@ -380,6 +384,29 @@ and `scripts/app-llama-vk.py` records `status: pass`.
 See [`docs/VENUS-BRINGUP.md`](docs/VENUS-BRINGUP.md) for the runtime probes and
 the `make venus-check` targets.
 
+### SMP: per-LCPU cooperative scheduler (branch `smp-a3-per-lcpu-scheduler`)
+
+The CPU bench and server support `-smp N` multi-vCPU operation via a set of
+VOGUE patches to Unikraft (`patches/unikraft/0003-smp-per-lcpu-coop-scheduler-and-affinity.patch`):
+
+- **Per-LCPU `ukschedcoop` instances** — one cooperative scheduler per online vCPU,
+  instantiated in `lib/ukschedcoop/smp.c`. Each LCPU bootstraps its own run queue
+  and idle thread.
+- **Per-thread CPU affinity state** in `uk_thread` + `uk_schedcoop_smp_place_current`
+  for explicit worker migration before compute.
+- **`sched_setaffinity` / `sched_getcpu` syscalls** wired to the Unikraft affinity
+  path, surfaced to llama.cpp's ggml CPU backend via the Unikraft affinity conditional
+  in `ggml-cpu.c`.
+- **Runtime vCPU count** (`uk_schedcoop_smp_online_count`) replaces the build-time
+  `@@VOGUE_SMP@@` macro, preventing oversubscription deadlock on the cooperative
+  scheduler (polling workers > online vCPUs would spin-lock the run queue).
+
+Set `VOGUE_SMP=N` on the make command line to build for N vCPUs and launch with `-smp N`:
+
+```sh
+make llama-cpu-bench-run VOGUE_SMP=4 ARCH=x86_64 MODEL=models/model.gguf
+```
+
 ---
 
 ## 8. Results
@@ -437,6 +464,7 @@ and is wired into a gate (none are duplicate or unused):
 | `venus_ring_test` | libukvulkan_venus ring transport | `test-venus` |
 | `dispatch_test` | libvulkan dispatch | `test-dispatch` |
 | `drm_compat_test` | libukvirtgpu_drm (optional DRM shim) | `test-compat` |
+| `pthread_affinity` | SMP per-vCPU worker placement (4 vCPUs) | `make pthread-affinity-run` |
 
 The venus/dispatch tests compile the generated Venus tree, which needs the
 repo-pinned Vulkan-Headers (`VK_HEADER_VERSION 352`); `tests/Makefile` defaults
