@@ -422,6 +422,15 @@ make llama-cpu-bench-run VOGUE_SMP=4 ARCH=x86_64 MODEL=models/model.gguf
 make llama-cpu-server-run VOGUE_SMP=4 ARCH=x86_64 MODEL=models/model.gguf
 ```
 
+> **Contributor rule — Unikraft changes go into `patches/`, never into `.deps/`.**
+> `.deps/src/unikraft` is a throwaway checkout managed by `make deps`. Any change
+> you make there will be lost the next time someone runs `make deps` or `make deps-refresh`.
+> The canonical workflow:
+> 1. Make your change inside `.deps/src/unikraft`.
+> 2. Export it as a `git diff` against `7351f8b` (RELEASE-0.21.0) into the right patch file under `patches/unikraft/`.
+> 3. Verify with: `git -C .deps/src/unikraft apply --check patches/unikraft/<patch>` on a clean `7351f8b` worktree.
+> 4. Commit the updated patch file to this repo.
+
 ---
 
 ## 8. Results

@@ -5,6 +5,13 @@
 > Patches: `patches/unikraft/0003-smp-ap-bringup-allocator.patch`,
 > `0004-smp-per-lcpu-coop-scheduler.patch`, `0005-smp-per-thread-affinity-migration.patch`.
 
+> **Canonical Unikraft state lives in `patches/`, not in `.deps/`.**
+> `make deps` checks out RELEASE-0.21.0 (`7351f8b`) and applies
+> `patches/unikraft/0001`–`0005` idempotently via `scripts/deps.py`.
+> All 30 modified Unikraft files are covered; verified with `git apply --check`
+> on a clean worktree. Do not commit inside `.deps/src/unikraft` — export as a
+> patch diff instead (see README SMP section for the workflow).
+
 ## Final measured results (769 MB model, KVM x86_64, -smp 4)
 
 | Metric | SMP=1 | SMP=4 | Ratio |
