@@ -21,3 +21,9 @@ def worker_masks(n_workers: int, n_lcpus: int) -> list[int]:
     if n_workers < 1 or n_workers > n_lcpus:
         raise ValueError("workers must fit available LCPUs")
     return [1 << i for i in range(n_workers)]
+
+
+def child_worker_masks(n_threads: int, n_lcpus: int) -> list[int]:
+    if n_threads < 1 or n_threads > n_lcpus:
+        raise ValueError("threads must fit available LCPUs")
+    return [1 << cpu for cpu in range(1, n_threads)]
