@@ -1,0 +1,23 @@
+{
+  "status": "pass",
+  "generated_utc": "2026-06-14T09:55:29.977107Z",
+  "command": "/usr/local/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -m 4096 -nographic -no-reboot -kernel /mydata/JerryT/vm-final-project/virtio-gpu/.unikraft/build/vogue-llama-cpu_qemu-x86_64 -fsdev local,id=model,path=/tmp/vogue-model-cvxft7zh,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model -append console=ttyS0",
+  "inputs": {
+    "mode": "bench",
+    "arch": "x86_64",
+    "model": "/tmp/my-model/model.gguf",
+    "image": "/mydata/JerryT/vm-final-project/virtio-gpu/.unikraft/build/vogue-llama-cpu_qemu-x86_64",
+    "smp": 1
+  },
+  "metrics": {
+    "pp512": 30.2,
+    "tg128": 10.8,
+    "placements": [
+      {
+        "target": 0,
+        "actual": 0
+      }
+    ]
+  },
+  "error": null
+}

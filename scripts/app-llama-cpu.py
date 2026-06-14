@@ -142,9 +142,10 @@ def main() -> int:
                 metrics = {}
         else:
             try:
-                proc = subprocess.run(command, cwd=ROOT, text=True, capture_output=True,
+                proc = subprocess.run(command, cwd=ROOT, capture_output=True,
                                       timeout=args.timeout, check=False)
-                log = proc.stdout + proc.stderr
+                log_bytes = (proc.stdout or b"") + (proc.stderr or b"")
+                log = log_bytes.decode("utf-8", errors="replace")
             except subprocess.TimeoutExpired as exc:
                 log = decode(exc.stdout) + decode(exc.stderr)
             metrics = {}
