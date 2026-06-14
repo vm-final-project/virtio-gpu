@@ -1,0 +1,3 @@
+$(eval $(call addlib,apppthreadaffinity))
+
+APPPTHREADAFFINITY_SRCS-y += $(APPPTHREADAFFINITY_BASE)/main.c

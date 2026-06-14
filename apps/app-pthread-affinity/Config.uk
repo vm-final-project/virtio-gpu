@@ -1,0 +1,11 @@
+config APP_PTHREAD_AFFINITY
+	bool "Pthread affinity probe application"
+	default n
+	select LIBMUSL
+	select LIBPOSIX_PROCESS
+	select LIBPOSIX_FUTEX
+	help
+	  Dedicated SMP pthread affinity probe. Spawns one worker per online
+	  vCPU, pins each worker with pthread_setaffinity_np(), validates the
+	  returned affinity mask, and samples the executing LCPU in a tight
+	  loop. Emits machine-parseable pthread-affinity: PASS/FAIL lines.

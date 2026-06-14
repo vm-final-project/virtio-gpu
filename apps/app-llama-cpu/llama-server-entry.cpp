@@ -49,7 +49,7 @@ static int llama_server_main(void)
               "slots=%d ctx_per_slot=%d batch_size=%d ubatch_size=%d prompt_cache=%d "
               "mode=single-app no_fork_exec=1\n",
               model_path,
-              CONFIG_APP_LLAMA_CPU_THREADS,
+              UK_LLAMA_CPU_WORKER_THREADS,
               CONFIG_APP_LLAMA_CPU_PARALLEL,
               CONFIG_APP_LLAMA_CPU_CTX,
               CONFIG_APP_LLAMA_CPU_BATCH,
@@ -78,7 +78,7 @@ static int llama_server_main(void)
     static char parallel_f[] = "--parallel";
     static char parallel[]   = UK_LLAMA_STR(CONFIG_APP_LLAMA_CPU_PARALLEL);
     static char threads_f[]  = "--threads";
-    static char threads[]    = UK_LLAMA_STR(CONFIG_APP_LLAMA_CPU_THREADS);
+    static char threads[]    = UK_LLAMA_STR(UK_LLAMA_CPU_WORKER_THREADS);
     static char ngl_f[]      = "--n-gpu-layers";
     static char ngl[]        = "0";
     static char nommap[]     = "--no-mmap";
@@ -111,4 +111,3 @@ int main(void)
 }
 
 #endif /* CONFIG_APP_LLAMA_CPU_MODE_SERVER */
-
