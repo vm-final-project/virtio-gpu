@@ -7,6 +7,26 @@ at tag **RELEASE-0.21.0** (`git -C .deps/src/unikraft describe --tags` →
 Goal recap (A3): run one `ukschedcoop` instance on **each** online vCPU so
 llama.cpp pthreads execute across multiple vCPUs.
 
+## 2026-06-13 Scope Reset
+
+This note started as the source-confirmation note for the broader A3 pthread
+affinity effort. The active requirement has since been narrowed:
+
+- only the single llama bench/server VM must spread worker threads across
+  available vCPUs;
+- the per-LCPU scheduler bring-up findings below still matter and remain valid;
+- the generalized current-thread `sched_setaffinity()` migration path is no
+  longer the primary implementation target.
+
+The practical consequence is:
+
+- keep the evidence here that proves `pthread_create -> __clone -> uk_clone`
+  and that new threads otherwise bind to the creator's scheduler;
+- use that evidence to justify a minimal create-time placement mechanism for
+  llama workers;
+- do not read this note as a requirement to finish full Linux-style affinity
+  migration before claiming success for the narrowed llama-only goal.
+
 ---
 
 ## Q1 — AP start call (entry function + stack + argument)
@@ -184,9 +204,10 @@ ret = uk_sched_thread_add(s, child); /* clone.c:400  */
 go to a single fixed/default scheduler. BUT in llama.cpp all worker pthreads are
 spawned from the **main thread, which runs on the BSP** — so with naive
 per-LCPU schedulers every worker would pile onto the BSP scheduler and never
-spread. **Task 5 MUST add an explicit placement hook** (round-robin pick a
-target per-LCPU scheduler at thread-add time, or pin via setaffinity-style
-logic) — `uk_sched_current()` alone will not spread the threads.
+spread. For the narrowed 2026-06-13 goal, this is the key kernel fact: some
+explicit placement hook is required, but it does **not** need to be a
+generalized Linux-style affinity/migration implementation if a bounded
+create-time placement hook is enough for llama.
 
 That hook now exists in the project-patched tree:
 

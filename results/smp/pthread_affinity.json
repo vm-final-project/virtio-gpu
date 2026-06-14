@@ -1,0 +1,13 @@
+{
+  "status": "blocked:timeout",
+  "generated_utc": "2026-06-13T14:55:27.749663Z",
+  "command": "/usr/local/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -smp 4 -m 512 -nographic -no-reboot -kernel /mydata/JerryT/vm-final-project/virtio-gpu/.unikraft/build/vogue-pthread-affinity_qemu-x86_64 -append 'console=ttyS0 pthread_affinity_rounds=1'",
+  "inputs": {
+    "arch": "x86_64",
+    "image": "/mydata/JerryT/vm-final-project/virtio-gpu/.unikraft/build/vogue-pthread-affinity_qemu-x86_64",
+    "smp": 4,
+    "rounds": 1
+  },
+  "metrics": {},
+  "error": "\u001bc\u001b[?7l\u001b[2J\u001b[0mSeaBIOS (version rel-1.17.0-0-gb52ca86e094d-prebuilt.qemu.org)\r\n\n\niPXE (http://ipxe.org) 00:03.0 CA00 PCI2.10 PnP PMM+1EFD1C60+1EF31C60 CA00\r\nPress Ctrl-B to configure iPXE (PCI 00:03.0)...\r                                                                               \r\n\n\nBooting from ROM..Powered by\r\no.   .o       _ _               __ _\r\nOo   Oo  ___ (_) | __ __  __ _ ' _) :_\r\noO   oO ' _ `| | |/ /  _)' _` | |_|  _)\r\noOo oOO| | | | |   (| | | (_) |  _) :_\r\n OoOoO ._, ._:_:_,\\_._,  .__,_:_, \\___)\r\n           Ijiraq 0.21.0~5733acb-custom\r\npthread-affinity: debug worker-start worker=2 tid=3\r\npthread-affinity: debug worker-start worker=3 tid=4\r\npthread-affinity: debug worker-start worker=1 tid=2\r\n"
+}

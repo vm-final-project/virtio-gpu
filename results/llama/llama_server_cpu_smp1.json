@@ -1,0 +1,65 @@
+{
+  "status": "pass",
+  "generated_utc": "2026-06-14T02:41:39.305445Z",
+  "command": "/usr/local/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -m 4096 -nographic -no-reboot -kernel /mydata/JerryT/vm-final-project/virtio-gpu/.unikraft/build/vogue-llama-cpu-server_qemu-x86_64 -netdev user,id=net0,hostfwd=tcp:127.0.0.1:52495-10.0.2.15:8080 -device virtio-net-pci,netdev=net0 -fsdev local,id=model,path=/tmp/vogue-model-it96ousg,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model -append console=ttyS0",
+  "inputs": {
+    "mode": "server",
+    "arch": "x86_64",
+    "model": "models/tiny-random-llama-GGUF/tiny-random-llama-Q2_K.gguf",
+    "image": "/mydata/JerryT/vm-final-project/virtio-gpu/.unikraft/build/vogue-llama-cpu-server_qemu-x86_64",
+    "smp": 1
+  },
+  "metrics": {
+    "http_status": 200,
+    "health": {
+      "status": "ok"
+    },
+    "completion_status": 200,
+    "server_toks_per_s": 54.34,
+    "requests_per_s": 6.792,
+    "ready": "uk-llama-upstream-server: READY model=/mnt/model/model.gguf threads=1 slots=1 ctx_per_slot=512 batch_size=2048 ubatch_size=512 prompt_cache=1 mode=single-app no_fork_exec=1",
+    "placements": [
+      {
+        "target": 0,
+        "actual": 0
+      },
+      {
+        "target": 0,
+        "actual": 0
+      },
+      {
+        "target": 0,
+        "actual": 0
+      },
+      {
+        "target": 0,
+        "actual": 0
+      },
+      {
+        "target": 0,
+        "actual": 0
+      },
+      {
+        "target": 0,
+        "actual": 0
+      },
+      {
+        "target": 0,
+        "actual": 0
+      },
+      {
+        "target": 0,
+        "actual": 0
+      },
+      {
+        "target": 0,
+        "actual": 0
+      },
+      {
+        "target": 0,
+        "actual": 0
+      }
+    ]
+  },
+  "error": null
+}
