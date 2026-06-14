@@ -1,5 +1,34 @@
 # A3 SMP bring-up — status, findings, and plan (evidence-based)
 
+> **Status: COMPLETE (2026-06-14).** Multi-vCPU bench and server both verified.
+> Active plan: `docs/superpowers/plans/2026-06-14-multi-vcpu-speedup.md`.
+> Patches: `patches/unikraft/0003-smp-ap-bringup-allocator.patch`,
+> `0004-smp-per-lcpu-coop-scheduler.patch`, `0005-smp-per-thread-affinity-migration.patch`.
+
+## Final measured results (769 MB model, KVM x86_64, -smp 4)
+
+| Metric | SMP=1 | SMP=4 | Ratio |
+|--------|-------|-------|-------|
+| bench pp512 (prompt eval, compute-bound) | 30.2 tok/s | 115.8 tok/s | **3.83x** |
+| bench tg128 (token gen, bandwidth-bound) | 10.8 tok/s | 38.5 tok/s | **3.56x** |
+| server toks/s | 9.2 tok/s | 19.2 tok/s | **2.10x** |
+
+Placement verified: all workers `target==actual` (LCPUs 0–3) in both bench and server.
+
+## Root causes fixed during implementation
+
+1. **Uninitialized `target_lcpu`** in `schedcoop_thread_migrate_execenv`
+   caused wrong GS_BASE computation — every migrated thread reported
+   `sched_getcpu()==0`.
+2. **Wrong GS_BASE in migrated thread's execenv** — patched to
+   `target_lcpu * _uk_pcpuvar_tmpl_size_ptr` after migration (same formula as
+   `lcpu_start.S` AP bootstrap).
+3. **Missing IPI on cross-CPU futex wakeup** — `schedcoop_thread_woken_isr`
+   now calls `uk_lcpu_wakeup()` for remote LCPUs, preventing cooperative
+   scheduler deadlock at ggml graph barriers.
+
+---
+
 Branch: `smp-a3-per-lcpu-scheduler`. Unikraft WIP commits in `.deps/src/unikraft` (latest `af34014`).
 This note is the authoritative status for the A3 kernel work. Written per the "plan → work → plan → work" discipline.
 
