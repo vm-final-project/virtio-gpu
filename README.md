@@ -23,8 +23,8 @@ gemma-3-1b Q4_K_M):
 | Vulkan bench | `make llama-vk-bench-run` | `pass` — pp512 4582.6 / tg128 353.8 tok/s |
 | CPU server | `make llama-cpu-server-run` | `pass` — `/health` 200, `/completion` 200 |
 | Vulkan server | `make llama-vk-server-run` | `pass` — `/health` 200, `/completion` 200 |
-| CPU bench (SMP) | `make llama-cpu-bench-run VOGUE_SMP=N` | `pass` — pp512 3699.3 / tg128 192.3 tok/s (4 vCPU, tiny model) |
-| CPU server (SMP) | `make llama-cpu-server-run VOGUE_SMP=N` | `pass` — server_toks_per_s 54.34 (smp=1, tiny model) |
+| CPU bench (SMP=4) | `make llama-cpu-bench-run VOGUE_SMP=4` | `pass` — pp512 115.8 / tg128 38.5 tok/s · **3.83x / 3.56x** vs SMP=1 (769MB model, KVM) |
+| CPU server (SMP=4) | `make llama-cpu-server-run VOGUE_SMP=4` | `pass` — 19.2 tok/s · **2.10x** vs SMP=1 (769MB model, KVM) |
 | pthread-affinity probe | `make pthread-affinity-run` | `pass` (SMP placement verification, 4 vCPUs) |
 
 CPU runs need only QEMU/KVM. **Vulkan runs additionally need the host Venus stack
@@ -386,25 +386,40 @@ the `make venus-check` targets.
 
 ### SMP: per-LCPU cooperative scheduler (branch `smp-a3-per-lcpu-scheduler`)
 
-The CPU bench and server support `-smp N` multi-vCPU operation via a set of
-VOGUE patches to Unikraft (`patches/unikraft/0003-smp-per-lcpu-coop-scheduler-and-affinity.patch`):
+The CPU bench and server support `-smp N` multi-vCPU operation via three
+Unikraft patches (`patches/unikraft/0003–0005`):
 
-- **Per-LCPU `ukschedcoop` instances** — one cooperative scheduler per online vCPU,
-  instantiated in `lib/ukschedcoop/smp.c`. Each LCPU bootstraps its own run queue
-  and idle thread.
-- **Per-thread CPU affinity state** in `uk_thread` + `uk_schedcoop_smp_place_current`
-  for explicit worker migration before compute.
-- **`sched_setaffinity` / `sched_getcpu` syscalls** wired to the Unikraft affinity
-  path, surfaced to llama.cpp's ggml CPU backend via the Unikraft affinity conditional
-  in `ggml-cpu.c`.
-- **Runtime vCPU count** (`uk_schedcoop_smp_online_count`) replaces the build-time
-  `@@VOGUE_SMP@@` macro, preventing oversubscription deadlock on the cooperative
-  scheduler (polling workers > online vCPUs would spin-lock the run queue).
+- **0003 — AP bring-up + allocator safety:** Low `.bss` AP bootstrap stack,
+  CR3 + EFER.NXE adoption in AP entry, `uk_lcpu_init` call, SMP-safe bbuddy
+  spinlock.
+- **0004 — per-LCPU `ukschedcoop`:** One cooperative scheduler instance per
+  online vCPU (`lib/ukschedcoop/smp.c`), per-LCPU scheduler registry,
+  round-robin thread placement in `uk_clone` under `CONFIG_LIBUKSCHEDCOOP_SMP`,
+  correct GS_BASE patch in `schedcoop_thread_migrate_execenv`, IPI on
+  cross-CPU futex wakeup (prevents cooperative-scheduler deadlock at ggml
+  graph barriers).
+- **0005 — per-thread affinity + migration:** Per-thread CPU affinity mask in
+  `uk_thread`, `uk_schedcoop_smp_place_current` for explicit worker migration,
+  `sched_setaffinity` / `sched_getaffinity` syscalls wired to the Unikraft
+  affinity path, surfaced to llama.cpp's ggml CPU backend via the
+  `__Unikraft__` conditional in `ggml-cpu.c`.
+- **Runtime vCPU count** (`uk_schedcoop_smp_online_count`) replaces the
+  build-time `@@VOGUE_SMP@@` macro so bench/server never spawn more polling
+  workers than online vCPUs (which deadlocks the cooperative scheduler).
+
+**Measured results (769 MB model, KVM, x86_64, `-smp 4`):**
+
+| | SMP=1 | SMP=4 | Ratio |
+|---|---|---|---|
+| bench pp512 (prompt eval) | 30.2 tok/s | 115.8 tok/s | **3.83x** |
+| bench tg128 (token gen) | 10.8 tok/s | 38.5 tok/s | **3.56x** |
+| server toks/s | 9.2 tok/s | 19.2 tok/s | **2.10x** |
 
 Set `VOGUE_SMP=N` on the make command line to build for N vCPUs and launch with `-smp N`:
 
 ```sh
 make llama-cpu-bench-run VOGUE_SMP=4 ARCH=x86_64 MODEL=models/model.gguf
+make llama-cpu-server-run VOGUE_SMP=4 ARCH=x86_64 MODEL=models/model.gguf
 ```
 
 ---
