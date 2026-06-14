@@ -1,25 +1,25 @@
 {
   "status": "pass",
-  "generated_utc": "2026-06-14T05:32:14.413803Z",
-  "command": "/usr/local/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -smp 4 -m 4096 -nographic -no-reboot -kernel /mydata/JerryT/vm-final-project/virtio-gpu/.unikraft/build/vogue-llama-cpu_qemu-x86_64 -fsdev local,id=model,path=/tmp/vogue-model-r97iqerm,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model -append console=ttyS0",
+  "generated_utc": "2026-06-14T09:56:23.822468Z",
+  "command": "/usr/local/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -smp 4 -m 4096 -nographic -no-reboot -kernel /mydata/JerryT/vm-final-project/virtio-gpu/.unikraft/build/vogue-llama-cpu_qemu-x86_64 -fsdev local,id=model,path=/tmp/vogue-model-ke3wd9z6,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model -append console=ttyS0",
   "inputs": {
     "mode": "bench",
     "arch": "x86_64",
-    "model": "models/tiny-random-llama-GGUF/tiny-random-llama-Q2_K.gguf",
+    "model": "/tmp/my-model/model.gguf",
     "image": "/mydata/JerryT/vm-final-project/virtio-gpu/.unikraft/build/vogue-llama-cpu_qemu-x86_64",
     "smp": 4
   },
   "metrics": {
-    "pp512": 6412.8,
-    "tg128": 746.6,
+    "pp512": 115.8,
+    "tg128": 38.5,
     "placements": [
       {
         "target": 0,
         "actual": 0
       },
       {
-        "target": 3,
-        "actual": 3
+        "target": 2,
+        "actual": 2
       }
     ]
   },

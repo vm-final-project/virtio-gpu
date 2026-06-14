@@ -1,16 +1,185 @@
 {
-  "status": "blocked:no-pass-marker",
-  "generated_utc": "2026-06-14T02:46:14.062596Z",
-  "command": "/usr/local/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -smp 4 -m 4096 -nographic -no-reboot -kernel /mydata/JerryT/vm-final-project/virtio-gpu/.unikraft/build/vogue-llama-cpu-server_qemu-x86_64 -netdev user,id=net0,hostfwd=tcp:127.0.0.1:54175-10.0.2.15:8080 -device virtio-net-pci,netdev=net0 -fsdev local,id=model,path=/tmp/vogue-model-6f5d13mg,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model -append console=ttyS0",
+  "status": "pass",
+  "generated_utc": "2026-06-14T09:54:45.068308Z",
+  "command": "/usr/local/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -smp 4 -m 4096 -nographic -no-reboot -kernel /mydata/JerryT/vm-final-project/virtio-gpu/.unikraft/build/vogue-llama-cpu-server_qemu-x86_64 -netdev user,id=net0,hostfwd=tcp:127.0.0.1:39409-10.0.2.15:8080 -device virtio-net-pci,netdev=net0 -fsdev local,id=model,path=/tmp/vogue-model-1z8y0swt,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model -append console=ttyS0",
   "inputs": {
     "mode": "server",
     "arch": "x86_64",
-    "model": "models/tiny-random-llama-GGUF/tiny-random-llama-Q2_K.gguf",
+    "model": "/tmp/my-model/model.gguf",
     "image": "/mydata/JerryT/vm-final-project/virtio-gpu/.unikraft/build/vogue-llama-cpu-server_qemu-x86_64",
     "smp": 4
   },
   "metrics": {
-    "ready": "uk-llama-upstream-server: READY model=/mnt/model/model.gguf threads=4 slots=1 ctx_per_slot=512 batch_size=2048 ubatch_size=512 prompt_cache=1 mode=single-app no_fork_exec=1"
+    "http_status": 200,
+    "health": {
+      "status": "ok"
+    },
+    "completion_status": 200,
+    "server_toks_per_s": 19.201,
+    "requests_per_s": 2.4,
+    "ready": "uk-llama-upstream-server: READY model=/mnt/model/model.gguf threads=4 slots=1 ctx_per_slot=512 batch_size=2048 ubatch_size=512 prompt_cache=1 mode=single-app no_fork_exec=1",
+    "placements": [
+      {
+        "target": 1,
+        "actual": 1
+      },
+      {
+        "target": 0,
+        "actual": 0
+      },
+      {
+        "target": 3,
+        "actual": 3
+      },
+      {
+        "target": 2,
+        "actual": 2
+      },
+      {
+        "target": 1,
+        "actual": 1
+      },
+      {
+        "target": 2,
+        "actual": 2
+      },
+      {
+        "target": 0,
+        "actual": 0
+      },
+      {
+        "target": 3,
+        "actual": 3
+      },
+      {
+        "target": 1,
+        "actual": 1
+      },
+      {
+        "target": 2,
+        "actual": 2
+      },
+      {
+        "target": 0,
+        "actual": 0
+      },
+      {
+        "target": 3,
+        "actual": 3
+      },
+      {
+        "target": 1,
+        "actual": 1
+      },
+      {
+        "target": 2,
+        "actual": 2
+      },
+      {
+        "target": 0,
+        "actual": 0
+      },
+      {
+        "target": 3,
+        "actual": 3
+      },
+      {
+        "target": 1,
+        "actual": 1
+      },
+      {
+        "target": 0,
+        "actual": 0
+      },
+      {
+        "target": 2,
+        "actual": 2
+      },
+      {
+        "target": 3,
+        "actual": 3
+      },
+      {
+        "target": 1,
+        "actual": 1
+      },
+      {
+        "target": 2,
+        "actual": 2
+      },
+      {
+        "target": 0,
+        "actual": 0
+      },
+      {
+        "target": 3,
+        "actual": 3
+      },
+      {
+        "target": 1,
+        "actual": 1
+      },
+      {
+        "target": 2,
+        "actual": 2
+      },
+      {
+        "target": 0,
+        "actual": 0
+      },
+      {
+        "target": 3,
+        "actual": 3
+      },
+      {
+        "target": 1,
+        "actual": 1
+      },
+      {
+        "target": 0,
+        "actual": 0
+      },
+      {
+        "target": 2,
+        "actual": 2
+      },
+      {
+        "target": 3,
+        "actual": 3
+      },
+      {
+        "target": 1,
+        "actual": 1
+      },
+      {
+        "target": 2,
+        "actual": 2
+      },
+      {
+        "target": 0,
+        "actual": 0
+      },
+      {
+        "target": 3,
+        "actual": 3
+      },
+      {
+        "target": 1,
+        "actual": 1
+      },
+      {
+        "target": 2,
+        "actual": 2
+      },
+      {
+        "target": 0,
+        "actual": 0
+      },
+      {
+        "target": 3,
+        "actual": 3
+      }
+    ]
   },
-  "error": "instructions\n\u001b[34m0.00.017.684\u001b[0m \u001b[32mI \u001b[0mlog_info: verbosity = 3 (adjust with the `-lv N` CLI arg)\n\u001b[34m0.00.017.685\u001b[0m \u001b[32mI \u001b[0mdevice_info:\n\u001b[34m0.00.017.688\u001b[0m \u001b[32mI \u001b[0m  - CPU     : CPU (4076 MiB, 4076 MiB free)\n\u001b[34m0.00.017.707\u001b[0m \u001b[32mI \u001b[0msystem_info: n_threads = 4 (n_threads_batch = 4) / 1 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | AVX512_BF16 = 1 | AMX_INT8 = 1 | \n\u001b[34m0.00.017.726\u001b[0m \u001b[32mI \u001b[0msrv          init: using 5 threads for HTTP server\n\u001b[34m0.00.017.819\u001b[0m \u001b[32mI \u001b[0msrv         start: binding port with default address family\n\u001b[34m0.00.077.773\u001b[0m \u001b[32mI \u001b[0msrv  llama_server: loading model\n\u001b[34m0.00.077.775\u001b[0m \u001b[32mI \u001b[0msrv    load_model: loading model '/mnt/model/model.gguf'\n\u001b[34m0.01.718.877\u001b[0m \u001b[35mW llama_context: n_ctx_seq (512) < n_ctx_train (131072) -- the full capacity of the model will not be utilized\n\u001b[0m\u001b[34m0.01.720.292\u001b[0m \u001b[32mI \u001b[0mcommon_init_from_params: warming up the model with an empty run - please wait ... (--no-warmup to disable)\nggml-unikraft-pla[   ce: 6 .ta69r3g8e8t4]= 1 actual=0CRIT: \u0000Unikraft Crash - Ijiraq (0.21.0~5733acb-custom)\n\n\u0000[    6.700173] CRIT: \u0000    _      \n\u0000[    6.703024] CRIT: \u0000  cx xo    \n\u0000[    6.705878] CRIT: \u0000  (|O|)/V  \n\u0000[    6.708725] CRIT: \u0000           \n\u0000[    6.711575] CRIT: \u0000Registers:\n\u0000[    6.714396] CRIT: \u0000 rip: 0008:000000000012ef85\n\u0000[    6.717659] CRIT: \u0000 rsp: 0010:00000004d91636d0 eflags: 00010046 orig_rax: 0000000000000002\n\u0000[    6.723977] CRIT: \u0000 rax: 0000000000000000 rbx: 00000000008416ec rcx:0000000000000000\n\u0000[    6.730144] CRIT: \u0000 rdx: 00000004d91236e0 rsi: 0000000000000000 rdi:0000000000000001\n\u0000[    6.736299] CRIT: \u0000 rbp: 00000004d9163710 r08: 0000000000000000 r09:0000000000000000\n\u0000[    6.742464] CRIT: \u0000 r10: 0000000000000000 r11: 00000000ffffffff r12:00000004fe4510d8\n\u0000[    6.748637] CRIT: \u0000 r13: 0000000000846268 r14: 000000004000000a r15:0000000000000000\n\u0000[    6.754809] "
+  "error": null
 }
