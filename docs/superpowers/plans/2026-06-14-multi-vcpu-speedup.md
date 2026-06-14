@@ -299,4 +299,28 @@ General load balancing; preemptive scheduling; NUMA placement; request-level ser
 ## Superseded documents
 
 This plan supersedes the active-placement portions of `docs/plan-smp-vcpu.md`, `docs/plan-smp-scheduler.md`, and `docs/superpowers/plans/2026-06-12-pthread-affinity-smp.md` (kernel affinity now implemented). Those are trimmed to historical pointers.
+
+---
+
+## Results (2026-06-14)
+
+### Placement verification
+- Bench SMP=4: all 4 workers `target==actual` (LCPUs 0–3) ✅
+- Server SMP=4: all 40 thread placements `target==actual` ✅
+- No `failed to place ggml worker` warnings in either run
+
+### Real-model throughput (769MB GGUF, KVM -smp 4)
+
+| Metric | SMP=1 | SMP=4 | Ratio |
+|--------|-------|-------|-------|
+| bench pp512 (prompt eval, compute-bound) | 30.2 tok/s | 115.8 tok/s | **3.83x** ✅ |
+| bench tg128 (token gen, bandwidth-bound) | 10.8 tok/s | 38.5 tok/s | **3.56x** ✅ |
+| server toks/s | 9.153 tok/s | 19.201 tok/s | **2.10x** ✅ |
+
+Both bench and server exceed the SMP=1 baseline on the real model. The tiny-model server test shows 0.69x (expected: model too small to amortize 4-way SMP overhead, synchronization dominates).
+
+### Root causes fixed (Task 4)
+1. **Uninitialized `target_lcpu`** in `schedcoop_thread_migrate_execenv` caused wrong GS_BASE, making every migrated thread report `sched_getcpu()==0`.
+2. **Wrong GS_BASE in migrated thread's execenv** — patched to `target_lcpu * _uk_pcpuvar_tmpl_size_ptr` after migration.
+3. **Missing IPI on cross-CPU futex wakeup** — `schedcoop_thread_woken_isr` now calls `uk_lcpu_wakeup()` for remote LCPUs, preventing barrier deadlock.
 </content>
