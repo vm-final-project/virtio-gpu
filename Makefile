@@ -68,7 +68,7 @@ help:
 	  '' \
 	  'Config:     ARCH={x86_64|arm64} KRAFT_TARGET=$(KRAFT_TARGET)' \
 	  'Tests:      test-fast test-native venus-check vulkan-check verify' \
-	  'Build/run:  llama-{cpu,vk}-{bench,server}-{build,run}' \
+	  'Build/run:  llama-{cpu,vk}-{bench,server}-{build,run} pthread-affinity-{build,run}' \
 	  'Deps:       deps deps-status deps-refresh' \
 	  'Cleanup:    clean'
 
@@ -88,3 +88,11 @@ clean:
 	$(MAKE) -C tests clean
 	find results -type f \( -name '*.log' -o -name '*.ppm' -o -name '*.tmp' \) -delete
 	rm -rf results/kmscube_vgpu_gl/run/.qmp
+
+.PHONY: pthread-affinity-build pthread-affinity-run
+
+pthread-affinity-build:
+	$(call kraft_build,kraft/Kraftfile.pthread-affinity)
+
+pthread-affinity-run: pthread-affinity-build
+	python3 scripts/app-pthread-affinity.py --arch "$(ARCH)" --qemu "$(QEMU)" --timeout "$(RUN_TIMEOUT)" --smp 4

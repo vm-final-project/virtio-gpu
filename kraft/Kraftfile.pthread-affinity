@@ -1,0 +1,22 @@
+spec: v0.6
+
+name: vogue-pthread-affinity
+
+unikraft:
+  source: @@UNIKRAFT_LOCAL@@
+  kconfig:
+    CONFIG_APP_PTHREAD_AFFINITY: 'y'
+    CONFIG_LIBMUSL: 'y'
+    CONFIG_LIBPOSIX_PROCESS: 'y'
+    CONFIG_LIBPOSIX_FUTEX: 'y'
+    CONFIG_UKPLAT_CPU_MAXCOUNT: '4'
+    CONFIG_LIBUKSCHEDCOOP_SMP: 'y'
+
+targets:
+  - qemu/x86_64
+  - qemu/arm64
+
+libraries:
+  musl: stable
+  app-pthread-affinity:
+    source: ./apps/app-pthread-affinity

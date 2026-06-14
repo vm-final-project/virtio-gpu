@@ -58,7 +58,7 @@ unikraft:
     CONFIG_APP_LLAMA_CPU: 'y'
     CONFIG_APP_LLAMA_CPU_ROOTFS_9PFS: 'y'
     CONFIG_APP_LLAMA_CPU_MODE_SERVER: 'y'
-    CONFIG_APP_LLAMA_CPU_THREADS: '1'
+    CONFIG_APP_LLAMA_CPU_THREADS: '@@VOGUE_SMP@@'
     CONFIG_OPTIMIZE_DEADELIM: 'y'
     CONFIG_LIBMUSL: 'y'
     CONFIG_LIBCXX: 'y'
@@ -82,6 +82,11 @@ unikraft:
     CONFIG_LIBVIRTIO_9P: 'y'
     CONFIG_LIB9PFS: 'y'
     CONFIG_LIBPOSIX_LIBDL: 'y'
+    # Match the bench appliance for the narrowed SMP thread-placement work:
+    # one per-LCPU cooperative scheduler, up to four guest vCPUs, and no
+    # separate generalized affinity framework.
+    CONFIG_UKPLAT_CPU_MAXCOUNT: '4'
+    CONFIG_LIBUKSCHEDCOOP_SMP: 'y'
     # posix-socket provides socket()/bind()/listen()/accept() used by cpp-httplib;
     # lwIP (below) registers the AF_INET family so the HTTP listener actually binds
     # 0.0.0.0:8080 and serves requests inside the unikernel.

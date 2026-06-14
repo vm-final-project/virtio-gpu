@@ -12,7 +12,7 @@ unikraft:
     CONFIG_APP_LLAMA_CPU: 'y'
     CONFIG_APP_LLAMA_CPU_ROOTFS_9PFS: 'y'
     CONFIG_APP_LLAMA_CPU_MODE_BENCH: 'y'
-    CONFIG_APP_LLAMA_CPU_THREADS: '1'
+    CONFIG_APP_LLAMA_CPU_THREADS: '@@VOGUE_SMP@@'
     CONFIG_OPTIMIZE_DEADELIM: 'y'
     # Match the working CPU image: llama.cpp requires the larger stack, while
     # paging supplies the runtime mapping adopted by secondary LCPUs.

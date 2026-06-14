@@ -13,7 +13,7 @@ unikraft:
     CONFIG_APP_LLAMA_CPU: 'y'
     CONFIG_APP_LLAMA_CPU_ROOTFS_9PFS: 'y'
     CONFIG_APP_LLAMA_CPU_MODE_BENCH: 'y'
-    CONFIG_APP_LLAMA_CPU_THREADS: '1'
+    CONFIG_APP_LLAMA_CPU_THREADS: '4'
     CONFIG_OPTIMIZE_DEADELIM: 'y'
     # Match the server appliance: a deep llama.cpp graph-build call chain needs a
     # larger stack, and LIBUKPAGING maps all RAM into one contiguous heap so the

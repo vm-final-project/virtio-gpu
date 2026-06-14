@@ -19,7 +19,10 @@ UNIKRAFT_LOCAL ?= $(CURDIR)/.deps/src/unikraft
 # make >= 4.1 on macOS regardless of how the recipe environment is inherited.
 define kraft_build
 	mkdir -p $(KRAFT_GEN_DIR) && \
-	sed 's|@@UNIKRAFT_LOCAL@@|$(UNIKRAFT_LOCAL)|g' $(1) > $(KRAFT_GEN_DIR)/$(notdir $(1)) && \
+	sed \
+		-e 's|@@UNIKRAFT_LOCAL@@|$(UNIKRAFT_LOCAL)|g' \
+		-e 's|@@VOGUE_SMP@@|$(or $(VOGUE_SMP),1)|g' \
+		$(1) > $(KRAFT_GEN_DIR)/$(notdir $(1)) && \
 	PATH="$(if $(GNUBIN),$(GNUBIN):,)$$PATH" $(KRAFT) build --no-prompt --log-type basic --no-update \
 		--target $(KRAFT_TARGET) --kraftfile $(KRAFT_GEN_DIR)/$(notdir $(1)) .
 endef
@@ -49,12 +52,14 @@ $(LLAMA_VK_SHADER_STAMP):
 llama-vk-prepare: $(LLAMA_VK_SHADER_STAMP)
 
 llama-cpu-bench-build:
+	rm -f .config.vogue-llama-cpu_$(subst /,-,$(KRAFT_TARGET)) .unikraft/build/config .unikraft/build/kconfig/auto.conf
 	$(call kraft_build,kraft/Kraftfile.llama-cpu)
 
 llama-cpu-bench-run: llama-cpu-bench-build
 	python3 scripts/app-llama-cpu.py --arch "$(ARCH)" --mode bench --model "$(MODEL)" --qemu "$(QEMU)" --timeout "$(RUN_TIMEOUT)"
 
 llama-cpu-server-build:
+	rm -f .config.vogue-llama-cpu-server_$(subst /,-,$(KRAFT_TARGET)) .unikraft/build/config .unikraft/build/kconfig/auto.conf
 	$(call kraft_build,kraft/Kraftfile.llama-cpu-server)
 
 llama-cpu-server-run: llama-cpu-server-build
