@@ -1,8 +1,8 @@
 diff --git a/drivers/virtio/pci/virtio_pci.c b/drivers/virtio/pci/virtio_pci.c
-index 0eac8af..96a2a94 100644
+index 0eac8af..34c4447 100644
 --- a/drivers/virtio/pci/virtio_pci.c
 +++ b/drivers/virtio/pci/virtio_pci.c
-@@ -33,11 +33,13 @@
+@@ -33,11 +33,17 @@
  #include <uk/config.h>
  #include <uk/arch/types.h>
  #include <errno.h>
@@ -13,10 +13,14 @@ index 0eac8af..96a2a94 100644
  #include <uk/intctlr.h>
  #include <uk/bus/pci.h>
 +#include <uk/arch/util.h>
++#include <uk/essentials.h>
++#if CONFIG_LIBUKPAGING
++#include <uk/paging.h>
++#endif /* CONFIG_LIBUKPAGING */
  #include <virtio/virtio_config.h>
  #include <virtio/virtio_bus.h>
  #include <virtio/virtqueue.h>
-@@ -46,6 +48,34 @@
+@@ -46,6 +52,34 @@
  #define VENDOR_QUMRANET_VIRTIO           (0x1AF4)
  #define VIRTIO_PCI_MODERN_DEVICEID_START (0x1040)
  
@@ -51,7 +55,7 @@ index 0eac8af..96a2a94 100644
  static struct uk_alloc *a;
  
  /**
-@@ -54,12 +84,24 @@ static struct uk_alloc *a;
+@@ -54,12 +88,24 @@ static struct uk_alloc *a;
  struct virtio_pci_dev {
  	/* Virtio Device */
  	struct virtio_dev vdev;
@@ -78,7 +82,7 @@ index 0eac8af..96a2a94 100644
  };
  
  /**
-@@ -95,6 +137,9 @@ static int virtio_pci_handle(void *arg);
+@@ -95,6 +141,9 @@ static int virtio_pci_handle(void *arg);
  static int vpci_legacy_notify(struct virtio_dev *vdev, __u16 queue_id);
  static int virtio_pci_legacy_add_dev(struct pci_device *pci_dev,
  				     struct virtio_pci_dev *vpci_dev);
@@ -88,7 +92,7 @@ index 0eac8af..96a2a94 100644
  
  /**
   * Configuration operations legacy PCI device.
-@@ -133,8 +178,11 @@ static int virtio_pci_handle(void *arg)
+@@ -133,8 +182,11 @@ static int virtio_pci_handle(void *arg)
  
  	UK_ASSERT(arg);
  
@@ -102,7 +106,7 @@ index 0eac8af..96a2a94 100644
  
  	if (isr_status & VIRTIO_PCI_ISR_CONFIG) {
  		/* We don't support configuration interrupt on the device */
-@@ -393,6 +441,511 @@ static int virtio_pci_legacy_add_dev(struct pci_device *pci_dev,
+@@ -393,6 +445,580 @@ static int virtio_pci_legacy_add_dev(struct pci_device *pci_dev,
  }
  
  
@@ -168,6 +172,68 @@ index 0eac8af..96a2a94 100644
 +	return ((__u64)hi << 32) | lo;
 +}
 +
++/* Identity-map a modern VirtIO-PCI MMIO BAR window so it is reachable.
++ *
++ * With CONFIG_LIBUKPAGING the native page table only direct-maps RAM; the PCI
++ * MMIO holes are not covered. The modern transport dereferences BAR addresses
++ * directly (via the vpcim_read and vpcim_write helpers), so any BAR that lands
++ * outside RAM (e.g. a virtio-gpu device shifting a peer common-cfg BAR down to
++ * 0xe0000000) would fault on first access. Map the accessed window 1:1
++ * (vaddr == paddr), like uk_bus_pf_devmap() does for platform devices. No-op
++ * without paging. */
++static void vpci_modern_map_mmio(__u64 base, __u64 len)
++{
++#if CONFIG_LIBUKPAGING
++	struct uk_pagetable *pt;
++	__paddr_t paddr;
++	__vaddr_t vaddr;
++	unsigned long pages, i;
++	int rc;
++
++	if (unlikely(!base || !len))
++		return;
++
++	pt = uk_paging_pt_get_active();
++	if (unlikely(!pt))
++		return;
++
++	paddr = ALIGN_DOWN((__paddr_t)base, (__paddr_t)UK_PAGING_PAGE_SIZE);
++	vaddr = (__vaddr_t)paddr; /* 1:1 identity mapping */
++	pages = (unsigned long)
++		((ALIGN_UP((__u64)(base + len), (__u64)UK_PAGING_PAGE_SIZE)
++		  - (__u64)paddr) >> UK_PAGING_PAGE_SHIFT);
++
++	/* Fast path: map the whole window at once (uses large pages where the
++	 * alignment permits). Mapping with an explicit paddr never allocates a
++	 * frame, so this is safe for device memory. */
++	rc = uk_paging_page_map(pt, vaddr, paddr, pages,
++				UK_PAGING_PAGE_ATTR_PROT_RW, 0);
++	if (likely(!rc))
++		return;
++	if (rc != -EEXIST) {
++		uk_pr_err("virtio-pci modern: failed to map BAR MMIO 0x%llx+0x%llx (%d)\n",
++			  (unsigned long long)base, (unsigned long long)len, rc);
++		return;
++	}
++
++	/* EEXIST: the region may be only partially mapped (a peer cap shares a
++	 * page). Fill any remaining holes page-by-page, tolerating per-page
++	 * EEXIST for the pages already present. */
++	for (i = 0; i < pages; i++) {
++		rc = uk_paging_page_map(pt,
++			vaddr + (i << UK_PAGING_PAGE_SHIFT),
++			paddr + ((__paddr_t)i << UK_PAGING_PAGE_SHIFT),
++			1, UK_PAGING_PAGE_ATTR_PROT_RW, 0);
++		if (unlikely(rc && rc != -EEXIST)) {
++			uk_pr_err("virtio-pci modern: failed to map BAR page 0x%llx (%d)\n",
++				  (unsigned long long)((__u64)paddr
++					+ (i << UK_PAGING_PAGE_SHIFT)), rc);
++			return;
++		}
++	}
++#endif /* CONFIG_LIBUKPAGING */
++}
++
 +/* Walk the PCI capability list and populate modern MMIO pointers.
 + * Returns 0 if all mandatory caps (common, notify, isr) were found.
 + */
@@ -210,6 +276,12 @@ index 0eac8af..96a2a94 100644
 +			continue;
 +		}
 +
++		/* Ensure the cap's MMIO window is mapped before it is touched.
++		 * The shared-memory cap uses a 64-bit offset/length and is
++		 * mapped inside its case below. */
++		if (cfg_type != VIRTIO_PCI_CAP_SHARED_MEM_CFG)
++			vpci_modern_map_mmio(bar_base + cap_off, cap_len);
++
 +		switch (cfg_type) {
 +		case VIRTIO_PCI_CAP_COMMON_CFG:
 +			vpci_dev->modern_common_cfg =
@@ -250,6 +322,7 @@ index 0eac8af..96a2a94 100644
 +			__u32 len_hi  = vpci_cfg_read32(pdev, (__u8)(cap_ptr + 20));
 +			__u64 full_off = ((__u64)off_hi << 32) | cap_off;
 +			__u64 full_len = ((__u64)len_hi << 32) | cap_len;
++			vpci_modern_map_mmio(bar_base + full_off, full_len);
 +			vpci_dev->modern_shm_base =
 +				(volatile void *)(unsigned long)(bar_base + full_off);
 +			vpci_dev->modern_shm_len = full_len;
@@ -614,7 +687,7 @@ index 0eac8af..96a2a94 100644
  static int virtio_pci_add_dev(struct pci_device *pci_dev)
  {
  	struct virtio_pci_dev *vpci_dev = NULL;
-@@ -400,7 +953,7 @@ static int virtio_pci_add_dev(struct pci_device *pci_dev)
+@@ -400,7 +1026,7 @@ static int virtio_pci_add_dev(struct pci_device *pci_dev)
  
  	UK_ASSERT(pci_dev != NULL);
  
@@ -623,7 +696,7 @@ index 0eac8af..96a2a94 100644
  	if (!vpci_dev) {
  		uk_pr_err("Failed to allocate virtio-pci device\n");
  		return -ENOMEM;
-@@ -410,14 +963,14 @@ static int virtio_pci_add_dev(struct pci_device *pci_dev)
+@@ -410,14 +1036,14 @@ static int virtio_pci_add_dev(struct pci_device *pci_dev)
  	vpci_dev->pdev = pci_dev;
  	vpci_dev->pci_base_addr = pci_dev->base;
  
