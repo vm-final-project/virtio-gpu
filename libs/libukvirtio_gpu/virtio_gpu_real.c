@@ -39,6 +39,17 @@ static uint64_t now_ns(void)
 	return (uint64_t)ukplat_monotonic_clock();
 }
 
+static uint64_t g_l4_total_ns;
+static uint64_t g_l4_calls;
+
+static void __attribute__((destructor)) vogue_l4_report(void)
+{
+	printf("VOGUE-TIMING L4-host: calls=%llu total_ms=%llu avg_us=%llu\n",
+	       (unsigned long long)g_l4_calls,
+	       (unsigned long long)(g_l4_total_ns / 1000000ULL),
+	       g_l4_calls ? (unsigned long long)(g_l4_total_ns / g_l4_calls / 1000ULL) : 0ULL);
+}
+
 static uint64_t resource_size_bytes(uint32_t w, uint32_t h, uint32_t d)
 {
 	uint64_t wh = (uint64_t)w * (uint64_t)h;
@@ -155,17 +166,22 @@ static int cmd_submit_locked(struct uk_virtio_gpu_dev *d, void *req, size_t req_
 		return rc;
 	virtqueue_host_notify(d->ctrlq);
 
-	deadline = now_ns() + CMD_TIMEOUT_NS;
-	for (;;) {
-		rc = virtqueue_buffer_dequeue(d->ctrlq, &done, &used_len);
-		if (rc >= 0)
-			break;
-		if (rc != -ENOMSG)
-			return rc;
-		if (now_ns() > deadline)
-			return -ETIMEDOUT;
-		/* Pause: reduce spin pressure; lets host vCPU make progress. */
-		__asm__ volatile("pause" ::: "memory");
+	{
+		uint64_t _t_l4 = now_ns();
+		deadline = _t_l4 + CMD_TIMEOUT_NS;
+		for (;;) {
+			rc = virtqueue_buffer_dequeue(d->ctrlq, &done, &used_len);
+			if (rc >= 0)
+				break;
+			if (rc != -ENOMSG)
+				return rc;
+			if (now_ns() > deadline)
+				return -ETIMEDOUT;
+			/* Pause: reduce spin pressure; lets host vCPU make progress. */
+			__asm__ volatile("pause" ::: "memory");
+		}
+		g_l4_total_ns += now_ns() - _t_l4;
+		g_l4_calls++;
 	}
 	if (done != cookie)
 		return -EIO;

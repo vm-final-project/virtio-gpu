@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include <uk/venus.h>
+#include <uk/plat/time.h>
 
 /* Minimum capset data to consider Venus available. */
 #define VENUS_CAPS_MIN_SIZE 8u
@@ -586,6 +587,17 @@ int uk_venus_ring_cmd_write(struct uk_venus_ring *ring,
  * via SUBMIT_3D.  The host ring thread wakes on the notification and begins
  * consuming commands from the circular buffer.
  */
+static uint64_t g_l3_flush_ns;
+static uint64_t g_l3_flush_calls;
+
+static void __attribute__((destructor)) vogue_l3_report(void)
+{
+	printf("VOGUE-TIMING L3-flush: calls=%llu total_ms=%llu avg_us=%llu\n",
+	       (unsigned long long)g_l3_flush_calls,
+	       (unsigned long long)(g_l3_flush_ns / 1000000ULL),
+	       g_l3_flush_calls ? (unsigned long long)(g_l3_flush_ns / g_l3_flush_calls / 1000ULL) : 0ULL);
+}
+
 int uk_venus_ring_cmd_flush(struct uk_virtio_gpu_dev *dev,
 			    struct uk_venus_ring *ring)
 {
@@ -615,8 +627,14 @@ int uk_venus_ring_cmd_flush(struct uk_virtio_gpu_dev *dev,
 		return -ENOSPC;
 
 	fence = 0;
-	return uk_virtio_gpu_gl_context_submit(dev, &ring->ctx,
-					       enc.buf, enc.pos, &fence);
+	{
+		uint64_t _t_l3 = (uint64_t)ukplat_monotonic_clock();
+		rc = uk_virtio_gpu_gl_context_submit(dev, &ring->ctx,
+						     enc.buf, enc.pos, &fence);
+		g_l3_flush_ns += (uint64_t)ukplat_monotonic_clock() - _t_l3;
+		g_l3_flush_calls++;
+	}
+	return rc;
 }
 
 /*

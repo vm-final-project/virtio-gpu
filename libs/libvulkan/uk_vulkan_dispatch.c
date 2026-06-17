@@ -33,6 +33,18 @@
 #include <uk/vulkan_venus.h>
 #include <uk/venus.h>
 #include <uk/vulkan.h>
+#include <uk/plat/time.h>
+
+static uint64_t g_l2_submit_ns;
+static uint64_t g_l2_submit_calls;
+
+static void __attribute__((destructor)) vogue_l2_report(void)
+{
+    printf("VOGUE-TIMING L2-submit: calls=%llu total_ms=%llu avg_us=%llu\n",
+           (unsigned long long)g_l2_submit_calls,
+           (unsigned long long)(g_l2_submit_ns / 1000000ULL),
+           g_l2_submit_calls ? (unsigned long long)(g_l2_submit_ns / g_l2_submit_calls / 1000ULL) : 0ULL);
+}
 
 /* ── Vulkan minimal type definitions (no vulkan.h dependency in C code) ─── */
 typedef uint64_t VkInstance;
@@ -1645,6 +1657,7 @@ static void stub_vkCmdPipelineBarrier(VkCommandBuffer cb, uint32_t srcStage,
 static VkResult stub_vkQueueSubmit(VkQueue queue, uint32_t submitCount,
                                     const void *pSubmits, VkFence fence)
 {
+    uint64_t _t_l2 = (uint64_t)ukplat_monotonic_clock();
     (void)submitCount; (void)pSubmits;
     const uint8_t *s = (const uint8_t *)pSubmits;
     for (uint32_t i = 0; i < submitCount; i++) {
@@ -1664,6 +1677,8 @@ static VkResult stub_vkQueueSubmit(VkQueue queue, uint32_t submitCount,
          * sequence (3 kicks → 1). */
         uk_venus_ring_cmd_flush(g_gpu, &g_ring);
     }
+    g_l2_submit_ns += (uint64_t)ukplat_monotonic_clock() - _t_l2;
+    g_l2_submit_calls++;
     return VK_SUCCESS;
 }
 
