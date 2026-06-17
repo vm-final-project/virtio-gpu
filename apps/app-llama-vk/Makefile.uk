@@ -94,6 +94,11 @@ APPLLAMA_VK_CXXFLAGS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += -include unordered_ma
 # quoted includes after the file's OWN directory but before -I dirs, so src/*
 # files still get their local src/unicode.h while common/jinja gets common's.
 APPLLAMA_VK_CXXFLAGS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += -iquote $(LLAMA_COMMON)
+# Bench mode compiles the same common/ + jinja sources, so it needs the same two
+# fixups: force-include <unordered_map>, and -iquote so common/jinja/value.cpp
+# resolves common/unicode.h instead of the tokenizer's src/unicode.h.
+APPLLAMA_VK_CXXFLAGS-$(CONFIG_APP_LLAMA_VK_MODE_BENCH) += -include unordered_map
+APPLLAMA_VK_CXXFLAGS-$(CONFIG_APP_LLAMA_VK_MODE_BENCH) += -iquote $(LLAMA_COMMON)
 # --gc-sections belongs at the final image link (CONFIG_OPTIMIZE_DEADELIM in the
 # Kraftfiles), not in per-library LDFLAGS which feed the relocatable `ld -r` link
 # where binutils rejects it for lacking an entry-point root.
@@ -134,6 +139,25 @@ APPLLAMA_VK_LLAMA_MODEL_FLAGS-y   += $(APPLLAMA_VK_HOT_FLAGS)
 # unused source file becomes an empty translation unit thanks to its #if guard.
 APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_BENCH)  += $(APPLLAMA_VK_BASE)/bench.cpp
 APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/llama-vk-server-entry.cpp
+
+# Bench mode runs the upstream llama-bench tool in-tree (entry llama_bench(),
+# called from bench.cpp) so its numbers match the vogue-baselines runtimes.
+# llama-bench.cpp pulls common/ (string_*, common_arg/download/fit helpers) and
+# build-info; reuse the same common source set the server mode compiles. The
+# common/unicode.cpp basename collides with src/unicode.cpp, so filter it out
+# and supply the uniquely-named shim (llama-common-unicode.cpp), exactly as the
+# server mode does. tools/llama-bench/main.cpp is intentionally NOT compiled
+# (bench.cpp provides main and calls llama_bench directly).
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_BENCH) += $(LLAMA_ROOT)/tools/llama-bench/llama-bench.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_BENCH) += $(APPLLAMA_VK_BASE)/build-info.cpp
+# common/download.cpp + hf-cache.cpp reference cpp-httplib (HF model fetch);
+# compile the vendored split httplib.cpp to resolve those symbols at link
+# (same as the server mode). The appliance never downloads — local model only —
+# but the symbols must still resolve.
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_BENCH) += $(LLAMA_ROOT)/vendor/cpp-httplib/httplib.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_BENCH) += $(filter-out $(LLAMA_COMMON)/unicode.cpp, $(wildcard $(LLAMA_COMMON)/*.cpp))
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_BENCH) += $(wildcard $(LLAMA_COMMON)/jinja/*.cpp)
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_BENCH) += $(APPLLAMA_VK_BASE)/llama-common-unicode.cpp
 
 # ── ggml core + Vulkan backend (formerly libukggml_vk, now built in-tree) ─────
 # Compiled IN-TREE with Unikraft's clang + libc++ to avoid ABI mismatches from

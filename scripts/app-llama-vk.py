@@ -165,11 +165,16 @@ def main() -> int:
                 log = proc.stdout + proc.stderr
             except subprocess.TimeoutExpired as exc:
                 log = decode(exc.stdout) + decode(exc.stderr)
-            match = re.search(r"pp512=([0-9.]+)\s+tg128=([0-9.]+)", log)
-            passed = bool(match and "PASS" in log)
+            # The bench appliance runs upstream llama-bench, which prints a
+            # markdown table; pull pp512/tg128 t/s from the test-column rows
+            # (e.g. "| ... | pp512 | 4582.61 ± 12.34 |"). Same shape the
+            # vogue-baselines runners parse.
+            pp = re.search(r"\|\s*pp512\s*\|\s*([0-9.]+)", log)
+            tg = re.search(r"\|\s*tg128\s*\|\s*([0-9.]+)", log)
+            passed = bool(pp and tg and "PASS" in log)
             metrics = (
-                {"pp512": float(match.group(1)), "tg128": float(match.group(2))}
-                if match else {}
+                {"pp512": float(pp.group(1)), "tg128": float(tg.group(1))}
+                if (pp and tg) else {}
             )
 
     status = "pass" if passed else "blocked:no-pass-marker"
