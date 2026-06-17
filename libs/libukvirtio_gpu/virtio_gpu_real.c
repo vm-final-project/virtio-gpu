@@ -456,15 +456,23 @@ int uk_virtio_gpu_gl_capset_info_get(struct uk_virtio_gpu_dev *d, uint32_t index
 		struct uk_virtio_gpu_capset_info *info)
 {
 	struct ukvgpu_get_capset_info req;
-	struct ukvgpu_resp_capset_info resp;
+	struct ukvgpu_resp_capset_info *resp;
 	int rc;
 	if (!d || !info || index >= d->num_capsets) return -EINVAL;
+	/* The response buffer MUST be in DMA-able heap memory, not on the stack:
+	 * the device's write to the writable descriptor does not land in a stack
+	 * buffer on this platform (the readable request descriptor works from the
+	 * stack, but the device->guest response write is lost), so a stack resp
+	 * came back all-zero and Venus (capset id 4) was never detected. Mirror the
+	 * heap-allocated resp that uk_virtio_gpu_gl_capset_get() already uses. */
+	resp = uk_calloc(g_alloc, 1, sizeof(*resp));
+	if (!resp) return -ENOMEM;
 	hdr_init(d, &req.hdr, UKVGPU_CMD_GET_CAPSET_INFO, NULL, 0);
 	req.capset_index = index; req.padding = 0;
-	memset(&resp, 0, sizeof(resp));
-	rc = cmd_submit(d, &req, sizeof(req), &resp, sizeof(resp), UKVGPU_RESP_OK_CAPSET_INFO, NULL);
-	if (rc) return rc;
-	info->id = resp.capset_id; info->max_version = resp.capset_max_version; info->max_size = resp.capset_max_size;
+	rc = cmd_submit(d, &req, sizeof(req), resp, sizeof(*resp), UKVGPU_RESP_OK_CAPSET_INFO, NULL);
+	if (rc) { uk_free(g_alloc, resp); return rc; }
+	info->id = resp->capset_id; info->max_version = resp->capset_max_version; info->max_size = resp->capset_max_size;
+	uk_free(g_alloc, resp);
 	return 0;
 }
 int uk_virtio_gpu_dev_capset_info_get(struct uk_virtio_gpu_dev *d, uint32_t i, struct uk_virtio_gpu_capset_info *info) { return uk_virtio_gpu_gl_capset_info_get(d, i, info); }

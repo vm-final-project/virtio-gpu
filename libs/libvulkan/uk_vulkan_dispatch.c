@@ -684,7 +684,9 @@ static VkResult stub_vkEnumeratePhysicalDevices(VkInstance instance,
     return VK_SUCCESS;
 }
 
-/* VkPhysicalDeviceProperties — NVIDIA RTX 4000 Ada via Venus.
+/* VkPhysicalDeviceProperties — synthesized placeholder limits (the real values
+ * come from the host over Venus where available; deviceName below falls back to
+ * an obvious placeholder when the host query is unavailable).
  * Byte offsets verified with offsetof() on x86-64:
  *   limits start at byte 296:
  *     maxStorageBufferRange    = byte 324  (uint32)
@@ -708,8 +710,8 @@ static void stub_vkGetPhysicalDeviceProperties(VkPhysicalDevice physdev,
     uint32_t *p = (uint32_t *)b;
     p[0] = 0x00402000u; /* apiVersion: VK 1.2 */
     p[1] = 0;           /* driverVersion */
-    p[2] = 0x10de;      /* vendorID: NVIDIA */
-    p[3] = 0x27b0;      /* deviceID: RTX 4000 Ada */
+    p[2] = 0x10de;      /* vendorID: placeholder (0x10de) */
+    p[3] = 0x27b0;      /* deviceID: placeholder */
     p[4] = 2;           /* deviceType: DISCRETE_GPU */
     char *name = (char *)(p + 5); /* deviceName at byte 20 */
     /* Real Venus round-trip: read the host physical device's name back over the
@@ -733,7 +735,9 @@ static void stub_vkGetPhysicalDeviceProperties(VkPhysicalDevice physdev,
     if (real_name_state == 1) {
         __builtin_memcpy(name, real_name, __builtin_strlen(real_name) + 1);
     } else {
-        const char *devname = "VOGUE-Venus/NVIDIA RTX 4000 Ada";
+        /* Host name query unavailable: use an obviously-fake placeholder so the
+         * reported device is never mistaken for a real GPU identity. */
+        const char *devname = "VOGUE-Venus PLACEHOLDER GPU (hardcoded fallback)";
         __builtin_memcpy(name, devname, __builtin_strlen(devname) + 1);
     }
     /* Key limits (byte offsets within VkPhysicalDeviceProperties): */
