@@ -65,7 +65,7 @@ def qemu_command(qemu: str, model: Path, mode: str, timeout: int, port: int, arc
     mem_mb = os.environ.get("VOGUE_QEMU_MEM_MB", "8192")
     hostmem = os.environ.get("VOGUE_GPU_HOSTMEM", "2G")
     command = [
-        qemu, *machine_and_cpu_args(arch, accel), "-m", mem_mb,
+        qemu, *machine_and_cpu_args(arch, accel), "-smp", "1", "-m", mem_mb,
         "-no-reboot", "-kernel", str(image(mode, arch)),
         "-display", egl_display, "-vga", "none",
         "-device", f"virtio-gpu-gl-pci,hostmem={hostmem},blob=true,venus=true",
