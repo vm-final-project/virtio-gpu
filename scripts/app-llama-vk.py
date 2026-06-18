@@ -16,7 +16,6 @@ from pathlib import Path
 
 from common import (
     acceleration,
-    decode,
     default_console,
     default_qemu_binary,
     image_suffix,
@@ -26,6 +25,7 @@ from common import (
     resolve_qemu,
     result,
     result_path,
+    run_timed,
     write_json,
 )
 
@@ -69,7 +69,7 @@ def qemu_command(qemu: str, model: Path, mode: str, timeout: int, port: int, arc
     return command
 
 
-def http_metrics(port: int, deadline: float) -> dict:
+def http_metrics(port: int, deadline: float, launch: float) -> dict:
     health = f"http://127.0.0.1:{port}/health"
     while time.monotonic() < deadline:
         try:
@@ -80,6 +80,9 @@ def http_metrics(port: int, deadline: float) -> dict:
                 "http_status": response.status,
                 "health": json.loads(body),
                 "latency_s": round(time.monotonic() - started, 4),
+                # First successful /health: the server is up and model-ready, so
+                # this is the launch->ready boot time for the VK server appliance.
+                "boot_time_s": round(time.monotonic() - launch, 3),
             }
             request = urllib.request.Request(
                 f"http://127.0.0.1:{port}/completion",
@@ -141,10 +144,11 @@ def main() -> int:
             "-device", "virtio-9p-pci,fsdev=model,mount_tag=model",
         ]
         if args.mode == "server":
+            launch = time.monotonic()
             proc = subprocess.Popen(command, cwd=ROOT, text=True,
                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             try:
-                metrics = http_metrics(port, time.monotonic() + args.timeout)
+                metrics = http_metrics(port, time.monotonic() + args.timeout, launch)
                 proc.terminate()
                 log, _ = proc.communicate(timeout=10)
             except Exception:
@@ -159,12 +163,13 @@ def main() -> int:
             )
             metrics["ready"] = ready
         else:
-            try:
-                proc = subprocess.run(command, cwd=ROOT, text=True, capture_output=True,
-                                      timeout=args.timeout, check=False)
-                log = proc.stdout + proc.stderr
-            except subprocess.TimeoutExpired as exc:
-                log = decode(exc.stdout) + decode(exc.stderr)
+            # Stream serial output so the unikernel's "config" line can be
+            # timed: it prints after boot + Vulkan/Venus dispatch init + 9p
+            # mount, just before llama-bench, giving the launch->ready boot
+            # time separate from the pp512/tg128 inference numbers.
+            run = run_timed(command, cwd=ROOT, timeout=args.timeout,
+                            markers={"boot": "uk-llama-upstream-vk: config"})
+            log = run.text
             # The bench appliance runs upstream llama-bench, which prints a
             # markdown table; pull pp512/tg128 t/s from the test-column rows
             # (e.g. "| ... | pp512 | 4582.61 ± 12.34 |"). Same shape the
@@ -172,10 +177,10 @@ def main() -> int:
             pp = re.search(r"\|\s*pp512\s*\|\s*([0-9.]+)", log)
             tg = re.search(r"\|\s*tg128\s*\|\s*([0-9.]+)", log)
             passed = bool(pp and tg and "PASS" in log)
-            metrics = (
-                {"pp512": float(pp.group(1)), "tg128": float(tg.group(1))}
-                if (pp and tg) else {}
-            )
+            metrics = {"boot_time_s": run.elapsed("boot")}
+            if pp and tg:
+                metrics["pp512"] = float(pp.group(1))
+                metrics["tg128"] = float(tg.group(1))
 
     status = "pass" if passed else "blocked:no-pass-marker"
     write_json(output, result(status, command, inputs=inputs, metrics=metrics,

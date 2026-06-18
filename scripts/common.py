@@ -6,6 +6,9 @@ import os
 import platform
 import shlex
 import shutil
+import subprocess
+import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -101,3 +104,81 @@ def decode(value: str | bytes | None) -> str:
     if value is None:
         return ""
     return value.decode("utf-8", "replace") if isinstance(value, bytes) else value
+
+
+# ---------------------------------------------------------------------------
+# Boot-timed process execution
+# ---------------------------------------------------------------------------
+
+class TimedRun:
+    """Outcome of :func:`run_timed`: captured output plus marker timings.
+
+    ``marker_times`` maps each marker name that appeared to the wall-clock
+    seconds (from just before launch) at which its first matching line was
+    read off the serial console.
+    """
+
+    __slots__ = ("returncode", "text", "timed_out", "marker_times")
+
+    def __init__(self, returncode: int | None, text: str, timed_out: bool,
+                 marker_times: dict[str, float]) -> None:
+        self.returncode = returncode
+        self.text = text
+        self.timed_out = timed_out
+        self.marker_times = marker_times
+
+    def elapsed(self, name: str) -> float | None:
+        """Seconds until the *name* marker first appeared, or None if never."""
+        return self.marker_times.get(name)
+
+
+def run_timed(
+    command: list[str],
+    *,
+    cwd: str | Path | None = None,
+    timeout: float,
+    markers: dict[str, str] | None = None,
+) -> TimedRun:
+    """Run *command*, capturing merged stdout/stderr, timing serial markers.
+
+    Unlike ``subprocess.run``, output is streamed on a reader thread so the
+    moment each *marker* substring first appears can be timestamped against a
+    monotonic clock started just before launch. This is how boot/ready time is
+    measured: e.g. ``markers={"boot": "guest booted"}`` yields the wall-clock
+    delay from QEMU launch to the guest printing that line. Matching is
+    case-insensitive. On timeout the process is killed and whatever was
+    captured so far is returned with ``timed_out=True``.
+    """
+    needles = {name: sub.lower() for name, sub in (markers or {}).items()}
+    chunks: list[str] = []
+    marker_times: dict[str, float] = {}
+    start = time.monotonic()
+    proc = subprocess.Popen(
+        command, cwd=cwd, text=True, bufsize=1,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    )
+
+    def pump() -> None:
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            elapsed = time.monotonic() - start
+            chunks.append(line)
+            low = line.lower()
+            for name, needle in needles.items():
+                if name not in marker_times and needle in low:
+                    marker_times[name] = round(elapsed, 3)
+
+    reader = threading.Thread(target=pump, daemon=True)
+    reader.start()
+
+    timed_out = False
+    try:
+        proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        proc.kill()
+        proc.wait()
+    reader.join(timeout=5)
+    if proc.stdout is not None:
+        proc.stdout.close()
+    return TimedRun(proc.returncode, "".join(chunks), timed_out, marker_times)

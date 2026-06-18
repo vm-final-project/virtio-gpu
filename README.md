@@ -393,10 +393,19 @@ Every runner writes one JSON file (`_arm64.json` suffix for arm64 runs) under
   "generated_utc": "...",
   "command": "...",
   "inputs": {},
-  "metrics": {},
+  "metrics": { "pp512": 0.0, "tg128": 0.0, "boot_time_s": 0.0 },
   "error": null
 }
 ```
+
+Bench metrics carry `boot_time_s`: wall-clock seconds from QEMU launch to the
+appliance reaching application entry, measured by streaming the serial console
+(`scripts/common.py:run_timed`). Both appliances emit their boot marker before
+the model is loaded (the CPU appliance prints `booted` at app entry; the VK
+appliance prints its `config` line after Venus dispatch init), so the value is
+pure unikernel startup, separate from model-load time (reported on the
+`model_load … elapsed_ms` line) and from the pp512/tg128 throughput. Server runs
+report the launch→`/health`-ready time under the same key.
 
 Canonical files include `results/llama/llama_{cpu,server_cpu,vk,server_vk}.json`
 and `results/venus/*.json`. Runtime logs,
