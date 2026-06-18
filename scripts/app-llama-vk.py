@@ -18,9 +18,11 @@ from common import (
     acceleration,
     default_console,
     default_qemu_binary,
+    file_size,
     image_suffix,
     machine_and_cpu_args,
     normalize_arch,
+    peak_child_rss_kb,
     resolve_model,
     resolve_qemu,
     result,
@@ -162,6 +164,8 @@ def main() -> int:
                 and metrics.get("completion_status") == 200
             )
             metrics["ready"] = ready
+            # proc is reaped by communicate() above, so getrusage has its peak.
+            metrics["peak_rss_kb"] = peak_child_rss_kb()
         else:
             # Stream serial output so the unikernel's "config" line can be
             # timed: it prints after boot + Vulkan/Venus dispatch init + 9p
@@ -177,10 +181,18 @@ def main() -> int:
             pp = re.search(r"\|\s*pp512\s*\|\s*([0-9.]+)", log)
             tg = re.search(r"\|\s*tg128\s*\|\s*([0-9.]+)", log)
             passed = bool(pp and tg and "PASS" in log)
-            metrics = {"boot_time_s": run.elapsed("boot")}
+            metrics = {"boot_time_s": run.elapsed("boot"),
+                       "peak_rss_kb": run.peak_rss_kb}
             if pp and tg:
                 metrics["pp512"] = float(pp.group(1))
                 metrics["tg128"] = float(tg.group(1))
+
+    # Footprint metrics common to both modes: bootable image size and, where the
+    # appliance loads via load_model_common (server), its timed weight load.
+    # (Bench runs upstream llama-bench, which bundles load, so it has no line.)
+    metrics["image_bytes"] = file_size(image(args.mode, arch))
+    load = re.search(r"model_load .*elapsed_ms=([0-9.]+)", log)
+    metrics["model_load_ms"] = float(load.group(1)) if load else None
 
     status = "pass" if passed else "blocked:no-pass-marker"
     write_json(output, result(status, command, inputs=inputs, metrics=metrics,

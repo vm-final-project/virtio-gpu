@@ -83,6 +83,25 @@ class CommonTests(unittest.TestCase):
         self.assertTrue(run.timed_out)
         self.assertIsNotNone(run.elapsed("boot"))
 
+    def test_file_size(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "image.bin"
+            self.assertIsNone(common.file_size(path))   # missing
+            self.assertIsNone(common.file_size(None))
+            self.assertIsNone(common.file_size(directory))  # a dir, not a file
+            path.write_bytes(b"x" * 4096)
+            self.assertEqual(common.file_size(path), 4096)
+
+    def test_run_timed_captures_peak_rss(self) -> None:
+        # The child allocates ~20 MiB; its peak RSS is reported via getrusage.
+        run = common.run_timed(
+            [sys.executable, "-c", "a = bytearray(20 * 1024 * 1024); print('ok')"],
+            timeout=30,
+        )
+        self.assertEqual(run.returncode, 0)
+        self.assertIsInstance(run.peak_rss_kb, int)
+        self.assertGreater(run.peak_rss_kb, 1024)  # well above 1 MiB
+
 
 class CommandTests(unittest.TestCase):
     def test_cpu_modes_select_distinct_images(self) -> None:

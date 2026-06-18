@@ -12,6 +12,7 @@ from common import (
     acceleration,
     default_console,
     default_qemu_binary,
+    file_size,
     image_suffix,
     machine_and_cpu_args,
     normalize_arch,
@@ -85,7 +86,15 @@ def main() -> int:
                         markers={"boot": boot_marker})
         log = run.text
 
-    metrics: dict = {"boot_time_s": run.elapsed("boot")}
+    # Footprint metrics: model_load_ms (the appliance times its own 9pfs weight
+    # load), peak host RSS of the QEMU process, and the bootable image size.
+    load = re.search(r"model_load .*elapsed_ms=([0-9.]+)", log)
+    metrics: dict = {
+        "boot_time_s": run.elapsed("boot"),
+        "model_load_ms": float(load.group(1)) if load else None,
+        "peak_rss_kb": run.peak_rss_kb,
+        "image_bytes": file_size(image(args.mode, arch)),
+    }
     if args.mode == "bench":
         match = re.search(r"uk-llama-upstream: pp512=([0-9.]+) tg128=([0-9.]+)", log)
         passed = bool(match and "uk-llama-upstream: PASS" in log)
