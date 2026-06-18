@@ -54,11 +54,17 @@ def qemu_command(qemu: str, model: Path, mode: str, timeout: int, port: int, arc
     rendernode = os.environ.get("VOGUE_EGL_RENDERNODE")
     if rendernode:
         egl_display += f",rendernode={rendernode}"
+    # Guest RAM and the virtio-gpu host-visible blob window. The bench loads the
+    # GGUF with use_mmap=0, reading the whole file into guest RAM, so RAM must
+    # exceed the model size: 8 GiB fits models up to ~4B Q4 (2.5 GB). Override
+    # with VOGUE_QEMU_MEM_MB / VOGUE_GPU_HOSTMEM for larger models.
+    mem_mb = os.environ.get("VOGUE_QEMU_MEM_MB", "8192")
+    hostmem = os.environ.get("VOGUE_GPU_HOSTMEM", "2G")
     command = [
-        qemu, *machine_and_cpu_args(arch, accel), "-m", "3072",
+        qemu, *machine_and_cpu_args(arch, accel), "-m", mem_mb,
         "-no-reboot", "-kernel", str(image(mode, arch)),
         "-display", egl_display, "-vga", "none",
-        "-device", "virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true",
+        "-device", f"virtio-gpu-gl-pci,hostmem={hostmem},blob=true,venus=true",
         "-append", f"console={default_console(arch)}", "-serial", "mon:stdio", "-monitor", "none",
     ]
     if mode == "server":

@@ -1,0 +1,43 @@
+From: minyao <changmingyao2014@gmail.com>
+Subject: [PATCH] vfscore: return 64-bit off_t from lseek (fix >2GiB files)
+
+vfscore_lseek stored the resulting offset in an 'int' before returning
+it as off_t, truncating offsets above INT_MAX to a negative value.
+fseeko(SEEK_END)/ftello on files >2GiB then returned negative, which
+broke callers such as llama.cpp gguf file_remain() (read magic failed).
+
+diff --git a/lib/vfscore/syscalls.c b/lib/vfscore/syscalls.c
+index 3ca1b9a..55d0c75 100644
+--- a/lib/vfscore/syscalls.c
++++ b/lib/vfscore/syscalls.c
+@@ -363,7 +363,7 @@ vfscore_lseek(struct vfscore_file *fp, off_t off, int type)
+ 	}
+ 
+ 	vp = fp->f_dentry->d_vnode;
+-	int error = -EINVAL;
++	off_t ret = -EINVAL;
+ 	vn_lock(vp);
+ 	switch (type) {
+ 	case SEEK_CUR:
+@@ -374,17 +374,17 @@ vfscore_lseek(struct vfscore_file *fp, off_t off, int type)
+ 		break;
+ 	}
+ 	if (off >= 0) {
+-		error = VOP_SEEK(vp, fp, fp->f_offset, off);
++		int error = VOP_SEEK(vp, fp, fp->f_offset, off);
+ 		if (error) {
+ 			UK_ASSERT(error > 0);
+-			error = -error;
++			ret = -error;
+ 		} else {
+-			error        = off;
++			ret          = off;
+ 			fp->f_offset = off;
+ 		}
+ 	}
+ 	vn_unlock(vp);
+-	return error;
++	return ret;
+ }
+ 
+ int
