@@ -33,6 +33,7 @@
 #include <uk/vulkan_venus.h>
 #include <uk/venus.h>
 #include <uk/vulkan.h>
+#include <uk/plat/time.h>
 
 /* ── Vulkan minimal type definitions (no vulkan.h dependency in C code) ─── */
 typedef uint64_t VkInstance;
@@ -180,6 +181,7 @@ static inline void uk_disp_unlock(void) { uk_mutex_unlock(&g_disp_lock); }
 
 #define UK_ENC_BEGIN() \
     uk_disp_lock(); \
+    uint64_t _t_enc = (uint64_t)ukplat_monotonic_clock(); \
     struct uk_venus_encoder _local_enc; \
     struct uk_venus_encoder *_enc_p = uk_dispatch_batch_active() ? &g_batch_enc : &_local_enc; \
     if (!uk_dispatch_batch_active()) \
@@ -203,6 +205,7 @@ static inline void uk_disp_unlock(void) { uk_mutex_unlock(&g_disp_lock); }
             uk_venus_submit(g_gpu, g_ctx, &_enc); \
         } \
         uk_disp_unlock(); \
+        vogue_prof_add_encode((uint64_t)ukplat_monotonic_clock() - _t_enc); \
     } while (0)
 
 /* Max bytes in a single batched SUBMIT_3D command stream.
@@ -247,6 +250,7 @@ static void uk_dispatch_batch_accumulate(const struct uk_venus_encoder *enc)
  * SUBMIT_3D. Uses g_enc_buf, which is exclusive under g_disp_lock. */
 #define UK_ENC_BEGIN_IMMEDIATE() \
     uk_disp_lock(); \
+    uint64_t _t_enc = (uint64_t)ukplat_monotonic_clock(); \
     struct uk_venus_encoder _enc; \
     uk_venus_encoder_init(&_enc, g_enc_buf, UK_DISPATCH_BUF_SIZE)
 #define UK_ENC_SUBMIT_IMMEDIATE() \
@@ -256,6 +260,7 @@ static void uk_dispatch_batch_accumulate(const struct uk_venus_encoder *enc)
                    "(immediate command dropped)\n", _enc.pos, UK_DISPATCH_BUF_SIZE); \
         uk_venus_submit(g_gpu, g_ctx, &_enc); \
         uk_disp_unlock(); \
+        vogue_prof_add_encode((uint64_t)ukplat_monotonic_clock() - _t_enc); \
     } while (0)
 
 /*
@@ -1770,6 +1775,7 @@ static void uk_dispatch_gpu_barrier(void)
 static VkResult stub_vkQueueSubmit(VkQueue queue, uint32_t submitCount,
                                     const void *pSubmits, VkFence fence)
 {
+    uint64_t _t_l2 = (uint64_t)ukplat_monotonic_clock();
     (void)queue;
     const uint8_t *s = (const uint8_t *)pSubmits;
     for (uint32_t i = 0; i < submitCount; i++) {
@@ -1796,6 +1802,7 @@ static VkResult stub_vkQueueSubmit(VkQueue queue, uint32_t submitCount,
      * drains the queue so pp512 reflects completion, not submission rate. */
     if (fence && g_gpu_sync)
         uk_dispatch_gpu_barrier();
+    vogue_prof_add_l2((uint64_t)ukplat_monotonic_clock() - _t_l2);
     return VK_SUCCESS;
 }
 
@@ -1843,9 +1850,11 @@ static VkResult stub_vkWaitForFences(VkDevice dev, uint32_t count,
      * the host returns the response; so by the time QueueSubmit returns the
      * fence is already marked done — no Venus vkWaitForFences command needed. */
     if (g_gpu) {
+        uint64_t _t_f = (uint64_t)ukplat_monotonic_clock();
         int rc = uk_virtio_gpu_fence_wait(g_gpu, g_last_fence,
                                            timeout == UINT64_MAX ? 5000000000ull
                                                                   : timeout);
+        vogue_prof_add_fence((uint64_t)ukplat_monotonic_clock() - _t_f);
         (void)rc;
     }
     return VK_SUCCESS;

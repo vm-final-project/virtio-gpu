@@ -12,6 +12,30 @@ struct uk_virtio_gpu_dev;
 struct uk_gpu_rect { uint32_t x, y, w, h; };
 struct uk_gpu_box { uint32_t x, y, z, w, h, d; };
 
+/*
+ * VOGUE profiling — per-phase accounting of the unique guest-side
+ * virtio-gpu/Venus path (prompt vs decode).  Each instrumentation site
+ * (across libvulkan / libukvulkan_venus / libukvirtio_gpu) feeds counters
+ * here; vogue_prof_report() prints one VOGUE-TIMING line per metric/phase
+ * which the host-side harness parses into the result JSON.
+ *
+ * "active" = guest CPU doing real translation work (encode/enqueue/notify).
+ * "wait"   = guest spinning on the host (dequeue busy-wait / fence poll) —
+ *            i.e. time blocked on the shared host GPU, not our own overhead.
+ */
+#define VOGUE_PROF_PHASE_PROMPT 0
+#define VOGUE_PROF_PHASE_DECODE 1
+void vogue_prof_set_phase(int phase);
+void vogue_prof_reset(void);
+void vogue_prof_report(void);
+void vogue_prof_add_l2(uint64_t ns);                                  /* vkQueueSubmit encode (active) */
+void vogue_prof_add_submit(uint64_t active_ns, uint64_t wait_ns,
+			   uint32_t bytes);                          /* host round-trip */
+void vogue_prof_add_fence(uint64_t ns);                              /* fence-wait (wait) */
+void vogue_prof_add_l3(uint64_t ns);                                 /* venus ring flush */
+void vogue_prof_add_flush(uint64_t ns, uint32_t bytes, int rc);     /* uk_venus_submit batch flush */
+void vogue_prof_add_encode(uint64_t ns);                            /* vk* command encoding */
+
 #define UK_VIRTIO_GPU_F_VIRGL          (1ull << 0)
 #define UK_VIRTIO_GPU_F_EDID           (1ull << 1)
 #define UK_VIRTIO_GPU_F_RESOURCE_UUID  (1ull << 2)

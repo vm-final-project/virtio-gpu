@@ -58,3 +58,12 @@ uk_virgl_encoder_init
 uk_virgl_encode_create_surface
 uk_virgl_encode_set_framebuffer
 uk_virgl_encode_clear
+vogue_prof_set_phase
+vogue_prof_reset
+vogue_prof_report
+vogue_prof_add_l2
+vogue_prof_add_submit
+vogue_prof_add_fence
+vogue_prof_add_l3
+vogue_prof_add_flush
+vogue_prof_add_encode

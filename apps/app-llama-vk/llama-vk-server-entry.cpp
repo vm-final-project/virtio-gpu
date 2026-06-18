@@ -30,6 +30,9 @@
 
 int llama_server(int argc, char ** argv);
 
+/* VOGUE per-phase profiling report, defined in libukvirtio_gpu. */
+extern "C" void vogue_prof_report(void);
+
 static int llama_server_main(void)
 {
     /* Same ggml-vulkan env levers as the bench appliance: force the
@@ -124,7 +127,10 @@ static int llama_server_main(void)
                     ngl_f, ngl, nommap, fa_f, fa, nohost};
 #endif
 
-    return llama_server((int)(sizeof(argv) / sizeof(argv[0])), argv);
+    int rc = llama_server((int)(sizeof(argv) / sizeof(argv[0])), argv);
+    /* Only reached on a graceful server exit (not the harness SIGTERM path). */
+    vogue_prof_report();
+    return rc;
 }
 
 int main(void)

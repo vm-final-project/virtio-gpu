@@ -39,6 +39,15 @@
 // compiled into the appliance; the single-app image calls llama_bench() here.
 extern int llama_bench(int argc, char ** argv);
 
+// VOGUE per-phase Venus-path profiling (libukvirtio_gpu). Upstream llama-bench
+// owns its own load/warmup/measure loop with no hook we can use to split
+// prompt vs decode, so we reset before and report after the whole run: the
+// counters aggregate into the "prompt" phase ("decode" stays empty). The
+// active-vs-wait / encode / flush / L2-L4 breakdown is still meaningful as a
+// whole-run total.
+extern "C" void vogue_prof_reset(void);
+extern "C" void vogue_prof_report(void);
+
 #define VK_STR2(x) #x
 #define VK_STR(x)  VK_STR2(x)
 
@@ -91,7 +100,15 @@ int main(void)
                      a_n, a_128, a_t, a_thr, a_nh, a_one, a_mm, a_zero, nullptr };
     int argc = (int) (sizeof(argv) / sizeof(argv[0])) - 1;
 
+    /* Wall clock over the exact span the profiling covers, so the host harness
+     * can derive the app (ggml/llama CPU + model-load I/O) share as
+     * wall - (vulkan active + wait). */
+    double _wall0 = now_sec();
+    vogue_prof_reset();
     int rc = llama_bench(argc, argv);
+    vogue_prof_report();
+    uk_printf("VOGUE-TIMING wall[all]: total_ns=%llu\n",
+              (unsigned long long)((now_sec() - _wall0) * 1e9));
 
     if (rc == 0)
         uk_puts("uk-llama-upstream-vk: PASS evidence_id=llama-upstream-vk\n");

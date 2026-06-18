@@ -21,6 +21,8 @@
 #include <string.h>
 
 #include <uk/venus.h>
+#include <uk/virtio_gpu.h>
+#include <uk/plat/time.h>
 
 /* Minimum capset data to consider Venus available. */
 #define VENUS_CAPS_MIN_SIZE 8u
@@ -139,8 +141,11 @@ int uk_venus_submit(struct uk_virtio_gpu_dev *dev,
 		return -EINVAL;
 
 	uk_gpu_fence_id fence;
-	return uk_virtio_gpu_gl_context_submit(dev, ctx,
-					       enc->buf, enc->pos, &fence);
+	uint64_t _t = (uint64_t)ukplat_monotonic_clock();
+	int rc = uk_virtio_gpu_gl_context_submit(dev, ctx,
+						 enc->buf, enc->pos, &fence);
+	vogue_prof_add_flush((uint64_t)ukplat_monotonic_clock() - _t, enc->pos, rc);
+	return rc;
 }
 const char *uk_venus_ring_status(struct uk_virtio_gpu_dev *dev)
 {
@@ -615,8 +620,13 @@ int uk_venus_ring_cmd_flush(struct uk_virtio_gpu_dev *dev,
 		return -ENOSPC;
 
 	fence = 0;
-	return uk_virtio_gpu_gl_context_submit(dev, &ring->ctx,
-					       enc.buf, enc.pos, &fence);
+	{
+		uint64_t _t_l3 = (uint64_t)ukplat_monotonic_clock();
+		rc = uk_virtio_gpu_gl_context_submit(dev, &ring->ctx,
+						     enc.buf, enc.pos, &fence);
+		vogue_prof_add_l3((uint64_t)ukplat_monotonic_clock() - _t_l3);
+	}
+	return rc;
 }
 
 /*

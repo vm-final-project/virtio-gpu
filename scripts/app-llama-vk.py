@@ -22,6 +22,8 @@ from common import (
     image_suffix,
     machine_and_cpu_args,
     normalize_arch,
+    parse_vogue_timing,
+    summarize_vogue_profile,
     resolve_model,
     resolve_qemu,
     result,
@@ -183,6 +185,12 @@ def main() -> int:
                 if (pp and tg) else {}
             )
 
+    timing = parse_vogue_timing(log)
+    if timing:
+        metrics["timing"] = timing
+        profile = summarize_vogue_profile(timing)
+        if profile:
+            metrics["profile"] = profile
     status = "pass" if passed else "blocked:no-pass-marker"
     write_json(output, result(status, command, inputs=inputs, metrics=metrics,
                               error=None if passed else log[-2000:]))

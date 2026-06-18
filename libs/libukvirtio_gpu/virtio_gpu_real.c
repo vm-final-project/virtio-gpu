@@ -13,6 +13,7 @@
 #include <virtio/virtio_bus.h>
 #include <virtio/virtio_ids.h>
 #include <virtio/virtqueue.h>
+#include <uk/virtio_gpu.h>
 
 #include "virtio_gpu_real_priv.h"
 
@@ -43,6 +44,106 @@ extern int virtio_pci_shm_region_get(struct virtio_dev *vdev, uint8_t id,
 static uint64_t now_ns(void)
 {
 	return (uint64_t)ukplat_monotonic_clock();
+}
+
+/* ── VOGUE profiling (see uk/virtio_gpu.h) ─────────────────────────────── */
+#define VOGUE_PROF_PHASE_N 2
+struct vogue_prof_phase {
+	uint64_t l2_ns,     l2_calls;       /* vkQueueSubmit encode (active) */
+	uint64_t sub_active_ns;             /* host round-trip: enqueue+notify */
+	uint64_t sub_wait_ns;               /* host round-trip: dequeue spin (wait) */
+	uint64_t sub_calls, sub_bytes;      /* round-trip count + request bytes */
+	uint64_t fence_ns,  fence_calls;    /* fence-wait poll (wait) */
+	uint64_t l3_ns,     l3_calls;       /* venus ring flush */
+	uint64_t flush_ns,  flush_calls, flush_bytes, flush_fail; /* uk_venus_submit batch flush */
+	uint64_t enc_ns,    enc_calls;      /* all vk command encoding (UK_ENC) */
+};
+static struct vogue_prof_phase g_prof[VOGUE_PROF_PHASE_N];
+static int g_prof_phase;  /* VOGUE_PROF_PHASE_PROMPT / _DECODE */
+
+void vogue_prof_set_phase(int phase)
+{
+	if (phase >= 0 && phase < VOGUE_PROF_PHASE_N)
+		g_prof_phase = phase;
+}
+
+void vogue_prof_reset(void)
+{
+	memset(g_prof, 0, sizeof(g_prof));
+	g_prof_phase = VOGUE_PROF_PHASE_PROMPT;
+}
+
+void vogue_prof_add_l2(uint64_t ns)
+{
+	g_prof[g_prof_phase].l2_ns += ns;
+	g_prof[g_prof_phase].l2_calls++;
+}
+
+void vogue_prof_add_submit(uint64_t active_ns, uint64_t wait_ns, uint32_t bytes)
+{
+	struct vogue_prof_phase *p = &g_prof[g_prof_phase];
+	p->sub_active_ns += active_ns;
+	p->sub_wait_ns += wait_ns;
+	p->sub_bytes += bytes;
+	p->sub_calls++;
+}
+
+void vogue_prof_add_fence(uint64_t ns)
+{
+	g_prof[g_prof_phase].fence_ns += ns;
+	g_prof[g_prof_phase].fence_calls++;
+}
+
+void vogue_prof_add_l3(uint64_t ns)
+{
+	g_prof[g_prof_phase].l3_ns += ns;
+	g_prof[g_prof_phase].l3_calls++;
+}
+
+void vogue_prof_add_flush(uint64_t ns, uint32_t bytes, int rc)
+{
+	g_prof[g_prof_phase].flush_ns += ns;
+	g_prof[g_prof_phase].flush_bytes += bytes;
+	g_prof[g_prof_phase].flush_calls++;
+	if (rc != 0)
+		g_prof[g_prof_phase].flush_fail++;
+}
+
+void vogue_prof_add_encode(uint64_t ns)
+{
+	g_prof[g_prof_phase].enc_ns += ns;
+	g_prof[g_prof_phase].enc_calls++;
+}
+
+void vogue_prof_report(void)
+{
+	static const char *const ph[VOGUE_PROF_PHASE_N] = { "prompt", "decode" };
+	int i;
+	for (i = 0; i < VOGUE_PROF_PHASE_N; i++) {
+		struct vogue_prof_phase *p = &g_prof[i];
+		printf("VOGUE-TIMING L2-submit[%s]: calls=%llu total_ns=%llu\n",
+		       ph[i], (unsigned long long)p->l2_calls,
+		       (unsigned long long)p->l2_ns);
+		printf("VOGUE-TIMING host-submit[%s]: calls=%llu active_ns=%llu wait_ns=%llu bytes=%llu\n",
+		       ph[i], (unsigned long long)p->sub_calls,
+		       (unsigned long long)p->sub_active_ns,
+		       (unsigned long long)p->sub_wait_ns,
+		       (unsigned long long)p->sub_bytes);
+		printf("VOGUE-TIMING fence-wait[%s]: calls=%llu total_ns=%llu\n",
+		       ph[i], (unsigned long long)p->fence_calls,
+		       (unsigned long long)p->fence_ns);
+		printf("VOGUE-TIMING L3-flush[%s]: calls=%llu total_ns=%llu\n",
+		       ph[i], (unsigned long long)p->l3_calls,
+		       (unsigned long long)p->l3_ns);
+		printf("VOGUE-TIMING host-flush[%s]: calls=%llu total_ns=%llu bytes=%llu fail=%llu\n",
+		       ph[i], (unsigned long long)p->flush_calls,
+		       (unsigned long long)p->flush_ns,
+		       (unsigned long long)p->flush_bytes,
+		       (unsigned long long)p->flush_fail);
+		printf("VOGUE-TIMING vk-encode[%s]: calls=%llu total_ns=%llu\n",
+		       ph[i], (unsigned long long)p->enc_calls,
+		       (unsigned long long)p->enc_ns);
+	}
 }
 
 static uint64_t resource_size_bytes(uint32_t w, uint32_t h, uint32_t d)
@@ -142,11 +243,14 @@ static int cmd_submit_locked(struct uk_virtio_gpu_dev *d, void *req, size_t req_
 	uint32_t cmd_type = ((struct ukvgpu_ctrl_hdr *)req)->type;
 	uint32_t used_len = 0;
 	uint64_t deadline;
+	uint64_t _t_active, _active_ns;
 	int rc;
 
 	if (!d || !d->ctrlq || !req || !req_len || !resp || !resp_len)
 		return -EINVAL;
 
+	/* Active phase = our work: build sglist + enqueue + notify the host. */
+	_t_active = now_ns();
 	uk_sglist_init(&sg, MAX_CMD_SEGS, segs);
 	rc = uk_sglist_append(&sg, req, req_len);
 	if (rc)
@@ -161,17 +265,24 @@ static int cmd_submit_locked(struct uk_virtio_gpu_dev *d, void *req, size_t req_
 		return rc;
 	virtqueue_host_notify(d->ctrlq);
 
-	deadline = now_ns() + CMD_TIMEOUT_NS;
-	for (;;) {
-		rc = virtqueue_buffer_dequeue(d->ctrlq, &done, &used_len);
-		if (rc >= 0)
-			break;
-		if (rc != -ENOMSG)
-			return rc;
-		if (now_ns() > deadline)
-			return -ETIMEDOUT;
-		/* Pause: reduce spin pressure; lets host vCPU make progress. */
-		__asm__ volatile("pause" ::: "memory");
+	{
+		/* Wait phase = spinning on the host (shared GPU cost, not ours). */
+		uint64_t _t_wait = now_ns();
+		_active_ns = _t_wait - _t_active;
+		deadline = _t_wait + CMD_TIMEOUT_NS;
+		for (;;) {
+			rc = virtqueue_buffer_dequeue(d->ctrlq, &done, &used_len);
+			if (rc >= 0)
+				break;
+			if (rc != -ENOMSG)
+				return rc;
+			if (now_ns() > deadline)
+				return -ETIMEDOUT;
+			/* Pause: reduce spin pressure; lets host vCPU make progress. */
+			__asm__ volatile("pause" ::: "memory");
+		}
+		vogue_prof_add_submit(_active_ns, now_ns() - _t_wait,
+				      (uint32_t)req_len);
 	}
 	if (done != cookie)
 		return -EIO;

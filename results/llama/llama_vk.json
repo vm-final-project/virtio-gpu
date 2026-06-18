@@ -1,13 +1,89 @@
 {
-  "status": "blocked:no-pass-marker",
-  "generated_utc": "2026-06-11T04:32:39.880592Z",
-  "command": "/usr/local/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -m 3072 -no-reboot -kernel /mydata/JerryT/virtio-gpu-smp/.unikraft/build/vogue-llama-vk_qemu-x86_64 -display egl-headless,gl=on -vga none -device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true -append console=ttyS0 -serial mon:stdio -monitor none -fsdev local,id=model,path=/tmp/vogue-model-t9fildx6,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model",
+  "status": "pass",
+  "generated_utc": "2026-06-18T08:54:46.756916Z",
+  "command": "/usr/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -m 8192 -no-reboot -kernel /users/minyao/virtio-gpu/.unikraft/build/vogue-llama-vk_qemu-x86_64 -display egl-headless,gl=on -vga none -device virtio-gpu-gl-pci,hostmem=2G,blob=true,venus=true -append console=ttyS0 -serial mon:stdio -monitor none -fsdev local,id=model,path=/tmp/vogue-model-f39gcyym,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model",
   "inputs": {
     "mode": "bench",
     "arch": "x86_64",
-    "model": "/mydata/JerryT/virtio-gpu-smp/models/google_gemma-3-1b-it-Q4_K_M.gguf",
-    "image": "/mydata/JerryT/virtio-gpu-smp/.unikraft/build/vogue-llama-vk_qemu-x86_64"
+    "model": "/users/minyao/virtio-gpu/models/google_gemma-3-4b-it-Q4_K_M.gguf",
+    "image": "/users/minyao/virtio-gpu/.unikraft/build/vogue-llama-vk_qemu-x86_64"
   },
-  "metrics": {},
-  "error": "MESA-LOADER: failed to retrieve device information\nMESA-LOADER: failed to open vgem: /usr/lib/dri/vgem_dri.so: cannot open shared object file: No such file or directory (search paths /usr/lib/x86_64-linux-gnu/dri:\\$${ORIGIN}/dri:/usr/lib/dri, suffix _dri)\nMESA-LOADER: failed to retrieve device information\nMESA-LOADER: failed to retrieve device information\nqemu-system-x86_64: -device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true: old virglrenderer, blob resources unsupported\n"
+  "metrics": {
+    "pp512": 21097.36,
+    "tg128": 168.82,
+    "timing": {
+      "L2-submit[prompt]": {
+        "calls": 16313,
+        "total_ns": 1899614751
+      },
+      "host-submit[prompt]": {
+        "calls": 41283,
+        "active_ns": 728004419,
+        "wait_ns": 6388363309,
+        "bytes": 392959428
+      },
+      "fence-wait[prompt]": {
+        "calls": 6474,
+        "total_ns": 2826852
+      },
+      "L3-flush[prompt]": {
+        "calls": 0,
+        "total_ns": 0
+      },
+      "host-flush[prompt]": {
+        "calls": 41231,
+        "total_ns": 2982783325,
+        "bytes": 391637208,
+        "fail": 0
+      },
+      "vk-encode[prompt]": {
+        "calls": 4187867,
+        "total_ns": 3519533528
+      },
+      "L2-submit[decode]": {
+        "calls": 0,
+        "total_ns": 0
+      },
+      "host-submit[decode]": {
+        "calls": 0,
+        "active_ns": 0,
+        "wait_ns": 0,
+        "bytes": 0
+      },
+      "fence-wait[decode]": {
+        "calls": 0,
+        "total_ns": 0
+      },
+      "L3-flush[decode]": {
+        "calls": 0,
+        "total_ns": 0
+      },
+      "host-flush[decode]": {
+        "calls": 0,
+        "total_ns": 0,
+        "bytes": 0,
+        "fail": 0
+      },
+      "vk-encode[decode]": {
+        "calls": 0,
+        "total_ns": 0
+      },
+      "wall[all]": {
+        "total_ns": 15740112871
+      }
+    },
+    "profile": {
+      "prompt": {
+        "active_ns": 2627619170,
+        "wait_ns": 9373973486,
+        "active_pct": 21.89,
+        "wait_pct": 78.11,
+        "host_flushes": 41231,
+        "host_flush_ns": 2982783325,
+        "host_flush_bytes": 391637208,
+        "roundtrips": 41283
+      }
+    }
+  },
+  "error": null
 }

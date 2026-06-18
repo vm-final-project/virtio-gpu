@@ -6,7 +6,7 @@ import argparse
 import pathlib
 import subprocess
 
-from common import acceleration, default_qemu_binary, image_suffix, machine_and_cpu_args, normalize_arch, resolve_qemu, result, result_path, write_json
+from common import acceleration, decode, default_qemu_binary, image_suffix, machine_and_cpu_args, normalize_arch, parse_vogue_timing, resolve_qemu, result, result_path, write_json
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -50,8 +50,11 @@ def main() -> int:
                              stderr=subprocess.STDOUT, timeout=args.timeout)
     except subprocess.TimeoutExpired as exc:
         text = decode(exc.stdout)
-        write_json(out, result("blocked:timeout", command, {"mode": args.mode},
-                               {"output_tail": text[-2000:]}, "QEMU probe timed out"))
+        write_json(out, result("blocked:timeout", command,
+                               inputs={"mode": args.mode},
+                               metrics={"output_tail": text[-2000:],
+                                        "timing": parse_vogue_timing(text)},
+                               error="QEMU probe timed out"))
         return 0
 
     text = decode(run.stdout)
@@ -59,9 +62,11 @@ def main() -> int:
         args.mode == "2d" or "venus_ring_protocol=pass" in text
     )
     status = "pass" if passed else "fail"
-    write_json(out, result(status, command, {"mode": args.mode},
-                           {"output_tail": text[-2000:]},
-                           None if passed else "probe did not report success"))
+    write_json(out, result(status, command,
+                           inputs={"mode": args.mode},
+                           metrics={"output_tail": text[-2000:],
+                                    "timing": parse_vogue_timing(text)},
+                           error=None if passed else "probe did not report success"))
     return 0 if passed else 1
 
 
