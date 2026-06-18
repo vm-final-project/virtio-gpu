@@ -57,7 +57,12 @@ def qemu_command(qemu: str, model: Path, mode: str, timeout: int, port: int, arc
     if rendernode:
         egl_display += f",rendernode={rendernode}"
     command = [
-        qemu, *machine_and_cpu_args(arch, accel), "-m", "3072",
+        # The VOGUE unikernel is single-core only, so -smp is pinned to 1; this is
+        # the apples-to-apples point the vogue-baselines 1-core variants compare
+        # against. -m 8192 matches the guest RAM budget given to the Linux/microvm
+        # baselines (QEMU does not pre-allocate, so the ceiling does not inflate
+        # peak RSS); the GPU blob window (hostmem) stays appliance-specific below.
+        qemu, *machine_and_cpu_args(arch, accel), "-smp", "1", "-m", "8192",
         "-no-reboot", "-kernel", str(image(mode, arch)),
         "-display", egl_display, "-vga", "none",
         "-device", "virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true",

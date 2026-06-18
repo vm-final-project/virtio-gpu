@@ -39,6 +39,15 @@ APPLLAMA_CPU_CXXINCLUDES-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += -I$(APPLLAMA_CPU
                                        -I$(LLAMA_COMMON) -I$(LLAMA_ROOT)/vendor \
                                        -I$(LLAMA_SERVER) -I$(LLAMA_MTMD) \
                                        -I$(APPLLAMA_CPU_BASE)
+# Bench mode runs the upstream llama-bench tool in-tree (see SRCS below), which
+# pulls common/ (arg/common/download/fit helpers) + build-info, so it needs the
+# same include set the server mode uses. compat/ supplies the Linux-ism shims
+# (e.g. <linux/limits.h>) that common/{arg,download}.cpp expect.
+APPLLAMA_CPU_CINCLUDES-$(CONFIG_APP_LLAMA_CPU_MODE_BENCH)    += -I$(APPLLAMA_CPU_BASE)/compat
+APPLLAMA_CPU_CXXINCLUDES-$(CONFIG_APP_LLAMA_CPU_MODE_BENCH)  += -I$(APPLLAMA_CPU_BASE)/compat \
+                                       -I$(LLAMA_COMMON) -I$(LLAMA_ROOT)/vendor \
+                                       -I$(LLAMA_SERVER) -I$(LLAMA_MTMD) \
+                                       -I$(APPLLAMA_CPU_BASE)
 
 
 # Compile flags: enable CPU backend static registration, suppress fortify+glibc compat issues.
@@ -83,6 +92,11 @@ APPLLAMA_CPU_CXXFLAGS-y += -std=gnu++17 $(APPLLAMA_CPU_COMMON_DEFS) $(APPLLAMA_C
                                  -Wno-unknown-pragmas -Wno-unused-function
 APPLLAMA_CPU_CXXFLAGS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += -include unordered_map
 APPLLAMA_CPU_CXXFLAGS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += -iquote $(LLAMA_COMMON)
+# Bench mode compiles the same common/ + jinja sources for llama-bench, so it
+# needs the same two fixups: force-include <unordered_map>, and -iquote so
+# common/jinja/value.cpp resolves common/unicode.h instead of src/unicode.h.
+APPLLAMA_CPU_CXXFLAGS-$(CONFIG_APP_LLAMA_CPU_MODE_BENCH) += -include unordered_map
+APPLLAMA_CPU_CXXFLAGS-$(CONFIG_APP_LLAMA_CPU_MODE_BENCH) += -iquote $(LLAMA_COMMON)
 
 # NOTE: --gc-sections must NOT go here: per-library LDFLAGS feed the relocatable
 # `ld -r` link, where --gc-sections has no entry-point root and binutils errors
@@ -131,6 +145,24 @@ APPLLAMA_CPU_LLAMA_MODEL_FLAGS-y   += $(APPLLAMA_CPU_HOT_FLAGS)
 # Single-purpose appliance entry points. Only one mode is compiled; the other
 # source file becomes an empty translation unit thanks to its #if guard.
 APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_BENCH)  += $(APPLLAMA_CPU_BASE)/bench.cpp
+
+# Bench mode runs the upstream llama-bench tool in-tree (entry llama_bench(),
+# called from bench.cpp) so its CPU numbers are measured exactly like the VK
+# appliance and the vogue-baselines runtimes. llama-bench.cpp pulls common/
+# (string_*, common_arg/download/fit helpers) and build-info; reuse the same
+# common source set the server mode compiles. common/unicode.cpp collides with
+# src/unicode.cpp, so filter it out and supply the uniquely-named shim. NOTE:
+# tools/llama-bench/main.cpp is intentionally NOT compiled (bench.cpp provides
+# main and calls llama_bench directly). Mirrors apps/app-llama-vk/Makefile.uk.
+APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_BENCH) += $(LLAMA_ROOT)/tools/llama-bench/llama-bench.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_BENCH) += $(APPLLAMA_CPU_BASE)/build-info.cpp
+# common/download.cpp references cpp-httplib (HF model fetch); compile the
+# vendored split httplib.cpp so those symbols resolve at link (the appliance
+# never downloads — local model only — but the symbols must still resolve).
+APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_BENCH) += $(LLAMA_ROOT)/vendor/cpp-httplib/httplib.cpp
+APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_BENCH) += $(filter-out $(LLAMA_COMMON)/unicode.cpp, $(wildcard $(LLAMA_COMMON)/*.cpp))
+APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_BENCH) += $(wildcard $(LLAMA_COMMON)/jinja/*.cpp)
+APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_BENCH) += $(APPLLAMA_CPU_BASE)/llama-common-unicode.cpp
 APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += $(APPLLAMA_CPU_BASE)/llama-server-entry.cpp
 APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += $(LLAMA_ROOT)/vendor/cpp-httplib/httplib.cpp
 APPLLAMA_CPU_SRCS-$(CONFIG_APP_LLAMA_CPU_MODE_SERVER) += $(APPLLAMA_CPU_BASE)/compat-spawn.c
