@@ -60,6 +60,7 @@ uk_virgl_encode_set_framebuffer
 uk_virgl_encode_clear
 vogue_prof_set_phase
 vogue_prof_reset
+vogue_prof_reset_phase
 vogue_prof_report
 vogue_prof_add_l2
 vogue_prof_add_submit

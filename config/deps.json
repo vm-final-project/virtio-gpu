@@ -32,7 +32,10 @@
       "repo": "https://github.com/ggml-org/llama.cpp.git",
       "rev": "b9581",
       "ref_type": "tag",
-      "description": "Upstream llama.cpp. Sources compiled in-tree; Vulkan prep target generates SPIR-V shaders."
+      "description": "Upstream llama.cpp. Sources compiled in-tree; Vulkan prep target generates SPIR-V shaders.",
+      "patches": [
+        "patches/llama_cpp/0001-llama-bench-vogue-phase-hooks.patch"
+      ]
     },
     "venus_protocol": {
       "path": ".deps/src/venus-protocol",

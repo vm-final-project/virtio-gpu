@@ -39,12 +39,11 @@
 // compiled into the appliance; the single-app image calls llama_bench() here.
 extern int llama_bench(int argc, char ** argv);
 
-// VOGUE per-phase Venus-path profiling (libukvirtio_gpu). Upstream llama-bench
-// owns its own load/warmup/measure loop with no hook we can use to split
-// prompt vs decode, so we reset before and report after the whole run: the
-// counters aggregate into the "prompt" phase ("decode" stays empty). The
-// active-vs-wait / encode / flush / L2-L4 breakdown is still meaningful as a
-// whole-run total.
+// VOGUE per-phase Venus-path profiling (libukvirtio_gpu). We reset before and
+// report after the whole run; upstream llama-bench is instrumented (via weak
+// vogue_prof_set_phase/reset_phase hooks) to tag each test's phase
+// (pp512->prompt, tg128->decode) and drop its warmup + one-time model-load
+// counters, so the report splits prompt vs decode over only the measured reps.
 extern "C" void vogue_prof_reset(void);
 extern "C" void vogue_prof_report(void);
 

@@ -73,6 +73,15 @@ void vogue_prof_reset(void)
 	g_prof_phase = VOGUE_PROF_PHASE_PROMPT;
 }
 
+/* Clear a single phase's counters without disturbing the other. Used to drop
+ * a test's warmup contribution after warmup, before its measured reps, so the
+ * sibling phase (already measured) keeps its data. */
+void vogue_prof_reset_phase(int phase)
+{
+	if (phase >= 0 && phase < VOGUE_PROF_PHASE_N)
+		memset(&g_prof[phase], 0, sizeof(g_prof[phase]));
+}
+
 void vogue_prof_add_l2(uint64_t ns)
 {
 	g_prof[g_prof_phase].l2_ns += ns;

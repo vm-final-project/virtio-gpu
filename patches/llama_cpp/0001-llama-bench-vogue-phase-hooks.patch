@@ -1,0 +1,54 @@
+diff --git a/tools/llama-bench/llama-bench.cpp b/tools/llama-bench/llama-bench.cpp
+index a85f86c..ac4b896 100644
+--- a/tools/llama-bench/llama-bench.cpp
++++ b/tools/llama-bench/llama-bench.cpp
+@@ -2084,6 +2084,27 @@ struct ctx_state {
+     std::vector<uint8_t> buf; // the llama_context state buffer
+ };
+ 
++// VOGUE Venus-path profiling (libukvirtio_gpu). Declared weak so a plain
++// llama-bench build without the Unikraft profiling library still links; in the
++// VOGUE bench appliance these resolve to the real per-phase counters. The hooks
++// below set the phase per test (pp->prompt, tg->decode) and drop each test's
++// warmup contribution so the report reflects only the measured reps.
++extern "C" {
++    __attribute__((weak)) void vogue_prof_set_phase(int phase);
++    __attribute__((weak)) void vogue_prof_reset_phase(int phase);
++}
++#define VOGUE_PROF_PHASE_PROMPT 0
++#define VOGUE_PROF_PHASE_DECODE 1
++static inline void vogue_bench_phase(const struct cmd_params_instance & inst, bool reset) {
++    int phase = inst.n_prompt > 0 ? VOGUE_PROF_PHASE_PROMPT : VOGUE_PROF_PHASE_DECODE;
++    if (vogue_prof_set_phase) {
++        vogue_prof_set_phase(phase);
++    }
++    if (reset && vogue_prof_reset_phase) {
++        vogue_prof_reset_phase(phase);
++    }
++}
++
+ static bool test_prompt(llama_context * ctx, int n_prompt, int n_batch, int n_threads) {
+     llama_set_n_threads(ctx, n_threads, n_threads);
+ 
+@@ -2321,6 +2342,10 @@ int llama_bench(int argc, char ** argv) {
+ 
+         llama_attach_threadpool(ctx, threadpool, NULL);
+ 
++        // VOGUE: tag this test's phase (pp->prompt, tg->decode) so warmup +
++        // the measured reps below accumulate into the right phase counters.
++        vogue_bench_phase(inst, false);
++
+         // warmup run
+         if (!params.no_warmup) {
+             if (t.n_prompt > 0) {
+@@ -2350,6 +2375,10 @@ int llama_bench(int argc, char ** argv) {
+             }
+         }
+ 
++        // VOGUE: drop this phase's warmup (and one-time model-load) counters so
++        // only the measured reps remain. The sibling phase keeps its data.
++        vogue_bench_phase(inst, true);
++
+         for (int i = 0; i < params.reps; i++) {
+             llama_memory_clear(llama_get_memory(ctx), false);
+ 

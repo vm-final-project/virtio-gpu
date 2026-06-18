@@ -27,6 +27,7 @@ struct uk_gpu_box { uint32_t x, y, z, w, h, d; };
 #define VOGUE_PROF_PHASE_DECODE 1
 void vogue_prof_set_phase(int phase);
 void vogue_prof_reset(void);
+void vogue_prof_reset_phase(int phase);
 void vogue_prof_report(void);
 void vogue_prof_add_l2(uint64_t ns);                                  /* vkQueueSubmit encode (active) */
 void vogue_prof_add_submit(uint64_t active_ns, uint64_t wait_ns,
