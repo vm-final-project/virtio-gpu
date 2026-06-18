@@ -16,7 +16,7 @@ render node and a Venus-enabled virglrenderer.
 
 As of the latest bring-up, all four x86_64 llama appliances **pass**: CPU/Vulkan
 bench (`results/llama/llama_{cpu,vk}.json`) and CPU/Vulkan server (`/health` 200,
-`/completion` 200). The Vulkan path runs the full model on the GPU over Venus.
+`/v1/chat/completions` 200). The Vulkan path runs the full model on the GPU over Venus.
 
 Reproducing the Vulkan runs needs a host setup the stock distro QEMU does not
 provide. The full, verified recipe is in the README under **"x86_64 Vulkan-server

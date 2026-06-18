@@ -26,6 +26,9 @@ QEMU ?= $(if $(filter $(ARCH),arm64),qemu-system-aarch64,qemu-system-x86_64)
 # renaming). Override explicitly with MODEL=/path/to/model.gguf.
 MODEL ?= $(or $(wildcard $(CURDIR)/models/model.gguf),$(firstword $(wildcard $(CURDIR)/models/*.gguf)))
 RUN_TIMEOUT ?= 120
+# Prompt the server appliances send to /completion; recorded with the model's
+# reply in the result JSON. Override with QUERY='...'.
+QUERY ?= hi, what's your name
 
 LLAMA_ROOT             ?= $(realpath $(EXTERNAL_DEPS_DIR)/llama.cpp)
 VENUS_PROTOCOL_ROOT    ?= $(realpath $(EXTERNAL_DEPS_DIR)/venus-protocol)

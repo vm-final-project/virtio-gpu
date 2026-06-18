@@ -8,9 +8,11 @@ import resource
 import re
 import shlex
 import shutil
+import socket
 import subprocess
 import threading
 import time
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -300,3 +302,114 @@ def summarize_vogue_profile(timing: dict) -> dict:
             "host_flush_bytes": flush.get("bytes", 0),
         }
     return summary
+
+
+# ---------------------------------------------------------------------------
+# HTTP server appliance probe
+# ---------------------------------------------------------------------------
+
+def free_port() -> int:
+    """Pick an unused localhost TCP port to use as a QEMU hostfwd target."""
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+def _query_llama_server(port: int, deadline: float, launch: float,
+                        query: str, n_predict: int) -> dict:
+    """Poll ``/health`` until ready, then send *query* and record the reply.
+
+    The request goes to the OpenAI-compatible ``/v1/chat/completions`` endpoint
+    (not the raw ``/completion``) so the server applies the model's chat
+    template: an instruction-tuned model fed an un-templated prompt degenerates
+    into special tokens, whereas the templated turn yields a real answer.
+    Returns the round-trip timings together with the verbatim *query* and the
+    model's generated reply, or ``{}`` if the server never became ready before
+    *deadline*.
+    """
+    health = f"http://127.0.0.1:{port}/health"
+    while time.monotonic() < deadline:
+        try:
+            started = time.monotonic()
+            with urllib.request.urlopen(health, timeout=2) as response:
+                body = response.read().decode("utf-8", "replace")
+            metrics = {
+                "http_status": response.status,
+                "health": json.loads(body),
+                "latency_s": round(time.monotonic() - started, 4),
+                # First successful /health: the server is up and model-ready, so
+                # this is the launch->ready boot time for the appliance.
+                "boot_time_s": round(time.monotonic() - launch, 3),
+            }
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{port}/v1/chat/completions",
+                data=json.dumps({
+                    "messages": [{"role": "user", "content": query}],
+                    "max_tokens": n_predict,
+                    "stream": False,
+                }).encode(),
+                headers={"Content-Type": "application/json"},
+            )
+            started = time.monotonic()
+            with urllib.request.urlopen(request, timeout=deadline - time.monotonic()) as response:
+                completion = json.loads(response.read().decode("utf-8", "replace"))
+            elapsed = max(time.monotonic() - started, 0.0001)
+            # OpenAI-compatible shape: choices[0].message.content + usage tokens.
+            choice = (completion.get("choices") or [{}])[0]
+            content = (choice.get("message") or {}).get("content", "")
+            tokens = (completion.get("usage") or {}).get("completion_tokens", 0)
+            metrics.update({
+                "completion_status": response.status,
+                # Record the actual exchange, so each server result carries a
+                # real query->completion pair, not just aggregate timings.
+                "query": query,
+                "completion": content,
+                "requests_per_s": round(1 / elapsed, 3),
+                "tokens_per_s": round(tokens / elapsed, 3),
+            })
+            return metrics
+        except Exception:
+            time.sleep(0.5)
+    return {}
+
+
+def probe_http_server(
+    command: list[str],
+    *,
+    port: int,
+    ready_marker: str,
+    query: str,
+    timeout: float,
+    n_predict: int = 64,
+    cwd: str | Path | None = None,
+) -> tuple[dict, str, bool]:
+    """Boot an llama.cpp HTTP-server appliance, send one real query, score it.
+
+    Launches *command* in the background (a QEMU invocation whose guest forwards
+    its :8080 listener to host *port*), polls ``/health`` until the model is
+    ready, then POSTs a single ``/v1/chat/completions`` carrying *query*. Returns
+    ``(metrics, log, passed)``: *metrics* records the round-trip timings plus the
+    verbatim *query* and the generated *completion* text; *log* is the merged
+    serial output; *passed* is True when the guest printed *ready_marker* and
+    both HTTP calls returned 200.
+    """
+    launch = time.monotonic()
+    proc = subprocess.Popen(command, cwd=cwd, text=True,
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    try:
+        metrics = _query_llama_server(port, time.monotonic() + timeout, launch,
+                                      query, n_predict)
+        proc.terminate()
+        log, _ = proc.communicate(timeout=10)
+    except Exception:
+        proc.kill()
+        log, _ = proc.communicate()
+        metrics = {}
+    ready = ready_marker in log
+    passed = (ready
+              and metrics.get("http_status") == 200
+              and metrics.get("completion_status") == 200)
+    metrics["ready"] = ready
+    # proc is reaped by communicate() above, so getrusage has its peak.
+    metrics["peak_rss_kb"] = peak_child_rss_kb()
+    return metrics, log, passed

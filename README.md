@@ -21,8 +21,8 @@ gemma-3-1b Q4_K_M):
 |-----------|---------|--------|
 | CPU bench | `make llama-cpu-bench-run` | `pass` — pp512 31.2 / tg128 10.9 tok/s |
 | Vulkan bench | `make llama-vk-bench-run` | `pass` — pp512 4582.6 / tg128 353.8 tok/s |
-| CPU server | `make llama-cpu-server-run` | `pass` — `/health` 200, `/completion` 200 |
-| Vulkan server | `make llama-vk-server-run` | `pass` — `/health` 200, `/completion` 200 |
+| CPU server | `make llama-cpu-server-run` | `pass` — `/health` 200, `/v1/chat/completions` 200 |
+| Vulkan server | `make llama-vk-server-run` | `pass` — `/health` 200, `/v1/chat/completions` 200 |
 
 CPU runs need only QEMU/KVM. **Vulkan runs additionally need the host Venus stack
 in [§7](#7-host-setup-x86_64-venus-stack)** — do not hand-roll their QEMU command.
@@ -374,8 +374,8 @@ Reproducing the Vulkan runs needs a host environment the default
   previously deadlocked model load just before `READY`.
 
 With the above, `make llama-vk-server-run` reaches `uk-llama-upstream-vk-server:
-READY`, serves `/health` (200) and `/completion` (200) over the Venus GPU path,
-and `scripts/app-llama-vk.py` records `status: pass`.
+READY`, serves `/health` (200) and `/v1/chat/completions` (200) over the Venus
+GPU path, and `scripts/app-llama-vk.py` records `status: pass`.
 
 See [`docs/VENUS-BRINGUP.md`](docs/VENUS-BRINGUP.md) for the runtime probes and
 the `make venus-check` targets.
@@ -401,17 +401,25 @@ Every runner writes one JSON file (`_arm64.json` suffix for arm64 runs) under
 
 Bench metrics carry, alongside `pp512`/`tg128` throughput:
 
-- `boot_time_s` — wall-clock seconds from QEMU launch to the appliance reaching
-  application entry, streamed off the serial console (`scripts/common.py:run_timed`).
-  Both appliances emit their boot marker before the model loads (CPU prints
-  `booted` at app entry; VK prints its `config` line after Venus dispatch init),
-  so it is pure unikernel startup. Servers report the launch→`/health`-ready time.
+- `boot_time_s` — for **bench**, wall-clock seconds from QEMU launch to the
+  appliance's `config` line on the serial console (`scripts/common.py:run_timed`),
+  printed after boot + 9p mount (VK also after Venus dispatch init) just before
+  llama-bench, so it is pure unikernel startup. For **servers**, the
+  launch→first-successful-`/health` time (boot + model load + HTTP listen).
 - `model_load_ms` — weight-load time, where the appliance loads via
   `load_model_common` (CPU bench/server, VK server); VK bench runs upstream
   llama-bench, which bundles the load, so it has no separate line.
 - `peak_rss_kb` — peak host RSS (KiB) of the QEMU process (`getrusage`): the
   appliance's host-memory footprint.
 - `image_bytes` — the unikernel image size (e.g. CPU ≈3.5 MB, VK ≈35 MB).
+- `query` / `completion` (servers only) — the user message POSTed to
+  `/v1/chat/completions` (default `hi, what's your name`; override with
+  `QUERY=...` or `--query`) and the model's generated reply, recorded verbatim so
+  each server result carries a real exchange alongside `tokens_per_s` /
+  `requests_per_s` / `latency_s` and the `/health` + `/v1/chat/completions`
+  `http_status` codes. The chat endpoint applies the model's chat template;
+  hitting raw `/completion` with an instruction-tuned model yields degenerate
+  output (e.g. repeated special tokens), so the templated turn is used instead.
 
 Canonical files include `results/llama/llama_{cpu,server_cpu,vk,server_vk}.json`
 and `results/venus/*.json`. Runtime logs,

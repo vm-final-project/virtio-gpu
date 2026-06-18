@@ -103,15 +103,67 @@ class CommonTests(unittest.TestCase):
         self.assertGreater(run.peak_rss_kb, 1024)  # well above 1 MiB
 
 
+# A stand-in for a server appliance: one process that prints the ready marker
+# on its serial log (stdout), then serves /health and an OpenAI-compatible
+# /v1/chat/completions that echoes the received user message back inside the
+# reply. This mirrors reality, where the same process emits READY and serves
+# HTTP, so a healthy /health implies the marker was already printed.
+_FAKE_SERVER = """
+import http.server, json, sys
+PORT = int(sys.argv[1])
+class H(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *a): pass
+    def do_GET(self):
+        self.send_response(200); self.send_header("Content-Type", "application/json")
+        self.end_headers(); self.wfile.write(b'{"status":"ok"}')
+    def do_POST(self):
+        n = int(self.headers.get("Content-Length", 0))
+        msgs = json.loads(self.rfile.read(n) or b"{}").get("messages", [{}])
+        prompt = msgs[-1].get("content", "")
+        out = json.dumps({
+            "choices": [{"message": {"role": "assistant", "content": "reply to: " + prompt}}],
+            "usage": {"completion_tokens": 5},
+        }).encode()
+        self.send_response(200); self.send_header("Content-Type", "application/json")
+        self.end_headers(); self.wfile.write(out)
+srv = http.server.HTTPServer(("127.0.0.1", PORT), H)
+print("uk-test-server: READY", flush=True)
+srv.serve_forever()
+"""
+
+
+class HttpProbeTests(unittest.TestCase):
+    def test_probe_records_query_and_completion(self) -> None:
+        port = common.free_port()
+        command = [sys.executable, "-c", _FAKE_SERVER, str(port)]
+        metrics, log, passed = common.probe_http_server(
+            command, port=port, ready_marker="uk-test-server: READY",
+            query="hi, what's your name", timeout=10,
+        )
+
+        self.assertTrue(passed)
+        self.assertIn("uk-test-server: READY", log)
+        # The real query reached the server and the round-trip was recorded:
+        # query verbatim, and the completion the server produced from it.
+        self.assertEqual(metrics["query"], "hi, what's your name")
+        self.assertEqual(metrics["completion"], "reply to: hi, what's your name")
+        self.assertEqual(metrics["http_status"], 200)
+        self.assertEqual(metrics["completion_status"], 200)
+        self.assertTrue(metrics["ready"])
+
+
 class CommandTests(unittest.TestCase):
     def test_cpu_modes_select_distinct_images(self) -> None:
-        bench = llama_cpu.qemu_command("qemu", Path("model"), "bench", 10, "x86_64")
-        server = llama_cpu.qemu_command("qemu", Path("model"), "server", 10, "x86_64")
+        bench = llama_cpu.qemu_command("qemu", Path("model"), "bench", 10, 18080, "x86_64")
+        server = llama_cpu.qemu_command("qemu", Path("model"), "server", 10, 18080, "x86_64")
         self.assertIn("vogue-llama-cpu_qemu-x86_64", " ".join(bench))
         self.assertIn("vogue-llama-cpu-server_qemu-x86_64", " ".join(server))
+        # Only the server appliance gets a NIC + hostfwd to its HTTP listener.
+        self.assertNotIn("hostfwd", " ".join(bench))
+        self.assertIn("hostfwd", " ".join(server))
 
     def test_cpu_arm64_uses_arm_console_and_image(self) -> None:
-        bench = llama_cpu.qemu_command("qemu", Path("model"), "bench", 10, "arm64")
+        bench = llama_cpu.qemu_command("qemu", Path("model"), "bench", 10, 18080, "arm64")
         self.assertIn("vogue-llama-cpu_qemu-arm64", " ".join(bench))
         self.assertIn("virt,accel=", " ".join(bench))
 

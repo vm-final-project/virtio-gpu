@@ -3,15 +3,10 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import re
 import shutil
-import socket
-import subprocess
 import tempfile
-import time
-import urllib.request
 from pathlib import Path
 
 from common import (
@@ -19,11 +14,12 @@ from common import (
     default_console,
     default_qemu_binary,
     file_size,
+    free_port,
     image_suffix,
     machine_and_cpu_args,
     normalize_arch,
-    peak_child_rss_kb,
     parse_vogue_timing,
+    probe_http_server,
     summarize_vogue_profile,
     resolve_model,
     resolve_qemu,
@@ -40,12 +36,6 @@ RESULTS = ROOT / "results/llama"
 def image(mode: str, arch: str) -> Path:
     name = "vogue-llama-vk" + ("-server" if mode == "server" else "")
     return ROOT / ".unikraft/build" / f"{name}_{image_suffix(arch)}"
-
-
-def free_port() -> int:
-    with socket.socket() as sock:
-        sock.bind(("127.0.0.1", 0))
-        return int(sock.getsockname()[1])
 
 
 def qemu_command(qemu: str, model: Path, mode: str, timeout: int, port: int, arch: str) -> list[str]:
@@ -79,42 +69,6 @@ def qemu_command(qemu: str, model: Path, mode: str, timeout: int, port: int, arc
     return command
 
 
-def http_metrics(port: int, deadline: float, launch: float) -> dict:
-    health = f"http://127.0.0.1:{port}/health"
-    while time.monotonic() < deadline:
-        try:
-            started = time.monotonic()
-            with urllib.request.urlopen(health, timeout=2) as response:
-                body = response.read().decode("utf-8", "replace")
-            metrics = {
-                "http_status": response.status,
-                "health": json.loads(body),
-                "latency_s": round(time.monotonic() - started, 4),
-                # First successful /health: the server is up and model-ready, so
-                # this is the launch->ready boot time for the VK server appliance.
-                "boot_time_s": round(time.monotonic() - launch, 3),
-            }
-            request = urllib.request.Request(
-                f"http://127.0.0.1:{port}/completion",
-                data=json.dumps({"prompt": "Hello", "n_predict": 8}).encode(),
-                headers={"Content-Type": "application/json"},
-            )
-            started = time.monotonic()
-            with urllib.request.urlopen(request, timeout=deadline - time.monotonic()) as response:
-                completion = json.loads(response.read().decode("utf-8", "replace"))
-            elapsed = max(time.monotonic() - started, 0.0001)
-            tokens = completion.get("tokens_predicted", 0)
-            metrics.update({
-                "completion_status": response.status,
-                "requests_per_s": round(1 / elapsed, 3),
-                "tokens_per_s": round(tokens / elapsed, 3),
-            })
-            return metrics
-        except Exception:
-            time.sleep(0.5)
-    return {}
-
-
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=("bench", "server"), required=True)
@@ -122,6 +76,8 @@ def main() -> int:
     parser.add_argument("--model", type=Path, required=True)
     parser.add_argument("--qemu")
     parser.add_argument("--timeout", type=int, default=300)
+    parser.add_argument("--query", default="hi, what's your name",
+                        help="server mode: prompt sent to /completion and recorded with its reply")
     args = parser.parse_args()
     arch = normalize_arch(args.arch)
     qemu_name = args.qemu or default_qemu_binary(arch)
@@ -154,26 +110,10 @@ def main() -> int:
             "-device", "virtio-9p-pci,fsdev=model,mount_tag=model",
         ]
         if args.mode == "server":
-            launch = time.monotonic()
-            proc = subprocess.Popen(command, cwd=ROOT, text=True,
-                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            try:
-                metrics = http_metrics(port, time.monotonic() + args.timeout, launch)
-                proc.terminate()
-                log, _ = proc.communicate(timeout=10)
-            except Exception:
-                proc.kill()
-                log, _ = proc.communicate()
-                metrics = {}
-            ready = "uk-llama-upstream-vk-server: READY" in log
-            passed = (
-                ready
-                and metrics.get("http_status") == 200
-                and metrics.get("completion_status") == 200
-            )
-            metrics["ready"] = ready
-            # proc is reaped by communicate() above, so getrusage has its peak.
-            metrics["peak_rss_kb"] = peak_child_rss_kb()
+            metrics, log, passed = probe_http_server(
+                command, port=port,
+                ready_marker="uk-llama-upstream-vk-server: READY",
+                query=args.query, timeout=args.timeout, cwd=ROOT)
         else:
             # Stream serial output so the unikernel's "config" line can be
             # timed: it prints after boot + Vulkan/Venus dispatch init + 9p
