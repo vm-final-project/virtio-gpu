@@ -129,7 +129,9 @@ static int llama_server_main(void)
 
     int rc = llama_server((int)(sizeof(argv) / sizeof(argv[0])), argv);
     /* Only reached on a graceful server exit (not the harness SIGTERM path). */
+#if defined(CONFIG_LIBUKVIRTIO_GPU_PROFILING) && CONFIG_LIBUKVIRTIO_GPU_PROFILING
     vogue_prof_report();
+#endif
     return rc;
 }
 

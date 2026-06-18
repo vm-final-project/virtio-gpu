@@ -1,7 +1,7 @@
 {
   "status": "pass",
-  "generated_utc": "2026-06-18T13:40:56.955320Z",
-  "command": "/usr/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -m 8192 -no-reboot -kernel /users/minyao/virtio-gpu/.unikraft/build/vogue-llama-vk_qemu-x86_64 -display egl-headless,gl=on -vga none -device virtio-gpu-gl-pci,hostmem=2G,blob=true,venus=true -append console=ttyS0 -serial mon:stdio -monitor none -fsdev local,id=model,path=/tmp/vogue-model-0rqwzwy5,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model",
+  "generated_utc": "2026-06-18T14:09:52.256122Z",
+  "command": "/usr/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -m 8192 -no-reboot -kernel /users/minyao/virtio-gpu/.unikraft/build/vogue-llama-vk_qemu-x86_64 -display egl-headless,gl=on -vga none -device virtio-gpu-gl-pci,hostmem=2G,blob=true,venus=true -append console=ttyS0 -serial mon:stdio -monitor none -fsdev local,id=model,path=/tmp/vogue-model-s_ypai_u,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model",
   "inputs": {
     "mode": "bench",
     "arch": "x86_64",
@@ -9,26 +9,26 @@
     "image": "/users/minyao/virtio-gpu/.unikraft/build/vogue-llama-vk_qemu-x86_64"
   },
   "metrics": {
-    "boot_time_s": 0.855,
-    "peak_rss_kb": 2296812,
-    "pp512": 32688.66,
-    "tg128": 205.64,
+    "boot_time_s": 0.846,
+    "peak_rss_kb": 2298192,
+    "pp512": 31737.95,
+    "tg128": 193.24,
     "image_bytes": 35144408,
     "model_load_ms": null,
     "timing": {
       "L2-submit[prompt]": {
         "calls": 97,
-        "total_ns": 4309451
+        "total_ns": 4670980
       },
       "host-submit[prompt]": {
         "calls": 294,
-        "active_ns": 15301391,
-        "wait_ns": 4019320800,
+        "active_ns": 7071729,
+        "wait_ns": 4024973302,
         "bytes": 2107220
       },
       "fence-wait[prompt]": {
         "calls": 52,
-        "total_ns": 22476
+        "total_ns": 66947
       },
       "L3-flush[prompt]": {
         "calls": 0,
@@ -36,27 +36,27 @@
       },
       "host-flush[prompt]": {
         "calls": 284,
-        "total_ns": 11947705,
+        "total_ns": 13736675,
         "bytes": 2097620,
         "fail": 0
       },
       "vk-encode[prompt]": {
         "calls": 22928,
-        "total_ns": 7072200
+        "total_ns": 6593800
       },
       "L2-submit[decode]": {
         "calls": 12160,
-        "total_ns": 483158740
+        "total_ns": 553167806
       },
       "host-submit[decode]": {
         "calls": 32013,
-        "active_ns": 484529090,
-        "wait_ns": 721060906,
+        "active_ns": 513808096,
+        "wait_ns": 796580390,
         "bytes": 297708388
       },
       "fence-wait[decode]": {
         "calls": 6400,
-        "total_ns": 6157255
+        "total_ns": 4141043
       },
       "L3-flush[decode]": {
         "calls": 0,
@@ -64,40 +64,40 @@
       },
       "host-flush[decode]": {
         "calls": 32013,
-        "total_ns": 1295362087,
+        "total_ns": 1442121018,
         "bytes": 296683972,
         "fail": 0
       },
       "vk-encode[decode]": {
         "calls": 3175693,
-        "total_ns": 867815544
+        "total_ns": 944585408
       },
       "wall[all]": {
-        "total_ns": 13539231387
+        "total_ns": 13881104763
       }
     },
     "profile": {
       "prompt": {
-        "encode_ns": 7072200,
+        "encode_ns": 6593800,
         "guest_submit_ns": 0,
-        "host_wait_ns": 4019343276,
-        "active_ns": 7072200,
-        "wait_ns": 4019343276,
-        "active_pct": 0.18,
-        "wait_pct": 99.82,
-        "encode_pct": 0.18,
+        "host_wait_ns": 4025040249,
+        "active_ns": 6593800,
+        "wait_ns": 4025040249,
+        "active_pct": 0.16,
+        "wait_pct": 99.84,
+        "encode_pct": 0.16,
         "roundtrips": 294,
         "host_flush_bytes": 2097620
       },
       "decode": {
-        "encode_ns": 867815544,
-        "guest_submit_ns": 574301181,
-        "host_wait_ns": 727218161,
-        "active_ns": 1442116725,
-        "wait_ns": 727218161,
-        "active_pct": 66.48,
-        "wait_pct": 33.52,
-        "encode_pct": 40.0,
+        "encode_ns": 944585408,
+        "guest_submit_ns": 645540628,
+        "host_wait_ns": 800721433,
+        "active_ns": 1590126036,
+        "wait_ns": 800721433,
+        "active_pct": 66.51,
+        "wait_pct": 33.49,
+        "encode_pct": 39.51,
         "roundtrips": 32013,
         "host_flush_bytes": 296683972
       }

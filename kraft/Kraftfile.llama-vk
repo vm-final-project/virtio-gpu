@@ -56,6 +56,9 @@ unikraft:
     CONFIG_LIBUKSGLIST: 'y'
     CONFIG_LIBUKVIRTIO_GPU: 'y'
     CONFIG_LIBUKVIRTIO_GPU_BACKEND_REAL: 'y'
+    # VOGUE Venus-path profiling: OFF by default so the dispatch hot path pays
+    # zero per-command overhead (clean t/s). Flip to 'y' to emit VOGUE-TIMING.
+    # CONFIG_LIBUKVIRTIO_GPU_PROFILING: 'y'
     CONFIG_LIBUKVULKAN_VENUS: 'y'
     CONFIG_LIBVULKAN: 'y'
 

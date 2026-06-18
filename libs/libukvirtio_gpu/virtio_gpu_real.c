@@ -128,6 +128,11 @@ void vogue_prof_report(void)
 {
 	static const char *const ph[VOGUE_PROF_PHASE_N] = { "prompt", "decode" };
 	int i;
+
+	/* Disabled build: counters are all zero (hot-path hooks compiled out), so
+	 * stay silent rather than emit a wall of zero VOGUE-TIMING lines. */
+	if (!VOGUE_PROF_ENABLED)
+		return;
 	for (i = 0; i < VOGUE_PROF_PHASE_N; i++) {
 		struct vogue_prof_phase *p = &g_prof[i];
 		printf("VOGUE-TIMING L2-submit[%s]: calls=%llu total_ns=%llu\n",
@@ -252,14 +257,18 @@ static int cmd_submit_locked(struct uk_virtio_gpu_dev *d, void *req, size_t req_
 	uint32_t cmd_type = ((struct ukvgpu_ctrl_hdr *)req)->type;
 	uint32_t used_len = 0;
 	uint64_t deadline;
-	uint64_t _t_active, _active_ns;
+#if VOGUE_PROF_ENABLED
+	uint64_t _t_active;
+#endif
 	int rc;
 
 	if (!d || !d->ctrlq || !req || !req_len || !resp || !resp_len)
 		return -EINVAL;
 
 	/* Active phase = our work: build sglist + enqueue + notify the host. */
+#if VOGUE_PROF_ENABLED
 	_t_active = now_ns();
+#endif
 	uk_sglist_init(&sg, MAX_CMD_SEGS, segs);
 	rc = uk_sglist_append(&sg, req, req_len);
 	if (rc)
@@ -275,9 +284,10 @@ static int cmd_submit_locked(struct uk_virtio_gpu_dev *d, void *req, size_t req_
 	virtqueue_host_notify(d->ctrlq);
 
 	{
-		/* Wait phase = spinning on the host (shared GPU cost, not ours). */
+		/* Wait phase = spinning on the host (shared GPU cost, not ours).
+		 * _t_wait also seeds the (functional) command timeout deadline, so
+		 * it is read regardless of profiling. */
 		uint64_t _t_wait = now_ns();
-		_active_ns = _t_wait - _t_active;
 		deadline = _t_wait + CMD_TIMEOUT_NS;
 		for (;;) {
 			rc = virtqueue_buffer_dequeue(d->ctrlq, &done, &used_len);
@@ -290,8 +300,10 @@ static int cmd_submit_locked(struct uk_virtio_gpu_dev *d, void *req, size_t req_
 			/* Pause: reduce spin pressure; lets host vCPU make progress. */
 			__asm__ volatile("pause" ::: "memory");
 		}
-		vogue_prof_add_submit(_active_ns, now_ns() - _t_wait,
+#if VOGUE_PROF_ENABLED
+		vogue_prof_add_submit(_t_wait - _t_active, now_ns() - _t_wait,
 				      (uint32_t)req_len);
+#endif
 	}
 	if (done != cookie)
 		return -EIO;

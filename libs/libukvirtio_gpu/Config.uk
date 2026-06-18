@@ -25,6 +25,18 @@ config LIBUKVIRTIO_GPU_BACKEND_REAL
 
 if LIBUKVIRTIO_GPU
 
+config LIBUKVIRTIO_GPU_PROFILING
+	bool "VOGUE Venus-path profiling counters"
+	default n
+	depends on LIBUKVIRTIO_GPU_BACKEND_REAL
+	help
+	  Per-phase L2/L3/L4 timing of the Venus dispatch path, emitted as
+	  VOGUE-TIMING lines (parsed by scripts/common.py). It adds two
+	  monotonic-clock reads per encoded command on the dispatch hot path
+	  (~8M per decode run), which inflates the measured region and deflates
+	  reported t/s by a few percent. Keep OFF for performance numbers;
+	  enable only to profile where time goes.
+
 config LIBUKVIRTIO_GPU_TEST
 	bool "Enable unit tests"
 	default n

@@ -102,12 +102,16 @@ int main(void)
     /* Wall clock over the exact span the profiling covers, so the host harness
      * can derive the app (ggml/llama CPU + model-load I/O) share as
      * wall - (vulkan active + wait). */
+#if defined(CONFIG_LIBUKVIRTIO_GPU_PROFILING) && CONFIG_LIBUKVIRTIO_GPU_PROFILING
     double _wall0 = now_sec();
     vogue_prof_reset();
     int rc = llama_bench(argc, argv);
     vogue_prof_report();
     uk_printf("VOGUE-TIMING wall[all]: total_ns=%llu\n",
               (unsigned long long)((now_sec() - _wall0) * 1e9));
+#else
+    int rc = llama_bench(argc, argv);
+#endif
 
     if (rc == 0)
         uk_puts("uk-llama-upstream-vk: PASS evidence_id=llama-upstream-vk\n");

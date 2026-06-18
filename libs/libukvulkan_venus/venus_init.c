@@ -141,10 +141,14 @@ int uk_venus_submit(struct uk_virtio_gpu_dev *dev,
 		return -EINVAL;
 
 	uk_gpu_fence_id fence;
+#if VOGUE_PROF_ENABLED
 	uint64_t _t = (uint64_t)ukplat_monotonic_clock();
+#endif
 	int rc = uk_virtio_gpu_gl_context_submit(dev, ctx,
 						 enc->buf, enc->pos, &fence);
+#if VOGUE_PROF_ENABLED
 	vogue_prof_add_flush((uint64_t)ukplat_monotonic_clock() - _t, enc->pos, rc);
+#endif
 	return rc;
 }
 const char *uk_venus_ring_status(struct uk_virtio_gpu_dev *dev)
@@ -621,10 +625,14 @@ int uk_venus_ring_cmd_flush(struct uk_virtio_gpu_dev *dev,
 
 	fence = 0;
 	{
+#if VOGUE_PROF_ENABLED
 		uint64_t _t_l3 = (uint64_t)ukplat_monotonic_clock();
+#endif
 		rc = uk_virtio_gpu_gl_context_submit(dev, &ring->ctx,
 						     enc.buf, enc.pos, &fence);
+#if VOGUE_PROF_ENABLED
 		vogue_prof_add_l3((uint64_t)ukplat_monotonic_clock() - _t_l3);
+#endif
 	}
 	return rc;
 }

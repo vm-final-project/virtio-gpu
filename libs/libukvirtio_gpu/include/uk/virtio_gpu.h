@@ -22,7 +22,18 @@ struct uk_gpu_box { uint32_t x, y, z, w, h, d; };
  * "active" = guest CPU doing real translation work (encode/enqueue/notify).
  * "wait"   = guest spinning on the host (dequeue busy-wait / fence poll) —
  *            i.e. time blocked on the shared host GPU, not our own overhead.
+ *
+ * VOGUE_PROF_ENABLED gates the hot-path instrumentation (the per-command
+ * monotonic-clock reads). It is OFF unless CONFIG_LIBUKVIRTIO_GPU_PROFILING is
+ * set, so the default build pays zero per-command overhead. The functions below
+ * are always declared/defined (and exported) so the once-per-run reset/report
+ * call sites keep linking; only the hot-path call sites compile them in.
  */
+#if defined(CONFIG_LIBUKVIRTIO_GPU_PROFILING) && CONFIG_LIBUKVIRTIO_GPU_PROFILING
+#define VOGUE_PROF_ENABLED 1
+#else
+#define VOGUE_PROF_ENABLED 0
+#endif
 #define VOGUE_PROF_PHASE_PROMPT 0
 #define VOGUE_PROF_PHASE_DECODE 1
 void vogue_prof_set_phase(int phase);

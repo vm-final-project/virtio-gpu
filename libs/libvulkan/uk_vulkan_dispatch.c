@@ -179,9 +179,24 @@ static inline int uk_dispatch_ring_active(void)
 static inline void uk_disp_lock(void)   { uk_mutex_lock(&g_disp_lock); }
 static inline void uk_disp_unlock(void) { uk_mutex_unlock(&g_disp_lock); }
 
+/* Profiling timing helpers. Behind VOGUE_PROF_ENABLED (CONFIG_..._PROFILING):
+ * when off they compile to nothing, so the default build does NO per-command
+ * monotonic-clock reads on the dispatch hot path (~4M calls/decode-run). */
+#if VOGUE_PROF_ENABLED
+#define VOGUE_T_DECL(v)    uint64_t v = (uint64_t)ukplat_monotonic_clock()
+#define VOGUE_ENC_DONE()   vogue_prof_add_encode((uint64_t)ukplat_monotonic_clock() - _t_enc)
+#define VOGUE_L2_DONE()    vogue_prof_add_l2((uint64_t)ukplat_monotonic_clock() - _t_l2)
+#define VOGUE_FENCE_DONE() vogue_prof_add_fence((uint64_t)ukplat_monotonic_clock() - _t_f)
+#else
+#define VOGUE_T_DECL(v)    do {} while (0)
+#define VOGUE_ENC_DONE()   do {} while (0)
+#define VOGUE_L2_DONE()    do {} while (0)
+#define VOGUE_FENCE_DONE() do {} while (0)
+#endif
+
 #define UK_ENC_BEGIN() \
     uk_disp_lock(); \
-    uint64_t _t_enc = (uint64_t)ukplat_monotonic_clock(); \
+    VOGUE_T_DECL(_t_enc); \
     struct uk_venus_encoder _local_enc; \
     struct uk_venus_encoder *_enc_p = uk_dispatch_batch_active() ? &g_batch_enc : &_local_enc; \
     if (!uk_dispatch_batch_active()) \
@@ -198,7 +213,7 @@ static inline void uk_disp_unlock(void) { uk_mutex_unlock(&g_disp_lock); }
          * trip already timed by host-flush/host-submit; counting it here too \
          * would double-attribute that round-trip into vk-encode (it did: the \
          * 64 KB auto-flush in uk_dispatch_batch_accumulate inflated vk-encode). */ \
-        vogue_prof_add_encode((uint64_t)ukplat_monotonic_clock() - _t_enc); \
+        VOGUE_ENC_DONE(); \
         if (uk_dispatch_ring_active()) { \
             /* Ring stream: write encoded bytes into the circular buffer.   \
              * No malloc, no virtqueue kick — host ring_thread drains async. */ \
@@ -256,14 +271,14 @@ static void uk_dispatch_batch_accumulate(const struct uk_venus_encoder *enc)
  * SUBMIT_3D. Uses g_enc_buf, which is exclusive under g_disp_lock. */
 #define UK_ENC_BEGIN_IMMEDIATE() \
     uk_disp_lock(); \
-    uint64_t _t_enc = (uint64_t)ukplat_monotonic_clock(); \
+    VOGUE_T_DECL(_t_enc); \
     struct uk_venus_encoder _enc; \
     uk_venus_encoder_init(&_enc, g_enc_buf, UK_DISPATCH_BUF_SIZE)
 #define UK_ENC_SUBMIT_IMMEDIATE() \
     do { \
         /* Pure encode time only; the immediate uk_venus_submit round-trip is \
          * counted by host-flush/host-submit (see UK_ENC_SUBMIT). */ \
-        vogue_prof_add_encode((uint64_t)ukplat_monotonic_clock() - _t_enc); \
+        VOGUE_ENC_DONE(); \
         if (_enc.overflow) \
             printf("uk-ggml-vk: ERROR encoder overflow pos=%u buf=%u " \
                    "(immediate command dropped)\n", _enc.pos, UK_DISPATCH_BUF_SIZE); \
@@ -1783,7 +1798,7 @@ static void uk_dispatch_gpu_barrier(void)
 static VkResult stub_vkQueueSubmit(VkQueue queue, uint32_t submitCount,
                                     const void *pSubmits, VkFence fence)
 {
-    uint64_t _t_l2 = (uint64_t)ukplat_monotonic_clock();
+    VOGUE_T_DECL(_t_l2);
     (void)queue;
     const uint8_t *s = (const uint8_t *)pSubmits;
     for (uint32_t i = 0; i < submitCount; i++) {
@@ -1810,7 +1825,7 @@ static VkResult stub_vkQueueSubmit(VkQueue queue, uint32_t submitCount,
      * drains the queue so pp512 reflects completion, not submission rate. */
     if (fence && g_gpu_sync)
         uk_dispatch_gpu_barrier();
-    vogue_prof_add_l2((uint64_t)ukplat_monotonic_clock() - _t_l2);
+    VOGUE_L2_DONE();
     return VK_SUCCESS;
 }
 
@@ -1858,11 +1873,11 @@ static VkResult stub_vkWaitForFences(VkDevice dev, uint32_t count,
      * the host returns the response; so by the time QueueSubmit returns the
      * fence is already marked done — no Venus vkWaitForFences command needed. */
     if (g_gpu) {
-        uint64_t _t_f = (uint64_t)ukplat_monotonic_clock();
+        VOGUE_T_DECL(_t_f);
         int rc = uk_virtio_gpu_fence_wait(g_gpu, g_last_fence,
                                            timeout == UINT64_MAX ? 5000000000ull
                                                                   : timeout);
-        vogue_prof_add_fence((uint64_t)ukplat_monotonic_clock() - _t_f);
+        VOGUE_FENCE_DONE();
         (void)rc;
     }
     return VK_SUCCESS;
