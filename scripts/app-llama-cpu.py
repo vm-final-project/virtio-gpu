@@ -5,15 +5,14 @@ from __future__ import annotations
 import argparse
 import re
 import shutil
-import subprocess
 import tempfile
 from pathlib import Path
 
 from common import (
     acceleration,
-    decode,
     default_console,
     default_qemu_binary,
+    file_size,
     image_suffix,
     machine_and_cpu_args,
     normalize_arch,
@@ -21,6 +20,7 @@ from common import (
     resolve_qemu,
     result,
     result_path,
+    run_timed,
     write_json,
 )
 
@@ -74,24 +74,38 @@ def main() -> int:
             "-device", "virtio-9p-pci,fsdev=model,mount_tag=model",
             "-append", f"console={default_console(arch)}",
         ]
-        try:
-            proc = subprocess.run(command, cwd=ROOT, text=True, capture_output=True,
-                                  timeout=args.timeout, check=False)
-            log = proc.stdout + proc.stderr
-        except subprocess.TimeoutExpired as exc:
-            log = decode(exc.stdout) + decode(exc.stderr)
+        # Stream serial output so the unikernel's "booted" marker can be timed.
+        # It is printed at app entry, before the 9pfs mount and the multi-second
+        # weight load, so boot_time_s reflects pure unikernel startup (not model
+        # load, which the appliance reports separately on its model_load line).
+        # The tag differs per mode. (The server stays up, so run_timed returns
+        # at the timeout; the marker is still captured from the streamed log.)
+        boot_marker = ("uk-llama-upstream: booted" if args.mode == "bench"
+                       else "uk-llama-upstream-server: booted")
+        run = run_timed(command, cwd=ROOT, timeout=args.timeout,
+                        markers={"boot": boot_marker})
+        log = run.text
 
-    metrics: dict = {}
+    # Footprint metrics: model_load_ms (the appliance times its own 9pfs weight
+    # load), peak host RSS of the QEMU process, and the bootable image size.
+    load = re.search(r"model_load .*elapsed_ms=([0-9.]+)", log)
+    metrics: dict = {
+        "boot_time_s": run.elapsed("boot"),
+        "model_load_ms": float(load.group(1)) if load else None,
+        "peak_rss_kb": run.peak_rss_kb,
+        "image_bytes": file_size(image(args.mode, arch)),
+    }
     if args.mode == "bench":
         match = re.search(r"uk-llama-upstream: pp512=([0-9.]+) tg128=([0-9.]+)", log)
         passed = bool(match and "uk-llama-upstream: PASS" in log)
         if match:
-            metrics = {"pp512": float(match.group(1)), "tg128": float(match.group(2))}
+            metrics["pp512"] = float(match.group(1))
+            metrics["tg128"] = float(match.group(2))
     else:
         match = re.search(r"uk-llama-upstream-server: READY ([^\n]+)", log)
         passed = bool(match)
         if match:
-            metrics = {"ready": match.group(0).strip()}
+            metrics["ready"] = match.group(0).strip()
 
     status = "pass" if passed else "blocked:no-pass-marker"
     write_json(output, result(status, command, inputs=inputs, metrics=metrics,

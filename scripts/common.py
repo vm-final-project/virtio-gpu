@@ -4,9 +4,13 @@ from __future__ import annotations
 import json
 import os
 import platform
+import resource
 import re
 import shlex
 import shutil
+import subprocess
+import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -102,6 +106,117 @@ def decode(value: str | bytes | None) -> str:
     if value is None:
         return ""
     return value.decode("utf-8", "replace") if isinstance(value, bytes) else value
+
+
+# ---------------------------------------------------------------------------
+# Footprint helpers
+# ---------------------------------------------------------------------------
+
+def peak_child_rss_kb() -> int | None:
+    """Peak resident memory (KiB) of reaped child processes.
+
+    Reads ``getrusage(RUSAGE_CHILDREN).ru_maxrss`` (kilobytes on Linux), which
+    the kernel reports as the high-water RSS of the largest child this process
+    has waited for. The runners spawn a single child per invocation (the QEMU
+    VM or the native benchmark), so this is that child's peak host memory.
+    Returns None if unavailable.
+    """
+    try:
+        kb = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
+    except (ValueError, OSError):
+        return None
+    return int(kb) if kb and kb > 0 else None
+
+
+def file_size(path: str | Path | None) -> int | None:
+    """Return the size of *path* in bytes, or None if it does not exist."""
+    if not path:
+        return None
+    p = Path(path)
+    return p.stat().st_size if p.is_file() else None
+
+
+# ---------------------------------------------------------------------------
+# Boot-timed process execution
+# ---------------------------------------------------------------------------
+
+class TimedRun:
+    """Outcome of :func:`run_timed`: captured output plus marker timings.
+
+    ``marker_times`` maps each marker name that appeared to the wall-clock
+    seconds (from just before launch) at which its first matching line was
+    read off the serial console. ``peak_rss_kb`` is the peak host RSS (KiB) of
+    the launched process (see :func:`peak_child_rss_kb`).
+    """
+
+    __slots__ = ("returncode", "text", "timed_out", "marker_times", "peak_rss_kb")
+
+    def __init__(self, returncode: int | None, text: str, timed_out: bool,
+                 marker_times: dict[str, float],
+                 peak_rss_kb: int | None = None) -> None:
+        self.returncode = returncode
+        self.text = text
+        self.timed_out = timed_out
+        self.marker_times = marker_times
+        self.peak_rss_kb = peak_rss_kb
+
+    def elapsed(self, name: str) -> float | None:
+        """Seconds until the *name* marker first appeared, or None if never."""
+        return self.marker_times.get(name)
+
+
+def run_timed(
+    command: list[str],
+    *,
+    cwd: str | Path | None = None,
+    timeout: float,
+    markers: dict[str, str] | None = None,
+) -> TimedRun:
+    """Run *command*, capturing merged stdout/stderr, timing serial markers.
+
+    Unlike ``subprocess.run``, output is streamed on a reader thread so the
+    moment each *marker* substring first appears can be timestamped against a
+    monotonic clock started just before launch. This is how boot/ready time is
+    measured: e.g. ``markers={"boot": "guest booted"}`` yields the wall-clock
+    delay from QEMU launch to the guest printing that line. Matching is
+    case-insensitive. On timeout the process is killed and whatever was
+    captured so far is returned with ``timed_out=True``.
+    """
+    needles = {name: sub.lower() for name, sub in (markers or {}).items()}
+    chunks: list[str] = []
+    marker_times: dict[str, float] = {}
+    start = time.monotonic()
+    proc = subprocess.Popen(
+        command, cwd=cwd, text=True, bufsize=1,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    )
+
+    def pump() -> None:
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            elapsed = time.monotonic() - start
+            chunks.append(line)
+            low = line.lower()
+            for name, needle in needles.items():
+                if name not in marker_times and needle in low:
+                    marker_times[name] = round(elapsed, 3)
+
+    reader = threading.Thread(target=pump, daemon=True)
+    reader.start()
+
+    timed_out = False
+    try:
+        proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        proc.kill()
+        proc.wait()
+    reader.join(timeout=5)
+    if proc.stdout is not None:
+        proc.stdout.close()
+    # The child is reaped by now, so getrusage reports its peak RSS.
+    return TimedRun(proc.returncode, "".join(chunks), timed_out, marker_times,
+                    peak_child_rss_kb())
 
 
 # Matches the timing reports emitted by the guest, e.g.

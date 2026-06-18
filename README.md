@@ -393,10 +393,25 @@ Every runner writes one JSON file (`_arm64.json` suffix for arm64 runs) under
   "generated_utc": "...",
   "command": "...",
   "inputs": {},
-  "metrics": {},
+  "metrics": { "pp512": 0.0, "tg128": 0.0, "boot_time_s": 0.0,
+               "peak_rss_kb": 0, "image_bytes": 0, "model_load_ms": 0.0 },
   "error": null
 }
 ```
+
+Bench metrics carry, alongside `pp512`/`tg128` throughput:
+
+- `boot_time_s` — wall-clock seconds from QEMU launch to the appliance reaching
+  application entry, streamed off the serial console (`scripts/common.py:run_timed`).
+  Both appliances emit their boot marker before the model loads (CPU prints
+  `booted` at app entry; VK prints its `config` line after Venus dispatch init),
+  so it is pure unikernel startup. Servers report the launch→`/health`-ready time.
+- `model_load_ms` — weight-load time, where the appliance loads via
+  `load_model_common` (CPU bench/server, VK server); VK bench runs upstream
+  llama-bench, which bundles the load, so it has no separate line.
+- `peak_rss_kb` — peak host RSS (KiB) of the QEMU process (`getrusage`): the
+  appliance's host-memory footprint.
+- `image_bytes` — the unikernel image size (e.g. CPU ≈3.5 MB, VK ≈35 MB).
 
 Canonical files include `results/llama/llama_{cpu,server_cpu,vk,server_vk}.json`
 and `results/venus/*.json`. Runtime logs,

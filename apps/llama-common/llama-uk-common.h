@@ -57,6 +57,13 @@ static inline llama_model *load_model_common(const char *model_path,
                                               const char *tag,
                                               int n_gpu_layers)
 {
+    /* Boot marker: the unikernel is up and the app has entered, before the
+     * 9pfs mount and the (multi-second) weight load below. Runners time the
+     * delay from QEMU launch to this line as boot_time_s, so it reflects pure
+     * unikernel startup rather than model-load time (which is reported
+     * separately by the model_load line). */
+    uk_printf("%s: booted\n", tag);
+
     mkdir("/mnt", 0755);
     mkdir("/mnt/model", 0755);
     if (mount("model", "/mnt/model", "9pfs", 0, "") != 0) {

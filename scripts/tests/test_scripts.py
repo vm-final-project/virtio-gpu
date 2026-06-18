@@ -1,15 +1,28 @@
 from __future__ import annotations
 
+import importlib.util
+import sys
 import tempfile
 import unittest
 from pathlib import Path
-import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+SCRIPTS = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(SCRIPTS))
 
 import common
-import llama_cpu
-import llama_vk
+
+
+def _load(name: str, filename: str):
+    """Import a runner module whose filename is not a valid identifier."""
+    spec = importlib.util.spec_from_file_location(name, SCRIPTS / filename)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+# The runner files use hyphens (app-llama-*.py), so load them by path.
+llama_cpu = _load("llama_cpu", "app-llama-cpu.py")
+llama_vk = _load("llama_vk", "app-llama-vk.py")
 
 
 class CommonTests(unittest.TestCase):
@@ -40,6 +53,54 @@ class CommonTests(unittest.TestCase):
         self.assertEqual(common.normalize_arch("aarch64"), "arm64")
         self.assertEqual(common.default_console("arm64"), "ttyAMA0")
         self.assertEqual(common.image_suffix("arm64"), "qemu-arm64")
+
+    def test_run_timed_times_serial_markers_in_order(self) -> None:
+        script = (
+            "import time\n"
+            "print('starting', flush=True)\n"
+            "time.sleep(0.12)\n"
+            "print('guest BOOTED now', flush=True)\n"
+            "time.sleep(0.12)\n"
+            "print('running llama-bench', flush=True)\n"
+        )
+        run = common.run_timed(
+            [sys.executable, "-c", script], timeout=30,
+            markers={"boot": "guest booted", "ready": "running llama-bench"},
+        )
+        self.assertFalse(run.timed_out)
+        self.assertEqual(run.returncode, 0)
+        self.assertIn("starting", run.text)
+        # Matching is case-insensitive and timestamps follow emission order.
+        self.assertIsNotNone(run.elapsed("boot"))
+        self.assertGreater(run.elapsed("ready"), run.elapsed("boot"))
+        self.assertIsNone(run.elapsed("never-printed"))
+
+    def test_run_timed_kills_on_timeout_but_keeps_markers(self) -> None:
+        run = common.run_timed(
+            [sys.executable, "-c", "import time; print('up', flush=True); time.sleep(30)"],
+            timeout=0.5, markers={"boot": "up"},
+        )
+        self.assertTrue(run.timed_out)
+        self.assertIsNotNone(run.elapsed("boot"))
+
+    def test_file_size(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "image.bin"
+            self.assertIsNone(common.file_size(path))   # missing
+            self.assertIsNone(common.file_size(None))
+            self.assertIsNone(common.file_size(directory))  # a dir, not a file
+            path.write_bytes(b"x" * 4096)
+            self.assertEqual(common.file_size(path), 4096)
+
+    def test_run_timed_captures_peak_rss(self) -> None:
+        # The child allocates ~20 MiB; its peak RSS is reported via getrusage.
+        run = common.run_timed(
+            [sys.executable, "-c", "a = bytearray(20 * 1024 * 1024); print('ok')"],
+            timeout=30,
+        )
+        self.assertEqual(run.returncode, 0)
+        self.assertIsInstance(run.peak_rss_kb, int)
+        self.assertGreater(run.peak_rss_kb, 1024)  # well above 1 MiB
 
 
 class CommandTests(unittest.TestCase):
