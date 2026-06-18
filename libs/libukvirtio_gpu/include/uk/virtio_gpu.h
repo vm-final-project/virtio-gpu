@@ -242,6 +242,18 @@ int uk_virtio_gpu_gl_context_destroy(struct uk_virtio_gpu_dev *dev, struct uk_vi
 int uk_virtio_gpu_gl_context_attach_resource(struct uk_virtio_gpu_dev *dev, const struct uk_virtio_gpu_context *ctx, uk_gpu_res_id res);
 int uk_virtio_gpu_gl_context_detach_resource(struct uk_virtio_gpu_dev *dev, const struct uk_virtio_gpu_context *ctx, uk_gpu_res_id res);
 int uk_virtio_gpu_gl_context_submit(struct uk_virtio_gpu_dev *dev, const struct uk_virtio_gpu_context *ctx, const void *cmd, size_t cmd_len, uk_gpu_fence_id *fence);
+/*
+ * Like uk_virtio_gpu_gl_context_submit() but attaches a per-ring CONTEXT fence
+ * (VIRTIO_GPU_FLAG_INFO_RING_IDX + ring_idx) instead of a legacy CPU-timeline
+ * fence. On a virglrenderer Venus host a ring_idx fence is retired only after
+ * the GPU has completed all prior work on that ring's queue (vkr_queue_sync_submit:
+ * empty vkQueueSubmit + sync-thread vkWaitForFences), whereas the legacy
+ * (ring_idx==0) fence retires immediately on command decode. Because the
+ * control-queue submit blocks for the used-ring response, this call returns
+ * only after GPU completion — the cheap completion signal Venus already provides.
+ * ring_idx must match a queue bound via vkGetDeviceQueue2/VkDeviceQueueTimelineInfoMESA.
+ */
+int uk_virtio_gpu_gl_context_submit_synced(struct uk_virtio_gpu_dev *dev, const struct uk_virtio_gpu_context *ctx, const void *cmd, size_t cmd_len, uint8_t ring_idx, uk_gpu_fence_id *fence);
 int uk_virtio_gpu_gl_blob_create(struct uk_virtio_gpu_dev *dev, uint64_t size, uint32_t blob_mem, uint32_t blob_flags, uint64_t blob_id, struct uk_virtio_gpu_blob *blob);
 int uk_virtio_gpu_gl_blob_create_with_ctx(struct uk_virtio_gpu_dev *dev, uint32_t ctx_id, uint64_t size, uint32_t blob_mem, uint32_t blob_flags, uint64_t blob_id, struct uk_virtio_gpu_blob *blob);
 int uk_virtio_gpu_gl_blob_map(struct uk_virtio_gpu_dev *dev, struct uk_virtio_gpu_blob *blob);

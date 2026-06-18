@@ -19,7 +19,13 @@
 UKVGPU_STATIC_ASSERTS();
 
 #define DRIVER_NAME "libukvirtio_gpu"
-#define CMD_TIMEOUT_NS 1000000000ull
+/* Most control commands retire on host decode (sub-millisecond). The opt-in
+ * GPU-completion path (context_submit_synced, off by default) blocks until the
+ * GPU drains the queue, so the deadline must also cover a full compute batch
+ * plus first-use shader-compile stalls — hence a generous several-second cap
+ * rather than the original 1s (which is far longer than any decode but still
+ * bounds a genuine hang). */
+#define CMD_TIMEOUT_NS 5000000000ull
 #define MAX_CMD_SEGS 4u
 #define UKVGPU_SHM_ID_HOST_VISIBLE 1u
 
@@ -826,6 +832,40 @@ int uk_virtio_gpu_gl_context_submit(struct uk_virtio_gpu_dev *d,
 	if (!req)
 		return -ENOMEM;
 	hdr_init(d, &req->hdr, UKVGPU_CMD_SUBMIT_3D, fence, ctx->id);
+	req->size = (uint32_t)len;
+	req->padding = 0;
+	memcpy((uint8_t *)req + sizeof(*req), cmd, len);
+	memset(&resp, 0, sizeof(resp));
+	rc = cmd_submit(d, req, sizeof(*req) + len, &resp, sizeof(resp),
+			UKVGPU_RESP_OK_NODATA, fence);
+	uk_free(g_alloc, req);
+	if (!rc)
+		d->metrics.submits_3d++;
+	return rc;
+}
+
+int uk_virtio_gpu_gl_context_submit_synced(struct uk_virtio_gpu_dev *d,
+		const struct uk_virtio_gpu_context *ctx, const void *cmd,
+		size_t len, uint8_t ring_idx, uk_gpu_fence_id *fence)
+{
+	struct ukvgpu_cmd_submit_3d *req;
+	struct ukvgpu_ctrl_hdr resp;
+	uk_gpu_fence_id local_fence;
+	int rc;
+
+	if (!find_ctx(d, ctx ? ctx->id : 0) || !cmd || !len || len > UINT32_MAX)
+		return -EINVAL;
+	if (!fence)
+		fence = &local_fence;
+	req = uk_malloc(g_alloc, sizeof(*req) + len);
+	if (!req)
+		return -ENOMEM;
+	hdr_init(d, &req->hdr, UKVGPU_CMD_SUBMIT_3D, fence, ctx->id);
+	/* Upgrade the legacy fence to a per-ring CONTEXT fence so the host defers
+	 * the used-ring response until the GPU drains sync_queues[ring_idx]. The
+	 * blocking dequeue in cmd_submit() then waits for true GPU completion. */
+	req->hdr.flags |= UKVGPU_FLAG_INFO_RING_IDX;
+	req->hdr.ring_idx = ring_idx;
 	req->size = (uint32_t)len;
 	req->padding = 0;
 	memcpy((uint8_t *)req + sizeof(*req), cmd, len);

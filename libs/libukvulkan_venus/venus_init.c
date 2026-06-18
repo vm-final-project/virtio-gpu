@@ -956,6 +956,39 @@ int uk_venus_create_device_checked(struct uk_virtio_gpu_dev *dev,
 	return 0;
 }
 
+/*
+ * uk_venus_wait_queue_idle — block until the host GPU queue is idle, via a
+ * reply-bearing vkQueueWaitIdle round-trip. The host vkr executes vkQueueWaitIdle
+ * IN-STREAM (it blocks the context's command decode until the GPU has drained
+ * all previously-submitted work) and only then writes the reply into the
+ * host-visible reply blob; uk_venus_query_roundtrip spins on that blob, so this
+ * returns precisely when the GPU is done. Unlike the per-ring CONTEXT fence
+ * (host sync thread), this path does not depend on the wedge-prone async
+ * fence-delivery timeline — it is the reliable GPU-completion signal on this
+ * stack. Returns 0 on a completed round-trip, <0 otherwise.
+ */
+int uk_venus_wait_queue_idle(struct uk_virtio_gpu_dev *dev,
+			     struct uk_virtio_gpu_context *ctx,
+			     uint64_t queue_handle)
+{
+	struct uk_venus_encoder q;
+	uint8_t qbuf[64];
+	uint8_t r[64];
+	int n;
+
+	if (uk_venus_encoder_init(&q, qbuf, sizeof(qbuf)))
+		return -EINVAL;
+	uk_venus_encode_vkQueueWaitIdle(&q, queue_handle);
+	if (q.overflow)
+		return -ENOSPC;
+	/* Patch the command flags word (offset 4) to request a reply, so the host
+	 * writes back only AFTER vkQueueWaitIdle returns (GPU drained). */
+	if (q.pos >= 8)
+		*(uint32_t *)(q.buf + 4) = 0x1u; /* VK_COMMAND_GENERATE_REPLY_BIT_EXT */
+	n = uk_venus_query_roundtrip(dev, ctx, q.buf, q.pos, r, sizeof(r));
+	return n < 0 ? n : 0;
+}
+
 int uk_venus_query_memory_properties(struct uk_virtio_gpu_dev *dev,
 				     struct uk_virtio_gpu_context *ctx,
 				     uint64_t physdev_handle,

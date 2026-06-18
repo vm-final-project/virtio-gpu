@@ -292,6 +292,13 @@ int uk_venus_create_device_checked(struct uk_virtio_gpu_dev *dev,
 				   uint32_t queue_family_index,
 				   int32_t *vk_result_out);
 
+/* Block until the host GPU queue is idle via a reply-bearing vkQueueWaitIdle
+ * round-trip (executed in-stream on the host; reliable GPU-completion signal).
+ * Returns 0 on success. */
+int uk_venus_wait_queue_idle(struct uk_virtio_gpu_dev *dev,
+			     struct uk_virtio_gpu_context *ctx,
+			     uint64_t queue_handle);
+
 /* Real Venus round-trip for a buffer's VkMemoryRequirements (size/alignment/
  * memoryTypeBits) from the host. Returns 0 and fills outputs on success. */
 int uk_venus_query_buffer_requirements(struct uk_virtio_gpu_dev *dev,

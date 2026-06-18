@@ -73,6 +73,10 @@ static int                           g_disp_initialized;
 static struct uk_virtio_gpu_context *g_ctx;
 /* Last fence submitted via QueueSubmit; polled by WaitForFences. */
 static uk_gpu_fence_id               g_last_fence;
+/* Opt-in GPU-completion barrier (UK_GGML_VK_GPU_SYNC=1). Off by default because
+ * the host context-fence delivery wedges on this stack — see
+ * uk_dispatch_gpu_barrier(). */
+static int                           g_gpu_sync;
 
 /* Real host VkPhysicalDeviceMemoryProperties (520B), filled by the first real
  * round-trip in stub_vkGetPhysicalDeviceMemoryProperties. Used by both that stub
@@ -191,13 +195,66 @@ static inline void uk_disp_unlock(void) { uk_mutex_unlock(&g_disp_lock); }
              * No malloc, no virtqueue kick — host ring_thread drains async. */ \
             uk_venus_ring_cmd_write(&g_ring, _enc.buf, _enc.pos); \
         } else if (uk_dispatch_batch_active()) { \
-            g_batch_enc = _enc; /* keep accumulator up to date */ \
+            uk_dispatch_batch_accumulate(&_enc); \
         } else { \
             if (_enc.overflow) \
                 printf("uk-ggml-vk: ERROR encoder overflow pos=%u buf=%u " \
                        "(command dropped)\n", _enc.pos, UK_DISPATCH_BUF_SIZE); \
             uk_venus_submit(g_gpu, g_ctx, &_enc); \
         } \
+        uk_disp_unlock(); \
+    } while (0)
+
+/* Max bytes in a single batched SUBMIT_3D command stream.
+ *
+ * The host render proxy forwards each SUBMIT_3D over an AF_UNIX SOCK_SEQPACKET
+ * socket (virglrenderer src/proxy/proxy_socket.c), which has a bounded max
+ * message size (~SO_SNDBUF, typically ~208 KB). The batched dispatch path
+ * otherwise lets one command buffer's Venus stream grow without bound (up to
+ * the 2 MB encode buffer); a single oversized SUBMIT_3D is then truncated by
+ * the socket, the render server logs "failed to receive data: expected N but
+ * received M" / "destroying context", and the Venus context dies mid-warmup —
+ * after which every compute SUBMIT_3D silently no-ops and the benchmark times
+ * empty work (the impossible pp512/tg128). Flush well below the limit and above
+ * the largest single command (~74 KB ggml SPIR-V) so the crossing chunk
+ * (<threshold + one command) stays comfortably under the SEQPACKET cap. */
+#define UK_BATCH_FLUSH_THRESHOLD (64u * 1024u)
+
+/* Accumulate one encoded command into the batch, flushing as a SUBMIT_3D at a
+ * command boundary once the batch nears the host's per-message limit. Called
+ * under g_disp_lock (from UK_ENC_SUBMIT's batch branch). */
+static void uk_dispatch_batch_accumulate(const struct uk_venus_encoder *enc)
+{
+    g_batch_enc = *enc;
+    if (g_batch_enc.pos >= UK_BATCH_FLUSH_THRESHOLD) {
+        uk_venus_submit(g_gpu, g_ctx, &g_batch_enc);
+        uk_venus_encoder_init(&g_batch_enc, g_batch_buf, UK_DISPATCH_BUF_SIZE);
+    }
+}
+
+/* Encode + submit a single command IMMEDIATELY as its own SUBMIT_3D, bypassing
+ * the batch accumulator even while a command buffer is being recorded.
+ *
+ * ggml lazily compiles pipelines (vkCreateShaderModule — up to ~74 KB of SPIR-V
+ * each — and vkCreateComputePipelines) DURING command-buffer recording. If those
+ * big device-level creates land in the command-buffer batch, the batch must be
+ * split across several SUBMIT_3Ds to fit the host render-socket message limit —
+ * and splitting a command buffer's Begin..End recording across SUBMIT_3Ds leaves
+ * its GPU-completion (ring_idx) fence permanently unsignaled on this stack
+ * (verified: a 4-chunk command buffer wedges; single-chunk ones never do).
+ * Creates are device-level (independent of the open command buffer), so issuing
+ * them immediately is safe and keeps each recorded command buffer a single small
+ * SUBMIT_3D. Uses g_enc_buf, which is exclusive under g_disp_lock. */
+#define UK_ENC_BEGIN_IMMEDIATE() \
+    uk_disp_lock(); \
+    struct uk_venus_encoder _enc; \
+    uk_venus_encoder_init(&_enc, g_enc_buf, UK_DISPATCH_BUF_SIZE)
+#define UK_ENC_SUBMIT_IMMEDIATE() \
+    do { \
+        if (_enc.overflow) \
+            printf("uk-ggml-vk: ERROR encoder overflow pos=%u buf=%u " \
+                   "(immediate command dropped)\n", _enc.pos, UK_DISPATCH_BUF_SIZE); \
+        uk_venus_submit(g_gpu, g_ctx, &_enc); \
         uk_disp_unlock(); \
     } while (0)
 
@@ -241,6 +298,12 @@ int uk_vulkan_init(void)
     {
         const char *s = getenv("UK_GGML_VK_DISPATCH_BATCH");
         g_batch_enabled = (s && (*s == '1' || *s == 'y' || *s == 'Y'));
+    }
+    /* Opt-in GPU-completion barrier (off by default; host fence delivery wedges
+     * on this stack — see uk_dispatch_gpu_barrier). */
+    {
+        const char *s = getenv("UK_GGML_VK_GPU_SYNC");
+        g_gpu_sync = (s && (*s == '1' || *s == 'y' || *s == 'Y'));
     }
     g_batch_recording = 0;
     uk_venus_encoder_init(&g_batch_enc, g_batch_buf, UK_DISPATCH_BUF_SIZE);
@@ -1280,13 +1343,11 @@ static VkResult stub_vkCreateShaderModule(VkDevice dev, const void *ci,
      */
     uint64_t code_size      = rd_u64(ci, OFF_SHADER_CODE_SIZE);
     const uint32_t *code    = (const uint32_t *)rd_ptr(ci, OFF_SHADER_PCODE);
-    UK_ENC_BEGIN();
+    /* Immediate (unbatched) — large SPIR-V must not bloat the command buffer. */
+    UK_ENC_BEGIN_IMMEDIATE();
     uk_venus_encode_vkCreateShaderModule(&_enc, UK_H_DEVICE, h, code,
                                          (uint32_t)(code_size / 4u));
-    printf("VOGUE-DBG createShaderModule h=0x%llx codeSize=%llu encpos=%u ovf=%d bufsz=%u\n",
-           (unsigned long long)h, (unsigned long long)code_size,
-           _enc.pos, _enc.overflow, UK_DISPATCH_BUF_SIZE);
-    UK_ENC_SUBMIT();
+    UK_ENC_SUBMIT_IMMEDIATE();
     *pShader = (VkShaderModule)h;
     return VK_SUCCESS;
 }
@@ -1313,11 +1374,17 @@ static VkResult stub_vkCreateDescriptorSetLayout(VkDevice dev, const void *ci,
         desc_counts[i]  = rd_u32(b, OFF_DSLB_COUNT);
         stage_flags[i]  = rd_u32(b, OFF_DSLB_STAGE);
     }
-    UK_ENC_BEGIN();
+    /* Immediate (unbatched): the descriptor set layout is referenced by the
+     * pipeline layout / compute pipeline creates, which are themselves immediate.
+     * If this were deferred into a command-buffer batch (when ggml compiles
+     * concurrently with recording) the host would process the dependent
+     * immediate creates first and fail the object lookup, tearing down the
+     * Venus context. */
+    UK_ENC_BEGIN_IMMEDIATE();
     uk_venus_encode_vkCreateDescriptorSetLayout(&_enc, UK_H_DEVICE, h, n,
                                                 binding_nums, desc_types,
                                                 desc_counts, stage_flags);
-    UK_ENC_SUBMIT();
+    UK_ENC_SUBMIT_IMMEDIATE();
     *pDSL = (VkDescriptorSetLayout)h;
     return VK_SUCCESS;
 }
@@ -1414,12 +1481,16 @@ static VkResult stub_vkCreatePipelineLayout(VkDevice dev, const void *ci,
     uint32_t stage = nranges ? rd_u32(range, OFF_PUSH_STAGE) : 0u;
     uint32_t off   = nranges ? rd_u32(range, OFF_PUSH_OFFSET) : 0u;
     uint32_t size  = nranges ? rd_u32(range, OFF_PUSH_SIZE) : 0u;
-    UK_ENC_BEGIN();
+    /* Immediate (unbatched): the pipeline layout is referenced by the immediate
+     * compute-pipeline create. Deferring it into a command-buffer batch (during
+     * concurrent compile) lets the host process the pipeline create first and
+     * fail "look up object type 17 (pipeline layout)", destroying the context. */
+    UK_ENC_BEGIN_IMMEDIATE();
     uk_venus_encode_vkCreatePipelineLayout(&_enc, UK_H_DEVICE, h,
                                            nsets, sets,
                                            nranges ? 1u : 0u,
                                            stage, off, size);
-    UK_ENC_SUBMIT();
+    UK_ENC_SUBMIT_IMMEDIATE();
     *pPL = (VkPipelineLayout)h;
     return VK_SUCCESS;
 }
@@ -1442,14 +1513,12 @@ static VkResult stub_vkCreateComputePipelines(VkDevice dev, uint64_t cache,
         uint64_t layout_h = rd_u64(p, OFF_CP_LAYOUT);
         uint64_t shader_h = rd_u64(stage, OFF_STAGE_MODULE);
         const char *entry = (const char *)rd_ptr(stage, OFF_STAGE_PNAME);
-        UK_ENC_BEGIN();
+        /* Immediate (unbatched) — keep pipeline creates out of the cmd buffer. */
+        UK_ENC_BEGIN_IMMEDIATE();
         uk_venus_encode_vkCreateComputePipelines(&_enc, UK_H_DEVICE, h,
                                                  layout_h, shader_h,
                                                  entry ? entry : "main");
-        UK_ENC_SUBMIT();
-        printf("VOGUE-DBG createComputePipeline h=0x%llx module=0x%llx layout=0x%llx\n",
-               (unsigned long long)h, (unsigned long long)shader_h,
-               (unsigned long long)layout_h);
+        UK_ENC_SUBMIT_IMMEDIATE();
         pPipes[i] = (VkPipeline)h;
         p += SIZE_CP_INFO;
     }
@@ -1516,6 +1585,13 @@ static VkResult stub_vkBeginCommandBuffer(VkCommandBuffer cb, const void *bi)
     (void)bi;
     /* Lazily bring up the Venus ring now that the device exists. */
     uk_dispatch_ring_lazy_init();
+    /* Hold g_disp_lock across the batch reset + recording-flag change: ggml
+     * compiles pipelines on worker threads that accumulate create* commands into
+     * the shared g_batch_enc under the same lock. Doing this unlocked raced with
+     * those accumulates and could drop a create (host then "fails to look up
+     * object" and tears down the Venus context). The lock is recursive so the
+     * nested UK_ENC_* below is fine. */
+    uk_disp_lock();
     if (g_ring_enabled && g_ring_ready) {
         /* Ring mode: open ring write window; Begin command goes into ring. */
         g_ring_recording = 1;
@@ -1526,11 +1602,17 @@ static VkResult stub_vkBeginCommandBuffer(VkCommandBuffer cb, const void *bi)
     UK_ENC_BEGIN();
     uk_venus_encode_vkBeginCommandBuffer(&_enc, (uint64_t)cb);
     UK_ENC_SUBMIT();
+    uk_disp_unlock();
     return VK_SUCCESS;
 }
 
 static VkResult stub_vkEndCommandBuffer(VkCommandBuffer cb)
 {
+    /* Hold g_disp_lock across the End encode AND the batch flush + recording
+     * clear, so the flush (which reads g_batch_enc) cannot race a concurrent
+     * compile-thread accumulate into g_batch_enc and drop its command. Recursive
+     * lock, so the nested UK_ENC_* is fine. */
+    uk_disp_lock();
     UK_ENC_BEGIN();
     uk_venus_encode_vkEndCommandBuffer(&_enc, (uint64_t)cb);
     UK_ENC_SUBMIT();
@@ -1544,6 +1626,7 @@ static VkResult stub_vkEndCommandBuffer(VkCommandBuffer cb)
         uk_venus_submit(g_gpu, g_ctx, &g_batch_enc);
         g_batch_recording = 0;
     }
+    uk_disp_unlock();
     return VK_SUCCESS;
 }
 
@@ -1646,16 +1729,55 @@ static void stub_vkCmdPipelineBarrier(VkCommandBuffer cb, uint32_t srcStage,
     UK_ENC_SUBMIT();
 }
 
+/* Ring index of the compute queue's Venus timeline. Bound at vkCreateDevice
+ * time via vkGetDeviceQueue2 + VkDeviceQueueTimelineInfoMESA{ringIdx=1}, so the
+ * host registers vkr_context.sync_queues[1] for this queue. A virtio-gpu fence
+ * tagged with this ring_idx retires only on GPU completion of the queue. */
+#define UK_VENUS_COMPUTE_RING_IDX 1u
+
+/* GPU-completion barrier (opt-in: UK_GGML_VK_GPU_SYNC=1). OFF BY DEFAULT.
+ *
+ * ggml-vulkan times each graph by submitting work then waiting on a fence
+ * (ggml_vk_synchronize -> queue.submit({}, fence) -> busy-poll getFenceStatus).
+ * Our compute SUBMIT_3Ds retire their legacy fence on host command DECODE, long
+ * before the GPU runs the work, so the unsynced guest measures SUBMISSION rate,
+ * not completion — hence pp512 lands well above baremetal (physically
+ * impossible). This barrier forces a true GPU-completion wait at that point via
+ * a reply-bearing vkQueueWaitIdle (uk_venus_wait_queue_idle): the host vkr runs
+ * vkQueueWaitIdle in-stream (blocking until the GPU drains the queue) and only
+ * then writes the reply we spin on. (A per-ring CONTEXT fence is the other
+ * "correct" completion signal, but on this host its async delivery is far slower
+ * — multiple seconds per call — so vkQueueWaitIdle is the practical one.)
+ *
+ * It is OFF BY DEFAULT because measuring true completion reveals that VOGUE's
+ * Venus *submission path* is the bottleneck, not the absence of a fence: under a
+ * real completion wait the GPU sits ~16% utilized and pp512 collapses far BELOW
+ * baremetal (the work is submission/round-trip-bound, not GPU-bound), while the
+ * per-graph wait also tanks the per-token tg128 path. Neither extreme is
+ * representative. With the barrier off, tg128 is memory-bound and its submission
+ * cadence tracks the true GPU rate (so tg128 is correct ~177), and pp512 is left
+ * at submission rate. Making pp512 simultaneously correct needs an efficient
+ * (low-overhead, pipelined) submission path — a redesign, not a sync toggle. */
+static void uk_dispatch_gpu_barrier(void)
+{
+    if (!g_gpu || !g_ctx)
+        return;
+    uk_disp_lock();
+    uk_venus_wait_queue_idle(g_gpu, g_ctx, UK_H_QUEUE);
+    uk_disp_unlock();
+}
+
 static VkResult stub_vkQueueSubmit(VkQueue queue, uint32_t submitCount,
                                     const void *pSubmits, VkFence fence)
 {
-    (void)submitCount; (void)pSubmits;
+    (void)queue;
     const uint8_t *s = (const uint8_t *)pSubmits;
     for (uint32_t i = 0; i < submitCount; i++) {
         uint32_t cbCount = rd_u32(s, OFF_SUBMIT_CMD_COUNT);
         const uint64_t *cbs = (const uint64_t *)rd_ptr(s, OFF_SUBMIT_CMDS);
         UK_ENC_BEGIN();
-        uk_venus_encode_vkQueueSubmit(&_enc, UK_H_QUEUE, cbCount, cbs, (uint64_t)fence);
+        uk_venus_encode_vkQueueSubmit(&_enc, UK_H_QUEUE, cbCount, cbs,
+                                      (uint64_t)fence);
         UK_ENC_SUBMIT();
         s += SIZE_SUBMIT_INFO;
     }
@@ -1668,6 +1790,12 @@ static VkResult stub_vkQueueSubmit(VkQueue queue, uint32_t submitCount,
          * sequence (3 kicks → 1). */
         uk_venus_ring_cmd_flush(g_gpu, &g_ring);
     }
+    /* A fenced submit is ggml's "wait for the GPU here" point. When the
+     * GPU-completion barrier is enabled (host with working context-fence
+     * delivery — see uk_dispatch_gpu_barrier), block here until the GPU actually
+     * drains the queue so pp512 reflects completion, not submission rate. */
+    if (fence && g_gpu_sync)
+        uk_dispatch_gpu_barrier();
     return VK_SUCCESS;
 }
 
