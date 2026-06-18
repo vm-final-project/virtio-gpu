@@ -192,6 +192,13 @@ static inline void uk_disp_unlock(void) { uk_mutex_unlock(&g_disp_lock); }
     (void)0
 #define UK_ENC_SUBMIT() \
     do { \
+        /* Stop the encode clock BEFORE the flush. By here the command is fully \
+         * serialized (the uk_venus_encode_* calls ran between BEGIN and now), so \
+         * this is pure encode time. The batch/sync flush below is a host round- \
+         * trip already timed by host-flush/host-submit; counting it here too \
+         * would double-attribute that round-trip into vk-encode (it did: the \
+         * 64 KB auto-flush in uk_dispatch_batch_accumulate inflated vk-encode). */ \
+        vogue_prof_add_encode((uint64_t)ukplat_monotonic_clock() - _t_enc); \
         if (uk_dispatch_ring_active()) { \
             /* Ring stream: write encoded bytes into the circular buffer.   \
              * No malloc, no virtqueue kick — host ring_thread drains async. */ \
@@ -205,7 +212,6 @@ static inline void uk_disp_unlock(void) { uk_mutex_unlock(&g_disp_lock); }
             uk_venus_submit(g_gpu, g_ctx, &_enc); \
         } \
         uk_disp_unlock(); \
-        vogue_prof_add_encode((uint64_t)ukplat_monotonic_clock() - _t_enc); \
     } while (0)
 
 /* Max bytes in a single batched SUBMIT_3D command stream.
@@ -255,12 +261,14 @@ static void uk_dispatch_batch_accumulate(const struct uk_venus_encoder *enc)
     uk_venus_encoder_init(&_enc, g_enc_buf, UK_DISPATCH_BUF_SIZE)
 #define UK_ENC_SUBMIT_IMMEDIATE() \
     do { \
+        /* Pure encode time only; the immediate uk_venus_submit round-trip is \
+         * counted by host-flush/host-submit (see UK_ENC_SUBMIT). */ \
+        vogue_prof_add_encode((uint64_t)ukplat_monotonic_clock() - _t_enc); \
         if (_enc.overflow) \
             printf("uk-ggml-vk: ERROR encoder overflow pos=%u buf=%u " \
                    "(immediate command dropped)\n", _enc.pos, UK_DISPATCH_BUF_SIZE); \
         uk_venus_submit(g_gpu, g_ctx, &_enc); \
         uk_disp_unlock(); \
-        vogue_prof_add_encode((uint64_t)ukplat_monotonic_clock() - _t_enc); \
     } while (0)
 
 /*

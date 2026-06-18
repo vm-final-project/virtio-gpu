@@ -248,36 +248,55 @@ def parse_vogue_timing(text: str) -> dict:
 
 
 def summarize_vogue_profile(timing: dict) -> dict:
-    """Derive an active-vs-wait breakdown of the unique guest stack per phase.
+    """Non-overlapping active-vs-wait split of the unique guest stack per phase.
 
-    "active" = our translation work (L2 encode + host-submit enqueue/notify
-    + ring flush); "wait" = time spinning on the host (host-submit dequeue
-    + fence poll). Percentages show where our stack's time actually goes.
+    The raw counters NEST, so they cannot be summed naively:
+      * host-flush (uk_venus_submit) wraps host-submit (cmd_submit), so
+        host-flush.total already includes host-submit's active+wait.
+      * vk-encode is pure serialization (the batch auto-flush round-trip is
+        excluded at the source; see UK_ENC_SUBMIT).
+      * L2-submit re-times the vkQueueSubmit command whose encode is already
+        inside vk-encode, so it is omitted here to avoid double-counting.
+
+    Decomposition per phase (each nanosecond attributed once):
+      encode       = vk-encode                    (L2 serialization, guest)
+      roundtrip    = host-flush (+ L3-flush ring) (one SUBMIT_3D, wraps L4)
+        host_wait  = host-submit.wait (+ fence)   (blocked on host/GPU)
+        guest_sub  = roundtrip - host_wait        (sglist + notify + L3 frame)
+      active (ours)= encode + guest_sub
+      wait  (host) = host_wait
+
+    The model's own CPU time (ggml graph build / sampling between dispatches)
+    is NOT counted here; it is the wall-clock residual outside these counters.
     """
     summary: dict[str, dict] = {}
     for phase in ("prompt", "decode"):
-        l2 = timing.get(f"L2-submit[{phase}]", {})
+        enc = timing.get(f"vk-encode[{phase}]", {})
         sub = timing.get(f"host-submit[{phase}]", {})
         fence = timing.get(f"fence-wait[{phase}]", {})
         l3 = timing.get(f"L3-flush[{phase}]", {})
         flush = timing.get(f"host-flush[{phase}]", {})
-        active = (l2.get("total_ns", 0) + sub.get("active_ns", 0)
-                  + l3.get("total_ns", 0))
-        # host-flush (uk_venus_submit) is the real batch round-trip in the
-        # batched config; it blocks on the host, so count it as wait.
-        wait = (sub.get("wait_ns", 0) + fence.get("total_ns", 0)
-                + flush.get("total_ns", 0))
+
+        encode_ns = enc.get("total_ns", 0)
+        roundtrip_ns = flush.get("total_ns", 0) + l3.get("total_ns", 0)
+        host_wait_ns = sub.get("wait_ns", 0) + fence.get("total_ns", 0)
+        guest_submit_ns = max(roundtrip_ns - sub.get("wait_ns", 0), 0)
+
+        active = encode_ns + guest_submit_ns
+        wait = host_wait_ns
         total = active + wait
         if total == 0:
             continue
         summary[phase] = {
+            "encode_ns": encode_ns,
+            "guest_submit_ns": guest_submit_ns,
+            "host_wait_ns": host_wait_ns,
             "active_ns": active,
             "wait_ns": wait,
             "active_pct": round(100.0 * active / total, 2),
             "wait_pct": round(100.0 * wait / total, 2),
-            "host_flushes": flush.get("calls", 0),
-            "host_flush_ns": flush.get("total_ns", 0),
-            "host_flush_bytes": flush.get("bytes", 0),
+            "encode_pct": round(100.0 * encode_ns / total, 2),
             "roundtrips": sub.get("calls", 0),
+            "host_flush_bytes": flush.get("bytes", 0),
         }
     return summary

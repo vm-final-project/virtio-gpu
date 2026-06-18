@@ -1,97 +1,105 @@
 {
   "status": "pass",
-  "generated_utc": "2026-06-18T11:48:25.473685Z",
-  "command": "/usr/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -m 8192 -no-reboot -kernel /users/minyao/virtio-gpu/.unikraft/build/vogue-llama-vk_qemu-x86_64 -display egl-headless,gl=on -vga none -device virtio-gpu-gl-pci,hostmem=2G,blob=true,venus=true -append console=ttyS0 -serial mon:stdio -monitor none -fsdev local,id=model,path=/tmp/vogue-model-la9cd19z,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model",
+  "generated_utc": "2026-06-18T13:40:56.955320Z",
+  "command": "/usr/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -m 8192 -no-reboot -kernel /users/minyao/virtio-gpu/.unikraft/build/vogue-llama-vk_qemu-x86_64 -display egl-headless,gl=on -vga none -device virtio-gpu-gl-pci,hostmem=2G,blob=true,venus=true -append console=ttyS0 -serial mon:stdio -monitor none -fsdev local,id=model,path=/tmp/vogue-model-0rqwzwy5,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model",
   "inputs": {
     "mode": "bench",
     "arch": "x86_64",
-    "model": "/users/minyao/virtio-gpu/models/google_gemma-3-4b-it-Q4_K_M.gguf",
+    "model": "/users/minyao/virtio-gpu/models/google_gemma-3-1b-it-Q4_K_M.gguf",
     "image": "/users/minyao/virtio-gpu/.unikraft/build/vogue-llama-vk_qemu-x86_64"
   },
   "metrics": {
-    "pp512": 26389.95,
-    "tg128": 180.81,
+    "boot_time_s": 0.855,
+    "peak_rss_kb": 2296812,
+    "pp512": 32688.66,
+    "tg128": 205.64,
+    "image_bytes": 35144408,
+    "model_load_ms": null,
     "timing": {
       "L2-submit[prompt]": {
-        "calls": 107,
-        "total_ns": 4354801
+        "calls": 97,
+        "total_ns": 4309451
       },
       "host-submit[prompt]": {
-        "calls": 318,
-        "active_ns": 21396008,
-        "wait_ns": 4031777031,
-        "bytes": 2740440
+        "calls": 294,
+        "active_ns": 15301391,
+        "wait_ns": 4019320800,
+        "bytes": 2107220
       },
       "fence-wait[prompt]": {
         "calls": 52,
-        "total_ns": 41861
+        "total_ns": 22476
       },
       "L3-flush[prompt]": {
         "calls": 0,
         "total_ns": 0
       },
       "host-flush[prompt]": {
-        "calls": 308,
-        "total_ns": 12353885,
-        "bytes": 2730072,
+        "calls": 284,
+        "total_ns": 11947705,
+        "bytes": 2097620,
         "fail": 0
       },
       "vk-encode[prompt]": {
-        "calls": 29797,
-        "total_ns": 17403846
+        "calls": 22928,
+        "total_ns": 7072200
       },
       "L2-submit[decode]": {
-        "calls": 13440,
-        "total_ns": 491554751
+        "calls": 12160,
+        "total_ns": 483158740
       },
       "host-submit[decode]": {
-        "calls": 35214,
-        "active_ns": 501983847,
-        "wait_ns": 740733714,
-        "bytes": 387661696
+        "calls": 32013,
+        "active_ns": 484529090,
+        "wait_ns": 721060906,
+        "bytes": 297708388
       },
       "fence-wait[decode]": {
         "calls": 6400,
-        "total_ns": 7006025
+        "total_ns": 6157255
       },
       "L3-flush[decode]": {
         "calls": 0,
         "total_ns": 0
       },
       "host-flush[decode]": {
-        "calls": 35214,
-        "total_ns": 1336996114,
-        "bytes": 386534848,
+        "calls": 32013,
+        "total_ns": 1295362087,
+        "bytes": 296683972,
         "fail": 0
       },
       "vk-encode[decode]": {
-        "calls": 4131854,
-        "total_ns": 1938849359
+        "calls": 3175693,
+        "total_ns": 867815544
       },
       "wall[all]": {
-        "total_ns": 18444818865
+        "total_ns": 13539231387
       }
     },
     "profile": {
       "prompt": {
-        "active_ns": 25750809,
-        "wait_ns": 4044172777,
-        "active_pct": 0.63,
-        "wait_pct": 99.37,
-        "host_flushes": 308,
-        "host_flush_ns": 12353885,
-        "host_flush_bytes": 2730072,
-        "roundtrips": 318
+        "encode_ns": 7072200,
+        "guest_submit_ns": 0,
+        "host_wait_ns": 4019343276,
+        "active_ns": 7072200,
+        "wait_ns": 4019343276,
+        "active_pct": 0.18,
+        "wait_pct": 99.82,
+        "encode_pct": 0.18,
+        "roundtrips": 294,
+        "host_flush_bytes": 2097620
       },
       "decode": {
-        "active_ns": 993538598,
-        "wait_ns": 2084735853,
-        "active_pct": 32.28,
-        "wait_pct": 67.72,
-        "host_flushes": 35214,
-        "host_flush_ns": 1336996114,
-        "host_flush_bytes": 386534848,
-        "roundtrips": 35214
+        "encode_ns": 867815544,
+        "guest_submit_ns": 574301181,
+        "host_wait_ns": 727218161,
+        "active_ns": 1442116725,
+        "wait_ns": 727218161,
+        "active_pct": 66.48,
+        "wait_pct": 33.52,
+        "encode_pct": 40.0,
+        "roundtrips": 32013,
+        "host_flush_bytes": 296683972
       }
     }
   },
