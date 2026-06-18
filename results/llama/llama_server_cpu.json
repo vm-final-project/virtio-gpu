@@ -1,15 +1,29 @@
 {
   "status": "pass",
-  "generated_utc": "2026-06-11T04:31:31.395016Z",
-  "command": "/usr/local/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -m 4096 -nographic -no-reboot -kernel /mydata/JerryT/virtio-gpu-smp/.unikraft/build/vogue-llama-cpu-server_qemu-x86_64 -fsdev local,id=model,path=/tmp/vogue-model-h2nd0sct,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model -append console=ttyS0",
+  "generated_utc": "2026-06-18T14:38:14.252589Z",
+  "command": "/opt/qemu-11.0.1/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -smp 1 -m 8192 -nographic -no-reboot -kernel /home/rwei/vm-final/virtio-gpu/.unikraft/build/vogue-llama-cpu-server_qemu-x86_64 -netdev user,id=net0,hostfwd=tcp:127.0.0.1:52089-10.0.2.15:8080 -device virtio-net-pci,netdev=net0 -fsdev local,id=model,path=/tmp/vogue-model-1_95a7ek,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model -append console=ttyS0",
   "inputs": {
     "mode": "server",
     "arch": "x86_64",
-    "model": "/mydata/JerryT/virtio-gpu-smp/models/google_gemma-3-1b-it-Q4_K_M.gguf",
-    "image": "/mydata/JerryT/virtio-gpu-smp/.unikraft/build/vogue-llama-cpu-server_qemu-x86_64"
+    "model": "/home/rwei/vm-final/virtio-gpu/models/google_gemma-3-1b-it-Q4_K_M.gguf",
+    "image": "/home/rwei/vm-final/virtio-gpu/.unikraft/build/vogue-llama-cpu-server_qemu-x86_64"
   },
   "metrics": {
-    "ready": "uk-llama-upstream-server: READY model=/mnt/model/model.gguf threads=1 slots=1 ctx_per_slot=512 batch_size=2048 ubatch_size=512 prompt_cache=1 mode=single-app no_fork_exec=1"
+    "http_status": 200,
+    "health": {
+      "status": "ok"
+    },
+    "latency_s": 0.4082,
+    "boot_time_s": 8.208,
+    "completion_status": 200,
+    "query": "hi, what's your name",
+    "completion": "Hi there! I\u2019m Gemma, a large language model created by the Gemma team at Google DeepMind. It\u2019s nice to meet you! \ud83d\ude0a \n\nDo you have any questions you\u2019d like me to answer?",
+    "requests_per_s": 0.172,
+    "tokens_per_s": 8.102,
+    "ready": true,
+    "peak_rss_kb": 3721780,
+    "image_bytes": 7876536,
+    "model_load_ms": 5394.61
   },
   "error": null
 }

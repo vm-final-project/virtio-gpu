@@ -1,16 +1,20 @@
 {
   "status": "pass",
-  "generated_utc": "2026-06-11T04:28:17.656343Z",
-  "command": "/usr/local/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -m 4096 -nographic -no-reboot -kernel /mydata/JerryT/virtio-gpu-smp/.unikraft/build/vogue-llama-cpu_qemu-x86_64 -fsdev local,id=model,path=/tmp/vogue-model-pkirhbp4,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model -append console=ttyS0",
+  "generated_utc": "2026-06-18T13:49:34.676638Z",
+  "command": "/opt/qemu-11.0.1/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -smp 1 -m 8192 -nographic -no-reboot -kernel /home/rwei/vm-final/virtio-gpu/.unikraft/build/vogue-llama-cpu_qemu-x86_64 -fsdev local,id=model,path=/tmp/vogue-model-2l225agc,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model -append console=ttyS0",
   "inputs": {
     "mode": "bench",
     "arch": "x86_64",
-    "model": "/mydata/JerryT/virtio-gpu-smp/models/google_gemma-3-1b-it-Q4_K_M.gguf",
-    "image": "/mydata/JerryT/virtio-gpu-smp/.unikraft/build/vogue-llama-cpu_qemu-x86_64"
+    "model": "models/google_gemma-3-1b-it-Q4_K_M.gguf",
+    "image": "/home/rwei/vm-final/virtio-gpu/.unikraft/build/vogue-llama-cpu_qemu-x86_64"
   },
   "metrics": {
-    "pp512": 30.7,
-    "tg128": 11.6
+    "boot_time_s": 0.267,
+    "model_load_ms": null,
+    "peak_rss_kb": 2054640,
+    "image_bytes": 4300056,
+    "pp512": 17.79,
+    "tg128": 9.96
   },
   "error": null
 }

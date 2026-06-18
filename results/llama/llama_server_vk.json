@@ -1,15 +1,29 @@
 {
-  "status": "blocked:no-pass-marker",
-  "generated_utc": "2026-06-11T04:35:57.488700Z",
-  "command": "/usr/local/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -m 3072 -no-reboot -kernel /mydata/JerryT/virtio-gpu-smp/.unikraft/build/vogue-llama-vk-server_qemu-x86_64 -display egl-headless,gl=on -vga none -device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true -append console=ttyS0 -serial mon:stdio -monitor none -netdev user,id=net0,hostfwd=tcp:127.0.0.1:43261-10.0.2.15:8080 -device virtio-net-pci,netdev=net0 -fsdev local,id=model,path=/tmp/vogue-model-s1rp8c1k,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model",
+  "status": "pass",
+  "generated_utc": "2026-06-18T14:43:13.854416Z",
+  "command": "/opt/qemu-11.0.1/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -smp 1 -m 8192 -no-reboot -kernel /home/rwei/vm-final/virtio-gpu/.unikraft/build/vogue-llama-vk-server_qemu-x86_64 -display egl-headless,gl=on -vga none -device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true -append console=ttyS0 -serial mon:stdio -monitor none -netdev user,id=net0,hostfwd=tcp:127.0.0.1:43633-10.0.2.15:8080 -device virtio-net-pci,netdev=net0 -fsdev local,id=model,path=/tmp/vogue-model-5csom3lb,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model",
   "inputs": {
     "mode": "server",
     "arch": "x86_64",
-    "model": "/mydata/JerryT/virtio-gpu-smp/models/google_gemma-3-1b-it-Q4_K_M.gguf",
-    "image": "/mydata/JerryT/virtio-gpu-smp/.unikraft/build/vogue-llama-vk-server_qemu-x86_64"
+    "model": "/home/rwei/vm-final/virtio-gpu/models/google_gemma-3-1b-it-Q4_K_M.gguf",
+    "image": "/home/rwei/vm-final/virtio-gpu/.unikraft/build/vogue-llama-vk-server_qemu-x86_64"
   },
   "metrics": {
-    "ready": false
+    "http_status": 200,
+    "health": {
+      "status": "ok"
+    },
+    "latency_s": 1.2602,
+    "boot_time_s": 11.861,
+    "completion_status": 200,
+    "query": "hi, what's your name",
+    "completion": "",
+    "requests_per_s": 0.653,
+    "tokens_per_s": 7.831,
+    "ready": true,
+    "peak_rss_kb": 2888080,
+    "image_bytes": 38726200,
+    "model_load_ms": 5255.44
   },
-  "error": "MESA-LOADER: failed to retrieve device information\nMESA-LOADER: failed to open vgem: /usr/lib/dri/vgem_dri.so: cannot open shared object file: No such file or directory (search paths /usr/lib/x86_64-linux-gnu/dri:\\$${ORIGIN}/dri:/usr/lib/dri, suffix _dri)\nMESA-LOADER: failed to retrieve device information\nMESA-LOADER: failed to retrieve device information\nqemu-system-x86_64: -device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true: old virglrenderer, blob resources unsupported\n"
+  "error": null
 }
