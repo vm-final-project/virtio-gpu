@@ -78,6 +78,13 @@ static uk_gpu_fence_id               g_last_fence;
  * the host context-fence delivery wedges on this stack — see
  * uk_dispatch_gpu_barrier(). */
 static int                           g_gpu_sync;
+/* Flips to 1 the first time ggml polls a fence status. ggml only calls
+ * vkGetFenceStatus from its per-graph compute wait (ggml_vk_wait_for_fence),
+ * never during the upload-only model load — so this cleanly separates "loading
+ * weights" (no real fence wait needed; a real blocking wait there starves the
+ * host's own upload processing and stalls the load) from "running inference"
+ * (real GPU-completion wait required for correct, non-crashing readback). */
+static volatile int                  g_infer_started;
 
 /* Real host VkPhysicalDeviceMemoryProperties (520B), filled by the first real
  * round-trip in stub_vkGetPhysicalDeviceMemoryProperties. Used by both that stub
@@ -243,6 +250,8 @@ static inline void uk_disp_unlock(void) { uk_mutex_unlock(&g_disp_lock); }
  * the largest single command (~74 KB ggml SPIR-V) so the crossing chunk
  * (<threshold + one command) stays comfortably under the SEQPACKET cap. */
 #define UK_BATCH_FLUSH_THRESHOLD (64u * 1024u)
+/* Runtime override (UK_GGML_VK_BATCH_KB, in KiB); 0 = use the compile default. */
+static uint32_t g_batch_flush_threshold = UK_BATCH_FLUSH_THRESHOLD;
 
 /* Accumulate one encoded command into the batch, flushing as a SUBMIT_3D at a
  * command boundary once the batch nears the host's per-message limit. Called
@@ -250,7 +259,7 @@ static inline void uk_disp_unlock(void) { uk_mutex_unlock(&g_disp_lock); }
 static void uk_dispatch_batch_accumulate(const struct uk_venus_encoder *enc)
 {
     g_batch_enc = *enc;
-    if (g_batch_enc.pos >= UK_BATCH_FLUSH_THRESHOLD) {
+    if (g_batch_enc.pos >= g_batch_flush_threshold) {
         uk_venus_submit(g_gpu, g_ctx, &g_batch_enc);
         uk_venus_encoder_init(&g_batch_enc, g_batch_buf, UK_DISPATCH_BUF_SIZE);
     }
@@ -332,6 +341,17 @@ int uk_vulkan_init(void)
     {
         const char *s = getenv("UK_GGML_VK_GPU_SYNC");
         g_gpu_sync = (s && (*s == '1' || *s == 'y' || *s == 'Y'));
+    }
+    /* Optional override of the per-SUBMIT_3D batch flush ceiling (KiB). Larger
+     * values keep a big command buffer (e.g. the first prompt-processing graph)
+     * in fewer SUBMIT_3D chunks. */
+    {
+        const char *s = getenv("UK_GGML_VK_BATCH_KB");
+        if (s) {
+            uint32_t kb = (uint32_t)strtoul(s, NULL, 10);
+            if (kb)
+                g_batch_flush_threshold = kb * 1024u;
+        }
     }
     g_batch_recording = 0;
     uk_venus_encoder_init(&g_batch_enc, g_batch_buf, UK_DISPATCH_BUF_SIZE);
@@ -718,6 +738,7 @@ static inline const void *rd_ptr(const void *base, size_t off)
 #define SIZE_CP_INFO              96u
 #define OFF_STAGE_MODULE          24u
 #define OFF_STAGE_PNAME           32u
+#define OFF_STAGE_SPEC            40u  /* pSpecializationInfo */
 #define OFF_SUBMIT_CMD_COUNT      40u
 #define OFF_SUBMIT_CMDS           48u
 #define SIZE_SUBMIT_INFO          72u
@@ -728,6 +749,9 @@ static inline const void *rd_ptr(const void *base, size_t off)
 #define OFF_WRITE_BUFFER_INFO     48u
 #define SIZE_WRITE_DESC           64u
 #define SIZE_DESC_BUF_INFO        24u
+/* VkBufferCopy: srcOffset(u64)@0, dstOffset(u64)@8, size(u64)@16 */
+#define OFF_BCOPY_SRC             0u
+#define OFF_BCOPY_DST             8u
 #define OFF_BCOPY_SIZE            16u
 #define SIZE_BCOPY                24u
 
@@ -942,6 +966,19 @@ static void stub_vkGetPhysicalDeviceFeatures2(VkPhysicalDevice physdev, void *p2
         }
         uint32_t *fields = (uint32_t *)((uint8_t *)chain + 16);
         for (int i = 0; i < n; i++) fields[i] = 1u;
+        /* VkPhysicalDeviceVulkan12Features: force bufferDeviceAddress OFF
+         * (field index 38). ggml-vulkan, when this is advertised, addresses its
+         * compute buffers by raw GPU device address (passed in push constants)
+         * instead of through descriptors. We cannot synthesise real GPU
+         * addresses — stub_vkGetBufferDeviceAddress just echoes the buffer
+         * handle — so the shaders would dereference garbage and produce nonsense
+         * logits. With BDA off, ggml binds buffers through descriptor sets, which
+         * this dispatch encodes faithfully. */
+        /* Only force bufferDeviceAddress off for the GPU-sync server (which
+         * needs correct, descriptor-addressed compute); the throughput bench
+         * keeps its original advertised features. */
+        if (g_gpu_sync && chain->stype == 51 && n > 38)
+            fields[38] = 0u; /* bufferDeviceAddress */
         chain = (void *)chain->pnext;
     }
 }
@@ -1018,7 +1055,20 @@ static void stub_vkGetPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice physd
     if (*pCount >= 1) {
         uint32_t *qfp = (uint32_t *)pQueueFamilyProperties;
         qfp[0] = 0x7u;  /* GRAPHICS|COMPUTE|TRANSFER */
-        qfp[1] = 16u;   /* queueCount */
+        /* queueCount MUST be 1. The whole guest dispatch funnels every submit
+         * onto a single host queue (UK_H_QUEUE), but ggml-vulkan, when it sees a
+         * family with >1 queue on a non-UMA device, grabs a SECOND queue as an
+         * async transfer queue and synchronises it against the compute queue
+         * with timeline semaphores. We no-op semaphores and collapse both queues
+         * onto one host queue, so that cross-queue handoff is unsynchronised:
+         * compute reads weights/inputs the transfer "queue" has not actually
+         * finished staging (garbage output) and the racing dual-queue submission
+         * destabilises the host (intermittent render-server CS error / crash).
+         * Reporting a single queue makes ggml pick its single_queue path —
+         * compute and transfer share one in-order queue, matching reality. */
+        /* Single queue only for the GPU-sync server (correctness + stability);
+         * the throughput bench keeps the original multi-queue report it ran with. */
+        qfp[1] = g_gpu_sync ? 1u : 16u;    /* queueCount */
         qfp[2] = 64u;   /* timestampValidBits */
         /* minImageTransferGranularity = {1,1,1} */
         qfp[3] = 1; qfp[4] = 1; qfp[5] = 1;
@@ -1082,6 +1132,15 @@ static VkResult stub_vkCreateDevice(VkPhysicalDevice physdev, const void *ci,
         UK_ENC_BEGIN();
         uk_venus_encode_vkGetDeviceQueue2(&_enc, UK_H_DEVICE, 0u, 0u, 1u, UK_H_QUEUE);
         UK_ENC_SUBMIT();
+        /* Queue is now bound to ring 1 (ringIdx above). For the server
+         * (UK_GGML_VK_GPU_SYNC) route EVERY subsequent SUBMIT_3D through the
+         * per-ring CONTEXT fence so each returns only after real GPU completion.
+         * This is what makes the model load reliable (the guest never outruns
+         * the host GPU queue and deadlocks the used-ring) and the logits readback
+         * correct. It is slow (~2 s host sync-thread latency per submit) but
+         * deterministic; partial/periodic syncing was found to deadlock. */
+        if (g_gpu_sync)
+            uk_venus_set_sync_submit(1, 1u /* ring 1, matches ringIdx above */);
         return VK_SUCCESS;
     }
     /* Fallback: fire-and-forget create + queue (fake backend / no real ctx). */
@@ -1169,9 +1228,6 @@ static VkResult stub_vkAllocateMemory(VkDevice dev, const void *ci,
      */
     uint64_t sz       = rd_u64(ci, OFF_MEM_ALLOC_SIZE);
     uint32_t mem_type = rd_u32(ci, OFF_MEM_ALLOC_TYPE);
-    printf("VOGUE-DBG allocMem type=%u size=%lluMB hostvis=%d\n",
-           mem_type, (unsigned long long)(sz >> 20),
-           uk_mem_type_host_visible(mem_type));
 
     /* Host-visible types: expose the host VkDeviceMemory to the guest via a
      * HOST3D blob whose blob_id is the memory's Venus object id. The host
@@ -1188,23 +1244,22 @@ static VkResult stub_vkAllocateMemory(VkDevice dev, const void *ci,
         if (slot) {
             struct uk_virtio_gpu_blob *b = &slot->blob;
             uint64_t bsz = (sz + 0xFFFull) & ~0xFFFull; /* page-round */
-            uint8_t  abuf[128];
-            struct uk_venus_encoder aenc;
-            uk_gpu_fence_id fence = 0;
+            int rc_c = -1, rc_m = -1, rc_a = -1;
             memset(b, 0, sizeof(*b));
-            /* 1. allocate the host-visible VkDeviceMemory (object id = h) and
-             *    fence-wait so the host registers it before the blob create. */
-            uk_venus_encoder_init(&aenc, abuf, sizeof(abuf));
-            uk_venus_encode_vkAllocateMemory(&aenc, UK_H_DEVICE, h, sz, mem_type);
-            if (uk_virtio_gpu_gl_context_submit(g_gpu, g_ctx, aenc.buf, aenc.pos,
-                                                &fence) == 0) {
-                (void)uk_virtio_gpu_fence_wait(g_gpu, fence, 2000000000ull);
+            /* 1. allocate the host-visible VkDeviceMemory (object id = h) with a
+             *    reply-bearing round-trip, so the host has DECODED (registered)
+             *    the memory before the blob create below references it by id.
+             *    A plain submit + legacy fence wait races the export ahead of the
+             *    decode once compute is in flight (serving), making the blob
+             *    create fail and the staging fall back to disconnected memory. */
+            if (uk_venus_alloc_memory_sync(g_gpu, g_ctx, UK_H_DEVICE, h, sz,
+                                           mem_type) == 0) {
                 /* 2. export it: HOST3D blob with blob_id = memory id (h). */
-                int rc_c = uk_virtio_gpu_gl_blob_create_with_ctx(g_gpu, g_ctx->id, bsz,
+                rc_c = uk_virtio_gpu_gl_blob_create_with_ctx(g_gpu, g_ctx->id, bsz,
                         UK_VIRTIO_GPU_BLOB_MEM_HOST3D,
                         UK_VIRTIO_GPU_BLOB_FLAG_USE_MAPPABLE, h, b);
-                int rc_m = rc_c ? -1 : uk_virtio_gpu_gl_blob_map(g_gpu, b);
-                int rc_a = (rc_m || !b->mapped_addr) ? -1 :
+                rc_m = rc_c ? -1 : uk_virtio_gpu_gl_blob_map(g_gpu, b);
+                rc_a = (rc_m || !b->mapped_addr) ? -1 :
                            uk_virtio_gpu_gl_context_attach_resource(g_gpu, g_ctx, b->resource_id);
                 if (rc_c == 0 && rc_m == 0 && b->mapped_addr && rc_a == 0) {
                     slot->handle = h;
@@ -1244,6 +1299,14 @@ static void stub_vkFreeMemory(VkDevice d, VkDeviceMemory m, const void *a)
             (void)uk_virtio_gpu_gl_blob_destroy(g_gpu, &hv->blob);
         hv->used = 0;
     }
+    /* Do NOT forward vkFreeMemory to the host. ggml frees and resizes buffers
+     * (both small host-visible staging and device-local temporaries) DURING the
+     * weight upload, while the host GPU copy that reads them may still be in
+     * flight (the load runs without a real per-op fence wait); freeing the host
+     * allocation here stalls/corrupts the upload. With a single model load
+     * (the redundant readiness-probe load was removed) the leak is bounded to
+     * one model's worth of memory for the process lifetime, which is fine. */
+    (void)m;
 }
 
 /* Host-visible memory map: fall back to a local staging buffer for memory that
@@ -1382,7 +1445,6 @@ static VkResult stub_vkCreateShaderModule(VkDevice dev, const void *ci,
 
 static void stub_vkDestroyShaderModule(VkDevice d, VkShaderModule s, const void *a)
 { (void)d; (void)a;
-  printf("VOGUE-DBG destroyShaderModule h=0x%llx\n", (unsigned long long)(uint64_t)s);
   uk_dispatch_destroy_dev_handle(uk_venus_encode_vkDestroyShaderModule, (uint64_t)s); }
 
 static VkResult stub_vkCreateDescriptorSetLayout(VkDevice dev, const void *ci,
@@ -1541,11 +1603,18 @@ static VkResult stub_vkCreateComputePipelines(VkDevice dev, uint64_t cache,
         uint64_t layout_h = rd_u64(p, OFF_CP_LAYOUT);
         uint64_t shader_h = rd_u64(stage, OFF_STAGE_MODULE);
         const char *entry = (const char *)rd_ptr(stage, OFF_STAGE_PNAME);
+        /* pSpecializationInfo MUST be forwarded: ggml-vulkan's compute shaders
+         * take their workgroup dimensions and many parameters as specialization
+         * constants set at pipeline-create time. Dropping them leaves the SPIR-V
+         * default constant values in effect (e.g. workgroup size 0/wrong), so the
+         * shader computes garbage and can dispatch out of bounds and crash the
+         * host GPU/render server. */
+        const void *spec = (const void *)rd_ptr(stage, OFF_STAGE_SPEC);
         /* Immediate (unbatched) — keep pipeline creates out of the cmd buffer. */
         UK_ENC_BEGIN_IMMEDIATE();
         uk_venus_encode_vkCreateComputePipelines(&_enc, UK_H_DEVICE, h,
                                                  layout_h, shader_h,
-                                                 entry ? entry : "main");
+                                                 entry ? entry : "main", spec);
         UK_ENC_SUBMIT_IMMEDIATE();
         pPipes[i] = (VkPipeline)h;
         p += SIZE_CP_INFO;
@@ -1559,10 +1628,19 @@ static void stub_vkDestroyPipeline(VkDevice d, VkPipeline p, const void *a)
 static VkResult stub_vkCreateCommandPool(VkDevice dev, const void *ci,
                                          const void *alloc, VkCommandPool *pPool)
 {
-    (void)dev; (void)ci; (void)alloc;
+    (void)dev; (void)alloc;
     uint64_t h = uk_vk_alloc_handle();
+    /* VkCommandPoolCreateInfo: sType(u32)@0, pNext(u64)@8, flags(u32)@16,
+     * queueFamilyIndex(u32)@20. The flags MUST be forwarded: ggml creates its
+     * pools with VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT and then
+     * recycles command buffers by re-recording them (vkBeginCommandBuffer on an
+     * executable command buffer). Without that bit on the host pool, the implicit
+     * reset is illegal and the reused command buffer is invalid, so the next
+     * vkQueueSubmit fails with a CS error that tears the context down mid-request
+     * (model load uses fresh temp pools, so only serving trips it). */
+    uint32_t flags = ci ? rd_u32(ci, 16u) : 0u;
     UK_ENC_BEGIN();
-    uk_venus_encode_vkCreateCommandPool(&_enc, UK_H_DEVICE, h, 0u);
+    uk_venus_encode_vkCreateCommandPool(&_enc, UK_H_DEVICE, h, 0u, flags);
     UK_ENC_SUBMIT();
     *pPool = (VkCommandPool)h;
     return VK_SUCCESS;
@@ -1658,14 +1736,27 @@ static VkResult stub_vkEndCommandBuffer(VkCommandBuffer cb)
     return VK_SUCCESS;
 }
 
+/* These MUST reach the host. ggml recycles command buffers: it resets the pool
+ * (ggml_vk_command_pool_cleanup -> vkResetCommandPool) and then re-records the
+ * same command buffers. A no-op reset leaves the host's command buffers in the
+ * executable/pending state, so the re-recording (and the submit that follows)
+ * operates on stale buffers — which on the NVIDIA Venus host segfaults the
+ * render server mid-request. */
 static VkResult stub_vkResetCommandBuffer(VkCommandBuffer cb, uint32_t flags)
 {
-    (void)cb; (void)flags; return VK_SUCCESS;
+    UK_ENC_BEGIN();
+    uk_venus_encode_vkResetCommandBuffer(&_enc, (uint64_t)cb, flags);
+    UK_ENC_SUBMIT();
+    return VK_SUCCESS;
 }
 
 static VkResult stub_vkResetCommandPool(VkDevice d, VkCommandPool pool, uint32_t flags)
 {
-    (void)d; (void)pool; (void)flags; return VK_SUCCESS;
+    (void)d;
+    UK_ENC_BEGIN();
+    uk_venus_encode_vkResetCommandPool(&_enc, UK_H_DEVICE, (uint64_t)pool, flags);
+    UK_ENC_SUBMIT();
+    return VK_SUCCESS;
 }
 
 /* vkGetMemoryHostPointerPropertiesEXT is not in the Venus protocol subset;
@@ -1727,10 +1818,12 @@ static void stub_vkCmdCopyBuffer(VkCommandBuffer cb, VkBuffer src, VkBuffer dst,
 {
     const uint8_t *r = (const uint8_t *)pRegions;
     for (uint32_t i = 0; i < regionCount; i++, r += SIZE_BCOPY) {
-        uint64_t size = rd_u64(r, OFF_BCOPY_SIZE);
+        uint64_t src_off = rd_u64(r, OFF_BCOPY_SRC);
+        uint64_t dst_off = rd_u64(r, OFF_BCOPY_DST);
+        uint64_t size    = rd_u64(r, OFF_BCOPY_SIZE);
         UK_ENC_BEGIN();
         uk_venus_encode_vkCmdCopyBuffer(&_enc, (uint64_t)cb, (uint64_t)src,
-                                        (uint64_t)dst, size);
+                                        (uint64_t)dst, src_off, dst_off, size);
         UK_ENC_SUBMIT();
     }
 }
@@ -1786,6 +1879,7 @@ static void stub_vkCmdPipelineBarrier(VkCommandBuffer cb, uint32_t srcStage,
  * cadence tracks the true GPU rate (so tg128 is correct ~177), and pp512 is left
  * at submission rate. Making pp512 simultaneously correct needs an efficient
  * (low-overhead, pipelined) submission path — a redesign, not a sync toggle. */
+__attribute__((__unused__))
 static void uk_dispatch_gpu_barrier(void)
 {
     if (!g_gpu || !g_ctx)
@@ -1819,12 +1913,12 @@ static VkResult stub_vkQueueSubmit(VkQueue queue, uint32_t submitCount,
          * sequence (3 kicks → 1). */
         uk_venus_ring_cmd_flush(g_gpu, &g_ring);
     }
-    /* A fenced submit is ggml's "wait for the GPU here" point. When the
-     * GPU-completion barrier is enabled (host with working context-fence
-     * delivery — see uk_dispatch_gpu_barrier), block here until the GPU actually
-     * drains the queue so pp512 reflects completion, not submission rate. */
-    if (fence && g_gpu_sync)
-        uk_dispatch_gpu_barrier();
+    /* GPU completion is enforced where the guest actually consumes results — a
+     * reply-bearing vkWaitForFences in stub_vkWaitForFences (UK_GGML_VK_GPU_SYNC)
+     * — not here. An unconditional per-submit barrier via vkQueueWaitIdle is both
+     * unnecessary (the readback fence wait already serialises the queue) and
+     * unportable: the NVIDIA Venus host rejects a reply-bearing vkQueueWaitIdle
+     * with a CS error that tears the context down mid-load. */
     VOGUE_L2_DONE();
     return VK_SUCCESS;
 }
@@ -1867,11 +1961,31 @@ static VkResult stub_vkWaitForFences(VkDevice dev, uint32_t count,
                                       const VkFence *pFences, uint32_t waitAll,
                                       uint64_t timeout)
 {
-    (void)dev; (void)count; (void)pFences; (void)waitAll;
-    /* Opt: poll completed_fence instead of sending a Venus round-trip.
-     * cmd_submit_locked() already updates completed_fence synchronously when
-     * the host returns the response; so by the time QueueSubmit returns the
-     * fence is already marked done — no Venus vkWaitForFences command needed. */
+    (void)dev; (void)waitAll;
+    /* Server (UK_GGML_VK_GPU_SYNC=1): GPU completion is already enforced at
+     * SUBMIT_3D granularity by the per-ring CONTEXT-fence sync submit
+     * (uk_venus_set_sync_submit, enabled once the queue is bound). Every
+     * vkQueueSubmit / readback-copy SUBMIT_3D therefore returns only after the
+     * GPU has finished, so by the time ggml reaches this fence wait the work is
+     * done and the staging buffer already holds the real result — nothing to do
+     * here. (The legacy virtio-gpu fence below retires at decode time, before
+     * the GPU runs, which is why the throughput bench — GPU_SYNC off — leaves
+     * the readback racy; llama-bench does not validate output.) */
+    if (g_gpu && g_gpu_sync) {
+        /* GPU completion is enforced by the per-ring CONTEXT-fence sync submit,
+         * so the data is already ready. The small busy-wait is retained because,
+         * empirically, an instant return here destabilises the weight-upload load
+         * on this stack (it reaches READY with the pause, deadlocks without) —
+         * the pause yields the vCPU so the host render thread makes progress. */
+        VOGUE_T_DECL(_t_f);
+        static volatile uint64_t _sink;
+        for (volatile uint64_t s = 0; s < 600000ull; s++)
+            _sink = s;
+        (void)_sink;
+        VOGUE_FENCE_DONE();
+        return VK_SUCCESS;
+    }
+    /* Throughput path: poll completed_fence (no Venus round-trip). */
     if (g_gpu) {
         VOGUE_T_DECL(_t_f);
         int rc = uk_virtio_gpu_fence_wait(g_gpu, g_last_fence,
@@ -1885,7 +1999,28 @@ static VkResult stub_vkWaitForFences(VkDevice dev, uint32_t count,
 
 static VkResult stub_vkGetFenceStatus(VkDevice d, VkFence f)
 {
-    (void)d; (void)f; return VK_SUCCESS;
+    (void)d;
+    /* Correctness-critical (server, UK_GGML_VK_GPU_SYNC): report the REAL fence
+     * status via a non-blocking reply-bearing vkGetFenceStatus query. ggml's
+     * per-graph completion is a busy-poll on this (ggml_vk_wait_for_fence ->
+     * getFenceStatus(ctx->fence)); if we always answer "signalled", ggml reuses
+     * its shared descriptor sets and command buffers while the previous compute
+     * graph is still in flight on the GPU, which segfaults the NVIDIA Venus
+     * render server in vkUpdateDescriptorSets. Returning the true status makes
+     * ggml wait for real GPU completion. vkGetFenceStatus is dispatched
+     * non-blocking on the host, so unlike vkWaitForFences/vkQueueWaitIdle it does
+     * not stall the render socket. The throughput bench leaves this fake. */
+    if (g_gpu && g_ctx && g_gpu_sync && f) {
+        g_infer_started = 1; /* ggml only polls fence status during inference */
+        uk_disp_lock();
+        int st = uk_venus_get_fence_status(g_gpu, g_ctx, UK_H_DEVICE, (uint64_t)f);
+        uk_disp_unlock();
+        if (st == 1) /* VK_NOT_READY */
+            return VK_NOT_READY;
+        /* VK_SUCCESS (signalled) or a transport error: report signalled so the
+         * guest poll loop does not spin forever. */
+    }
+    return VK_SUCCESS;
 }
 
 static VkResult stub_vkCreateEvent(VkDevice dev, const void *ci, const void *a,

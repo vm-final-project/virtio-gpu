@@ -51,6 +51,7 @@
 /* Synchronization */
 #define VN_CMD_vkCreateFence                     35u
 #define VN_CMD_vkDestroyFence                    36u
+#define VN_CMD_vkGetFenceStatus                  38u
 #define VN_CMD_vkResetFences                     37u
 #define VN_CMD_vkWaitForFences                   39u
 /* Buffers */
@@ -299,6 +300,32 @@ int uk_venus_wait_queue_idle(struct uk_virtio_gpu_dev *dev,
 			     struct uk_virtio_gpu_context *ctx,
 			     uint64_t queue_handle);
 
+/* Block until the host signals the given fence(s) via a reply-bearing
+ * vkWaitForFences round-trip (executed in-stream on the host; returns precisely
+ * when the GPU has completed the submitted work). This is the host-agnostic
+ * GPU-completion signal — unlike vkQueueWaitIdle, plain vkWaitForFences is
+ * accepted by every Venus host driver (incl. NVIDIA). Returns 0 on success. */
+int uk_venus_wait_fences(struct uk_virtio_gpu_dev *dev,
+			 struct uk_virtio_gpu_context *ctx,
+			 uint64_t device_handle,
+			 const uint64_t *fences, uint32_t n_fences,
+			 uint64_t timeout_ns);
+
+/* One reply-bearing vkGetFenceStatus query (non-blocking on the host): returns
+ * VK_SUCCESS (0) if signalled, VK_NOT_READY (1) if not, <0 on error. Poll this
+ * for GPU completion instead of the host-blocking vkWaitForFences. */
+int uk_venus_get_fence_status(struct uk_virtio_gpu_dev *dev,
+			      struct uk_virtio_gpu_context *ctx,
+			      uint64_t device_handle, uint64_t fence);
+
+/* Allocate a Venus VkDeviceMemory and block (reply-bearing round-trip) until the
+ * host has decoded the allocation, so a following RESOURCE_CREATE_BLOB that
+ * references the memory id finds it registered. Returns 0 on success. */
+int uk_venus_alloc_memory_sync(struct uk_virtio_gpu_dev *dev,
+			       struct uk_virtio_gpu_context *ctx,
+			       uint64_t device_handle, uint64_t mem_handle,
+			       uint64_t size, uint32_t mem_type_index);
+
 /* Real Venus round-trip for a buffer's VkMemoryRequirements (size/alignment/
  * memoryTypeBits) from the host. Returns 0 and fills outputs on success. */
 int uk_venus_query_buffer_requirements(struct uk_virtio_gpu_dev *dev,
@@ -366,6 +393,11 @@ int uk_venus_context_create(struct uk_virtio_gpu_dev *dev, uint32_t *ctx_id);
 int uk_venus_submit(struct uk_virtio_gpu_dev *dev,
 		    const struct uk_virtio_gpu_context *ctx,
 		    const struct uk_venus_encoder *enc);
+
+/* Route uk_venus_submit through the per-ring CONTEXT-fence (real GPU completion)
+ * SUBMIT_3D path. ring_idx must match a queue bound via vkGetDeviceQueue2 +
+ * VkDeviceQueueTimelineInfoMESA. Enable only with single-chunk command buffers. */
+void uk_venus_set_sync_submit(int enable, uint8_t ring_idx);
 
 /*
  * uk_venus_ring_bind_current — bind the device+context that the generated
@@ -495,7 +527,8 @@ void uk_venus_encode_vkCreateComputePipelines(struct uk_venus_encoder *enc,
 					      uint64_t pipeline_handle,
 					      uint64_t pipeline_layout,
 					      uint64_t shader_module,
-					      const char *entry_point);
+					      const char *entry_point,
+					      const void *spec_info);
 void uk_venus_encode_vkDestroyPipeline(struct uk_venus_encoder *enc,
 				       uint64_t device, uint64_t pipeline);
 
@@ -540,7 +573,13 @@ void uk_venus_encode_vkUpdateDescriptorSets_storage(struct uk_venus_encoder *enc
 void uk_venus_encode_vkCreateCommandPool(struct uk_venus_encoder *enc,
 					 uint64_t device,
 					 uint64_t pool_handle,
-					 uint32_t queue_family_index);
+					 uint32_t queue_family_index,
+					 uint32_t flags);
+void uk_venus_encode_vkResetCommandPool(struct uk_venus_encoder *enc,
+					uint64_t device, uint64_t pool,
+					uint32_t flags);
+void uk_venus_encode_vkResetCommandBuffer(struct uk_venus_encoder *enc,
+					  uint64_t cmd_buf, uint32_t flags);
 void uk_venus_encode_vkDestroyCommandPool(struct uk_venus_encoder *enc,
 					  uint64_t device, uint64_t pool);
 void uk_venus_encode_vkAllocateCommandBuffers(struct uk_venus_encoder *enc,
@@ -581,6 +620,7 @@ void uk_venus_encode_vkCmdDispatch(struct uk_venus_encoder *enc,
 void uk_venus_encode_vkCmdCopyBuffer(struct uk_venus_encoder *enc,
 				     uint64_t cmd_buf,
 				     uint64_t src_buf, uint64_t dst_buf,
+				     uint64_t src_offset, uint64_t dst_offset,
 				     uint64_t size);
 void uk_venus_encode_vkCmdFillBuffer(struct uk_venus_encoder *enc,
 				     uint64_t cmd_buf, uint64_t buffer,
@@ -603,6 +643,8 @@ void uk_venus_encode_vkWaitForFences(struct uk_venus_encoder *enc,
 				     uint32_t n_fences,
 				     const uint64_t *fences,
 				     uint64_t timeout_ns);
+void uk_venus_encode_vkGetFenceStatus(struct uk_venus_encoder *enc,
+				      uint64_t device, uint64_t fence);
 
 /* Queue submit with command buffers */
 void uk_venus_encode_vkQueueSubmit(struct uk_venus_encoder *enc,

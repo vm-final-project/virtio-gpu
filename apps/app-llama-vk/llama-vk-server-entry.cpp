@@ -43,18 +43,39 @@ static int llama_server_main(void)
     setenv("GGML_VK_DISABLE_HOST_VISIBLE_VIDMEM", "1", 1);
     setenv("UK_GGML_VK_DISPATCH_BATCH", "1", 1);
 
-    /* Prove model-loaded readiness over the REAL virtio-gpu-gl Venus path
-     * before signalling READY: load_model_vk() mounts the GGUF over 9pfs,
-     * initialises the Venus dispatch chain (libvulkan -> libukvulkan_venus
-     * SUBMIT_3D), and loads all layers with n_gpu_layers=99 onto the host GPU.
-     * This makes the READY line below an honest model-loaded-readiness signal,
-     * not just a dispatch-init marker. */
+    /* Keep each command buffer's Venus stream in ONE SUBMIT_3D. The default
+     * batch flush (~64 KB) splits a large graph — the first prompt-processing
+     * forward pass — across several SUBMIT_3Ds, and on the NVIDIA Venus host the
+     * resulting split command buffer fails the following vkQueueSubmit with a CS
+     * error that tears the context down mid-request. Raising the flush ceiling
+     * keeps the whole graph in one command-stream unit. (Bench-only images keep
+     * the 64 KB default.) */
+    setenv("UK_GGML_VK_BATCH_KB", "1024", 1);
+
+    /* Correctness-critical for the server (NOT set by the throughput bench):
+     * make vkWaitForFences a real reply-bearing Venus round-trip so the guest
+     * blocks until the host GPU has actually signalled the fence before reading
+     * results back. Without it the legacy virtio-gpu fence retires at SUBMIT_3D
+     * decode time (submission, not completion), so ggml's logits readback
+     * (vkQueueSubmit(copy,fence) -> vkWaitForFences -> memcpy(out,staging))
+     * copies stale/zero bytes and the model emits empty/garbage text — which
+     * llama-bench never catches because it does not validate output. The bench
+     * image leaves this off and keeps its submission-rate throughput. */
+    setenv("UK_GGML_VK_GPU_SYNC", "1", 1);
+
+
+    /* Readiness-probe load over the REAL virtio-gpu-gl Venus path. Besides
+     * proving the Venus model load works before READY, this warms up shared
+     * ggml-vulkan singleton state (device, memory types, pipeline cache) that
+     * the upstream server's own load below needs — without it the server's
+     * llama_model_load_from_file fails outright (verified). */
     llama_model *probe = load_model_vk("/mnt/model/model.gguf",
                                        "uk-llama-upstream-vk-server");
     if (!probe) {
         uk_puts("uk-llama-upstream-vk-server: FAIL model_load (Venus)\n");
         return 1;
     }
+    llama_model_free(probe);
 
     struct uk_vulkan_info info;
     uk_vulkan_get_info(&info);
@@ -70,11 +91,6 @@ static int llama_server_main(void)
               info.batch_enabled,
               info.ring_enabled,
               info.hostmem_fixed);
-
-    /* Release the readiness-probe model; the upstream server below reloads it
-     * through its own model manager. (Frees the ~GPU buffers so the reload
-     * does not double-reserve V100 memory.) */
-    llama_model_free(probe);
 
     static char arg0[]       = "llama-server";
     static char model_f[]    = "-m";
@@ -114,17 +130,24 @@ static int llama_server_main(void)
      * complete on a software host Vulkan driver over Venus (deadlocks load).
      * Must match the readiness-probe load (load_model_common sets no_host). */
     static char nohost[]     = "--no-host";
+    /* Disable llama.cpp's automatic "fit params to device memory" pass. With
+     * n_gpu_layers=99 + --no-host the placement is already fully specified, and
+     * the auto-fit pass runs an extra device-memory measurement/graph-reserve
+     * over Venus that stalls the load on the A30 (the upstream log itself
+     * suggests "-fit off" when this step misbehaves). */
+    static char fit_f[]      = "-fit";
+    static char fit[]        = "off";
 #if CONFIG_APP_LLAMA_VK_PROMPT_CACHE
     static char cache[]      = "--cache-prompt";
     char *argv[] = {arg0, model_f, model, host_f, host, port_f, port,
                     ctx_f, ctx, batch_f, batch, ubatch_f, ubatch,
                     parallel_f, parallel, threads_f, threads,
-                    ngl_f, ngl, nommap, fa_f, fa, nohost, cache};
+                    ngl_f, ngl, nommap, fa_f, fa, nohost, fit_f, fit, cache};
 #else
     char *argv[] = {arg0, model_f, model, host_f, host, port_f, port,
                     ctx_f, ctx, batch_f, batch, ubatch_f, ubatch,
                     parallel_f, parallel, threads_f, threads,
-                    ngl_f, ngl, nommap, fa_f, fa, nohost};
+                    ngl_f, ngl, nommap, fa_f, fa, nohost, fit_f, fit};
 #endif
 
     int rc = llama_server((int)(sizeof(argv) / sizeof(argv[0])), argv);

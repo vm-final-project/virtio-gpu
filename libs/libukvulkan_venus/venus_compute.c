@@ -171,7 +171,8 @@ void uk_venus_encode_vkCreateComputePipelines(struct uk_venus_encoder *enc,
 					      uint64_t pipeline_handle,
 					      uint64_t pipeline_layout,
 					      uint64_t shader_module,
-					      const char *entry_point)
+					      const char *entry_point,
+					      const void *spec_info)
 {
 	ENC(enc);
 	VkComputePipelineCreateInfo ci = {
@@ -181,7 +182,8 @@ void uk_venus_encode_vkCreateComputePipelines(struct uk_venus_encoder *enc,
 			.stage = VK_SHADER_STAGE_COMPUTE_BIT,
 			.module = H(VkShaderModule, shader_module),
 			.pName = entry_point ? entry_point : "main",
-			.pSpecializationInfo = NULL,
+			.pSpecializationInfo =
+				(const VkSpecializationInfo *)spec_info,
 		},
 		.layout = H(VkPipelineLayout, pipeline_layout),
 		.basePipelineHandle = VK_NULL_HANDLE,
@@ -339,11 +341,13 @@ void uk_venus_encode_vkUpdateDescriptorSets_storage(struct uk_venus_encoder *enc
 void uk_venus_encode_vkCreateCommandPool(struct uk_venus_encoder *enc,
 					 uint64_t device,
 					 uint64_t pool_handle,
-					 uint32_t queue_family_index)
+					 uint32_t queue_family_index,
+					 uint32_t flags)
 {
 	ENC(enc);
 	VkCommandPoolCreateInfo ci = {
 		.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+		.flags = flags,
 		.queueFamilyIndex = queue_family_index,
 	};
 	VkCommandPool out = H(VkCommandPool, pool_handle);
@@ -356,6 +360,23 @@ void uk_venus_encode_vkDestroyCommandPool(struct uk_venus_encoder *enc,
 	ENC(enc);
 	vn_encode_vkDestroyCommandPool(&_vn, 0, H(VkDevice, device),
 				       H(VkCommandPool, pool), NULL);
+}
+
+void uk_venus_encode_vkResetCommandPool(struct uk_venus_encoder *enc,
+					uint64_t device, uint64_t pool,
+					uint32_t flags)
+{
+	ENC(enc);
+	vn_encode_vkResetCommandPool(&_vn, 0, H(VkDevice, device),
+				     H(VkCommandPool, pool), flags);
+}
+
+void uk_venus_encode_vkResetCommandBuffer(struct uk_venus_encoder *enc,
+					  uint64_t cmd_buf, uint32_t flags)
+{
+	ENC(enc);
+	vn_encode_vkResetCommandBuffer(&_vn, 0, H(VkCommandBuffer, cmd_buf),
+				       flags);
 }
 
 void uk_venus_encode_vkAllocateCommandBuffers(struct uk_venus_encoder *enc,
@@ -470,10 +491,12 @@ void uk_venus_encode_vkCmdDispatch(struct uk_venus_encoder *enc,
 void uk_venus_encode_vkCmdCopyBuffer(struct uk_venus_encoder *enc,
 				     uint64_t cmd_buf,
 				     uint64_t src_buf, uint64_t dst_buf,
+				     uint64_t src_offset, uint64_t dst_offset,
 				     uint64_t size)
 {
 	ENC(enc);
-	VkBufferCopy rg = { .srcOffset = 0, .dstOffset = 0, .size = size };
+	VkBufferCopy rg = { .srcOffset = src_offset, .dstOffset = dst_offset,
+			    .size = size };
 	vn_encode_vkCmdCopyBuffer(&_vn, 0, H(VkCommandBuffer, cmd_buf),
 				  H(VkBuffer, src_buf), H(VkBuffer, dst_buf), 1, &rg);
 }
@@ -494,9 +517,22 @@ void uk_venus_encode_vkCmdPipelineBarrier(struct uk_venus_encoder *enc,
 					  uint32_t dst_stage)
 {
 	ENC(enc);
+	/* Emit a global VkMemoryBarrier, not just an execution dependency. ggml
+	 * inserts a barrier between dependent compute dispatches; on a real GPU the
+	 * memory access masks are what make the previous shader's writes visible to
+	 * the next (cache flush/invalidate). Encoding zero memory barriers gives only
+	 * execution ordering, so on the A30 each stage reads stale data and the model
+	 * computes garbage (harmless on coherent software rasterisers). MEMORY_READ|
+	 * MEMORY_WRITE covers every access type, so this is conservatively correct for
+	 * every barrier ggml issues. */
+	VkMemoryBarrier mb = {
+		.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+		.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
+		.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
+	};
 	vn_encode_vkCmdPipelineBarrier(&_vn, 0, H(VkCommandBuffer, cmd_buf),
 				       src_stage, dst_stage, 0,
-				       0, NULL, 0, NULL, 0, NULL);
+				       1, &mb, 0, NULL, 0, NULL);
 }
 
 /* ── Fences ─────────────────────────────────────────────────────────────── */
@@ -543,6 +579,14 @@ void uk_venus_encode_vkWaitForFences(struct uk_venus_encoder *enc,
 		f[i] = H(VkFence, fences[i]);
 	vn_encode_vkWaitForFences(&_vn, 0, H(VkDevice, device), n_fences,
 				  n_fences ? f : NULL, VK_TRUE, timeout_ns);
+}
+
+void uk_venus_encode_vkGetFenceStatus(struct uk_venus_encoder *enc,
+				      uint64_t device, uint64_t fence)
+{
+	ENC(enc);
+	vn_encode_vkGetFenceStatus(&_vn, VK_COMMAND_GENERATE_REPLY_BIT_EXT,
+				   H(VkDevice, device), H(VkFence, fence));
 }
 
 /* ── Queue submit with command buffers ─────────────────────────────────── */

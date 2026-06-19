@@ -1109,10 +1109,6 @@ int uk_virtio_gpu_gl_blob_map(struct uk_virtio_gpu_dev *d,
 	req.resource_id = blob->resource_id;
 	req.padding = 0;
 	req.offset = r->host_visible_offset;
-	printf("VOGUE-DBG map_blob res=%u off=0x%llx size=0x%llx hv_addr=%p hv_size=0x%llx\n",
-	       blob->resource_id, (unsigned long long)r->host_visible_offset,
-	       (unsigned long long)blob->size, d->host_visible.addr,
-	       (unsigned long long)d->host_visible.size);
 	memset(&resp, 0, sizeof(resp));
 	rc = cmd_submit(d, &req, sizeof(req), &resp, sizeof(resp),
 			UKVGPU_RESP_OK_MAP_INFO, NULL);

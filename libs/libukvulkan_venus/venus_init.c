@@ -129,6 +129,31 @@ int uk_venus_context_create(struct uk_virtio_gpu_dev *dev, uint32_t *ctx_id_out)
 	return 0;
 }
 
+/* When set, every Venus SUBMIT_3D is tagged with a per-ring CONTEXT fence
+ * (ring_idx==g_sync_submit_ring) so the control-queue used-ring response — which
+ * uk_virtio_gpu_gl_context_submit_synced blocks on — is deferred by the
+ * virglrenderer host until the GPU has actually drained that ring's queue. This
+ * gives real GPU completion at SUBMIT_3D granularity, which simultaneously:
+ *   (a) paces the weight upload so the guest never outruns the host GPU queue
+ *       (the async legacy fence retires at decode and lets the guest overrun,
+ *       wedging the load), and
+ *   (b) serialises compute graphs so ggml never reuses a descriptor set / command
+ *       buffer still in flight (the NVIDIA vkUpdateDescriptorSets segfault), and
+ *   (c) makes the logits readback copy complete before ggml memcpys the staging.
+ * Enabled by the dispatch (UK_GGML_VK_GPU_SYNC) only AFTER the queue is bound via
+ * vkGetDeviceQueue2 + VkDeviceQueueTimelineInfoMESA{ringIdx} (the ring_idx fence
+ * is meaningless before that). Requires single-chunk command buffers
+ * (UK_GGML_VK_BATCH_KB large): a split command buffer leaves the ring fence
+ * permanently unsignalled and this call would hang. */
+static int g_sync_submit;
+static uint8_t g_sync_submit_ring;
+
+void uk_venus_set_sync_submit(int enable, uint8_t ring_idx)
+{
+	g_sync_submit_ring = ring_idx;
+	g_sync_submit = enable;
+}
+
 int uk_venus_submit(struct uk_virtio_gpu_dev *dev,
 		    const struct uk_virtio_gpu_context *ctx,
 		    const struct uk_venus_encoder *enc)
@@ -144,7 +169,12 @@ int uk_venus_submit(struct uk_virtio_gpu_dev *dev,
 #if VOGUE_PROF_ENABLED
 	uint64_t _t = (uint64_t)ukplat_monotonic_clock();
 #endif
-	int rc = uk_virtio_gpu_gl_context_submit(dev, ctx,
+	int rc;
+	if (g_sync_submit)
+		rc = uk_virtio_gpu_gl_context_submit_synced(dev, ctx,
+				enc->buf, enc->pos, g_sync_submit_ring, &fence);
+	else
+		rc = uk_virtio_gpu_gl_context_submit(dev, ctx,
 						 enc->buf, enc->pos, &fence);
 #if VOGUE_PROF_ENABLED
 	vogue_prof_add_flush((uint64_t)ukplat_monotonic_clock() - _t, enc->pos, rc);
@@ -1001,6 +1031,131 @@ int uk_venus_wait_queue_idle(struct uk_virtio_gpu_dev *dev,
 		return -ENOSPC;
 	/* Patch the command flags word (offset 4) to request a reply, so the host
 	 * writes back only AFTER vkQueueWaitIdle returns (GPU drained). */
+	if (q.pos >= 8)
+		*(uint32_t *)(q.buf + 4) = 0x1u; /* VK_COMMAND_GENERATE_REPLY_BIT_EXT */
+	n = uk_venus_query_roundtrip(dev, ctx, q.buf, q.pos, r, sizeof(r));
+	return n < 0 ? n : 0;
+}
+
+/*
+ * uk_venus_wait_fences — block until the host signals the given fence(s), via a
+ * reply-bearing vkWaitForFences round-trip. Unlike the legacy virtio-gpu fence
+ * (which the host retires when it DECODES the SUBMIT_3D carrying the queue
+ * submit, i.e. at submission time, long before the GPU finishes), this issues a
+ * real Venus vkWaitForFences with VK_COMMAND_GENERATE_REPLY_BIT_EXT: the host
+ * vkr executes vkWaitForFences IN-STREAM (blocking the context's command decode
+ * until the fence is signalled by GPU completion) and only then writes the
+ * reply into the host-visible reply blob, which uk_venus_query_roundtrip spins
+ * on. So this returns precisely when the GPU has finished the submitted work —
+ * the correct point at which a guest readback of GPU-produced data is valid.
+ * Unlike uk_venus_wait_queue_idle (a reply-bearing vkQueueWaitIdle, which some
+ * host drivers — e.g. the NVIDIA Venus path — reject with a CS error), a normal
+ * vkWaitForFences is a plain dispatchable command accepted everywhere.
+ * Returns 0 on a completed round-trip, <0 otherwise.
+ */
+int uk_venus_wait_fences(struct uk_virtio_gpu_dev *dev,
+			 struct uk_virtio_gpu_context *ctx,
+			 uint64_t device_handle,
+			 const uint64_t *fences, uint32_t n_fences,
+			 uint64_t timeout_ns)
+{
+	struct uk_venus_encoder q;
+	uint8_t qbuf[256];
+	uint8_t r[64];
+	int n;
+
+	if (!fences || !n_fences)
+		return -EINVAL;
+	if (uk_venus_encoder_init(&q, qbuf, sizeof(qbuf)))
+		return -EINVAL;
+	uk_venus_encode_vkWaitForFences(&q, device_handle, n_fences, fences,
+					timeout_ns);
+	if (q.overflow)
+		return -ENOSPC;
+	/* Patch the command flags word (offset 4) to request a reply, so the host
+	 * writes back only AFTER vkWaitForFences returns (fence signalled). */
+	if (q.pos >= 8)
+		*(uint32_t *)(q.buf + 4) = 0x1u; /* VK_COMMAND_GENERATE_REPLY_BIT_EXT */
+	n = uk_venus_query_roundtrip(dev, ctx, q.buf, q.pos, r, sizeof(r));
+	return n < 0 ? n : 0;
+}
+
+/*
+ * uk_venus_get_fence_status — one reply-bearing vkGetFenceStatus round-trip.
+ * Returns VK_SUCCESS (0) if the fence is signalled (GPU work complete),
+ * VK_NOT_READY (1) if not yet, or <0 on a transport error.
+ *
+ * This is the GPU-completion primitive to poll on this stack. vkGetFenceStatus
+ * is dispatched NON-BLOCKING on the host render server (it just forwards the
+ * query and returns), unlike vkWaitForFences / vkQueueWaitIdle, which BLOCK the
+ * host's command-decode thread in-stream — on the NVIDIA Venus host that block
+ * stalls the render-socket past its timeout and drops the connection (the render
+ * server appears to crash). Spinning on this query keeps the host responsive.
+ * Reply layout: [u32 command_type][VkResult ret].
+ */
+int uk_venus_get_fence_status(struct uk_virtio_gpu_dev *dev,
+			      struct uk_virtio_gpu_context *ctx,
+			      uint64_t device_handle, uint64_t fence)
+{
+	struct uk_venus_encoder q;
+	uint8_t qbuf[64];
+	uint8_t r[64];
+	uint32_t cmd_type;
+	int32_t ret;
+	int n;
+
+	if (uk_venus_encoder_init(&q, qbuf, sizeof(qbuf)))
+		return -EINVAL;
+	uk_venus_encode_vkGetFenceStatus(&q, device_handle, fence);
+	if (q.overflow)
+		return -ENOSPC;
+	n = uk_venus_query_roundtrip(dev, ctx, q.buf, q.pos, r, sizeof(r));
+	if (n < 8)
+		return -1;
+	memcpy(&cmd_type, r, 4);
+	if (cmd_type != (uint32_t)VN_CMD_vkGetFenceStatus)
+		return -1;
+	/* Reply layout: [u32 command_type][VkResult ret]. ret==VK_SUCCESS(0) means
+	 * the fence is signalled (GPU work complete); VK_NOT_READY(1) means not yet. */
+	memcpy(&ret, r + 4, 4);
+	return (int)ret;
+}
+
+/*
+ * uk_venus_alloc_memory_sync — allocate a Venus VkDeviceMemory and block until
+ * the host has actually DECODED the vkAllocateMemory, via a reply-bearing
+ * round-trip. This matters for the host-visible-export path: the guest creates
+ * the memory, then immediately exports it as a HOST3D blob (blob_id = memory
+ * id). RESOURCE_CREATE_BLOB looks the memory up by id, so the memory must be
+ * registered on the host first.
+ *
+ * The plain context-submit + legacy fence wait is NOT sufficient here: that
+ * fence retires when QEMU forwards the SUBMIT_3D to the render-server proxy, not
+ * when the proxy decodes the Venus stream. When the host is idle (model load)
+ * the decode happens promptly and the export succeeds; but once compute is in
+ * flight (serving a request) the decode lags behind, so the immediately-issued
+ * RESOURCE_CREATE_BLOB races ahead of the allocation and fails with "failed to
+ * look up object of type 8" / resp 0x1200 — the staging buffer then falls back
+ * to disconnected guest memory and the readback returns garbage. A reply-bearing
+ * vkAllocateMemory makes the proxy decode it (registering the object) before it
+ * writes the reply we spin on, closing the race. Returns 0 on success.
+ */
+int uk_venus_alloc_memory_sync(struct uk_virtio_gpu_dev *dev,
+			       struct uk_virtio_gpu_context *ctx,
+			       uint64_t device_handle, uint64_t mem_handle,
+			       uint64_t size, uint32_t mem_type_index)
+{
+	struct uk_venus_encoder q;
+	uint8_t qbuf[128];
+	uint8_t r[64];
+	int n;
+
+	if (uk_venus_encoder_init(&q, qbuf, sizeof(qbuf)))
+		return -EINVAL;
+	uk_venus_encode_vkAllocateMemory(&q, device_handle, mem_handle, size,
+					 mem_type_index);
+	if (q.overflow)
+		return -ENOSPC;
 	if (q.pos >= 8)
 		*(uint32_t *)(q.buf + 4) = 0x1u; /* VK_COMMAND_GENERATE_REPLY_BIT_EXT */
 	n = uk_venus_query_roundtrip(dev, ctx, q.buf, q.pos, r, sizeof(r));

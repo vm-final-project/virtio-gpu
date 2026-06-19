@@ -1,11 +1,11 @@
 {
   "status": "pass",
-  "generated_utc": "2026-06-18T14:43:13.854416Z",
-  "command": "/opt/qemu-11.0.1/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -smp 1 -m 8192 -no-reboot -kernel /home/rwei/vm-final/virtio-gpu/.unikraft/build/vogue-llama-vk-server_qemu-x86_64 -display egl-headless,gl=on -vga none -device virtio-gpu-gl-pci,hostmem=512M,blob=true,venus=true -append console=ttyS0 -serial mon:stdio -monitor none -netdev user,id=net0,hostfwd=tcp:127.0.0.1:43633-10.0.2.15:8080 -device virtio-net-pci,netdev=net0 -fsdev local,id=model,path=/tmp/vogue-model-5csom3lb,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model",
+  "generated_utc": "2026-06-18T20:01:47.290879Z",
+  "command": "/opt/qemu-11.0.1/bin/qemu-system-x86_64 -machine accel=kvm -cpu host -smp 1 -m 8192 -no-reboot -kernel /home/rwei/vm-final/virtio-gpu/.unikraft/build/vogue-llama-vk-server_qemu-x86_64 -display egl-headless,gl=on,rendernode=/dev/dri/renderD128 -vga none -device virtio-gpu-gl-pci,hostmem=2G,blob=true,venus=true -append console=ttyS0 -serial mon:stdio -monitor none -netdev user,id=net0,hostfwd=tcp:127.0.0.1:43271-10.0.2.15:8080 -device virtio-net-pci,netdev=net0 -fsdev local,id=model,path=/tmp/vogue-model-mrc560m8,security_model=none -device virtio-9p-pci,fsdev=model,mount_tag=model",
   "inputs": {
     "mode": "server",
     "arch": "x86_64",
-    "model": "/home/rwei/vm-final/virtio-gpu/models/google_gemma-3-1b-it-Q4_K_M.gguf",
+    "model": "models/google_gemma-3-1b-it-Q4_K_M.gguf",
     "image": "/home/rwei/vm-final/virtio-gpu/.unikraft/build/vogue-llama-vk-server_qemu-x86_64"
   },
   "metrics": {
@@ -13,17 +13,17 @@
     "health": {
       "status": "ok"
     },
-    "latency_s": 1.2602,
-    "boot_time_s": 11.861,
+    "latency_s": 0.064,
+    "boot_time_s": 10.036,
     "completion_status": 200,
     "query": "hi, what's your name",
-    "completion": "",
-    "requests_per_s": 0.653,
-    "tokens_per_s": 7.831,
+    "completion": "[multimodal]",
+    "requests_per_s": 0.11,
+    "tokens_per_s": 1.542,
     "ready": true,
-    "peak_rss_kb": 2888080,
+    "peak_rss_kb": 2882532,
     "image_bytes": 38726200,
-    "model_load_ms": 5255.44
+    "model_load_ms": 5065.78
   },
   "error": null
 }
