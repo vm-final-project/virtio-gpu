@@ -187,14 +187,22 @@ static inline void uk_disp_unlock(void) { uk_mutex_unlock(&g_disp_lock); }
 #define VOGUE_ENC_DONE()   vogue_prof_add_encode((uint64_t)ukplat_monotonic_clock() - _t_enc)
 #define VOGUE_L2_DONE()    vogue_prof_add_l2((uint64_t)ukplat_monotonic_clock() - _t_l2)
 #define VOGUE_FENCE_DONE() vogue_prof_add_fence((uint64_t)ukplat_monotonic_clock() - _t_f)
+/* Whole-stub span (declared before the lock, added after the unlock). Subtract
+ * vk-encode + host-flush from this to get the pure L2 dispatch glue (lock,
+ * encoder init/copy, batch-staging memcpy, unlock) for the encode path. */
+#define VOGUE_STUB_DECL()  uint64_t _t_stub = (uint64_t)ukplat_monotonic_clock()
+#define VOGUE_STUB_DONE()  vogue_prof_add_stub((uint64_t)ukplat_monotonic_clock() - _t_stub)
 #else
 #define VOGUE_T_DECL(v)    do {} while (0)
 #define VOGUE_ENC_DONE()   do {} while (0)
 #define VOGUE_L2_DONE()    do {} while (0)
 #define VOGUE_FENCE_DONE() do {} while (0)
+#define VOGUE_STUB_DECL()  do {} while (0)
+#define VOGUE_STUB_DONE()  do {} while (0)
 #endif
 
 #define UK_ENC_BEGIN() \
+    VOGUE_STUB_DECL(); \
     uk_disp_lock(); \
     VOGUE_T_DECL(_t_enc); \
     struct uk_venus_encoder _local_enc; \
@@ -227,6 +235,7 @@ static inline void uk_disp_unlock(void) { uk_mutex_unlock(&g_disp_lock); }
             uk_venus_submit(g_gpu, g_ctx, &_enc); \
         } \
         uk_disp_unlock(); \
+        VOGUE_STUB_DONE(); \
     } while (0)
 
 /* Max bytes in a single batched SUBMIT_3D command stream.
@@ -270,6 +279,7 @@ static void uk_dispatch_batch_accumulate(const struct uk_venus_encoder *enc)
  * them immediately is safe and keeps each recorded command buffer a single small
  * SUBMIT_3D. Uses g_enc_buf, which is exclusive under g_disp_lock. */
 #define UK_ENC_BEGIN_IMMEDIATE() \
+    VOGUE_STUB_DECL(); \
     uk_disp_lock(); \
     VOGUE_T_DECL(_t_enc); \
     struct uk_venus_encoder _enc; \
@@ -284,6 +294,7 @@ static void uk_dispatch_batch_accumulate(const struct uk_venus_encoder *enc)
                    "(immediate command dropped)\n", _enc.pos, UK_DISPATCH_BUF_SIZE); \
         uk_venus_submit(g_gpu, g_ctx, &_enc); \
         uk_disp_unlock(); \
+        VOGUE_STUB_DONE(); \
     } while (0)
 
 /*

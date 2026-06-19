@@ -68,3 +68,4 @@ vogue_prof_add_fence
 vogue_prof_add_l3
 vogue_prof_add_flush
 vogue_prof_add_encode
+vogue_prof_add_stub

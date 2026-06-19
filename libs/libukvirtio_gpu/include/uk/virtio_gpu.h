@@ -47,6 +47,7 @@ void vogue_prof_add_fence(uint64_t ns);                              /* fence-wa
 void vogue_prof_add_l3(uint64_t ns);                                 /* venus ring flush */
 void vogue_prof_add_flush(uint64_t ns, uint32_t bytes, int rc);     /* uk_venus_submit batch flush */
 void vogue_prof_add_encode(uint64_t ns);                            /* vk* command encoding */
+void vogue_prof_add_stub(uint64_t ns);                              /* whole L2 dispatch stub (lock..unlock) */
 
 #define UK_VIRTIO_GPU_F_VIRGL          (1ull << 0)
 #define UK_VIRTIO_GPU_F_EDID           (1ull << 1)

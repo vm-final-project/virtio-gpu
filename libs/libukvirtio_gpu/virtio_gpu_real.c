@@ -57,12 +57,25 @@ struct vogue_prof_phase {
 	uint64_t l3_ns,     l3_calls;       /* venus ring flush */
 	uint64_t flush_ns,  flush_calls, flush_bytes, flush_fail; /* uk_venus_submit batch flush */
 	uint64_t enc_ns,    enc_calls;      /* all vk command encoding (UK_ENC) */
+	uint64_t stub_ns,   stub_calls;     /* whole L2 dispatch stub (lock..unlock) */
+	uint64_t wall_ns;                   /* wall over this phase's measured reps */
 };
 static struct vogue_prof_phase g_prof[VOGUE_PROF_PHASE_N];
 static int g_prof_phase;  /* VOGUE_PROF_PHASE_PROMPT / _DECODE */
+/* Per-phase wall clock. Started at vogue_prof_reset_phase() (warmup already
+ * dropped, measured reps begin) and accumulated on every phase change and at
+ * report(). wall - (encode + flush + fence) = the L1 app (ggml/llama.cpp host)
+ * share that runs OUTSIDE the timed vk* regions. */
+static uint64_t g_wall_start;
+static int      g_wall_active;
 
 void vogue_prof_set_phase(int phase)
 {
+	/* Phase transition closes the leaving phase's measured-rep wall. */
+	if (g_wall_active && phase != g_prof_phase) {
+		g_prof[g_prof_phase].wall_ns += now_ns() - g_wall_start;
+		g_wall_active = 0;
+	}
 	if (phase >= 0 && phase < VOGUE_PROF_PHASE_N)
 		g_prof_phase = phase;
 }
@@ -71,6 +84,7 @@ void vogue_prof_reset(void)
 {
 	memset(g_prof, 0, sizeof(g_prof));
 	g_prof_phase = VOGUE_PROF_PHASE_PROMPT;
+	g_wall_active = 0;
 }
 
 /* Clear a single phase's counters without disturbing the other. Used to drop
@@ -80,6 +94,9 @@ void vogue_prof_reset_phase(int phase)
 {
 	if (phase >= 0 && phase < VOGUE_PROF_PHASE_N)
 		memset(&g_prof[phase], 0, sizeof(g_prof[phase]));
+	/* Measured reps for `phase` start now (warmup just dropped); arm the wall. */
+	g_wall_start  = now_ns();
+	g_wall_active = 1;
 }
 
 void vogue_prof_add_l2(uint64_t ns)
@@ -124,6 +141,12 @@ void vogue_prof_add_encode(uint64_t ns)
 	g_prof[g_prof_phase].enc_calls++;
 }
 
+void vogue_prof_add_stub(uint64_t ns)
+{
+	g_prof[g_prof_phase].stub_ns += ns;
+	g_prof[g_prof_phase].stub_calls++;
+}
+
 void vogue_prof_report(void)
 {
 	static const char *const ph[VOGUE_PROF_PHASE_N] = { "prompt", "decode" };
@@ -133,8 +156,15 @@ void vogue_prof_report(void)
 	 * stay silent rather than emit a wall of zero VOGUE-TIMING lines. */
 	if (!VOGUE_PROF_ENABLED)
 		return;
+	/* Close the still-open (last) phase's wall before reporting. */
+	if (g_wall_active) {
+		g_prof[g_prof_phase].wall_ns += now_ns() - g_wall_start;
+		g_wall_active = 0;
+	}
 	for (i = 0; i < VOGUE_PROF_PHASE_N; i++) {
 		struct vogue_prof_phase *p = &g_prof[i];
+		printf("VOGUE-TIMING wall[%s]: total_ns=%llu\n",
+		       ph[i], (unsigned long long)p->wall_ns);
 		printf("VOGUE-TIMING L2-submit[%s]: calls=%llu total_ns=%llu\n",
 		       ph[i], (unsigned long long)p->l2_calls,
 		       (unsigned long long)p->l2_ns);
@@ -157,6 +187,9 @@ void vogue_prof_report(void)
 		printf("VOGUE-TIMING vk-encode[%s]: calls=%llu total_ns=%llu\n",
 		       ph[i], (unsigned long long)p->enc_calls,
 		       (unsigned long long)p->enc_ns);
+		printf("VOGUE-TIMING L2-stub[%s]: calls=%llu total_ns=%llu\n",
+		       ph[i], (unsigned long long)p->stub_calls,
+		       (unsigned long long)p->stub_ns);
 	}
 }
 
