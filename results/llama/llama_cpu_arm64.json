@@ -9,7 +9,6 @@
     "image": "/Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu/.unikraft/build/vogue-llama-cpu_qemu-arm64"
   },
   "metrics": {
-    "pp512": 24.1,
     "tg128": 18.2
   },
   "error": null

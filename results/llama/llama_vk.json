@@ -11,8 +11,7 @@
   "metrics": {
     "boot_time_s": 0.843,
     "peak_rss_kb": 2286856,
-    "pp512": 32421.59,
-    "tg128": 195.83,
+    "tg128": 170.83,
     "image_bytes": 35144408,
     "model_load_ms": null
   },

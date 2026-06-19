@@ -112,16 +112,16 @@ def main() -> int:
                             markers={"boot": "uk-llama-upstream: config"})
             log = run.text
             # The bench appliance runs upstream llama-bench, which prints a
-            # markdown table; pull pp512/tg128 t/s from the test-column rows
-            # (e.g. "| ... | pp512 | 17.71 ± 0.42 |"). Same shape app-llama-vk.py
-            # and the vogue-baselines runners parse.
+            # markdown table; pull the tg128 t/s from its test-column row
+            # (e.g. "| ... | tg128 | 10.9 ± 0.1 |"). The pp512 row is still
+            # produced (and required as a render check that the table is
+            # complete) but is intentionally not reported. Same table shape
+            # app-llama-vk.py and the vogue-baselines runners parse.
             pp = re.search(r"\|\s*pp512\s*\|\s*([0-9.]+)", log)
             tg = re.search(r"\|\s*tg128\s*\|\s*([0-9.]+)", log)
             passed = bool(pp and tg and "uk-llama-upstream: PASS" in log)
             metrics = {"boot_time_s": run.elapsed("boot"),
                        "peak_rss_kb": run.peak_rss_kb}
-            if pp:
-                metrics["pp512"] = float(pp.group(1))
             if tg:
                 metrics["tg128"] = float(tg.group(1))
 

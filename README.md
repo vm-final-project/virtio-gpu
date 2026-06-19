@@ -19,8 +19,8 @@ gemma-3-1b Q4_K_M):
 
 | Appliance | Command | Result |
 |-----------|---------|--------|
-| CPU bench | `make llama-cpu-bench-run` | `pass` — pp512 31.2 / tg128 10.9 tok/s |
-| Vulkan bench | `make llama-vk-bench-run` | `pass` — pp512 4582.6 / tg128 353.8 tok/s |
+| CPU bench | `make llama-cpu-bench-run` | `pass` — tg128 10.9 tok/s |
+| Vulkan bench | `make llama-vk-bench-run` | `pass` — tg128 353.8 tok/s |
 | CPU server | `make llama-cpu-server-run` | `pass` — `/health` 200, `/v1/chat/completions` 200 |
 | Vulkan server | `make llama-vk-server-run` | `pass` — `/health` 200, `/v1/chat/completions` 200 |
 
@@ -393,13 +393,13 @@ Every runner writes one JSON file (`_arm64.json` suffix for arm64 runs) under
   "generated_utc": "...",
   "command": "...",
   "inputs": {},
-  "metrics": { "pp512": 0.0, "tg128": 0.0, "boot_time_s": 0.0,
+  "metrics": { "tg128": 0.0, "boot_time_s": 0.0,
                "peak_rss_kb": 0, "image_bytes": 0, "model_load_ms": 0.0 },
   "error": null
 }
 ```
 
-Bench metrics carry, alongside `pp512`/`tg128` throughput:
+Bench metrics carry, alongside `tg128` throughput:
 
 - `boot_time_s` — for **bench**, wall-clock seconds from QEMU launch to the
   appliance's `config` line on the serial console (`scripts/common.py:run_timed`),
