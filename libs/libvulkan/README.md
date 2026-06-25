@@ -17,9 +17,9 @@ in-tree by `app-llama-vk` (the `libukggml_vk` helper was retired).
 ```text
 application / llama.cpp -> upstream ggml-vulkan.cpp / Vulkan-Hpp
   -> libvulkan                  (this library: vk* ABI, dispatch, Hpp loader)
-       uk_vulkan_dispatch.c     exported vk* + static dispatch table (k_procs[])
-       vk_hpp_loader.cpp        VULKAN_HPP_DEFAULT_DISPATCHER storage/init
-       uk_stdcxx_compat.cpp     libstdc++ ABI compat shims
+       runtime/vk_entrypoints.c exported vk* + static dispatch table (k_procs[])
+       hpp/vk_hpp_loader.cpp    VULKAN_HPP_DEFAULT_DISPATCHER storage/init
+       compat/uk_stdcxx_compat.cpp libstdc++ ABI compat shims
   -> libukvulkan_venus          Venus Vulkan driver implementation
   -> libukvirtio_gpu            VirtIO-GPU SUBMIT_3D transport
   -> QEMU virtio-gpu-gl + virglrenderer Venus -> host Vulkan driver
@@ -74,6 +74,6 @@ until broader coverage and conformance gates exist.
 ## Verification
 
 ```sh
-make -C tests test-dispatch
+make vulkan-check
 make verify
 ```

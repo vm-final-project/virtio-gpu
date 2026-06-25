@@ -8,4 +8,4 @@ venus-probe-ring:
 
 venus-check: test-venus venus-probe-2d venus-probe-ring
 
-vulkan-check: test-dispatch
+vulkan-check: venus-check

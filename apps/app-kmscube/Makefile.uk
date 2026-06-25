@@ -1,6 +1,0 @@
-$(eval $(call addlib,appkmscube))
-
-APPKMSCUBE_SRCS-$(CONFIG_APP_KMSCUBE) += $(APPKMSCUBE_BASE)/main.c
-
-CINCLUDES-$(CONFIG_APP_KMSCUBE) += -I$(APPKMSCUBE_BASE)/../../libs/libukvulkan_venus/include
-CINCLUDES-$(CONFIG_APP_KMSCUBE) += -I$(APPKMSCUBE_BASE)

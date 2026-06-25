@@ -46,6 +46,17 @@ static inline double now_sec(void)
     return ts.tv_sec + ts.tv_nsec * 1e-9;
 }
 
+static inline int mount_model_fs(const char *tag)
+{
+    mkdir("/mnt", 0755);
+    mkdir("/mnt/model", 0755);
+    if (mount("model", "/mnt/model", "9pfs", 0, "") != 0) {
+        uk_printf("%s: FAIL 9pfs mount failed errno=%d\n", tag, errno);
+        return -1;
+    }
+    return 0;
+}
+
 /*
  * Mount /mnt/model over 9pfs, initialise the llama backend, and load the
  * GGUF at model_path. n_gpu_layers controls GPU offload: pass 0 for CPU-only,
@@ -57,12 +68,8 @@ static inline llama_model *load_model_common(const char *model_path,
                                               const char *tag,
                                               int n_gpu_layers)
 {
-    mkdir("/mnt", 0755);
-    mkdir("/mnt/model", 0755);
-    if (mount("model", "/mnt/model", "9pfs", 0, "") != 0) {
-        uk_printf("%s: FAIL 9pfs mount failed errno=%d\n", tag, errno);
+    if (mount_model_fs(tag) != 0)
         return nullptr;
-    }
 
     llama_backend_init();
     llama_numa_init(GGML_NUMA_STRATEGY_DISABLED);

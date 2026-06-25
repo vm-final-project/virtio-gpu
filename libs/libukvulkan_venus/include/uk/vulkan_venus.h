@@ -13,6 +13,7 @@
  */
 #pragma once
 #include <stdint.h>
+#include <uk/vn_renderer.h>
 #include <uk/virtio_gpu.h>
 
 #ifdef __cplusplus
@@ -53,6 +54,8 @@ struct uk_vulkan_venus_dev {
  * context. Returns 0 on success, negative on failure.
  */
 int  uk_vulkan_venus_open(struct uk_vulkan_venus_dev *dev, uint32_t gpu_idx);
+int  uk_vulkan_venus_open_strict(struct uk_vulkan_venus_dev *dev,
+				 uint32_t gpu_idx);
 void uk_vulkan_venus_close(struct uk_vulkan_venus_dev *dev);
 
 /* Copy the device capability snapshot. Returns 0 on success. */

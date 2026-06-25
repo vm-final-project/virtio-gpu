@@ -5,9 +5,9 @@
 This repository is VOGUE, a Unikraft VirtIO-GPU/Venus/Vulkan research artifact. Keep first-party work inside this tree; sibling directories such as `../unikraft`, `../llama.cpp`, `../mesa`, and `../venus-protocol` are external inputs referenced by configuration.
 
 - `libs/`: project Unikraft libraries such as `libukvirtio_gpu`, `libvulkan`, `libukvulkan_venus`, and DRM/GBM/EGL shims.
-- `apps/`: single-purpose Unikraft appliances, including KMSCube, Vulkan smoke tests, and llama.cpp CPU/Vulkan bench/server images.
+- `apps/`: single-purpose Unikraft appliances, including Vulkan smoke tests, and llama.cpp CPU/Vulkan bench/server images.
 - `kraft/`: Kraftfiles for appliance builds.
-- `tests/`: host-native deterministic C tests against the fake VirtIO-GPU backend.
+- `tests/`: host-native deterministic C tests for protocol structs and encoders; do not add a fake GPU backend.
 - `scripts/`, `config/`, `results/`: runtime helpers, build configuration, and canonical JSON results.
 - `docs/`, `results/`: architecture notes, design specs, and generated evidence consumed by repo-local gates.
 
@@ -18,7 +18,7 @@ Run commands from the repository root:
 - `make help`: list supported reviewer and test targets.
 - `make test-fast`: daily gate for native tests and protocol checks.
 - `make test-native` or `make -C tests native`: run host-native tests without QEMU/GPU/model dependencies.
-- `make venus-check` / `make vulkan-check`: Venus probes / host Vulkan + dispatch checks.
+- `make venus-check` / `make vulkan-check`: Venus and Vulkan runtime probes.
 - `make verify`: broad release gate; may require QEMU/Venus/GPU availability.
 - `make clean`: remove generated test outputs.
 
@@ -28,7 +28,7 @@ Follow the surrounding C style: tabs for indentation where existing files use ta
 
 ## Testing Guidelines
 
-Add or update focused tests in `tests/` for library behavior. Test files generally use descriptive names ending in `_test.c`, and single targets can be run via `make -C tests <target>` such as `venus-encoder-core`, `virgl-encoder-core`, or `vulkan-dispatch-core`. After touching apps or libraries, run `make test-fast`.
+Add or update focused tests in `tests/` for pure protocol and encoder behavior. Do not add a complete fake VirtIO-GPU device; runtime device behavior belongs in QEMU/Venus gates. Test files generally use descriptive names ending in `_test.c`, and single targets can be run via `make -C tests <target>` such as `venus-encoder-core` or `venus-capset-core`. After touching apps or libraries, run `make test-fast`.
 
 ## Commit & Pull Request Guidelines
 

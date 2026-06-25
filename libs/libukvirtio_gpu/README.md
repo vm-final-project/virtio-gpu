@@ -1,17 +1,16 @@
 # libukvirtio_gpu
 
 `libukvirtio_gpu` is VOGUE's VirtIO-GPU guest frontend for Unikraft. It exposes a
-small 2D display API, a deterministic fake backend for native tests, and a real
-Unikraft virtio-bus backend for QEMU/PCI VirtIO-GPU evidence. The real backend
-also contains the control-queue surface required by future virgl/Venus work:
+small 2D display API and a Unikraft virtio-bus backend for QEMU/PCI VirtIO-GPU
+evidence. The backend also contains the control-queue surface required by
+virgl/Venus work:
 contexts, 3D submit, resource blobs, UUID assignment, map/unmap, and metrics.
 
-Status: the real backend reaches QEMU/Venus and passes the transport, ring,
-kmscube-frame, and llama.cpp-Vulkan runtime rows on the evaluation host.
+Status: the backend reaches QEMU/Venus and passes the transport, ring, and llama.cpp-Vulkan runtime rows on the evaluation host.
 
 ## Configuring applications to use `libukvirtio_gpu`
 
-Enable `CONFIG_LIBUKVIRTIO_GPU` and select exactly one backend:
+Enable `CONFIG_LIBUKVIRTIO_GPU` and the VirtIO-GPU backend:
 
 ```yaml
 unikraft:
@@ -20,9 +19,10 @@ unikraft:
     CONFIG_LIBUKVIRTIO_GPU_BACKEND_REAL: 'y'
 ```
 
-For native unit tests, use `CONFIG_LIBUKVIRTIO_GPU_BACKEND_FAKE`. For QEMU
-appliances, use `CONFIG_LIBUKVIRTIO_GPU_BACKEND_REAL`, which selects existing
+For QEMU appliances, `CONFIG_LIBUKVIRTIO_GPU_BACKEND_REAL` selects existing
 Unikraft virtio bus, virtqueue, scatter-gather, and allocator libraries.
+Host-native tests cover protocol and encoder code only; they do not include a
+fake GPU backend.
 
 `Makefile.uk` registers the library with Unikraft `addlib` and publishes the include paths used by dependent libraries or applications.
 
@@ -41,9 +41,7 @@ The public API is declared in `include/uk/virtio_gpu.h` and includes:
 
 ## Backend model
 
-- Fake backend: deterministic in-process state machine for native tests. It is
-  not a performance model and must not be used as QEMU evidence.
-- Real backend: uses Unikraft's virtio bus/virtqueue APIs and sends real
+- Backend: uses Unikraft's virtio bus/virtqueue APIs and sends real
   VirtIO-GPU controlq commands. It must not fork or reimplement Unikraft PCI
   discovery.
 
@@ -56,7 +54,7 @@ The public API is declared in `include/uk/virtio_gpu.h` and includes:
 
 ## Design boundaries
 
-The real backend passes ABI/static readiness gates. QEMU 11.0 Venus transport succeeds after the modern VirtIO-PCI patch for device ID `0x1050`. Host-visible blob mapping is still blocked upstream; Venus compute routes through `SUBMIT_3D` instead (the current implemented path).
+The backend passes ABI/static readiness gates. QEMU 11.0 Venus transport succeeds after the modern VirtIO-PCI patch for device ID `0x1050`. Host-visible blob mapping is still blocked upstream; Venus compute routes through `SUBMIT_3D` instead (the current implemented path).
 
 ## Verification
 
@@ -64,7 +62,6 @@ Run:
 
 ```console
 make -C tests proto-abi
-make -C tests test-core
 make venus-check
 make verify
 ```

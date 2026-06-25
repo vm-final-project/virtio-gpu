@@ -7,9 +7,13 @@
     "arch": "x86_64",
     "model": "models/tiny-random-llama-GGUF/tiny-random-llama-Q2_K.gguf",
     "image": "/mydata/JerryT/vm-final-project/virtio-gpu/.unikraft/build/vogue-llama-cpu_qemu-x86_64",
-    "smp": 4
+    "smp": 4,
+    "bench_kind": "hand_rolled_smoke",
+    "backend": "cpu"
   },
   "metrics": {
+    "bench_kind": "hand_rolled_smoke",
+    "backend": "cpu",
     "pp512": 3699.3,
     "tg128": 192.3,
     "placements": [

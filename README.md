@@ -25,7 +25,7 @@ gemma-3-1b Q4_K_M):
 | Vulkan server | `make llama-vk-server-run` | `pass` — `/health` 200, `/completion` 200 |
 | CPU bench (SMP=4) | `make llama-cpu-bench-run VOGUE_SMP=4` | `pass` — pp512 115.8 / tg128 38.5 tok/s · **3.83x / 3.56x** vs SMP=1 (769MB model, KVM) |
 | CPU server (SMP=4) | `make llama-cpu-server-run VOGUE_SMP=4` | `pass` — 19.2 tok/s · **2.10x** vs SMP=1 (769MB model, KVM) |
-| pthread-affinity probe | `make pthread-affinity-run` | `pass` (SMP placement verification, 4 vCPUs) |
+| pthread-affinity probe | `make pthread-affinity-run` | diagnostic only; SMP acceptance is llama CPU bench/server placement metrics |
 
 CPU runs need only QEMU/KVM. **Vulkan runs additionally need the host Venus stack
 in [§7](#7-host-setup-x86_64-venus-stack)** — do not hand-roll their QEMU command.
@@ -41,7 +41,7 @@ in [§7](#7-host-setup-x86_64-venus-stack)** — do not hand-roll their QEMU com
 | `kraft/` | `Kraftfile.*` per appliance/target: Unikraft core, libraries, KConfig, and QEMU targets. |
 | `mk/` | Make includes: `llama.mk` (appliances), `tests.mk`, `check.mk`. |
 | `scripts/` | Python runners (`app-llama-cpu.py`, `app-llama-vk.py`, `deps.py`, `app-vulkan-sample.py`) that drive QEMU and emit JSON results. |
-| `tests/` | Host-native C test suite (fake VirtIO-GPU backend, no QEMU/GPU needed) — the fast CI gate. |
+| `tests/` | Host-native C tests for protocol structs and encoders (no QEMU/GPU/model needed) — the fast CI gate. |
 | `config/` | Tracked reference `.config` snapshots for static evidence gates. |
 | `results/` | JSON result captures (one schema, see [§8](#8-results)). |
 | `rootfs/` | Optional model/shader staging for the llama appliances. |
@@ -51,12 +51,11 @@ in [§7](#7-host-setup-x86_64-venus-stack)** — do not hand-roll their QEMU com
 
 | App | Kraftfile(s) | Stack |
 |-----|--------------|-------|
-| `app-llama-cpu` | `Kraftfile.llama-cpu{,-server}` | upstream llama.cpp on the CPU backend |
-| `app-llama-vk` | `Kraftfile.llama-vk{,-server}` | llama.cpp → ggml-vulkan → Vulkan/Venus |
-| `app-kmscube` | `Kraftfile.kmscube-vgpu-gl` | virgl command-stream graphics proof |
+| `app-llama-cpu` | `Kraftfile.llama-cpu{,-server,-upstream-bench}` | upstream llama.cpp on the CPU backend |
+| `app-llama-vk` | `Kraftfile.llama-vk{,-server,-upstream-bench}` | llama.cpp -> ggml-vulkan -> Vulkan/Venus |
 | `app-vkmark`, `app-vulkan-sample` | (via `make vulkan-check`) | Venus/Vulkan substrate probes |
 | `llama-common/` | — | shared headers for the CPU + Vulkan llama appliances |
-| `app-pthread-affinity` | `Kraftfile.pthread-affinity` | per-LCPU affinity probe — verifies one thread per vCPU placement under SMP |
+| `app-pthread-affinity` | `Kraftfile.pthread-affinity` | per-LCPU affinity diagnostic; not the SMP acceptance gate |
 
 ### The Vulkan stack (`libs/`)
 
@@ -155,7 +154,6 @@ MODEL  ?= models/model.gguf     # falls back to the sole *.gguf under models/
 | CPU server | `make llama-cpu-server-build` | `make llama-cpu-server-run` |
 | Vulkan bench | `make llama-vk-bench-build` | `make llama-vk-bench-run` |
 | Vulkan server | `make llama-vk-server-build` | `make llama-vk-server-run` |
-| KMSCube (virgl) | `make kmscube-build` | — |
 
 The run targets build first if needed, so you can skip the explicit build step.
 
@@ -476,19 +474,16 @@ is unaffected because its RAM is a single contiguous block.
 make test-fast        # host-native C suite + VirtIO-GPU wire-ABI check (primary CI gate)
 ```
 
-The native suite needs no QEMU/GPU/model. Every test guards a distinct module
-and is wired into a gate (none are duplicate or unused):
+The native suite needs no QEMU/GPU/model. It does not include a fake GPU; tests
+cover protocol structs and command encoders only. Device behavior is covered by
+QEMU/PCIe runtime gates.
 
 | Test | Guards | Gate |
 |------|--------|------|
-| `core_test` | libukvirtio_gpu core (fake backend) | `test-core` |
-| `proto_abi_test` | VirtIO-GPU wire-ABI structs/features | `proto-abi` |
-| `virgl_encoder_test` | libukvirtio_gpu virgl encoder | `test-core` |
-| `venus_encoder_test` | libukvulkan_venus encoders | `test-venus` |
-| `venus_ring_test` | libukvulkan_venus ring transport | `test-venus` |
-| `dispatch_test` | libvulkan dispatch | `test-dispatch` |
-| `drm_compat_test` | libukvirtgpu_drm (optional DRM shim) | `test-compat` |
-| `pthread_affinity` | SMP per-vCPU worker placement (4 vCPUs) | `make pthread-affinity-run` |
+| `libs/libukvirtio_gpu/tests/proto_abi.c` | VirtIO-GPU wire-ABI structs/features | `proto-abi` |
+| `libs/libukvulkan_venus/tests/encoder.c` | libukvulkan_venus encoders | `test-venus` |
+| `libs/libukvulkan_venus/tests/capset.c` | libukvulkan_venus capset decoder | `test-venus` |
+| `pthread_affinity` | SMP affinity diagnostic (4 vCPUs); llama CPU bench/server are the acceptance gates | `make pthread-affinity-run` |
 
 The venus/dispatch tests compile the generated Venus tree, which needs the
 repo-pinned Vulkan-Headers (`VK_HEADER_VERSION 352`); `tests/Makefile` defaults

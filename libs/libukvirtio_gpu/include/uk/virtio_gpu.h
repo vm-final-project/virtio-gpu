@@ -227,6 +227,7 @@ int uk_virtio_gpu_apir_forward(struct uk_virtio_gpu_dev *dev, const struct uk_vi
 
 /* FULL VirtIO-GPU-GL/virgl-facing API contract. */
 int uk_virtio_gpu_gl_caps_get(struct uk_virtio_gpu_dev *dev, struct uk_virtio_gpu_caps *caps);
+int uk_virtio_gpu_gl_venus_requirements_get(struct uk_virtio_gpu_dev *dev, struct uk_virtio_gpu_caps *caps, const char **status);
 int uk_virtio_gpu_gl_capset_info_get(struct uk_virtio_gpu_dev *dev, uint32_t index, struct uk_virtio_gpu_capset_info *info);
 int uk_virtio_gpu_gl_capset_get(struct uk_virtio_gpu_dev *dev, uint32_t capset_id, uint32_t version, void *buf, size_t len, size_t *actual_len);
 int uk_virtio_gpu_gl_get_edid(struct uk_virtio_gpu_dev *dev, uint32_t scanout_id, void *buf, size_t len, size_t *actual_len);

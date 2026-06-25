@@ -32,7 +32,26 @@ canonical JSON result, and its exit status reports execution success.
 ```text
 test-fast  -> native-tests + proto-abi
 venus-check -> test-venus + two QEMU probes
-vulkan-check -> test-dispatch
+vulkan-check -> venus-check
 llama-*-run -> matching build -> one runtime capture
 verify -> all of the above
 ```
+
+## SMP Acceptance Boundary
+
+The SMP acceptance claim for this branch is llama.cpp/ggml worker placement, not
+general POSIX affinity. The acceptance evidence is
+`llama-cpu-bench-run VOGUE_SMP=N` and `llama-cpu-server-run VOGUE_SMP=N` with
+JSON metrics that record `placement_expected`, `placement_actuals_seen`, and
+`placement_complete`. `pthread-affinity-run` remains a diagnostic target and is
+not the definition of success for this stage.
+
+## Mesa Alignment Boundary
+
+| Layer | Mesa analogue | VOGUE adaptation |
+| --- | --- | --- |
+| VirtIO-GPU transport | `src/virtio/vulkan/vn_renderer_virtgpu.c` DRM ioctl helpers | Native `libukvirtio_gpu` calls, no DRM fd enumeration |
+| Renderer info/capset | `vn_renderer_info`, `virgl_renderer_capset_venus` | `uk_venus_renderer_info` decoded from the Venus capset |
+| Ring | `src/virtio/vulkan/vn_ring.c` | `uk_venus_ring` with Mesa offsets/order and Unikraft blob mapping |
+| Protocol | Generated `venus-protocol` headers | Vendored/generated `libs/libukvulkan_venus/generated` wrappers |
+| Vulkan ABI | Mesa Vulkan driver entrypoints | Minimal static ABI needed by ggml-vulkan, no full loader/ICD |

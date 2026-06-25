@@ -14,7 +14,10 @@ export PATH := $(GNUBIN):$(PATH)
 endif
 
 KRAFT ?= $(if $(wildcard $(CURDIR)/.tools/kraftkit/kraft),$(CURDIR)/.tools/kraftkit/kraft,kraft)
-ARCH ?= x86_64
+HOST_UNAME_S := $(shell uname -s)
+HOST_UNAME_M := $(shell uname -m)
+DEFAULT_ARCH := $(if $(filter Darwin arm64,$(HOST_UNAME_S) $(HOST_UNAME_M)),arm64,x86_64)
+ARCH ?= $(DEFAULT_ARCH)
 ifeq ($(filter $(ARCH),x86_64 arm64),)
 $(error ARCH must be one of: x86_64 arm64)
 endif
@@ -31,11 +34,14 @@ LLAMA_ROOT             ?= $(realpath $(EXTERNAL_DEPS_DIR)/llama.cpp)
 VENUS_PROTOCOL_ROOT    ?= $(realpath $(EXTERNAL_DEPS_DIR)/venus-protocol)
 VULKAN_HEADERS_INCLUDE ?= $(realpath $(EXTERNAL_DEPS_DIR)/Vulkan-Headers/include)
 SPIRV_HEADERS_INCLUDE  ?= $(realpath $(EXTERNAL_DEPS_DIR)/SPIRV-Headers/include)
-VK_LIB                 ?= /usr/lib/x86_64-linux-gnu/libvulkan.so.1
+DEFAULT_VK_LIB         := $(if $(filter Darwin arm64,$(HOST_UNAME_S) $(HOST_UNAME_M)),$(firstword $(wildcard /opt/homebrew/lib/libvulkan.dylib /usr/local/lib/libvulkan.dylib)),/usr/lib/x86_64-linux-gnu/libvulkan.so.1)
+VK_LIB                 ?= $(DEFAULT_VK_LIB)
+GLSLC                  ?= $(shell command -v glslc 2>/dev/null)
 LLAMA_BUILD_JOBS       ?= 8
 HOST_CXX_INCLUDE       ?=
 HOST_GCC_LIB           ?=
-VOGUE_MARCH            ?= $(if $(filter $(ARCH),arm64),armv8-a,native)
+VOGUE_MARCH            ?= $(if $(filter $(ARCH),arm64),armv8-a,x86-64)
+VOGUE_MTUNE            ?= $(if $(filter $(ARCH),arm64),generic,$(VOGUE_MARCH))
 COMPILER               ?= gcc
 
 # unikraft 0.21.0 is validated against GCC 11-14, whose defaults are -std=gnu17
@@ -52,12 +58,11 @@ UK_CXXFLAGS            ?= -std=gnu++17 -fpermissive
 
 export LLAMA_ROOT VENUS_PROTOCOL_ROOT VULKAN_HEADERS_INCLUDE
 export SPIRV_HEADERS_INCLUDE HOST_CXX_INCLUDE HOST_GCC_LIB
-export ARCH KRAFT_TARGET EXTERNAL_DEPS_DIR VOGUE_MARCH COMPILER
+export ARCH KRAFT_TARGET EXTERNAL_DEPS_DIR VOGUE_MARCH VOGUE_MTUNE COMPILER GLSLC
 export UK_CFLAGS UK_CXXFLAGS
 
 include mk/tests.mk
 include mk/llama.mk
-include mk/kmscube.mk
 include mk/check.mk
 
 .PHONY: help verify deps deps-status deps-refresh clean
@@ -69,6 +74,7 @@ help:
 	  'Config:     ARCH={x86_64|arm64} KRAFT_TARGET=$(KRAFT_TARGET)' \
 	  'Tests:      test-fast test-native venus-check vulkan-check verify' \
 	  'Build/run:  llama-{cpu,vk}-{bench,server}-{build,run} pthread-affinity-{build,run}' \
+	  'Bench:      llama-{cpu,vk}-upstream-bench-{build,run}' \
 	  'Deps:       deps deps-status deps-refresh' \
 	  'Cleanup:    clean'
 
@@ -87,7 +93,7 @@ deps-refresh:
 clean:
 	$(MAKE) -C tests clean
 	find results -type f \( -name '*.log' -o -name '*.ppm' -o -name '*.tmp' \) -delete
-	rm -rf results/kmscube_vgpu_gl/run/.qmp
+
 
 .PHONY: pthread-affinity-build pthread-affinity-run
 

@@ -16,7 +16,8 @@ surface lives in `<uk/vulkan_venus.h>`; the low-level driver primitives remain i
 Source lineage: the Venus wire format is owned upstream by Mesa's
 `venus-protocol` generator (pinned in `scripts/venus/pin.json`). VOGUE keeps the
 generated driver-side protocol headers under `generated/`. The
-in-image `uk_venus_encode_*` entry points in `venus_cs.c`/`venus_compute.c` are
+in-image `uk_venus_encode_*` entry points in `protocol/venus_cs.c` and
+`protocol/venus_compute.c` are
 generated-protocol bridges: each builds the real `Vk*` struct from its scalar
 arguments and calls the generated `vn_encode_vk*`, so the emitted wire format
 **is** the Mesa Venus format. See `GENERATOR.md`. The transport stays
@@ -34,10 +35,11 @@ rendering (e.g. vkmark scene FPS) remains a separate gate.
 application / llama.cpp -> upstream ggml-vulkan / Vulkan-Hpp
   -> libvulkan                  (vk* ABI, loader/runtime, dispatch)
   -> libukvulkan_venus          (this library: Venus Vulkan driver)
-       venus_driver.c           driver open/probe surface (uk/vulkan_venus.h)
-       venus_init.c             Venus bootstrap/context/ring setup
-       venus_cs.c/venus_compute.c   generated-protocol bridges
-       vn_ring_shim.c           Venus ring transport
+       compat/venus_driver.c    driver open/probe surface (uk/vulkan_venus.h)
+       ring/venus_ring.c        Venus bootstrap/context/ring setup
+       protocol/venus_cs.c      generated bootstrap/transport bridge
+       protocol/venus_compute.c generated compute-command bridge
+       ring/vn_ring_shim.c      Venus ring transport
   -> libukvirtio_gpu            SUBMIT_3D / blobs / fences
   -> QEMU virtio-gpu-gl + virglrenderer Venus -> host Vulkan driver
 ```
@@ -91,15 +93,13 @@ claim-boundary test.
 
 ```sh
 make -C tests venus-encoder-core
-make -C tests venus-ring-core
-make test-dispatch
+make -C tests venus-capset-core
 make vulkan-check
 make verify
 ```
 
 ## Claim boundaries
 
-Allowed: Venus driver encode/decode, fake-backend/native dispatch proof, and
-transport-readiness evidence. Not claimed by this driver alone: Vulkan
-conformance, host GPU execution, or llama.cpp throughput. Runtime claims require
-a same-run QEMU/Venus PASS marker.
+Allowed: Venus encode/decode and transport-readiness evidence. Not claimed by
+this driver alone: Vulkan conformance, host GPU execution, or llama.cpp
+throughput. Runtime claims require a same-run QEMU/Venus PASS marker.

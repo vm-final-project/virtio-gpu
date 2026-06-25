@@ -53,21 +53,6 @@ static int llama_server_main(void)
     /* A3/SMP: resolve online vCPU count at runtime (mirrors bench.cpp). */
     const unsigned int nvcpu = uk_llama_cpu_online_vcpus();
 
-    uk_printf("uk-llama-upstream-server: READY model=%s threads=%u "
-              "slots=%d ctx_per_slot=%d batch_size=%d ubatch_size=%d prompt_cache=%d "
-              "mode=single-app no_fork_exec=1\n",
-              model_path,
-              nvcpu,
-              CONFIG_APP_LLAMA_CPU_PARALLEL,
-              CONFIG_APP_LLAMA_CPU_CTX,
-              CONFIG_APP_LLAMA_CPU_BATCH,
-              CONFIG_APP_LLAMA_CPU_UBATCH,
-              CONFIG_APP_LLAMA_CPU_PROMPT_CACHE);
-
-    /* Release the readiness-probe model; the upstream server below reloads it
-     * through its own model manager. */
-    llama_model_free(probe);
-
     static char arg0[]       = "llama-server";
     static char model_f[]    = "-m";
     static char model[]      = "/mnt/model/model.gguf";
@@ -111,6 +96,22 @@ static int llama_server_main(void)
         unsigned long long mask = (nvcpu >= 64) ? ~0ULL : ((1ULL << nvcpu) - 1ULL);
         snprintf(cpumask, sizeof(cpumask), "%llx", mask);
     }
+    uk_printf("uk-llama-upstream-server: READY model=%s threads=%u "
+              "cpu_mask=%s cpu_strict=1 poll=100 "
+              "slots=%d ctx_per_slot=%d batch_size=%d ubatch_size=%d prompt_cache=%d "
+              "mode=single-app no_fork_exec=1\n",
+              model_path,
+              nvcpu,
+              cpumask,
+              CONFIG_APP_LLAMA_CPU_PARALLEL,
+              CONFIG_APP_LLAMA_CPU_CTX,
+              CONFIG_APP_LLAMA_CPU_BATCH,
+              CONFIG_APP_LLAMA_CPU_UBATCH,
+              CONFIG_APP_LLAMA_CPU_PROMPT_CACHE);
+
+    /* Release the readiness-probe model; the upstream server below reloads it
+     * through its own model manager. */
+    llama_model_free(probe);
     static char strict_f[]   = "--cpu-strict";
     static char strict_v[]   = "1";
     static char poll_f[]     = "--poll";

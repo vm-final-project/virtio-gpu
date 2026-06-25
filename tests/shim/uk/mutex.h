@@ -2,14 +2,12 @@
 /*
  * tests/shim/uk/mutex.h — host-native build shim for <uk/mutex.h>.
  *
- * The deterministic host-native suite compiles guest libvulkan /
- * libukvirtio_gpu sources directly against the fake VirtIO-GPU backend
- * (tests/virtio_gpu_fake.c). Those sources lock encode+submit with a
- * recursive Unikraft mutex (uk/uklock). The native harness runs each test
- * binary single-threaded and serially, so the lock has no contention to
- * guard here; this shim provides the same uk_mutex API as
+ * The host-native suite compiles selected guest sources directly. Some of
+ * those sources use a recursive Unikraft mutex (uk/uklock). The native
+ * harness runs each test binary single-threaded and serially, so the lock has
+ * no contention to guard here; this shim provides the same uk_mutex API as
  * unikraft/lib/uklock/include/uk/mutex.h reduced to a no-op recursive lock
- * so the real guest code compiles and links unchanged.
+ * so the selected guest code compiles and links unchanged.
  *
  * Only the subset the guest code uses is provided:
  *   struct uk_mutex, UK_MUTEX_INITIALIZER_RECURSIVE,

@@ -15,6 +15,42 @@
 
 #if CONFIG_APP_LLAMA_CPU_MODE_BENCH
 
+#if CONFIG_APP_LLAMA_CPU_BENCH_UPSTREAM
+
+extern int llama_bench(int argc, char **argv);
+
+int main(void)
+{
+    if (mount_model_fs("uk-llama-upstream-bench") != 0)
+        return 1;
+
+    const unsigned int nvcpu = uk_llama_cpu_online_vcpus();
+    char threads[16];
+    snprintf(threads, sizeof(threads), "%u", nvcpu);
+
+    uk_puts("uk-llama-bench-kind: upstream_llama_bench\n");
+    char *argv[] = {
+        (char *)"llama-bench",
+        (char *)"-m", (char *)"/mnt/model/model.gguf",
+        (char *)"-p", (char *)"512",
+        (char *)"-n", (char *)"128",
+        (char *)"-t", threads,
+        (char *)"-ngl", (char *)"0",
+        (char *)"--mmap", (char *)"0",
+        (char *)"--no-warmup",
+        (char *)"-r", (char *)"1",
+        (char *)"-o", (char *)"jsonl",
+    };
+    int rc = llama_bench((int)(sizeof(argv) / sizeof(argv[0])), argv);
+    if (rc == 0)
+        uk_puts("uk-llama-upstream: PASS evidence_id=llama-upstream-cpu bench_kind=upstream_llama_bench\n");
+    else
+        uk_printf("uk-llama-upstream: FAIL upstream_llama_bench rc=%d\n", rc);
+    return rc;
+}
+
+#else /* CONFIG_APP_LLAMA_CPU_BENCH_UPSTREAM */
+
 int main(void)
 {
     const char *model_path = "/mnt/model/model.gguf";
@@ -56,7 +92,10 @@ int main(void)
     struct ggml_threadpool *tp = ggml_threadpool_new(&tpp);
     if (tp)
         llama_attach_threadpool(ctx, tp, tp);
+    uk_printf("uk-llama-upstream: workers=%u cpu_mask_bits=%u strict_cpu=1 poll=100\n",
+              nvcpu, nvcpu);
 
+    uk_puts("uk-llama-bench-kind: hand_rolled_smoke\n");
     bench_result r = run_bench_loop(ctx);
     uk_printf("uk-llama-upstream: pp512=%.1f tg128=%.1f\n", r.pp512, r.tg128);
     uk_puts("uk-llama-upstream: PASS evidence_id=llama-upstream-cpu\n");
@@ -66,5 +105,7 @@ int main(void)
     llama_backend_free();
     return 0;
 }
+
+#endif /* CONFIG_APP_LLAMA_CPU_BENCH_UPSTREAM */
 
 #endif /* CONFIG_APP_LLAMA_CPU_MODE_BENCH */

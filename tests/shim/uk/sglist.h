@@ -2,10 +2,9 @@
 /*
  * tests/shim/uk/sglist.h — host-native build shim for <uk/sglist.h>.
  *
- * The deterministic host-native suite compiles guest libukvirtio_gpu /
- * libukvulkan_venus sources directly against the fake VirtIO-GPU backend
- * (tests/virtio_gpu_fake.c). Those sources now describe device backing
- * memory with the upstream Unikraft scatter-gather list API
+ * The host-native suite compiles selected guest libukvirtio_gpu /
+ * libukvulkan_venus sources directly. Those sources describe backing memory
+ * with the upstream Unikraft scatter-gather list API
  * (unikraft/lib/uksglist). The real implementation lives in
  * unikraft/lib/uksglist/sglist.c and depends on uk/paging, uk/vmem and
  * uk/alloc, none of which are available in the host build. This shim

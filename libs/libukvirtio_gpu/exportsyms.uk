@@ -30,6 +30,7 @@ uk_virtio_gpu_apir_handshake
 uk_virtio_gpu_apir_load_library
 uk_virtio_gpu_apir_forward
 uk_virtio_gpu_gl_caps_get
+uk_virtio_gpu_gl_venus_requirements_get
 uk_virtio_gpu_gl_capset_info_get
 uk_virtio_gpu_gl_capset_get
 uk_virtio_gpu_gl_get_edid
@@ -53,7 +54,3 @@ uk_virtio_gpu_gl_blob_destroy
 uk_virtio_gpu_gl_metrics_get
 uk_virtio_gpu_gl_metrics_reset
 uk_virtio_gpu_gl_capset_name
-uk_virgl_encoder_init
-uk_virgl_encode_create_surface
-uk_virgl_encode_set_framebuffer
-uk_virgl_encode_clear

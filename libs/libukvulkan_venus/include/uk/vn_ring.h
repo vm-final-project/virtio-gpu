@@ -10,7 +10,7 @@
  *     vn_ring_get_command_reply   / vn_ring_free_command_reply
  *
  * These map onto the existing struct uk_venus_ring + uk_venus_submit transport
- * via a thunk bound by uk_venus_ring_bind_current() (see venus_init.c). The
+ * via a thunk bound by uk_venus_ring_bind_current() (see ring/venus_ring.c). The
  * encode-only cutover (M5/M6) calls the generated vn_encode_* directly, so the
  * submit/call wrappers are dead-code-eliminated; this header exists so the
  * generated tree compiles and so the optional vn_call_* path stays available.
@@ -35,6 +35,8 @@ struct vn_ring_submit_command {
 	void *cmd_data;
 	size_t cmd_size;
 	size_t reply_size;
+	uint8_t reply_data[4096];
+	size_t reply_len;
 	struct vn_cs_decoder reply;      /* valid after submit when reply_size>0 */
 	int has_reply;
 };

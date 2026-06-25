@@ -33,7 +33,8 @@ config LIBUKVULKAN_VENUS_USE_DRM_COMPAT
 	  of calling libukvirtio_gpu directly.
 
 	  The default native Unikraft path is a direct libukvirtio_gpu transport
-	  call path: the Venus driver's device-open bootstrap (venus_driver.c)
+	  call path: the Venus driver's device-open bootstrap
+	  (compat/venus_driver.c)
 	  probes the device through libukvirtio_gpu with no DRM UAPI. This option
 	  additionally pulls libukvirtgpu_drm for code that deliberately emulates
 	  the Linux/Mesa DRM virtgpu UAPI. Default n: nothing in the Venus path

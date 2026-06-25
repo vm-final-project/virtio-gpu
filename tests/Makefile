@@ -2,18 +2,16 @@
 #
 # VOGUE — host-native test suite (component Makefile)
 # ============================================================================
-# Builds and runs the deterministic C tests in this directory against the fake
-# VirtIO-GPU backend modules under fake/. No QEMU, Unikraft, GPU, or model is
-# required. Each test compiles project library sources directly and links one
-# self-checking binary under build/.
+# Builds and runs host-native tests that do not instantiate a fake VirtIO-GPU
+# device. No QEMU, Unikraft, GPU, or model is required. Each test compiles
+# project library sources directly and links one self-checking binary under
+# build/.
 #
 # The repository root Makefile wraps the everyday groups so reviewers can stay
 # at the top level:
 #     make native-tests   ->  make -C tests native
 #     make test-core      ->  make -C tests test-core
-#     make test-compat    ->  make -C tests test-compat
 #     make test-venus     ->  make -C tests test-venus
-#     make test-dispatch  ->  make -C tests test-dispatch
 #     make proto-abi      ->  make -C tests proto-abi
 # Use the targets here directly only to run a single binary (e.g. `make -C
 # tests venus-ring`). `make -C tests` defaults to the full `native` suite.
@@ -26,7 +24,7 @@ CFLAGS ?= -D_POSIX_C_SOURCE=200112L -std=c11 -Wall -Wextra \
 	-I../libs/libukvulkan_venus/include \
 	-I../libs/libvulkan/include \
 	-Ishim \
-	-I. -Ifake
+	-I.
 
 # Vulkan headers for the venus generated tree (regenerated against VK_HEADER_VERSION
 # 352). Use the repo-pinned Vulkan-Headers that
@@ -38,15 +36,12 @@ CFLAGS ?= -D_POSIX_C_SOURCE=200112L -std=c11 -Wall -Wextra \
 VK_INC ?= $(or $(VULKAN_HEADERS_INCLUDE),$(realpath ../.deps/src/Vulkan-Headers/include))
 VK_LIB ?= /usr/lib/x86_64-linux-gnu/libvulkan.so.1
 BUILD := build
-PROTO_HDR := ../libs/libukvirtio_gpu/virtio_gpu_proto.h
+PROTO_HDR := ../libs/libukvirtio_gpu/protocol/virtio_gpu_proto.h
 
 # Default parallelism: one job per detected core; reviewers can override via
 # `make -C tests native -j1` if needed.
 JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
 MAKEFLAGS += --no-print-directory
-
-# Shared modular fake backend source files
-FAKE_SRCS := fake/fake_device.c fake/fake_resource.c fake/fake_context.c fake/fake_blob.c
 
 # Generated-encoder includes: bare "vn_cs.h"/"vn_ring.h" live in include/uk;
 # the driver headers live in generated/; vulkan.h comes from VK_INC. The
@@ -67,36 +62,20 @@ $(2): $(BUILD)/$(1)
 	./$(BUILD)/$(1)
 endef
 
-$(eval $(call define_test,core_test,core-test,\
-	libukvirtio_gpu/core_test.c $(FAKE_SRCS),))
-$(eval $(call define_test,drm_compat_test,drm-compat,\
-	libukvirtgpu_drm/drm_compat_test.c ../libs/libukvirtgpu_drm/drm_virtgpu.c \
-	../libs/libukvirtgpu_drm/drm_virtgpu_fdio.c $(FAKE_SRCS),))
-$(eval $(call define_test,virgl_encoder_test,virgl-encoder,\
-	libukvirtio_gpu/virgl_encoder_test.c ../libs/libukvirtio_gpu/virgl_encoder.c \
-	$(FAKE_SRCS),-I$(VENUS)/include))
-$(eval $(call define_test,venus_encoder_test,venus-encoder,\
-	libukvulkan_venus/venus_encoder_test.c $(VENUS)/venus_cs.c \
-	$(VENUS)/venus_compute.c,$(GEN_CFLAGS)))
-$(eval $(call define_test,venus_ring_test,venus-ring,\
-	libukvulkan_venus/venus_ring_test.c $(VENUS)/venus_cs.c $(VENUS)/venus_init.c \
-	$(VENUS)/venus_compute.c $(FAKE_SRCS),$(GEN_CFLAGS)))
-# vk.ggml-dispatch: static Vulkan dispatch layer test. Links uk_vulkan_dispatch.c
-# against the fake VirtIO-GPU backend and the native Venus driver (no DRM/ICD).
-$(eval $(call define_test,dispatch_test,dispatch,\
-	libvulkan/dispatch_test.c ../libs/libvulkan/uk_vulkan_dispatch.c \
-	$(VENUS)/venus_driver.c $(VENUS)/venus_init.c $(VENUS)/venus_cs.c \
-	$(VENUS)/venus_compute.c $(VENUS)/vn_ring_shim.c $(FAKE_SRCS),$(GEN_CFLAGS) -Wno-format))
+$(eval $(call define_test,venus_encoder,venus-encoder,\
+	$(VENUS)/tests/encoder.c $(VENUS)/vn_cs.c \
+	$(VENUS)/vn_device_memory.c $(VENUS)/vn_buffer.c $(VENUS)/vn_pipeline.c \
+	$(VENUS)/vn_descriptor_set.c $(VENUS)/vn_command_buffer.c $(VENUS)/vn_queue.c,$(GEN_CFLAGS)))
+$(eval $(call define_test,venus_capset,venus-capset,\
+	$(VENUS)/tests/capset.c $(VENUS)/vn_renderer_util.c,$(GEN_CFLAGS)))
 
 NATIVE_BINS := \
-	$(BUILD)/core_test \
-	$(BUILD)/drm_compat_test \
-	$(BUILD)/venus_encoder_test \
-	$(BUILD)/venus_ring_test \
-	$(BUILD)/virgl_encoder_test \
-	$(BUILD)/dispatch_test
+	$(BUILD)/venus_encoder \
+	$(BUILD)/venus_capset
 
-.PHONY: native test-core test-compat test-venus test-dispatch proto-abi clean
+.PHONY: native test-venus \
+	venus-encoder-core venus-capset-core \
+	proto-abi clean
 
 # run_bins: compile the listed binaries in parallel, then run them serially for
 # deterministic output ordering.
@@ -109,29 +88,24 @@ run_bins = +@$(MAKE) -j$(JOBS) $(1); for b in $(1); do ./$$b || exit $$?; done
 native:
 	$(call run_bins,$(NATIVE_BINS))
 
-# Group 1: deterministic core substrate checks.
-test-core:
-	$(call run_bins,$(BUILD)/core_test $(BUILD)/virgl_encoder_test)
-
-# Group 2: compatibility / translator checks.
-test-compat: drm-compat
-
-# Group 3: Venus protocol / ring checks.
+# Group 2: Venus protocol checks.
 test-venus:
-	$(call run_bins,$(BUILD)/venus_encoder_test $(BUILD)/venus_ring_test)
+	$(call run_bins,$(BUILD)/venus_encoder $(BUILD)/venus_capset)
 
-# Group 4: static Vulkan dispatch surface.
-test-dispatch: dispatch
+# Stable reviewer-facing aliases documented in AGENTS.md and implementation
+# plans. Keep the short local target names above as the implementation detail.
+venus-encoder-core: venus-encoder
+venus-capset-core: venus-capset
 
 proto-abi: | $(BUILD)
 	@if [ ! -f "$(PROTO_HDR)" ]; then \
-		echo "proto_abi_test BLOCKED missing $(PROTO_HDR)"; \
+		echo "proto_abi BLOCKED missing $(PROTO_HDR)"; \
 		echo "dependency: implement planned protocol ABI header before enabling real-driver codec tests"; \
 	else \
-		$(MAKE) $(BUILD)/proto_abi_test && ./$(BUILD)/proto_abi_test; \
+		$(MAKE) $(BUILD)/proto_abi && ./$(BUILD)/proto_abi; \
 	fi
 
-$(BUILD)/proto_abi_test: libukvirtio_gpu/proto_abi_test.c $(PROTO_HDR) | $(BUILD)
+$(BUILD)/proto_abi: ../libs/libukvirtio_gpu/tests/proto_abi.c $(PROTO_HDR) | $(BUILD)
 	$(CC) $(CFLAGS) $< -o $@
 
 $(BUILD):

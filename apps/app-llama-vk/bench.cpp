@@ -15,6 +15,46 @@
 
 #include <cstdlib>
 
+#if CONFIG_APP_LLAMA_VK_BENCH_UPSTREAM
+
+extern int llama_bench(int argc, char **argv);
+
+int main(void)
+{
+    setenv("GGML_VK_DISABLE_ASYNC", "1", 1);
+    setenv("GGML_VK_DISABLE_HOST_VISIBLE_VIDMEM", "1", 1);
+    setenv("UK_GGML_VK_DISPATCH_BATCH", "1", 1);
+
+    if (mount_model_fs("uk-llama-upstream-vk-bench") != 0)
+        return 1;
+
+    char threads[16];
+    snprintf(threads, sizeof(threads), "%d", CONFIG_APP_LLAMA_VK_THREADS);
+
+    uk_puts("uk-llama-bench-kind: upstream_llama_bench\n");
+    char *argv[] = {
+        (char *)"llama-bench",
+        (char *)"-m", (char *)"/mnt/model/model.gguf",
+        (char *)"-p", (char *)"512",
+        (char *)"-n", (char *)"128",
+        (char *)"-t", threads,
+        (char *)"-ngl", (char *)"99",
+        (char *)"--mmap", (char *)"0",
+        (char *)"--no-host", (char *)"1",
+        (char *)"--no-warmup",
+        (char *)"-r", (char *)"1",
+        (char *)"-o", (char *)"jsonl",
+    };
+    int rc = llama_bench((int)(sizeof(argv) / sizeof(argv[0])), argv);
+    if (rc == 0)
+        uk_puts("uk-llama-upstream-vk: PASS evidence_id=llama-upstream-vk bench_kind=upstream_llama_bench\n");
+    else
+        uk_printf("uk-llama-upstream-vk: FAIL upstream_llama_bench rc=%d\n", rc);
+    return rc;
+}
+
+#else /* CONFIG_APP_LLAMA_VK_BENCH_UPSTREAM */
+
 int main(void)
 {
     setenv("GGML_VK_DISABLE_ASYNC", "1", 1);
@@ -41,6 +81,7 @@ int main(void)
         return 1;
     }
 
+    uk_puts("uk-llama-bench-kind: hand_rolled_smoke\n");
     bench_result r = run_bench_loop(ctx);
 
     struct uk_vulkan_info info;
@@ -58,5 +99,7 @@ int main(void)
     llama_backend_free();
     return 0;
 }
+
+#endif /* CONFIG_APP_LLAMA_VK_BENCH_UPSTREAM */
 
 #endif /* CONFIG_APP_LLAMA_VK_MODE_BENCH */

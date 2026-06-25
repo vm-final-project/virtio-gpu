@@ -10,7 +10,7 @@
  * client that puts libvulkan/include ahead of the Khronos headers still
  * resolves the real Vulkan API.
  *
- * NOTE: the in-image dispatch TU (uk_vulkan_dispatch.c) defines its own
+ * NOTE: the in-image dispatch TU (runtime/vk_entrypoints.c) defines its own
  * minimal handle typedefs and does not include this header; the Vulkan-Hpp
  * loader includes <vulkan/vulkan.hpp> directly against the Khronos headers.
  */

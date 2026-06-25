@@ -1,0 +1,8 @@
+{
+  "status": "blocked:image-missing",
+  "generated_utc": "2026-06-25T09:59:46.234926Z",
+  "command": "",
+  "inputs": {},
+  "metrics": {},
+  "error": "missing image: /Users/caichaowei/NTU/114_2/virtual-machine/final-project/virtio-gpu/build/app-vulkan-sample_qemu-arm64"
+}

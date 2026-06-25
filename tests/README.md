@@ -1,129 +1,92 @@
-# `tests/` — VOGUE host-native test suite
+# `tests/` - VOGUE host-native test suite
 
-Deterministic C tests for the reusable VirtIO-GPU / Venus / Vulkan substrate.
-Every test compiles project library sources directly and links one
-self-checking binary that exercises them against a modular **fake VirtIO-GPU backend**
-under `fake/`. The suite needs **no QEMU, Unikraft, GPU, model, CUDA, or
-EGL render node** — it is the fast inner loop and the primary CI gate.
+Deterministic C tests for reusable VirtIO-GPU and Venus pure logic. These tests
+compile selected project sources directly and link one self-checking binary per
+test. They do not instantiate a fake VirtIO-GPU device; QEMU/PCIe device
+behavior is covered by the runtime gates.
 
 llama.cpp runtime coverage lives in the upstream single-application appliances;
-this suite only proves the support code.
+this suite only proves protocol structs and command encoders.
 
-## Package Layout & Correspondence
-
-To make verification easy to cross-reference with the implementation, test files are organized in directories that correspond 1-to-1 with packages under `libs/`:
+## Package Layout
 
 ```text
 tests/
-  ├── Makefile                       # Target groups and compiler rules
-  ├── README.md                      # This file
-  ├── test_utils.h                   # Test assertions, device & context fixtures
-  │
-  ├── fake/                          # Modular VirtIO-GPU fake backend
-  │   ├── virtio_gpu_fake.h          # Shared structures and internal helpers
-  │   ├── fake_device.c              # Device lifecycle (probe, caps, EDID, etc.)
-  │   ├── fake_resource.c            # Resource management, flushes, 2D/3D transfers
-  │   ├── fake_context.c             # context creation, resource mapping, submit_3d
-  │   └── fake_blob.c                # Blob creation, mapping, unmapping
-  │
-  ├── libukvirtio_gpu/               # Tests for libs/libukvirtio_gpu
-  │   ├── core_test.c                # Core virtio-gpu frontend tests
-  │   ├── proto_abi_test.c           # Wire ABI specification validation
-  │   └── virgl_encoder_test.c       # Gallium virgl command encoder tests
-  │
-  ├── libukvulkan_venus/             # Tests for libs/libukvulkan_venus
-  │   ├── venus_encoder_test.c       # Venus protocol encoder tests
-  │   └── venus_ring_test.c          # Venus ring buffer transport tests
-  │
-  ├── libvulkan/                     # Tests for libs/libvulkan
-  │   └── dispatch_test.c            # vkGetInstanceProcAddr static dispatch tests
-  │
-  └── libukvirtgpu_drm/              # Tests for libs/libukvirtgpu_drm
-      └── drm_compat_test.c          # Linux virtgpu DRM compatibility facade tests
+  Makefile                         Target groups and compiler rules
+  README.md                        This file
+  test_utils.h                     Test assertions
+  shim/uk/                         Host shims for selected Unikraft headers
+
+libs/libukvirtio_gpu/tests/
+  proto_abi.c                      VirtIO-GPU wire ABI validation
+
+libs/libukvulkan_venus/tests/
+  capset.c                         Venus capset decoder checks
+  encoder.c                        Venus protocol encoder checks
 ```
 
----
+## Quick Start
 
-## Quick start
-
-Run everything from the **repository root** — the root `Makefile` wraps each
-group so you never need to `cd tests/`:
+Run from the repository root:
 
 ```sh
-make native-tests       # full deterministic suite (primary CI gate)
-make test-core          # group 1: VirtIO-GPU core helper + fake-backend path
-make test-compat        # group 2: virtgpu DRM compatibility facade
-make test-venus         # group 3: Venus protocol helpers
-make test-dispatch      # group 4: libvulkan static dispatch
-make proto-abi          # VirtIO-GPU wire-ABI struct/feature check
+make native-tests       # full host-native suite
+make test-venus         # Venus encoder and capset checks
+make proto-abi          # VirtIO-GPU wire-ABI struct/feature checks
 ```
 
-`make test-fast` (root) bundles the native suite and `proto-abi`.
+`make test-fast` bundles `native-tests` and `proto-abi`.
 
-The same targets exist on this component `Makefile` if you are working inside
-`tests/` directly (`make -C tests native`, `make -C tests test-core`, …).
-`make -C tests` with no target runs the full `native` suite.
-
-## Test groups
-
-| Group | Target | Binaries | Evidence rows |
-|---|---|---|---|
-| Core | `test-core` | `core_test`, `virgl_encoder_test` | `proto.real-driver`, `xport.qemu-vgpu` |
-| Compat | `test-compat` | `drm_compat_test` | `vk.drm-core`, `vk.drm-fdio` |
-| Venus | `test-venus` | `venus_encoder_test`, `venus_ring_test` | `proto.venus-enc`, `proto.venus-ring`, `vk.readiness` |
-| ggml-vulkan dispatch | `test-dispatch` | `dispatch_test` | `vk.ggml-dispatch` |
-| Conditional | `proto-abi` | `proto_abi_test` | `proto.real-driver` |
-
-## Running a single test
-
-Each binary has a one-shot target on the component `Makefile` (build + run):
+The same targets exist on the component Makefile:
 
 ```sh
-make -C tests core-test             # core_test
-make -C tests drm-compat            # drm_compat_test
-make -C tests venus-encoder         # venus_encoder_test
-make -C tests venus-ring            # venus_ring_test
-make -C tests virgl-encoder         # virgl_encoder_test
-make -C tests dispatch              # dispatch_test
+make -C tests native
+make -C tests test-venus
+make -C tests proto-abi
 ```
 
-Or build and run one binary by path:
+## Test Groups
+
+| Group | Target | Binaries |
+|---|---|---|
+| Venus | `test-venus` | `venus_encoder`, `venus_capset` |
+| Conditional | `proto-abi` | `proto_abi` |
+
+## Running A Single Test
 
 ```sh
-make -C tests build/core_test && tests/build/core_test
+make -C tests venus-encoder
+make -C tests venus-capset
+make -C tests proto-abi
 ```
 
-## Vulkan headers (`VK_INC`)
+## Vulkan Headers
 
-The venus encoder/ring and dispatch tests compile the generated Venus tree, which
-references `VK_HEADER_VERSION 352` types. `VK_INC` therefore defaults to the
-repo-pinned `.deps/src/Vulkan-Headers/include` (fetched by `make deps`, the same
-headers the image build uses), via `VULKAN_HEADERS_INCLUDE` when invoked from the
-root `Makefile`. Override with `make -C tests <target> VK_INC=/path`.
+The Venus tests compile generated Venus code that references
+`VK_HEADER_VERSION 352` types. `VK_INC` defaults to the repo-pinned
+`.deps/src/Vulkan-Headers/include` via `VULKAN_HEADERS_INCLUDE` when invoked
+from the root Makefile. Override with:
 
-## Conditional targets
+```sh
+make -C tests <target> VK_INC=/path/to/Vulkan-Headers/include
+```
 
-* `proto-abi` runs only when `../libs/libukvirtio_gpu/virtio_gpu_proto.h` exists.
-
-## Expected PASS output
+## Expected PASS Output
 
 ```text
-core_test: PASS checks=37
-drm_compat_test: PASS checks=26
-venus_encoder_test: PASS checks=25
-venus_ring_test: PASS checks=23
-virgl_encoder_test: all checks passed
-dispatch_test: PASS checks=22
-proto_abi_test passed ctrl_hdr=24 display_info=408 edid=1056
+venus_encoder: PASS checks=25
+venus_capset: PASS checks=11
+proto_abi passed ctrl_hdr=24 display_info=408 edid=1056
 ```
 
-The full `native` run ends after the six retained binaries pass.
+## How It Works
 
-## How it works
+* `native` compiles all retained binaries in parallel, then runs them serially
+  for stable output ordering.
+* Library sources under test are pure encoders/decoders:
+  `protocol/venus_cs.c`, `protocol/venus_compute.c`, and `ring/venus_ring.c` capset decode helpers.
+* `shim/uk/*.h` provides host-compilable stand-ins for selected Unikraft
+  headers used by those sources.
 
-* **Modular Fake backend** — Source files under `fake/` model the VirtIO-GPU control/DMA path in-process, so the same library C sources that ship in the unikernel are exercised deterministically on the host.
-* **Two phases** — `native` compiles all binaries in parallel (one job per core, override with `make -C tests native JOBS=1`), then runs them **serially** for stable output ordering.
-* **Library sources under test** — `drm_compat.c`/`gbm_compat.c` (Linux ABI shims), `drm_virtgpu.c` (`libukvirtgpu_drm`), `venus_driver.c` (`libukvulkan_venus`), `venus_*.c` (`libukvulkan_venus`), `virgl_encoder.c` (`libukvirtio_gpu`), and `uk_vulkan_dispatch.c` (`libvulkan`).
-* **Host shims** — `shim/uk/*.h` (added to the include path via `-Ishim`) provide host-compilable stand-ins for the upstream Unikraft headers the guest sources use: `mutex.h` (no-op recursive lock), `sglist.h` (upstream `uksglist` scatter-gather under the host's identity mapping), and `alloc.h` (`uk_posix_memalign`/`uk_free` over libc). Device-backing memory in the guest uses these upstream APIs directly — there is no first-party DMA library.
-
-Full evidence matrix: `results/vogue_evaluation_matrix.json`.
+Runtime evidence that requires an actual VirtIO-GPU device belongs in
+`venus-check`, `vulkan-check`, and the llama appliance gates.

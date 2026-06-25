@@ -25,8 +25,9 @@ generated/                             # generated/verified driver headers
 libs/libukvulkan_venus/generated/             # committed driver headers + GENERATED.lock
 libs/libukvulkan_venus/include/uk/vn_cs.h     # encoder/decoder/handle-id shim
 libs/libukvulkan_venus/include/uk/vn_ring.h   # 4-function transport shim
-libs/libukvulkan_venus/vn_ring_shim.c         # transport thunk (test-only; see below)
-libs/libukvulkan_venus/{venus_cs,venus_init,venus_compute}.c  # in-image encoders
+libs/libukvulkan_venus/ring/vn_ring_shim.c    # transport thunk (test-only; see below)
+libs/libukvulkan_venus/protocol/{venus_cs,venus_compute}.c  # in-image encoders
+libs/libukvulkan_venus/ring/venus_ring.c      # ring/bootstrap transport
 ```
 
 ## Regeneration
@@ -65,13 +66,14 @@ by two hand-written headers:
   no-op `VN_TRACE_FUNC`.
 
 The host-native venus tests (`make -C tests venus-encoder-core`,
-`venus-ring-core`) compile the generated tree through this shim and exercise real
-encoders.
+`venus-capset-core`) compile the generated tree through this shim and exercise
+real encoders and capset decoding.
 
 ## Source-of-truth model: the image uses the generated encoders
 
 The generated encoders are the Venus wire format used **in the image**. Each
-scalar `uk_venus_encode_*` entry point in `venus_cs.c`/`venus_compute.c` is a
+scalar `uk_venus_encode_*` entry point in `protocol/venus_cs.c` and
+`protocol/venus_compute.c` is a
 thin bridge: it builds the real `Vk*` struct from its arguments and calls the
 generated `vn_encode_vk*`. No hand-rolled byte layout remains. `libukvenus`
 therefore compiles against the generated tree and the Vulkan headers
@@ -79,22 +81,22 @@ therefore compiles against the generated tree and the Vulkan headers
 exactly like `libukggml_vulkan`; the generated tree is verified to build against
 the kraft Vulkan-Headers (VK_HEADER_VERSION 352).
 
-Guards: the host-native venus encoder/ring tests confirm the bridges emit the
+Guards: the host-native venus encoder/capset tests confirm the bridges emit the
 expected streams and keep the generated tree compiling through the shim. The
 Vulkan/Venus llama.cpp server boots over real virtio-gpu-gl Venus on the
 evaluation host through this exact path.
 
-`vn_ring_shim.c` provides the four `vn_ring_*` functions the generated
+`ring/vn_ring_shim.c` provides the four `vn_ring_*` functions the generated
 `vn_submit_*`/`vn_call_*` wrappers reference; the encode-only image path never
 calls them, so they are dropped by DCE in the image and used only by the native
-tests + the optional `vn_call_*` round-trip path.
+runtime path and optional `vn_call_*` round-trip path.
 
 ## Upgrade procedure
 
 1. `git -C ../venus-protocol pull` (or move to the desired Mesa SHA).
 2. Run the upstream `vn_protocol.py` generator into
    `libs/libukvulkan_venus/generated/` and refresh `GENERATED.lock`.
-3. Run `make -C tests venus-encoder-core` / `venus-ring-core` to confirm the
+3. Run `make -C tests venus-encoder-core` / `venus-capset-core` to confirm the
    in-image encoder bridges still match. If a `vn_encode_*` byte layout changed,
    update the matching in-image encoder until parity is restored — the
    generated output wins.

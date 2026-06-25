@@ -18,6 +18,7 @@ LLAMA_SRC    := $(LLAMA_ROOT)/src
 LLAMA_COMMON := $(LLAMA_ROOT)/common
 LLAMA_SERVER := $(LLAMA_ROOT)/tools/server
 LLAMA_MTMD   := $(LLAMA_ROOT)/tools/mtmd
+LLAMA_BENCH  := $(LLAMA_ROOT)/tools/llama-bench
 # Pre-generated SPIRV shader sources/header (from the cmake VK cross-build,
 # i.e. `make llama-vk-prepare` -> build-unikraft-vk-$(ARCH)) + SPIRV headers.
 GGML_VK_SHADERS ?= $(LLAMA_ROOT)/build-unikraft-vk-$(ARCH)/ggml/src/ggml-vulkan
@@ -56,6 +57,7 @@ APPLLAMA_VK_CXXINCLUDES-y += -isystem $(APPLLAMA_VK_BUILTIN_INC) \
                                       -I$(GGML_INC) -I$(GGML_SRC) -I$(GGML_SRC)/ggml-cpu \
                                       -I$(GGML_SRC)/ggml-vulkan -I$(GGML_SPIRV_INC) -I$(GGML_VK_SHADERS) \
                                       -I$(APPLLAMA_VK_BASE)/../../libs/libvulkan/include
+APPLLAMA_VK_CXXINCLUDES-$(CONFIG_APP_LLAMA_VK_BENCH_UPSTREAM) += -I$(LLAMA_BENCH)
 
 # See apps/app-llama-cpu/Makefile.uk for the COLD / HOT flag rationale.
 # P2 (plan-optimize.md): explicit + overridable target CPU arch (see the CPU
@@ -65,7 +67,7 @@ ifeq ($(CONFIG_ARCH_ARM_64),y)
 LLAMA_MARCH ?= armv8-a
 LLAMA_MTUNE ?= generic
 else
-LLAMA_MARCH ?= native
+LLAMA_MARCH ?= $(VOGUE_MARCH)
 LLAMA_MTUNE ?= $(LLAMA_MARCH)
 endif
 APPLLAMA_VK_COMMON_DEFS := -DGGML_VERSION=\"0.12.0\" -DGGML_COMMIT=\"fcae601e4\" \
@@ -94,6 +96,7 @@ APPLLAMA_VK_CXXFLAGS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += -include unordered_ma
 # quoted includes after the file's OWN directory but before -I dirs, so src/*
 # files still get their local src/unicode.h while common/jinja gets common's.
 APPLLAMA_VK_CXXFLAGS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += -iquote $(LLAMA_COMMON)
+APPLLAMA_VK_CXXFLAGS-$(CONFIG_APP_LLAMA_VK_BENCH_UPSTREAM) += -iquote $(LLAMA_COMMON)
 # --gc-sections belongs at the final image link (CONFIG_OPTIMIZE_DEADELIM in the
 # Kraftfiles), not in per-library LDFLAGS which feed the relocatable `ld -r` link
 # where binutils rejects it for lacking an entry-point root.
@@ -133,6 +136,12 @@ APPLLAMA_VK_LLAMA_MODEL_FLAGS-y   += $(APPLLAMA_VK_HOT_FLAGS)
 # Single-purpose appliance entry points. Only the selected mode is compiled; the
 # unused source file becomes an empty translation unit thanks to its #if guard.
 APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_BENCH)  += $(APPLLAMA_VK_BASE)/bench.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_BENCH_UPSTREAM) += $(LLAMA_BENCH)/llama-bench.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_BENCH_UPSTREAM) += $(LLAMA_ROOT)/vendor/cpp-httplib/httplib.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_BENCH_UPSTREAM) += $(APPLLAMA_VK_BASE)/build-info.cpp
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_BENCH_UPSTREAM) += $(filter-out $(LLAMA_COMMON)/unicode.cpp, $(wildcard $(LLAMA_COMMON)/*.cpp))
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_BENCH_UPSTREAM) += $(wildcard $(LLAMA_COMMON)/jinja/*.cpp)
+APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_BENCH_UPSTREAM) += $(APPLLAMA_VK_BASE)/llama-common-unicode.cpp
 APPLLAMA_VK_SRCS-$(CONFIG_APP_LLAMA_VK_MODE_SERVER) += $(APPLLAMA_VK_BASE)/llama-vk-server-entry.cpp
 
 # ── ggml core + Vulkan backend (formerly libukggml_vk, now built in-tree) ─────

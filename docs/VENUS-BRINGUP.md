@@ -54,5 +54,19 @@ The Vulkan llama targets write:
 - `results/llama/llama_vk.json`
 - `results/llama/llama_server_vk.json`
 
+## Renderer Selection Boundary
+
+The guest kernel and VOGUE Venus driver decide whether the virtual VirtIO-GPU
+device exposes the required Venus features and whether a Venus context can be
+created. They do not choose llvmpipe, lavapipe, or a hardware GPU.
+
+The host QEMU display/device configuration chooses the rendering backend. For
+`egl-headless`, `rendernode=/dev/dri/renderD*` is a host DRI node selection
+knob. When it is omitted, QEMU/virglrenderer/Mesa choose automatically.
+
+Therefore result JSON must record rendernode, QEMU memory, GPU hostmem, model
+size, and renderer proof. A software-renderer pass is protocol evidence; it is
+not hardware GPU evidence.
+
 A `blocked:<reason>` result means an external prerequisite was unavailable. It
 must not be reported as a passing runtime.

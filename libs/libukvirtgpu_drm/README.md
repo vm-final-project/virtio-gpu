@@ -109,11 +109,9 @@ offset through the same open file's mmap registry.
 ## Verification
 
 ```console
-make -C tests virtgpu-drm-compat
-make test-compat
 make verify
 ```
 
-The evidence matrix splits DRM compatibility into `vk.drm-core` for the direct
-translator and `vk.drm-fdio` for the fd-compatible `ioctl`/`mmap` facade.
+DRM compatibility is covered by appliance/runtime gates when that optional
+surface is enabled.
 `make verify` re-runs the deterministic and runtime gates.

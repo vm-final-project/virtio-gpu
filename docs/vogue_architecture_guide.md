@@ -4,34 +4,32 @@
 
 VOGUE（**V**irtI**O**-GPU on Unikraft for **G**raphics and llama.cpp with V**U**lkan and V**E**nus）是一個研究型 artifact，核心目標是：
 
-> 在 Unikraft unikernel 中，**不引入 Linux DRM/KMS 或 Mesa**，用自己寫的 4 個 thin library，透過 VirtIO-GPU + Venus 協定存取主機 GPU，執行 Vulkan 計算（llama.cpp 推論）與 3D 圖形（kmscube）。
+> 在 Unikraft unikernel 中，**不引入 Linux DRM/KMS 或 Mesa**，用自己寫的 4 個 thin library，透過 VirtIO-GPU + Venus 協定存取主機 GPU，執行 Vulkan 計算（llama.cpp 推論）。
 
 ### 完整技術堆疊（由上到下，每層對應本專案的程式碼）
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────┐
-│ 應用層  llama.cpp (bench/server) / kmscube                         │
+│ 應用層  llama.cpp (bench/server)                                     │
 │         apps/app-llama-upstream-vk/{bench,server}.cpp              │
-│         apps/app-kmscube/main.c                                    │
 │                    ↓ 使用標準 Vulkan API (vk*)                     │
 ├─────────────────────────────────────────────────────────────────────┤
 │ libvulkan   — Vulkan ABI + Static Dispatch                         │
-│         libs/libvulkan/uk_vulkan_dispatch.c                        │
-│         libs/libvulkan/vk_hpp_loader.cpp                           │
+│         libs/libvulkan/runtime/vk_entrypoints.c                        │
+│         libs/libvulkan/hpp/vk_hpp_loader.cpp                           │
 │                    ↓ 路由到 Venus 驅動                             │
 ├─────────────────────────────────────────────────────────────────────┤
 │ libukvulkan_venus  — Unikraft-native Venus Vulkan 驅動             │
-│         libs/libukvulkan_venus/venus_driver.c   (入口)             │
-│         libs/libukvulkan_venus/venus_cs.c       (command stream)   │
-│         libs/libukvulkan_venus/venus_ring.c     (ring buffer)      │
-│         libs/libukvulkan_venus/venus_compute.c  (compute hot path) │
+│         libs/libukvulkan_venus/compat/venus_driver.c   (入口)             │
+│         libs/libukvulkan_venus/protocol/venus_cs.c       (command stream)   │
+│         libs/libukvulkan_venus/ring/venus_ring.c     (ring buffer)      │
+│         libs/libukvulkan_venus/protocol/venus_compute.c  (compute hot path) │
 │         libs/libukvulkan_venus/generated/       (codegen encoders) │
 │                    ↓ Venus wire protocol 編碼 → SUBMIT_3D          │
 ├─────────────────────────────────────────────────────────────────────┤
-│ libukvirtio_gpu  — VirtIO-GPU frontend + virgl encoder             │
-│         libs/libukvirtio_gpu/virtio_gpu.c       (device driver)    │
-│         libs/libukvirtio_gpu/virtio_gpu_proto.h (wire protocol)    │
-│         libs/libukvirtio_gpu/virgl_encoder.c    (Gallium cmds)     │
+│ libukvirtio_gpu  — VirtIO-GPU frontend                             │
+│         libs/libukvirtio_gpu/transport/virtio_gpu.c       (device driver)    │
+│         libs/libukvirtio_gpu/protocol/virtio_gpu_proto.h (wire protocol)    │
 │                    ↓ VIRTIO_GPU_CMD_* / virtqueue                  │
 ├═════════════════════════════════════════════════════════════════════┤
 │              ━━━ 虛擬化邊界（Guest ↔ Host）━━━                     │
@@ -107,7 +105,6 @@ kraft/Kraftfile.llama-upstream-vk          → Vulkan bench appliance
 kraft/Kraftfile.llama-upstream-vk-server   → Vulkan HTTP server appliance
 kraft/Kraftfile.llama-upstream-bench       → CPU bench
 kraft/Kraftfile.llama-upstream-server      → CPU server
-Kraftfile（根目錄）                         → kmscube 圖形 appliance
 ```
 
 #### 🌐 參考資源
@@ -136,16 +133,14 @@ Kraftfile（根目錄）                         → kmscube 圖形 appliance
 
 | 檔案 | 行數 | 功能 |
 |------|------|------|
-| **`libs/libukvirtio_gpu/virtio_gpu.c`** | ~770 | **主驅動**：初始化 PCI 設備、協商 feature bits（`VIRTIO_GPU_F_VIRGL`, `VIRTIO_GPU_F_RESOURCE_BLOB`, `VIRTIO_GPU_F_CONTEXT_INIT`）、建立 virtqueue（controlq/cursorq）、實作資源生命週期 |
-| **`libs/libukvirtio_gpu/virtio_gpu_proto.h`** | ~344 | **Wire 協定定義**：所有 `VIRTIO_GPU_CMD_*` 命令碼、`VIRTIO_GPU_F_*` feature bits、command header struct。**直接對應 VirtIO spec Section 5.7** |
-| **`libs/libukvirtio_gpu/virtio_gpu_internal.h`** | ~150 | 內部設備狀態：`struct virtio_gpu_dev`、fence 追蹤、capset 管理、blob allocation |
-| **`libs/libukvirtio_gpu/virgl_encoder.c`** | ~660 | **Virgl 3D 命令編碼器**：產生 Gallium 層級的 3D 指令（kmscube 路徑用） |
+| **`libs/libukvirtio_gpu/transport/virtio_gpu.c`** | ~770 | **主驅動**：初始化 PCI 設備、協商 feature bits（`VIRTIO_GPU_F_VIRGL`, `VIRTIO_GPU_F_RESOURCE_BLOB`, `VIRTIO_GPU_F_CONTEXT_INIT`）、建立 virtqueue（controlq/cursorq）、實作資源生命週期 |
+| **`libs/libukvirtio_gpu/protocol/virtio_gpu_proto.h`** | ~344 | **Wire 協定定義**：所有 `VIRTIO_GPU_CMD_*` 命令碼、`VIRTIO_GPU_F_*` feature bits、command header struct。**直接對應 VirtIO spec Section 5.7** |
+| **`libs/libukvirtio_gpu/transport/virtio_gpu_priv.h`** | ~150 | 內部設備狀態：`struct virtio_gpu_dev`、fence 追蹤、capset 管理、blob allocation |
 | **`libs/libukvirtio_gpu/virgl_hw.h`** | ~220 | Virgl 硬體定義：`VIRGL_CCMD_*` 指令碼、capset 結構（V1/V2/Venus）、資源類型 |
 | **`libs/libukvirtio_gpu/virtio_gpu_pci.c`** | ~160 | PCI probing：匹配 `PCI_VENDOR_VIRTIO` + `PCI_DEVICE_VIRTIO_GPU` |
 | **`libs/libukvirtio_gpu/virtio_gpu_capsets.c`** | ~100 | Capset 協商：`virtio_gpu_get_capset_info`、`virtio_gpu_get_capset` — 探測 virgl/venus 支援 |
-| **`libs/libukvirtio_gpu/fake_virtio_gpu_backend.c`** | ~400 | **測試用 fake backend**：記憶體中模擬 VirtIO-GPU 設備，追蹤已提交的命令、資源、fence。host-native 測試不需 QEMU/GPU |
 
-> **注意（最新狀態）**：上表反映較早的分檔佈局。目前 `libs/libukvirtio_gpu/` 的實際來源檔已整併為 `virtio_gpu_real.c`、`virtio_gpu_real_priv.h`、`virgl_encoder.c`、`virtio_gpu_proto.h`（其餘 `virtio_gpu.c` / `*_pci.c` / `*_capsets.c` / `fake_*` 等檔名已不存在）。`virtio_pci_shm_region_get()` 不在 `libukvirtio_gpu` 內，而是由 modern virtio-pci 傳輸層提供（`patches/unikraft/0001-virtio-pci-modern-device-support.patch`，解析 cfg_type 8 共享記憶體 capability），並由 `virtio_gpu_real.c` 以 `extern` 呼叫；該 host-visible blob 路徑在軟體 host Vulkan 驅動上無法完成，故 llama Vulkan appliance 以 `--no-host` 讓權重保持 device-local（見 README「x86_64 Vulkan-server host bring-up」與 `docs/VENUS-BRINGUP.md`）。
+> **注意（最新狀態）**：目前 `libs/libukvirtio_gpu/` 的實際來源檔位於 `transport/virtio_gpu.c`、`transport/virtio_gpu_priv.h`、`protocol/virtio_gpu_proto.h`。`virtio_pci_shm_region_get()` 不在 `libukvirtio_gpu` 內，而是由 modern virtio-pci 傳輸層提供（`patches/unikraft/0001-virtio-pci-modern-device-support.patch`，解析 cfg_type 8 共享記憶體 capability），並由 `transport/virtio_gpu.c` 以 `extern` 呼叫；該 host-visible blob 路徑在軟體 host Vulkan 驅動上無法完成，故 llama Vulkan appliance 以 `--no-host` 讓權重保持 device-local（見 README「x86_64 Vulkan-server host bring-up」與 `docs/VENUS-BRINGUP.md`）。
 
 #### 關鍵函式簽名
 
@@ -171,7 +166,7 @@ int virtio_gpu_wait_fence(struct virtio_gpu_dev *dev, uint64_t fence_id);
 | **VirtIO** | 半虛擬化（paravirtualization）I/O 框架。Guest 知道自己在 VM 裡，與 hypervisor 合作而非模擬真硬體 | `virtio_gpu.c` 的 virtqueue 初始化 |
 | **Virtqueue** | VirtIO 的 I/O 通道。用 descriptor table + available ring + used ring 在 guest/host 間傳遞資料 | `virtio_gpu.c` 建立 controlq/cursorq |
 | **VIRTIO_GPU_CMD_SUBMIT_3D** | 最重要的命令：把 3D 指令（virgl 或 Venus 編碼的）送到 host | `virtio_gpu_submit_3d()` |
-| **Feature bits** | 設備能力協商。`F_VIRGL`=3D 支援、`F_RESOURCE_BLOB`=blob 資源、`F_CONTEXT_INIT`=多 context 支援 | `virtio_gpu_proto.h` 定義、`virtio_gpu.c` 中協商 |
+| **Feature bits** | 設備能力協商。`F_VIRGL`=3D 支援、`F_RESOURCE_BLOB`=blob 資源、`F_CONTEXT_INIT`=多 context 支援 | `protocol/virtio_gpu_proto.h` 定義、`transport/virtio_gpu.c` 中協商 |
 | **Blob resources** | 一塊 guest/host 共享的記憶體區域，用於高效資料傳輸。Venus 用 blob 做 host-visible buffer | `virtio_gpu_resource_create_blob()` |
 | **Capsets (capability sets)** | 設備功能集：virgl capset V1/V2 用於 OpenGL，Venus capset 用於 Vulkan | `virtio_gpu_capsets.c`, `virgl_hw.h` |
 | **Fences** | 同步機制：guest 送出指令後，透過 fence 知道 host 何時執行完畢 | `virtio_gpu_wait_fence()` |
@@ -180,7 +175,7 @@ int virtio_gpu_wait_fence(struct virtio_gpu_dev *dev, uint64_t fence_id);
 
 | 資源 | URL | 需要理解的內容 |
 |------|-----|---------------|
-| **OASIS VirtIO v1.2 規格（必讀 §5.7）** | https://docs.oasis-open.org/virtio/virtio/v1.2/virtio-v1.2.html | VirtIO-GPU 設備的完整規格：命令格式、feature bits、resource 管理、blob 支援。`virtio_gpu_proto.h` 直接鏡像此規格 |
+| **OASIS VirtIO v1.2 規格（必讀 §5.7）** | https://docs.oasis-open.org/virtio/virtio/v1.2/virtio-v1.2.html | VirtIO-GPU 設備的完整規格：命令格式、feature bits、resource 管理、blob 支援。`protocol/virtio_gpu_proto.h` 直接鏡像此規格 |
 | **VirtIO v1.3 Draft** | https://docs.oasis-open.org/virtio/virtio/v1.3/virtio-v1.3.html | 最新草案，包含 Venus capset 和 blob 資源的擴展定義 |
 | **QEMU VirtIO-GPU 文件** | https://www.qemu.org/docs/master/system/devices/virtio/virtio-gpu.html | QEMU 端的 `virtio-gpu-gl-pci` 選項說明：`venus=true`, `blob=true`, `egl-headless` |
 | **Gerd Hoffmann 的部落格** | https://www.kraxel.org/blog/tag/virtio/ | QEMU virtio-gpu 維護者的技術文章，涵蓋設備演進、3D 支援、blob 資源 |
@@ -203,11 +198,10 @@ int virtio_gpu_wait_fence(struct virtio_gpu_dev *dev, uint64_t fence_id);
 
 | 檔案 | 行數 | 功能 |
 |------|------|------|
-| **`venus_driver.c`** | ~530 | **驅動入口**：`uk_vulkan_venus_open()` 初始化 VirtIO-GPU、建立 Venus context、探測 capset、設定 ring/batch 模式。`uk_vulkan_venus_close()` 清理 |
-| **`venus_cs.c`** | ~450 | **Command stream**（命令流）：`cmd_submit_locked()` 是熱路徑核心 — 序列化 Venus 命令並呼叫 `virtio_gpu_submit_3d()`。處理 ring vs batch 模式、fence 追蹤（`completed_fence`）、WaitFences poll 優化（#2） |
-| **`venus_ring.c`** | ~280 | **Ring buffer 實作**：`uk_venus_ring_create()`（lazy，在第一個 cmd buffer 時建立）、`uk_venus_ring_cmd_write()`（串流寫入）、`uk_venus_ring_cmd_wait()`（spin-wait with `pause`） |
-| **`venus_init.c`** | ~380 | Venus 初始化序列：`vkCreateInstance`、`vkCreateDevice`、`vkEnumeratePhysicalDevices` 的 wire 編碼 |
-| **`venus_compute.c`** | ~320 | **Compute 熱路徑**：`vkCreateComputePipelines`、`vkCmdDispatch`、`vkCmdBindPipeline`、`vkCmdBindDescriptorSets`。ggml-vulkan 的主要通道 |
+| **`compat/venus_driver.c`** | ~530 | **驅動入口**：`uk_vulkan_venus_open()` 初始化 VirtIO-GPU、建立 Venus context、探測 capset、設定 ring/batch 模式。`uk_vulkan_venus_close()` 清理 |
+| **`protocol/venus_cs.c`** | ~450 | **Command stream**（命令流）：`cmd_submit_locked()` 是熱路徑核心 — 序列化 Venus 命令並呼叫 `virtio_gpu_submit_3d()`。處理 ring vs batch 模式、fence 追蹤（`completed_fence`）、WaitFences poll 優化（#2） |
+| **`ring/venus_ring.c`** | ~380 | **Ring buffer 實作與初始化序列**：`uk_venus_ring_create()`、`uk_venus_ring_cmd_write()`、`uk_venus_ring_cmd_wait()`，以及 `vkCreateInstance`、`vkCreateDevice`、`vkEnumeratePhysicalDevices` 的 wire 編碼 |
+| **`protocol/venus_compute.c`** | ~320 | **Compute 熱路徑**：`vkCreateComputePipelines`、`vkCmdDispatch`、`vkCmdBindPipeline`、`vkCmdBindDescriptorSets`。ggml-vulkan 的主要通道 |
 | **`venus_memory.c`** | ~250 | 記憶體管理：`vkAllocateMemory`、`vkMapMemory`、`vkBindBufferMemory`。映射 host-visible blob 到 Vulkan buffer |
 | **`venus_descriptor.c`** | ~200 | Descriptor set：`vkCreateDescriptorSetLayout`、`vkAllocateDescriptorSets`、`vkUpdateDescriptorSets` |
 | **`venus_buffer.c`** | ~180 | Buffer 操作：`vkCreateBuffer`、`vkDestroyBuffer`、buffer memory requirements |
@@ -224,30 +218,30 @@ int virtio_gpu_wait_fence(struct virtio_gpu_dev *dev, uint64_t fence_id);
 #### 關鍵函式簽名與呼叫流程
 
 ```c
-// venus_driver.c — 初始化整個 Venus 堆疊
+// compat/venus_driver.c — 初始化整個 Venus 堆疊
 int uk_vulkan_venus_open(struct uk_venus_device **dev);
 
-// venus_cs.c — 熱路徑命令提交（每個 Vulkan 呼叫最終走這裡）
+// protocol/venus_cs.c — 熱路徑命令提交（每個 Vulkan 呼叫最終走這裡）
 int cmd_submit_locked(struct uk_venus_device *dev,
                       void *cmd, size_t len,
                       uint64_t *fence_out);
 
-// venus_ring.c — Ring 串流寫入
+// ring/venus_ring.c — Ring 串流寫入
 int uk_venus_ring_cmd_write(struct uk_venus_ring *ring,
                             void *data, size_t len);
 
-// venus_ring.c — Ring 建立（lazy，在第一次 command buffer 時觸發）
+// ring/venus_ring.c — Ring 建立（lazy，在第一次 command buffer 時觸發）
 int uk_venus_ring_create(struct uk_venus_device *dev);
 ```
 
 **一次 Vulkan compute dispatch 的完整呼叫鏈：**
 ```
 應用呼叫 vkCmdDispatch()
-  → libvulkan/uk_vulkan_dispatch.c      將呼叫路由到 Venus
-  → libukvulkan_venus/venus_compute.c   序列化成 Venus wire format
-  → libukvulkan_venus/venus_cs.c        cmd_submit_locked()
-    → 若 ring 模式: venus_ring.c         uk_venus_ring_cmd_write()
-    → 若 batch 模式: venus_cs.c          virtio_gpu_submit_3d() → SUBMIT_3D
+  → libvulkan/runtime/vk_entrypoints.c      將呼叫路由到 Venus
+  → libukvulkan_venus/protocol/venus_compute.c   序列化成 Venus wire format
+  → libukvulkan_venus/protocol/venus_cs.c        cmd_submit_locked()
+    → 若 ring 模式: ring/venus_ring.c         uk_venus_ring_cmd_write()
+    → 若 batch 模式: protocol/venus_cs.c          virtio_gpu_submit_3d() → SUBMIT_3D
   → libukvirtio_gpu/virtio_gpu.c        通過 virtqueue 送到 QEMU
   → QEMU → virglrenderer → host Vulkan
 ```
@@ -257,11 +251,11 @@ int uk_venus_ring_create(struct uk_venus_device *dev);
 | # | 優化 | 機制 | 效果 | 對應程式碼 |
 |---|------|------|------|-----------|
 | 1 | 合併 EndCmdBuf + QueueSubmit + WaitFences | ring 模式下 `vkEndCommandBuffer` flush tail → `vkQueueSubmit` 做 single final flush | 3 kicks → 1 kick/step | `venus_cmd.c`, `venus_queue.c` |
-| 2 | `vkWaitForFences` 用 `completed_fence` poll | `cmd_submit_locked()` 已同步標記 `completed_fence`，WaitFences 讀本地值 | 省掉 1 次 SUBMIT_3D/step | `venus_sync.c`, `venus_cs.c` |
-| 3 | `__asm__("pause")` 在 busy-poll | spin-wait 時讓出 core 給 host `ring_thread` | 減少 single vCPU 上的 spin 壓力 | `venus_ring.c`, `venus_cs.c` |
+| 2 | `vkWaitForFences` 用 `completed_fence` poll | `cmd_submit_locked()` 已同步標記 `completed_fence`，WaitFences 讀本地值 | 省掉 1 次 SUBMIT_3D/step | `venus_sync.c`, `protocol/venus_cs.c` |
+| 3 | `__asm__("pause")` 在 busy-poll | spin-wait 時讓出 core 給 host `ring_thread` | 減少 single vCPU 上的 spin 壓力 | `venus_ring.c`, `protocol/venus_cs.c` |
 | 4 | Ring stream 模型 | `vkCmd*` 直接寫入 host-visible ring circular buffer，host 非同步 drain | 0 malloc、request-response → streaming | `venus_ring.c` |
 
-Native 測試（`make -C tests venus-ring-core`）的量化結果：
+Runtime 測試（`make venus-check` / appliance gates）的量化結果：
 
 | 模式 | SUBMIT_3D / step | vs per-call |
 |------|-------------------|-------------|
@@ -307,8 +301,8 @@ Native 測試（`make -C tests venus-ring-core`）的量化結果：
 
 | 檔案 | 行數 | 功能 |
 |------|------|------|
-| **`libs/libvulkan/uk_vulkan_dispatch.c`** | ~400 | **靜態 dispatch table**：export 所有 `vk*` 符號（`vkCreateInstance`、`vkCmdDispatch`…），每個函式直接呼叫 `libukvulkan_venus` 的對應實作。這是 unikernel 版的 "Vulkan loader" |
-| **`libs/libvulkan/vk_hpp_loader.cpp`** | ~200 | **Vulkan-Hpp C++ dispatcher**：提供 `vk::DispatchLoaderDynamic` 介面，讓 upstream `ggml-vulkan.cpp` 可以用 C++ Vulkan API。從 static dispatch table 解析函式指標 |
+| **`libs/libvulkan/runtime/vk_entrypoints.c`** | ~400 | **靜態 dispatch table**：export 所有 `vk*` 符號（`vkCreateInstance`、`vkCmdDispatch`…），每個函式直接呼叫 `libukvulkan_venus` 的對應實作。這是 unikernel 版的 "Vulkan loader" |
+| **`libs/libvulkan/hpp/vk_hpp_loader.cpp`** | ~200 | **Vulkan-Hpp C++ dispatcher**：提供 `vk::DispatchLoaderDynamic` 介面，讓 upstream `ggml-vulkan.cpp` 可以用 C++ Vulkan API。從 static dispatch table 解析函式指標 |
 | **`libs/libvulkan/vulkan_unikraft.h`** | ~80 | Unikraft 專用 Vulkan 平台 header。定義 `VK_USE_PLATFORM_UNIKRAFT_KHR` |
 
 #### 關鍵概念你需要懂
@@ -326,13 +320,13 @@ Native 測試（`make -C tests venus-ring-core`）的量化結果：
 |------|-----|---------------|
 | **Vulkan 規格（完整 API reference）** | https://registry.khronos.org/vulkan/specs/latest/html/vkspec.html | 所有 Vulkan API 的完整定義。查看 VOGUE 實作了哪些 |
 | **Vulkan Loader 架構（必讀）** | https://github.com/KhronosGroup/Vulkan-Loader/blob/main/docs/LoaderInterfaceArchitecture.md | 解釋 loader → layer → ICD 的 dispatch 機制。VOGUE 的 `libvulkan` 是此架構的靜態版 |
-| **Vulkan-Hpp GitHub** | https://github.com/KhronosGroup/Vulkan-Hpp | C++ binding，`vk_hpp_loader.cpp` 使用 |
+| **Vulkan-Hpp GitHub** | https://github.com/KhronosGroup/Vulkan-Hpp | C++ binding，`hpp/vk_hpp_loader.cpp` 使用 |
 | **Vulkan Tutorial（入門）** | https://vulkan-tutorial.com/ | 若不熟悉 Vulkan：instance、device、queue、command buffer 的基本概念 |
 | **Khronos Vulkan Guide** | https://github.com/KhronosGroup/Vulkan-Guide | 官方學習資源，包含 compute pipeline、memory management |
 
 ---
 
-### 【層 5】應用層 — llama.cpp / kmscube
+### 【層 5】應用層 — llama.cpp
 
 #### 在專案中的角色
 
@@ -348,7 +342,6 @@ Native 測試（`make -C tests venus-ring-core`）的量化結果：
 | **`apps/app-llama-upstream-vk/Makefile.uk`** | **Unikraft build 整合**：編譯 upstream `ggml-vulkan.cpp` + SPIR-V shader blobs、`-march=$(LLAMA_MARCH) -mtune=$(LLAMA_MARCH)` |
 | **`apps/app-llama-upstream/bench.cpp`** | CPU bench entrypoint |
 | **`apps/app-llama-upstream/server.cpp`** | CPU server entrypoint |
-| **`apps/app-kmscube/main.c`** | VirtIO-GPU 3D 圖形 demo：透過 virgl/Gallium 路徑渲染旋轉方塊 |
 | **`apps/app-vulkan-smoke/main.c`** | 最小 Vulkan 冒煙測試：create instance + device + compute pipeline |
 
 #### 網路/檔案系統技術
@@ -413,12 +406,9 @@ Native 測試（`make -C tests venus-ring-core`）的量化結果：
 | 測試檔案 | 對應層 | 測試內容 |
 |---------|--------|---------|
 | **`tests/virtio_gpu_proto_test.c`** | 層 2 (VirtIO-GPU) | Wire ABI：struct 大小、feature bits、command layout 是否符合 VirtIO spec |
-| **`tests/virtio_gpu_core_test.c`** | 層 2 | 核心操作：init、resource create/destroy、submit 3D、fences（用 fake backend） |
-| **`tests/venus_cs_test.c`** | 層 3 (Venus) | Command stream：submit、fence tracking、batch/ring modes |
-| **`tests/venus_hotpath_test.c`** | 層 3 | **傳輸優化量測**：計算每個推論步驟的 SUBMIT_3D 次數（A/B/C 三種模式） |
-| **`tests/virgl_enc_test.c`** | 層 2 (Virgl) | Virgl encoder 正確性：command 編碼、draw state |
-| **`tests/test_dispatch.c`** | 層 4 (Dispatch) | ggml-vulkan dispatch：驗證 `vk*` 符號透過 dispatch table 可以正確解析 |
-| **`tests/vulkan_api_coverage_test.c`** | 層 4 | API coverage：斷言 `ggml-vulkan.cpp` 用到的所有 Vulkan 呼叫都存在 |
+| **`libs/libukvirtio_gpu/tests/proto_abi.c`** | 層 2 (VirtIO-GPU) | Wire ABI：struct 大小、feature bits、command layout 是否符合 VirtIO spec |
+| **`libs/libukvulkan_venus/tests/encoder.c`** | 層 3 (Venus) | Command stream：Venus wire encoder correctness |
+| **`libs/libukvulkan_venus/tests/capset.c`** | 層 3 (Venus) | Capset decoder correctness |
 
 **執行方式：**
 ```bash
@@ -466,7 +456,7 @@ make test-core     # 只跑 core / venus / dispatch 群組
 |------|------|
 | 跑 `virtio-gpu-gl,venus=true` 的 QEMU | Mac 沒有 `/dev/dri/renderD*`（Linux DRI），QEMU 的 EGL headless + virglrenderer 需要 Linux |
 | KVM 加速 QEMU | KVM 是 Linux-only。Mac 有 HVF 但 Unikraft QEMU 不完整支援 |
-| `make llama-vk-server-run`、`make kmscube-build` 後的 GPU 評測 | 需要 Venus + GPU |
+| `make llama-vk-server-run` 後的 GPU 評測 | 需要 Venus + GPU |
 | 跑 `make test-qemu` | 需要 QEMU VirtIO-GPU |
 
 #### 🔧 推薦的 Mac 開發流程
@@ -523,8 +513,8 @@ Phase 2: 核心技術（2-3 天）
 Phase 3: 專案原始碼（2-3 天）
   8. docs/ARCHITECTURE.md       → 本專案架構總覽、dependency graph
   9. docs/VENUS-BRINGUP.md      → Venus 啟用流程
- 10. libs/libukvirtio_gpu/      → VirtIO-GPU 前端驅動（從 virtio_gpu_proto.h 開始）
- 11. libs/libukvulkan_venus/    → Venus 驅動（從 venus_driver.c → venus_cs.c → venus_compute.c）
+ 10. libs/libukvirtio_gpu/      → VirtIO-GPU 前端驅動（從 protocol/virtio_gpu_proto.h 開始）
+ 11. libs/libukvulkan_venus/    → Venus 驅動（從 compat/venus_driver.c → protocol/venus_cs.c → protocol/venus_compute.c）
  12. libs/libvulkan/            → Vulkan dispatch
 
 Phase 4: 效能與優化（1 天）

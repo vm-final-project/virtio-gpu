@@ -1,12 +1,29 @@
 $(eval $(call addlib,libukvulkan_venus))
 
-# Venus Vulkan driver implementation. venus_init.c is the driver
-# bootstrap/context/ring setup; venus_cs.c / venus_compute.c are the
-# generated-protocol bridges; vn_ring_shim.c is the Venus ring transport.
-LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/venus_driver.c
-LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/venus_cs.c
-LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/venus_init.c
-LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/venus_compute.c
+# Venus Vulkan driver implementation (flat layout, mirrors Mesa src/virtio/vulkan/).
+# vn_renderer_virtgpu.c  — Mesa-like device params/capset/context boundary
+# vn_driver.c            — Unikraft-native driver open/probe bootstrap
+# vn_cs.c               — command-stream encoder
+# vn_ring.c             — capset, context, ring-buffer protocol, SUBMIT_3D
+# vn_buffer.c          — compute dispatch encoder
+# vn_command_buffer.c          — compute dispatch encoder
+# vn_descriptor_set.c          — compute dispatch encoder
+# vn_device_memory.c          — compute dispatch encoder
+# vn_pipeline.c          — compute dispatch encoder
+# vn_queue.c          — compute dispatch encoder
+# vn_renderer_util.c    — capset decode helper
+# vn_ring_shim.c        — generated ring transport adapter
+LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/vn_renderer_virtgpu.c
+LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/vn_driver.c
+LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/vn_renderer_util.c
+LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/vn_cs.c
+LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/vn_ring.c
+LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/vn_buffer.c
+LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/vn_command_buffer.c
+LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/vn_descriptor_set.c
+LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/vn_device_memory.c
+LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/vn_pipeline.c
+LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/vn_queue.c
 LIBUKVULKAN_VENUS_SRCS-y += $(LIBUKVULKAN_VENUS_BASE)/vn_ring_shim.c
 
 LIBUKVULKAN_VENUS_CINCLUDES-y += -I$(LIBUKVULKAN_VENUS_BASE)/include

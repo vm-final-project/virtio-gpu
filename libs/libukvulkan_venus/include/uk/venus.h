@@ -118,7 +118,8 @@
 
 /*
  * Venus capabilities (wire-format capset data returned by GET_CAPSET).
- * Only the fields required for bootstrap are decoded here.
+ * Mirrors Mesa's virgl_renderer_capset_venus layout for the fields VOGUE
+ * currently needs.
  */
 struct uk_venus_caps {
 	uint32_t wire_format_version;
@@ -126,7 +127,10 @@ struct uk_venus_caps {
 	uint32_t vk_ext_command_serialization_spec_version;
 	uint32_t vk_mesa_venus_protocol_spec_version;
 	uint32_t supports_blob_id_0;
-	uint32_t wire_format_version_v2; /* present when wire_format_version >= 2 */
+	uint32_t vk_extension_mask1[32];
+	uint32_t allow_vk_wait_syncs;
+	uint32_t supports_multiple_timelines;
+	uint32_t use_guest_vram;
 };
 
 /*
@@ -171,6 +175,12 @@ struct uk_venus_ring {
 	uint32_t buf_mask;      /* buf_size - 1 */
 	uint32_t cur_tail;      /* guest tail (monotonically increasing, mod wraps in shared mem) */
 	uint8_t protocol_ready; /* 1 after uk_venus_ring_register() succeeds */
+	/* --- reply stream mode (host writes reply-bearing command results) --- */
+	struct uk_virtio_gpu_blob reply_blob;
+	uint8_t *reply_base;
+	size_t reply_size;
+	size_t reply_pos;
+	uint8_t reply_ready;
 };
 
 /*
@@ -190,7 +200,7 @@ size_t uk_venus_encoder_size(const struct uk_venus_encoder *enc);
 int uk_venus_encoder_overflow(const struct uk_venus_encoder *enc);
 
 /* Low-level write helpers. uint32/uint64/bytes back the vn_cs.h shim and the
- * ring shared-memory layout writes in venus_init.c; cstring/pointer_flag remain
+ * ring shared-memory layout writes in vn_ring.c; cstring/pointer_flag remain
  * for the encoder primitive tests. */
 void uk_venus_encode_uint32(struct uk_venus_encoder *enc, uint32_t v);
 void uk_venus_encode_uint64(struct uk_venus_encoder *enc, uint64_t v);
@@ -270,6 +280,11 @@ int uk_venus_query_device_name(struct uk_virtio_gpu_dev *dev,
 			       struct uk_virtio_gpu_context *ctx,
 			       uint64_t physdev_handle,
 			       char *name_out, unsigned int name_cap);
+int uk_venus_query_physical_device_properties(struct uk_virtio_gpu_dev *dev,
+					      struct uk_virtio_gpu_context *ctx,
+					      uint64_t physdev_handle,
+					      void *props_out,
+					      uint32_t props_size);
 
 /*
  * uk_venus_query_memory_properties — REAL Venus round-trip that fills a
@@ -338,6 +353,8 @@ struct uk_virtio_gpu_dev;
  */
 int uk_venus_capset_get(struct uk_virtio_gpu_dev *dev,
 			struct uk_venus_caps *caps);
+void uk_venus_decode_capset(struct uk_venus_caps *caps,
+			    const uint8_t *raw, size_t actual);
 
 /*
  * uk_venus_probe — check that Venus is available and return a status string.
@@ -410,6 +427,8 @@ int uk_venus_ring_submit(struct uk_virtio_gpu_dev *dev,
 			 const struct uk_venus_encoder *enc,
 			 uk_gpu_fence_id *fence_out);
 const char *uk_venus_ring_status(struct uk_virtio_gpu_dev *dev);
+int uk_venus_ring_reply_stream_set(struct uk_virtio_gpu_dev *dev,
+				   struct uk_venus_ring *ring);
 
 /* Protocol mode — full Mesa-compatible Venus ring. */
 int uk_venus_ring_register(struct uk_virtio_gpu_dev *dev,
@@ -424,8 +443,12 @@ int uk_venus_ring_cmd_flush(struct uk_virtio_gpu_dev *dev,
 int uk_venus_ring_cmd_wait(struct uk_venus_ring *ring,
 			   uint32_t timeout_iters);
 uint32_t uk_venus_ring_load_head(const struct uk_venus_ring *ring);
+int uk_venus_query_reply(struct uk_virtio_gpu_dev *dev,
+			 struct uk_virtio_gpu_context *ctx,
+			 const void *query, uint32_t query_len,
+			 void *reply_out, uint32_t reply_cap);
 
-/* ── Venus compute dispatch encoding (venus_compute.c) ────────────────────
+/* ── Venus compute dispatch encoding (vn_compute.c) ───────────
  *
  * These functions encode Vulkan compute-dispatch calls into a venus encoder
  * using the Venus wire format (VkCommandTypeEXT packed protocol).  All Vulkan
@@ -605,4 +628,3 @@ void uk_venus_encode_vkQueueSubmit(struct uk_venus_encoder *enc,
 				   uint64_t fence);
 void uk_venus_encode_vkQueueWaitIdle(struct uk_venus_encoder *enc,
 				     uint64_t queue);
-

@@ -34,8 +34,11 @@ ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results/llama"
 
 
-def image(mode: str, arch: str) -> Path:
-    name = "vogue-llama-cpu" + ("-server" if mode == "server" else "")
+def image(mode: str, arch: str, bench_kind: str = "hand_rolled_smoke") -> Path:
+    if mode == "bench" and bench_kind == "upstream_llama_bench":
+        name = "vogue-llama-cpu-upstream-bench"
+    else:
+        name = "vogue-llama-cpu" + ("-server" if mode == "server" else "")
     return ROOT / ".unikraft/build" / f"{name}_{image_suffix(arch)}"
 
 
@@ -45,10 +48,12 @@ def free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def qemu_command(qemu: str, model: Path, mode: str, timeout: int, arch: str, smp: int = 1, port: int = 0) -> list[str]:
+def qemu_command(qemu: str, model: Path, mode: str, timeout: int, arch: str,
+                 smp: int = 1, port: int = 0,
+                 bench_kind: str = "hand_rolled_smoke") -> list[str]:
     del model, timeout
     accel = acceleration(arch)
-    command = [qemu, *machine_and_cpu_args(arch, accel), *smp_args(smp), "-m", "4096", "-nographic", "-no-reboot", "-kernel", str(image(mode, arch))]
+    command = [qemu, *machine_and_cpu_args(arch, accel), *smp_args(smp), "-m", "4096", "-nographic", "-no-reboot", "-kernel", str(image(mode, arch, bench_kind))]
     if mode == "server":
         command += [
             "-netdev", f"user,id=net0,hostfwd=tcp:127.0.0.1:{port}-10.0.2.15:8080",
@@ -89,6 +94,98 @@ def http_metrics(port: int, deadline: float) -> dict:
     return {}
 
 
+def parse_run_log(log: str, mode: str, smp: int, http_metrics: dict) -> dict:
+    placements = [
+        {"target": int(target), "actual": int(actual)}
+        for target, actual in re.findall(
+            r"ggml-unikraft-place: target=(\d+) actual=(-?\d+)",
+            log,
+        )
+    ]
+    kernel_placements = [
+        {"actual": int(actual), "target": int(target)}
+        for actual, target in re.findall(
+            r"SMPPLACE dequeue thread=.* on-lcpu=(\d+) sched-lcpu=(\d+) ready=1",
+            log,
+        )
+    ]
+    metrics = dict(http_metrics)
+    ggml_actuals = sorted({p["actual"] for p in placements if p["actual"] >= 0})
+    kernel_actuals = sorted({p["actual"] for p in kernel_placements if p["actual"] >= 0})
+    expected = list(range(max(smp, 0)))
+    actual_union = sorted(set(ggml_actuals) | set(kernel_actuals))
+
+    if placements:
+        metrics["placements"] = placements
+    if kernel_placements:
+        metrics["kernel_placements"] = kernel_placements
+    metrics["placement_actuals_seen"] = actual_union
+    metrics["placement_expected"] = expected
+    metrics["placement_complete"] = bool(expected) and set(expected).issubset(actual_union)
+
+    worker = re.search(
+        r"uk-llama-upstream: workers=(\d+) cpu_mask_bits=(\d+) strict_cpu=1 poll=100",
+        log,
+    )
+    if worker:
+        metrics["ggml_workers"] = int(worker.group(1))
+        metrics["ggml_cpu_mask_bits"] = int(worker.group(2))
+
+    bench_kind = re.search(r"uk-llama-bench-kind: ([^\s]+)", log)
+    if bench_kind:
+        metrics["bench_kind"] = bench_kind.group(1)
+    for line in log.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        metrics["bench_kind"] = "upstream_llama_bench"
+        metrics["backend"] = "cpu"
+        if "n_threads" in row:
+            metrics["threads"] = int(row["n_threads"])
+        n_prompt = int(row.get("n_prompt", 0))
+        n_gen = int(row.get("n_gen", 0))
+        avg_ts = float(row.get("avg_ts", 0.0))
+        if n_prompt == 512 and n_gen == 0:
+            metrics["pp512"] = avg_ts
+            metrics["pp"] = avg_ts
+        elif n_prompt == 0 and n_gen == 128:
+            metrics["tg128"] = avg_ts
+            metrics["tg"] = avg_ts
+
+    if mode == "bench":
+        match = re.search(r"uk-llama-upstream: pp512=([0-9.]+) tg128=([0-9.]+)", log)
+        if match:
+            metrics["pp512"] = float(match.group(1))
+            metrics["tg128"] = float(match.group(2))
+        passed = bool(
+            ("uk-llama-upstream: PASS" in log)
+            and (
+                (match is not None)
+                or (metrics.get("bench_kind") == "upstream_llama_bench"
+                    and "pp512" in metrics and "tg128" in metrics)
+            )
+        )
+    else:
+        match = re.search(r"uk-llama-upstream-server: READY ([^\n]+)", log)
+        passed = bool(
+            match
+            and metrics.get("http_status") == 200
+            and metrics.get("completion_status") == 200
+        )
+        if match:
+            metrics["ready"] = match.group(0).strip()
+
+    return {
+        "passed": passed,
+        "status": "pass" if passed else "blocked:no-pass-marker",
+        "metrics": metrics,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=("bench", "server"), required=True)
@@ -97,20 +194,26 @@ def main() -> int:
     parser.add_argument("--qemu")
     parser.add_argument("--timeout", type=int, default=120)
     parser.add_argument("--smp", type=int, default=int(os.environ.get("VOGUE_SMP", "1")))
+    parser.add_argument("--bench-kind", choices=("hand_rolled_smoke", "upstream_llama_bench"),
+                        default="hand_rolled_smoke")
     args = parser.parse_args()
     arch = normalize_arch(args.arch)
     qemu_name = args.qemu or default_qemu_binary(arch)
 
-    output = result_path(RESULTS, f"llama_{'server_' if args.mode == 'server' else ''}cpu.json", arch)
+    bench_prefix = "upstream_bench_" if args.mode == "bench" and args.bench_kind == "upstream_llama_bench" else ""
+    output = result_path(RESULTS, f"llama_{'server_' if args.mode == 'server' else bench_prefix}cpu.json", arch)
     model = resolve_model(args.model)
     qemu = resolve_qemu(qemu_name)
     port = 0
-    base = qemu_command(qemu or qemu_name, args.model, args.mode, args.timeout, arch, smp=args.smp, port=port)
-    inputs = {"mode": args.mode, "arch": arch, "model": str(args.model), "image": str(image(args.mode, arch)), "smp": args.smp}
+    base = qemu_command(qemu or qemu_name, args.model, args.mode, args.timeout, arch,
+                        smp=args.smp, port=port, bench_kind=args.bench_kind)
+    inputs = {"mode": args.mode, "arch": arch, "model": str(args.model),
+              "image": str(image(args.mode, arch, args.bench_kind)), "smp": args.smp,
+              "bench_kind": args.bench_kind, "backend": "cpu"}
     blocker = (
         ("blocked:qemu-missing", "QEMU executable not found") if not qemu else
         ("blocked:model-missing", "Model file not found") if not model else
-        ("blocked:image-missing", "Unikraft image not found") if not image(args.mode, arch).is_file() else
+        ("blocked:image-missing", "Unikraft image not found") if not image(args.mode, arch, args.bench_kind).is_file() else
         None
     )
     if blocker:
@@ -119,7 +222,8 @@ def main() -> int:
         return 0
     if args.mode == "server":
         port = free_port()
-        base = qemu_command(qemu, args.model, args.mode, args.timeout, arch, smp=args.smp, port=port)
+        base = qemu_command(qemu, args.model, args.mode, args.timeout, arch,
+                            smp=args.smp, port=port, bench_kind=args.bench_kind)
 
     with tempfile.TemporaryDirectory(prefix="vogue-model-") as directory:
         shutil.copy(model, Path(directory) / "model.gguf")
@@ -150,49 +254,10 @@ def main() -> int:
                 log = decode(exc.stdout) + decode(exc.stderr)
             metrics = {}
 
-    placements = [
-        {"target": int(target), "actual": int(actual)}
-        for target, actual in re.findall(
-            r"ggml-unikraft-place: target=(\d+) actual=(-?\d+)",
-            log,
-        )
-    ]
-    kernel_placements = [
-        {"actual": int(actual), "target": int(target)}
-        for actual, target in re.findall(
-            r"SMPPLACE dequeue thread=.* on-lcpu=(\d+) sched-lcpu=(\d+) ready=1",
-            log,
-        )
-    ]
-    if args.mode == "bench":
-        match = re.search(r"uk-llama-upstream: pp512=([0-9.]+) tg128=([0-9.]+)", log)
-        passed = bool(match and "uk-llama-upstream: PASS" in log)
-        if match:
-            metrics = {"pp512": float(match.group(1)), "tg128": float(match.group(2))}
-    else:
-        match = re.search(r"uk-llama-upstream-server: READY ([^\n]+)", log)
-        passed = bool(
-            match
-            and metrics.get("http_status") == 200
-            and metrics.get("completion_status") == 200
-        )
-        if match:
-            metrics["ready"] = match.group(0).strip()
-
-    if placements:
-        metrics["placements"] = placements
-    if kernel_placements:
-        metrics["kernel_placements"] = kernel_placements
-
-    if args.mode == "bench" and not passed:
-        expected = set(range(1, args.smp))
-        actual = {item["actual"] for item in kernel_placements if item["actual"] != 0}
-        if expected and expected.issubset(actual):
-            metrics["placement_verified"] = True
-            metrics["placement_evidence"] = "kernel-dequeue"
-            passed = True
-
-    status = "pass" if passed else "blocked:no-pass-marker"
+    parsed = parse_run_log(log, args.mode, args.smp, metrics)
+    passed = parsed["passed"]
+    status = parsed["status"]
+    metrics = parsed["metrics"]
     write_json(output, result(status, command, inputs=inputs, metrics=metrics,
                               error=None if passed else log[-2000:]))
     print(f"llama-cpu-{args.mode}: {status}")

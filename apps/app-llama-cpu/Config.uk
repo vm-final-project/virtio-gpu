@@ -34,6 +34,18 @@ config APP_LLAMA_CPU_MODE_SERVER
 	bool "server-only: boot llama.cpp server entrypoint"
 endchoice
 
+choice
+	prompt "Bench implementation"
+	default APP_LLAMA_CPU_BENCH_HAND_ROLLED
+	depends on APP_LLAMA_CPU_MODE_BENCH
+
+config APP_LLAMA_CPU_BENCH_HAND_ROLLED
+	bool "VOGUE hand-rolled pp/tg smoke loop"
+
+config APP_LLAMA_CPU_BENCH_UPSTREAM
+	bool "upstream llama-bench harness"
+endchoice
+
 config APP_LLAMA_CPU_THREADS
 	int "llama.cpp worker threads"
 	default 1
