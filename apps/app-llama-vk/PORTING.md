@@ -52,5 +52,5 @@ All four x86_64 llama appliances pass (`results/llama/llama_vk*.json`,
 `llama_server_vk*.json`): bench and HTTP server both run the model on the GPU over
 Venus. Reproducing the Vulkan runs needs the host Venus stack (Venus-capable
 virglrenderer + QEMU rebuilt against it, a software EGL render node, and KVM) —
-see [`../../docs/VENUS-BRINGUP.md`](../../docs/VENUS-BRINGUP.md) and the README
+see [`../../docs/venus-bringup.md`](../../docs/venus-bringup.md) and the README
 section "x86_64 Vulkan-server host bring-up".

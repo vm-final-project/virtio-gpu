@@ -379,7 +379,7 @@ With the above, `make llama-vk-server-run` reaches `uk-llama-upstream-vk-server:
 READY`, serves `/health` (200) and `/completion` (200) over the Venus GPU path,
 and `scripts/app-llama-vk.py` records `status: pass`.
 
-See [`docs/VENUS-BRINGUP.md`](docs/VENUS-BRINGUP.md) for the runtime probes and
+See [`docs/venus-bringup.md`](docs/venus-bringup.md) for the runtime probes and
 the `make venus-check` targets.
 
 ### SMP: per-LCPU cooperative scheduler (branch `smp-a3-per-lcpu-scheduler`)

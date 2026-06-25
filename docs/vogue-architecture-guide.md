@@ -62,7 +62,7 @@ VOGUE 的路徑：
 
 兩者說一樣的 VirtIO-GPU 協定，但 VOGUE 只需 **4 個 library**，Linux 需要 **13+ 個 DRM/KMS/GEM kernel objects + 整個 Mesa**。
 
-> 📖 這在 `docs/ARCHITECTURE.md` 的 View A（"The Collapse"）有視覺化呈現。
+> 📖 這在 `docs/architecture.md` 的 View A（"The Collapse"）有視覺化呈現。
 
 ---
 
@@ -88,13 +88,13 @@ Unikraft 是整個 VOGUE 的「作業系統」。它不用 Linux kernel，而是
 
 #### 本專案涉及的 Unikraft 元件
 
-| Unikraft Library | 用途 | 在 plan-optimize.md 的角色 |
+| Unikraft Library | 用途 | 設計角色/考量 |
 |---|---|---|
-| `ukschedcoop` | 協作式排程器（目前唯一可用） | P0 前提：沒有搶佔式排程 |
-| `uklcpu` / `ukpcpuvar` | SMP / per-CPU 變數支援 | P0 目標：多 vCPU 支援 |
-| `ukalloc` / `ukallocbbuddy` | 記憶體分配器（buddy allocator） | P3：想換成 mimalloc 但被 musl/newlib 衝突擋住 |
+| `ukschedcoop` | 協作式排程器（目前唯一可用） | 多核心 SMP 的協作式排程基礎 |
+| `uklcpu` / `ukpcpuvar` | SMP / per-CPU 變數支援 | 多核心多 vCPU 支援基礎 |
+| `ukalloc` / `ukallocbbuddy` | 記憶體分配器（buddy allocator） | 目前使用 buddy allocator 避免 musl 衝突 |
 | `uksglist` | Scatter-gather list（DMA 用） | 取代自製 DMA library，用於 GPU buffer 記憶體 |
-| `ukfs-virtiofs` | VirtioFS guest-side 支援 | P1：VirtioFS 替代 9pfs 的 candidate |
+| `ukfs-virtiofs` | VirtioFS guest-side 支援 | 未來替代 9pfs 支援 mmap 的候選元件 |
 | `lib-lwip` | lwIP TCP/IP stack | llama server HTTP 網路 |
 | `lib-musl` | musl libc | C library 提供 |
 
@@ -118,7 +118,7 @@ kraft/Kraftfile.llama-upstream-server      → CPU server
 | **KraftKit GitHub** | https://github.com/unikraft/kraftkit | KraftKit 原始碼和 issue tracker |
 | **USENIX ATC'21 論文（必讀）** | https://www.usenix.org/conference/atc21/presentation/kuenzer | 學術論文 "Unikraft: Fast, Specialized Unikernels the Easy Way"。理解設計理念的最佳起點 |
 | **Unikraft Catalog** | https://github.com/unikraft/catalog | 其他應用的 Unikraft port 範例（nginx, redis, SQLite 等），了解 porting 的標準流程 |
-| **Unikraft Mimalloc 評測** | https://unikraft.org/blog/2024-08-22-unikraft-gsoc-benchmarking-mimalloc | plan-optimize.md P3 引用。allocator 效能分析 |
+| **Unikraft Mimalloc 評測** | https://unikraft.org/blog/2024-08-22-unikraft-gsoc-benchmarking-mimalloc | Unikraft allocator 效能評測與分析 |
 | **Unikraft 官方文件首頁** | https://unikraft.org/docs | 完整的文件目錄 |
 
 ---
@@ -140,7 +140,7 @@ kraft/Kraftfile.llama-upstream-server      → CPU server
 | **`libs/libukvirtio_gpu/virtio_gpu_pci.c`** | ~160 | PCI probing：匹配 `PCI_VENDOR_VIRTIO` + `PCI_DEVICE_VIRTIO_GPU` |
 | **`libs/libukvirtio_gpu/virtio_gpu_capsets.c`** | ~100 | Capset 協商：`virtio_gpu_get_capset_info`、`virtio_gpu_get_capset` — 探測 virgl/venus 支援 |
 
-> **注意（最新狀態）**：目前 `libs/libukvirtio_gpu/` 的實際來源檔位於 `transport/virtio_gpu.c`、`transport/virtio_gpu_priv.h`、`protocol/virtio_gpu_proto.h`。`virtio_pci_shm_region_get()` 不在 `libukvirtio_gpu` 內，而是由 modern virtio-pci 傳輸層提供（`patches/unikraft/0001-virtio-pci-modern-device-support.patch`，解析 cfg_type 8 共享記憶體 capability），並由 `transport/virtio_gpu.c` 以 `extern` 呼叫；該 host-visible blob 路徑在軟體 host Vulkan 驅動上無法完成，故 llama Vulkan appliance 以 `--no-host` 讓權重保持 device-local（見 README「x86_64 Vulkan-server host bring-up」與 `docs/VENUS-BRINGUP.md`）。
+> **注意（最新狀態）**：目前 `libs/libukvirtio_gpu/` 的實際來源檔位於 `transport/virtio_gpu.c`、`transport/virtio_gpu_priv.h`、`protocol/virtio_gpu_proto.h`。`virtio_pci_shm_region_get()` 不在 `libukvirtio_gpu` 內，而是由 modern virtio-pci 傳輸層提供（`patches/unikraft/0001-virtio-pci-modern-device-support.patch`，解析 cfg_type 8 共享記憶體 capability），並由 `transport/virtio_gpu.c` 以 `extern` 呼叫；該 host-visible blob 路徑在軟體 host Vulkan 驅動上無法完成，故 llama Vulkan appliance 以 `--no-host` 讓權重保持 device-local（見 README「x86_64 Vulkan-server host bring-up」與 `docs/venus-bringup.md`）。
 
 #### 關鍵函式簽名
 
@@ -246,7 +246,7 @@ int uk_venus_ring_create(struct uk_venus_device *dev);
   → QEMU → virglrenderer → host Vulkan
 ```
 
-#### Venus 傳輸優化（README 中的熱路徑優化，plan-optimize.md 背景）
+#### Venus 傳輸優化（README 中的熱路徑優化背景）
 
 | # | 優化 | 機制 | 效果 | 對應程式碼 |
 |---|------|------|------|-----------|
@@ -357,12 +357,12 @@ Runtime 測試（`make venus-check` / appliance gates）的量化結果：
 | 資源 | URL | 需要理解的內容 |
 |------|-----|---------------|
 | **llama.cpp GitHub** | https://github.com/ggml-org/llama.cpp | upstream 原始碼。本專案從 `../llama.cpp` include |
-| **llama.cpp Server README** | https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md | server 啟動參數（`--parallel`, `--threads`, `--flash-attn`），plan-optimize.md 引用 |
+| **llama.cpp Server README** | https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md | server 啟動參數（`--parallel`, `--threads`, `--flash-attn`）說明 |
 | **llama.cpp Build Docs** | https://github.com/ggml-org/llama.cpp/blob/master/docs/build.md | Build system，包含 Vulkan backend flags |
-| **llama.cpp Speculative Decoding** | https://github.com/ggml-org/llama.cpp/blob/master/docs/speculative.md | plan-optimize.md P4 引用 |
+| **llama.cpp Speculative Decoding** | https://github.com/ggml-org/llama.cpp/blob/master/docs/speculative.md | Speculative Decoding 機制 |
 | **ggml-vulkan.cpp 原始碼** | https://github.com/ggml-org/llama.cpp/blob/master/ggml/src/ggml-vulkan/ggml-vulkan.cpp | Vulkan compute backend。VOGUE 在 tree 內編譯此檔，`vk*` 呼叫路由到 `libvulkan` |
-| **ggml CMakeLists.txt** | https://github.com/ggml-org/llama.cpp/blob/master/ggml/CMakeLists.txt | plan-optimize.md P2 引用：`GGML_NATIVE` cross-compile 預設值 |
-| **virtio-fs 官方** | https://virtio-fs.gitlab.io/ | VirtioFS 架構、DAX window、FUSE passthrough。plan-optimize.md P1 引用 |
+| **ggml CMakeLists.txt** | https://github.com/ggml-org/llama.cpp/blob/master/ggml/CMakeLists.txt | `GGML_NATIVE` cross-compile 預設值 |
+| **virtio-fs 官方** | https://virtio-fs.gitlab.io/ | VirtioFS 架構、DAX window、FUSE passthrough |
 | **virtiofsd（Rust 實作）** | https://gitlab.com/virtio-fs/virtiofsd | VirtioFS 需要的 host daemon。VOGUE 評測環境上未安裝（P1 blocker） |
 | **QEMU 9pfs 文件** | https://wiki.qemu.org/Documentation/9p | 9pfs 共享檔案系統說明 |
 | **VirtioFS 設計 (KVM Forum)** | https://static.sched.com/hosted_files/kvmforum2019/0e/virtio-fs_%20A%20Shared%20File%20System%20for%20Virtual%20Machines.pdf | VirtioFS 設計簡報：DAX、FUSE、virtiofsd 架構 |
@@ -414,7 +414,6 @@ Runtime 測試（`make venus-check` / appliance gates）的量化結果：
 ```bash
 make test-fast     # 日常 gate（governance + docs + native tests，不需 GPU）
 make native-tests  # 完整 host-native C 套件
-make test-core     # 只跑 core / venus / dispatch 群組
 ```
 
 ---
@@ -423,15 +422,10 @@ make test-core     # 只跑 core / venus / dispatch 群組
 
 | 文件 | 路徑 | 內容 |
 |------|------|------|
-| **ARCHITECTURE.md** | `docs/ARCHITECTURE.md` | runtime stack、dependency graph（Views A/B/C）、llama.cpp taxonomy、evidence ladder |
-| **GOVERNANCE.md** | `docs/GOVERNANCE.md` | gate catalogue、ownership rules、claim discipline |
-| **VENUS-BRINGUP.md** | `docs/VENUS-BRINGUP.md` | Venus 啟用 step-by-step：host 設定（virglrenderer compile with `-Dvenus=true`）、QEMU config、capset 協商、context 建立、第一次 SUBMIT_3D、ring buffer 設定、troubleshooting |
-| **dependency-graph-plan.md** | `docs/dependency-graph-plan.md` | 依賴多圖提取器的設計（跨 Linux/VOGUE/QEMU） |
-| **llama-cpp porting plan** | `docs/llama-cpp-unikraft-porting-plan.md` | llama.cpp 到 Unikraft 的 porting 計畫 |
-| **venus runtime plan** | `docs/venus-runtime-enablement-plan.md` | Venus runtime enablement：from wire protocol to full Vulkan compute dispatch |
-| **VirtIO-GPU spec v1** | `design/unikraft-virtio-gpu-spec-v1.md` | API 規格：feature bits、capset IDs、library boundaries、Out of scope |
-| **virtio-gpu-vulken-v1** | `design/virtio-gpu-vulken-v1.md` | research-to-implementation gate ladder、效能評估計畫 |
-| **plan-optimize.md** | `plan-optimize.md` | 效能優化計畫（P0-P4）、當前數據基線、優先級分析 |
+| **architecture.md** | `docs/architecture.md` | runtime stack、dependency graph（Views A/B/C）、llama.cpp taxonomy、evidence ladder |
+| **venus-bringup.md** | `docs/venus-bringup.md` | Venus 啟用 step-by-step：host 設定（virglrenderer compile with `-Dvenus=true`）、QEMU config、capset 協商、context 建立、第一次 SUBMIT_3D、ring buffer 設定、troubleshooting |
+| **mesa-alignment-map.md** | `docs/mesa-alignment-map.md` | VOGUE 檔案與 Mesa 原始碼對照地圖 |
+| **unikraft-porting.md** | `docs/template/unikraft-porting.md` | Unikraft 應用移植的標準範本文件 |
 
 ---
 
@@ -511,16 +505,14 @@ Phase 2: 核心技術（2-3 天）
   7. QEMU VirtIO-GPU 文件       → 設備選項、egl-headless
 
 Phase 3: 專案原始碼（2-3 天）
-  8. docs/ARCHITECTURE.md       → 本專案架構總覽、dependency graph
-  9. docs/VENUS-BRINGUP.md      → Venus 啟用流程
+  8. docs/architecture.md       → 本專案架構總覽、dependency graph
+  9. docs/venus-bringup.md      → Venus 啟用流程
  10. libs/libukvirtio_gpu/      → VirtIO-GPU 前端驅動（從 protocol/virtio_gpu_proto.h 開始）
  11. libs/libukvulkan_venus/    → Venus 驅動（從 compat/venus_driver.c → protocol/venus_cs.c → protocol/venus_compute.c）
  12. libs/libvulkan/            → Vulkan dispatch
 
-Phase 4: 效能與優化（1 天）
- 13. plan-optimize.md           → P0-P4 優化方向
- 14. README.md 效能表格          → 三環境基準比較
- 15. tests/venus_hotpath_test.c → 傳輸優化的量化驗證
+Phase 4: 效能與驗證（1 天）
+ 13. README.md 效能表格          → 三環境基準比較
 ```
 
 ---
