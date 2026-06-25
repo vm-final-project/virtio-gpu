@@ -647,11 +647,7 @@ int uk_venus_ring_cmd_wait(struct uk_venus_ring *ring, uint32_t timeout_iters)
 			return -ETIMEDOUT;
 		/* Pause hint on x86; elsewhere keep only the compiler barrier so
 		 * the polling loop remains portable on host-native builds. */
-#if defined(__i386__) || defined(__x86_64__)
-		__asm__ volatile("pause" ::: "memory");
-#else
-		__asm__ volatile("" ::: "memory");
-#endif
+		uk_cpu_relax();
 		iters++;
 	} while (1);
 }

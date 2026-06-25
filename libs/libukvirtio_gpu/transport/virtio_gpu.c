@@ -171,7 +171,7 @@ static int cmd_submit_locked(struct uk_virtio_gpu_dev *d, void *req, size_t req_
 		if (now_ns() > deadline)
 			return -ETIMEDOUT;
 		/* Pause: reduce spin pressure; lets host vCPU make progress. */
-		__asm__ volatile("pause" ::: "memory");
+		uk_cpu_relax();
 	}
 	if (done != cookie)
 		return -EIO;

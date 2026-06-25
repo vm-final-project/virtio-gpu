@@ -677,6 +677,7 @@ index 75a9a9b..47848d0 100644
 +	 */
 +	target_lcpu = target->lcpu_idx;
 +	cexecenv = execenv;
++#if defined(__x86_64__)
 +	{
 +		/* Patch the saved GS_BASE to the target CPU's pcpuvar region.
 +		 * Each AP sets GS_BASE = APIC_ID * _uk_pcpuvar_tmpl_size in
@@ -687,6 +688,7 @@ index 75a9a9b..47848d0 100644
 +				   * (__u64)target_lcpu;
 +		uk_lcpu_sysctx_set(cexecenv->sysctx, GSBASE, tgt_gsbase);
 +	}
++#endif
 +	ukarch_ctx_init_entry1(&thread->ctx,
 +			       (__uptr)cexecenv,
 +			       1,

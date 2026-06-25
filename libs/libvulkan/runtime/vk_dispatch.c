@@ -74,19 +74,19 @@ typedef void    *PFN_vkVoidFunction;
 #define VK_NULL_HANDLE       0ULL
 
 /* ── Global Vulkan/Venus state ─────────────────────────────────────────── */
-static struct uk_vulkan_state        g_vk;
+struct uk_vulkan_state        g_vk;
 /* Last fence submitted via QueueSubmit; polled by WaitForFences. */
-static uk_gpu_fence_id               g_last_fence;
+uk_gpu_fence_id               g_last_fence;
 
 /* Real host VkPhysicalDeviceMemoryProperties (520B), filled by the first real
  * round-trip in stub_vkGetPhysicalDeviceMemoryProperties. Used by both that stub
  * and the host-visible memory-type test in stub_vkAllocateMemory. */
-static uint8_t g_memprops[520];
-static int     g_memprops_valid;
-static int     g_props_query_blocked_reported;
-static int     g_memprops_query_blocked_reported;
-static int     g_buffer_req_query_blocked_reported;
-static int     g_buffer_req_tracked_reported;
+uint8_t g_memprops[520];
+int     g_memprops_valid;
+int     g_props_query_blocked_reported;
+int     g_memprops_query_blocked_reported;
+int     g_buffer_req_query_blocked_reported;
+int     g_buffer_req_tracked_reported;
 
 /* The Venus VkDevice is a singleton created exactly once (duplicate object ids
  * are fatal to the host context). */
@@ -118,15 +118,15 @@ static int     g_buffer_req_tracked_reported;
  * command stream (e.g. a stale VkShaderModule id that then fails object lookup
  * with a CS error). The VirtIO-GPU control queue is separately serialised by
  * g_ctrlq_lock in libukvirtio_gpu (mirrors the Linux ctrlq.qlock). */
-static struct uk_mutex g_disp_lock =
+struct uk_mutex g_disp_lock =
 	UK_MUTEX_INITIALIZER_RECURSIVE(g_disp_lock);
 
-static inline uint64_t uk_vk_alloc_handle(void)
+uint64_t uk_vk_alloc_handle(void)
 {
     return uk_vulkan_state_alloc_handle(&g_vk);
 }
 
-static void uk_vk_report_blocked_once(int *reported, const char *reason)
+void uk_vk_report_blocked_once(int *reported, const char *reason)
 {
     if (reported && *reported)
         return;
@@ -136,7 +136,7 @@ static void uk_vk_report_blocked_once(int *reported, const char *reason)
     printf("uk-ggml-vk: %s\n", reason);
 }
 
-static void uk_vk_report_diag_once(int *reported, const char *message)
+void uk_vk_report_diag_once(int *reported, const char *message)
 {
     if (reported && *reported)
         return;
@@ -153,8 +153,7 @@ static void uk_vk_report_diag_once(int *reported, const char *message)
  * -EOVERFLOW, the create is dropped, and a later pipeline referencing the
  * never-created VkShaderModule fails host object lookup with a CS error).
  * 2 MB covers every ggml-vulkan SPIR-V with wide margin. */
-#define UK_DISPATCH_BUF_SIZE (2u * 1024u * 1024u)
-static uint8_t g_enc_buf[UK_DISPATCH_BUF_SIZE];
+uint8_t g_enc_buf[UK_DISPATCH_BUF_SIZE];
 
 /* ── Ring stream model (P1.3 → ring) ────────────────────────────────────
  *
@@ -172,33 +171,33 @@ static uint8_t g_enc_buf[UK_DISPATCH_BUF_SIZE];
  * harness (which counts submits_3d) and for commands outside the Begin/End
  * window (init-time creates). Controlled by UK_GGML_VK_DISPATCH_RING.
  */
-static int                  g_batch_enabled;     /* 0 = sync, 1 = batched (SUBMIT_3D) */
-static int                  g_batch_recording;   /* in vkBegin..vkEnd window */
-static struct uk_venus_encoder g_batch_enc;
-static uint8_t              g_batch_buf[UK_DISPATCH_BUF_SIZE];
+int                  g_batch_enabled;     /* 0 = sync, 1 = batched (SUBMIT_3D) */
+int                  g_batch_recording;   /* in vkBegin..vkEnd window */
+struct uk_venus_encoder g_batch_enc;
+uint8_t              g_batch_buf[UK_DISPATCH_BUF_SIZE];
 
 /* Ring stream state (active when g_ring_enabled=1) */
 static int                  g_ring_want;         /* requested via env (default 1) */
 static int                  g_ring_tried;        /* lazy-init attempted */
-static int                  g_ring_enabled;
-static struct uk_venus_ring g_ring;
-static int                  g_ring_ready;        /* 1 after uk_venus_ring_register() */
-static int                  g_ring_recording;    /* in vkBegin..vkEnd ring window */
-static void                 uk_dispatch_ring_lazy_init(void);
+int                  g_ring_enabled;
+struct uk_venus_ring g_ring;
+int                  g_ring_ready;        /* 1 after uk_venus_ring_register() */
+int                  g_ring_recording;    /* in vkBegin..vkEnd ring window */
+void                 uk_dispatch_ring_lazy_init(void);
 
-static inline int uk_dispatch_batch_active(void)
+int uk_dispatch_batch_active(void)
 {
     return g_batch_enabled && g_batch_recording;
 }
 
-static inline int uk_dispatch_ring_active(void)
+int uk_dispatch_ring_active(void)
 {
     return g_ring_enabled && g_ring_ready && g_ring_recording;
 }
 
 /* Helpers for single-call encode + submit, batched when active. */
-static inline void uk_disp_lock(void)   { uk_mutex_lock(&g_disp_lock); }
-static inline void uk_disp_unlock(void) { uk_mutex_unlock(&g_disp_lock); }
+void uk_disp_lock(void)   { uk_mutex_lock(&g_disp_lock); }
+void uk_disp_unlock(void) { uk_mutex_unlock(&g_disp_lock); }
 
 #define UK_ENC_BEGIN() \
     uk_disp_lock(); \
@@ -221,7 +220,7 @@ static inline void uk_disp_unlock(void) { uk_mutex_unlock(&g_disp_lock); }
         } else { \
             if (_enc.overflow) \
                 printf("uk-ggml-vk: ERROR encoder overflow pos=%u buf=%u " \
-                       "(command dropped)\n", _enc.pos, UK_DISPATCH_BUF_SIZE); \
+                       "(command dropped)\n", (unsigned int)_enc.pos, UK_DISPATCH_BUF_SIZE); \
             uk_venus_submit(g_vk.gpu, g_vk.ctx, &_enc); \
         } \
         uk_disp_unlock(); \
@@ -236,8 +235,8 @@ static inline void uk_disp_unlock(void) { uk_mutex_unlock(&g_disp_lock); }
 typedef void (*uk_venus_encode_destroy_fn)(struct uk_venus_encoder *,
                                            uint64_t /*device*/,
                                            uint64_t /*handle*/);
-static inline void uk_dispatch_destroy_dev_handle(uk_venus_encode_destroy_fn fn,
-                                                  uint64_t handle)
+void uk_dispatch_destroy_dev_handle(uk_venus_encode_destroy_fn fn,
+                                             uint64_t handle)
 {
     UK_ENC_BEGIN();
     fn(&_enc, UK_H_DEVICE, handle);
@@ -301,7 +300,7 @@ int uk_vulkan_init(void)
 /* Lazily create + register the Venus command ring. Called once, after the
  * Venus device is up (first vkBeginCommandBuffer). On any failure the ring
  * stays disabled and the dispatch falls back to the SUBMIT_3D batch path. */
-static void uk_dispatch_ring_lazy_init(void)
+void uk_dispatch_ring_lazy_init(void)
 {
     int rc;
     if (!g_ring_want || g_ring_tried)
@@ -510,72 +509,6 @@ PFN_vkVoidFunction vkGetDeviceProcAddr(VkDevice device, const char *pName)
     return vkGetInstanceProcAddr((VkInstance)device, pName);
 }
 
-
-/* ── Minimal Vulkan struct readers (LP64 layout) ─────────────────────────
- * These offsets match Vulkan 1.3 C ABI on x86-64/Unikraft LP64.  They are
- * used only for the ggml-vulkan compute path structs handled below.
- */
-static inline uint32_t rd_u32(const void *base, size_t off)
-{
-    uint32_t v = 0;
-    if (base) memcpy(&v, (const uint8_t *)base + off, sizeof(v));
-    return v;
-}
-static inline uint64_t rd_u64(const void *base, size_t off)
-{
-    uint64_t v = 0;
-    if (base) memcpy(&v, (const uint8_t *)base + off, sizeof(v));
-    return v;
-}
-static inline const void *rd_ptr(const void *base, size_t off)
-{
-    return (const void *)(uintptr_t)rd_u64(base, off);
-}
-
-#define OFF_MEM_ALLOC_SIZE        16u
-#define OFF_MEM_ALLOC_TYPE        24u
-#define OFF_BUF_SIZE              24u
-#define OFF_BUF_USAGE             32u
-#define OFF_SHADER_CODE_SIZE      24u
-#define OFF_SHADER_PCODE          32u
-#define OFF_DSL_BINDING_COUNT     20u
-#define OFF_DSL_PBINDINGS         24u
-#define OFF_DSLB_BINDING           0u
-#define OFF_DSLB_TYPE              4u
-#define OFF_DSLB_COUNT             8u
-#define OFF_DSLB_STAGE            12u
-#define SIZE_DSLB                 24u
-#define OFF_DP_MAX_SETS           20u
-#define OFF_DP_POOL_COUNT         24u
-#define OFF_DP_POOL_SIZES         32u
-#define SIZE_DP_POOL_SIZE          8u
-#define OFF_DSA_POOL              16u
-#define OFF_DSA_SET_COUNT         24u
-#define OFF_DSA_LAYOUTS           32u
-#define OFF_PL_SET_COUNT          20u
-#define OFF_PL_SET_LAYOUTS        24u
-#define OFF_PL_PUSH_COUNT         32u
-#define OFF_PL_PUSH_RANGES        40u
-#define OFF_PUSH_STAGE             0u
-#define OFF_PUSH_OFFSET            4u
-#define OFF_PUSH_SIZE              8u
-#define OFF_CP_STAGE              24u
-#define OFF_CP_LAYOUT             72u
-#define SIZE_CP_INFO              96u
-#define OFF_STAGE_MODULE          24u
-#define OFF_STAGE_PNAME           32u
-#define OFF_SUBMIT_CMD_COUNT      40u
-#define OFF_SUBMIT_CMDS           48u
-#define SIZE_SUBMIT_INFO          72u
-#define OFF_WRITE_DST_SET         16u
-#define OFF_WRITE_BINDING         24u
-#define OFF_WRITE_DESC_COUNT      32u
-#define OFF_WRITE_DESC_TYPE       36u
-#define OFF_WRITE_BUFFER_INFO     48u
-#define SIZE_WRITE_DESC           64u
-#define SIZE_DESC_BUF_INFO        24u
-#define OFF_BCOPY_SIZE            16u
-#define SIZE_BCOPY                24u
 
 /* ── Stub implementations ──────────────────────────────────────────────── */
 

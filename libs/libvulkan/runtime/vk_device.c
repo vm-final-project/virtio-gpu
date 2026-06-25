@@ -50,27 +50,9 @@ void stub_vkGetDeviceQueue(VkDevice d, uint32_t fi, uint32_t qi, VkQueue *q)
  * (VkImportMemoryResourceInfoMESA): the guest maps the blob and writes into it,
  * and the host's VkDeviceMemory aliases the same shmem. Device-local memory
  * keeps the plain fire-and-forget alloc (host VRAM, never mapped by the guest). */
-#define UK_HV_MEM_MAX 128
-static struct uk_hv_mem {
-    uint64_t handle;
-    struct uk_virtio_gpu_blob blob;
-    uint8_t  used;
-} g_hv_mem[UK_HV_MEM_MAX];
+struct uk_hv_mem g_hv_mem[UK_HV_MEM_MAX];
 
-/* A memory type is host-visible if its propertyFlags carries
- * VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT (0x2). With real properties we read the
- * real type's flags; otherwise the fabricated layout makes types 1 and 2
- * host-visible. */
-static inline int uk_mem_type_host_visible(uint32_t idx)
-{
-    if (g_memprops_valid && idx < 32u) {
-        uint32_t flags = *(uint32_t *)(g_memprops + 4 + idx * 8);
-        return (flags & 0x2u) != 0u;
-    }
-    return idx == 1u || idx == 2u;
-}
-
-static struct uk_hv_mem *uk_hv_mem_find(uint64_t handle)
+struct uk_hv_mem *uk_hv_mem_find(uint64_t handle)
 {
     for (int i = 0; i < UK_HV_MEM_MAX; i++)
         if (g_hv_mem[i].used && g_hv_mem[i].handle == handle)
@@ -78,18 +60,19 @@ static struct uk_hv_mem *uk_hv_mem_find(uint64_t handle)
     return NULL;
 }
 
+
 /* VkBuffer handle -> requested size, so vkGetBufferMemoryRequirements can report
  * the real size without a Venus round-trip. */
 #define UK_BUF_SIZE_MAX 1024
 static struct { uint64_t handle; uint64_t size; } g_buf_size[UK_BUF_SIZE_MAX];
 static int g_buf_size_next;
-static void uk_buf_size_put(uint64_t handle, uint64_t size)
+void uk_buf_size_put(uint64_t handle, uint64_t size)
 {
     int slot = g_buf_size_next++ % UK_BUF_SIZE_MAX;
     g_buf_size[slot].handle = handle;
     g_buf_size[slot].size = size;
 }
-static uint64_t uk_buf_size_find(uint64_t handle)
+uint64_t uk_buf_size_find(uint64_t handle)
 {
     for (int i = 0; i < UK_BUF_SIZE_MAX; i++)
         if (g_buf_size[i].handle == handle)

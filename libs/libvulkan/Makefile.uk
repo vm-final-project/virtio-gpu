@@ -16,24 +16,24 @@ VULKAN_HEADERS_INCLUDE ?= $(LIBVULKAN_BASE)/../../.deps/src/Vulkan-Headers/inclu
 
 # ── Sources ───────────────────────────────────────────────────────────────────
 # runtime/vk_dispatch.c \
-	$(LIBVULKAN_BASE)/runtime/vk_buffer.c : exported vk* ABI + static dispatch state (C; uses
-	$(LIBVULKAN_BASE)/runtime/vk_command_buffer.c \
-	$(LIBVULKAN_BASE)/runtime/vk_descriptors.c \
-	$(LIBVULKAN_BASE)/runtime/vk_device.c \
-	$(LIBVULKAN_BASE)/runtime/vk_device_memory.c \
-	$(LIBVULKAN_BASE)/runtime/vk_fence.c \
-	$(LIBVULKAN_BASE)/runtime/vk_instance.c \
-	$(LIBVULKAN_BASE)/runtime/vk_physical_device.c \
-	$(LIBVULKAN_BASE)/runtime/vk_pipeline.c \
-	$(LIBVULKAN_BASE)/runtime/vk_query_pool.c \
-	$(LIBVULKAN_BASE)/runtime/vk_queue.c \
+# 	$(LIBVULKAN_BASE)/runtime/vk_buffer.c : exported vk* ABI + static dispatch state (C; uses
+# 	$(LIBVULKAN_BASE)/runtime/vk_command_buffer.c \
+# 	$(LIBVULKAN_BASE)/runtime/vk_descriptors.c \
+# 	$(LIBVULKAN_BASE)/runtime/vk_device.c \
+# 	$(LIBVULKAN_BASE)/runtime/vk_device_memory.c \
+# 	$(LIBVULKAN_BASE)/runtime/vk_fence.c \
+# 	$(LIBVULKAN_BASE)/runtime/vk_instance.c \
+# 	$(LIBVULKAN_BASE)/runtime/vk_physical_device.c \
+# 	$(LIBVULKAN_BASE)/runtime/vk_pipeline.c \
+# 	$(LIBVULKAN_BASE)/runtime/vk_query_pool.c \
+# 	$(LIBVULKAN_BASE)/runtime/vk_queue.c \
 #                            its own minimal Vk handle typedefs, no Vulkan headers).
 # hpp/vk_hpp_loader.cpp     : VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE +
 #                            dispatcher init from the static proc-addr table (C++).
 # compat/uk_stdcxx_compat.cpp: libstdc++ ABI compat shims for the in-tree C++ link.
 LIBVULKAN_SRCS-y += $(LIBVULKAN_BASE)/runtime/vk_state.c
 LIBVULKAN_SRCS-y += $(LIBVULKAN_BASE)/runtime/vk_dispatch.c \
-	$(LIBVULKAN_BASE)/runtime/vk_buffer.c
+	$(LIBVULKAN_BASE)/runtime/vk_buffer.c \
 	$(LIBVULKAN_BASE)/runtime/vk_command_buffer.c \
 	$(LIBVULKAN_BASE)/runtime/vk_descriptors.c \
 	$(LIBVULKAN_BASE)/runtime/vk_device.c \
@@ -43,7 +43,7 @@ LIBVULKAN_SRCS-y += $(LIBVULKAN_BASE)/runtime/vk_dispatch.c \
 	$(LIBVULKAN_BASE)/runtime/vk_physical_device.c \
 	$(LIBVULKAN_BASE)/runtime/vk_pipeline.c \
 	$(LIBVULKAN_BASE)/runtime/vk_query_pool.c \
-	$(LIBVULKAN_BASE)/runtime/vk_queue.c \
+	$(LIBVULKAN_BASE)/runtime/vk_queue.c
 LIBVULKAN_SRCS-y += $(LIBVULKAN_BASE)/hpp/vk_hpp_loader.cpp
 LIBVULKAN_SRCS-y += $(LIBVULKAN_BASE)/compat/uk_stdcxx_compat.cpp
 
@@ -61,6 +61,7 @@ LIBVULKAN_CXXFLAGS-y += -I$(VULKAN_HEADERS_INCLUDE)
 LIBVULKAN_CXXINCLUDES-y += -I$(LIBVULKAN_BASE)/include
 LIBVULKAN_CXXFLAGS-y += -std=gnu++17
 LIBVULKAN_CXXFLAGS-y += -DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1
+LIBVULKAN_CXXFLAGS-y += -D__unix__
 
 # musl does not provide glibc fortified helpers; force _FORTIFY_SOURCE off to
 # match the rest of the in-tree C/C++ build.

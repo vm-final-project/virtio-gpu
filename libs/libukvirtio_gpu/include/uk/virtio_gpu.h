@@ -3,6 +3,17 @@
 #include <stdint.h>
 #include <uk/sglist.h>
 
+static inline void uk_cpu_relax(void)
+{
+#if defined(__i386__) || defined(__x86_64__)
+	__asm__ volatile("pause" ::: "memory");
+#elif defined(__aarch64__)
+	__asm__ volatile("yield" ::: "memory");
+#else
+	__asm__ volatile("" ::: "memory");
+#endif
+}
+
 typedef uint32_t uk_gpu_res_id;
 typedef uint32_t uk_gpu_ctx_id;
 typedef uint64_t uk_gpu_fence_id;

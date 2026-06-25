@@ -1,10 +1,12 @@
 #pragma once
 #include <stdint.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <uk/mutex.h>
 #include <uk/virtio_gpu.h>
 #include <uk/vulkan_venus.h>
 #include <uk/venus.h>
+#include <uk/vulkan.h>
 #include "vk_state.h"
 
 
@@ -47,6 +49,55 @@ typedef void    *PFN_vkVoidFunction;
 #define UK_H_DEVICE    (UK_VK_HANDLE_BASE + 0x03ULL)
 #define UK_H_QUEUE     (UK_VK_HANDLE_BASE + 0x04ULL)
 
+#include <string.h>
+
+#define UK_DISPATCH_BUF_SIZE (2u * 1024u * 1024u)
+
+#define OFF_MEM_ALLOC_SIZE        16u
+#define OFF_MEM_ALLOC_TYPE        24u
+#define OFF_BUF_SIZE              24u
+#define OFF_BUF_USAGE             32u
+#define OFF_SHADER_CODE_SIZE      24u
+#define OFF_SHADER_PCODE          32u
+#define OFF_DSL_BINDING_COUNT     20u
+#define OFF_DSL_PBINDINGS         24u
+#define OFF_DSLB_BINDING           0u
+#define OFF_DSLB_TYPE              4u
+#define OFF_DSLB_COUNT             8u
+#define OFF_DSLB_STAGE            12u
+#define SIZE_DSLB                 24u
+#define OFF_DP_MAX_SETS           20u
+#define OFF_DP_POOL_COUNT         24u
+#define OFF_DP_POOL_SIZES         32u
+#define SIZE_DP_POOL_SIZE          8u
+#define OFF_DSA_POOL              16u
+#define OFF_DSA_SET_COUNT         24u
+#define OFF_DSA_LAYOUTS           32u
+#define OFF_PL_SET_COUNT          20u
+#define OFF_PL_SET_LAYOUTS        24u
+#define OFF_PL_PUSH_COUNT         32u
+#define OFF_PL_PUSH_RANGES        40u
+#define OFF_PUSH_STAGE             0u
+#define OFF_PUSH_OFFSET            4u
+#define OFF_PUSH_SIZE              8u
+#define OFF_CP_STAGE              24u
+#define OFF_CP_LAYOUT             72u
+#define SIZE_CP_INFO              96u
+#define OFF_STAGE_MODULE          24u
+#define OFF_STAGE_PNAME           32u
+#define OFF_SUBMIT_CMD_COUNT      40u
+#define OFF_SUBMIT_CMDS           48u
+#define SIZE_SUBMIT_INFO          72u
+#define OFF_WRITE_DST_SET         16u
+#define OFF_WRITE_BINDING         24u
+#define OFF_WRITE_DESC_COUNT      32u
+#define OFF_WRITE_DESC_TYPE       36u
+#define OFF_WRITE_BUFFER_INFO     48u
+#define SIZE_WRITE_DESC           64u
+#define SIZE_DESC_BUF_INFO        24u
+#define OFF_BCOPY_SIZE            16u
+#define SIZE_BCOPY                24u
+
 extern struct uk_vulkan_state g_vk;
 extern struct uk_mutex g_disp_lock;
 
@@ -55,15 +106,71 @@ extern struct uk_venus_encoder g_batch_enc;
 
 extern struct uk_venus_ring g_ring;
 
+extern int g_ring_enabled;
+extern int g_ring_ready;
+extern int g_ring_recording;
+extern int g_batch_enabled;
+extern int g_batch_recording;
+extern uint8_t g_batch_buf[];
+
+extern uint8_t g_memprops[];
+extern int g_memprops_valid;
+extern int g_props_query_blocked_reported;
+extern int g_memprops_query_blocked_reported;
+extern int g_buffer_req_query_blocked_reported;
+extern int g_buffer_req_tracked_reported;
+
+
+#define UK_HV_MEM_MAX 128
+struct uk_hv_mem {
+    uint64_t handle;
+    struct uk_virtio_gpu_blob blob;
+    uint8_t  used;
+};
+extern struct uk_hv_mem g_hv_mem[UK_HV_MEM_MAX];
+
+static inline int uk_mem_type_host_visible(uint32_t idx)
+{
+    if (g_memprops_valid && idx < 32u) {
+        uint32_t flags = *(uint32_t *)(g_memprops + 4 + idx * 8);
+        return (flags & 0x2u) != 0u;
+    }
+    return idx == 1u || idx == 2u;
+}
+
+struct uk_hv_mem *uk_hv_mem_find(uint64_t handle);
+extern uk_gpu_fence_id g_last_fence;
+
 int uk_dispatch_batch_active(void);
 int uk_dispatch_ring_active(void);
 void uk_disp_lock(void);
+
 void uk_disp_unlock(void);
 void uk_dispatch_destroy_dev_handle(void (*fn)(struct uk_venus_encoder *, uint64_t, uint64_t), uint64_t handle);
+uint64_t uk_vk_alloc_handle(void);
+void uk_vk_report_blocked_once(int *reported, const char *reason);
+void uk_vk_report_diag_once(int *reported, const char *message);
+void uk_dispatch_ring_lazy_init(void);
 
-uint32_t rd_u32(const void *base, size_t off);
-uint64_t rd_u64(const void *base, size_t off);
-const void *rd_ptr(const void *base, size_t off);
+void uk_buf_size_put(uint64_t handle, uint64_t size);
+uint64_t uk_buf_size_find(uint64_t handle);
+
+static inline uint32_t rd_u32(const void *base, size_t off)
+{
+    uint32_t v = 0;
+    if (base) memcpy(&v, (const uint8_t *)base + off, sizeof(v));
+    return v;
+}
+static inline uint64_t rd_u64(const void *base, size_t off)
+{
+    uint64_t v = 0;
+    if (base) memcpy(&v, (const uint8_t *)base + off, sizeof(v));
+    return v;
+}
+static inline const void *rd_ptr(const void *base, size_t off)
+{
+    return (const void *)(uintptr_t)rd_u64(base, off);
+}
 
 #define UK_ENC_BEGIN() \
     uk_disp_lock(); \

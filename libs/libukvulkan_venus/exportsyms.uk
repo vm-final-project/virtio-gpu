@@ -85,3 +85,4 @@ uk_venus_encode_vkQueueWaitIdle
 uk_venus_encode_vkResetFences
 uk_venus_encode_vkUpdateDescriptorSets_storage
 uk_venus_encode_vkWaitForFences
+uk_venus_query_physical_device_properties

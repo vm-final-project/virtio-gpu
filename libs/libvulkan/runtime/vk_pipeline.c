@@ -21,7 +21,7 @@ VkResult stub_vkCreateShaderModule(VkDevice dev, const void *ci,
                                          (uint32_t)(code_size / 4u));
     printf("VOGUE-DBG createShaderModule h=0x%llx codeSize=%llu encpos=%u ovf=%d bufsz=%u\n",
            (unsigned long long)h, (unsigned long long)code_size,
-           _enc.pos, _enc.overflow, UK_DISPATCH_BUF_SIZE);
+           (unsigned int)_enc.pos, _enc.overflow, UK_DISPATCH_BUF_SIZE);
     UK_ENC_SUBMIT();
     *pShader = (VkShaderModule)h;
     return VK_SUCCESS;

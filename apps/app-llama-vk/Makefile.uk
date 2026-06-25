@@ -85,6 +85,7 @@ APPLLAMA_VK_CFLAGS-y   += $(APPLLAMA_VK_COMMON_DEFS) $(APPLLAMA_VK_COLD_FLAGS) \
 APPLLAMA_VK_CXXFLAGS-y += -std=gnu++17 $(APPLLAMA_VK_COMMON_DEFS) $(APPLLAMA_VK_COLD_FLAGS) \
                                     -DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1 \
                                     -isystem $(VULKAN_HEADERS_INCLUDE) \
+                                    -D__unix__ \
                                     -Wno-unknown-pragmas -Wno-unused-function
 # Server mode pulls in the full upstream HTTP server. tools/server/server-http.h
 # uses std::unordered_map without including <unordered_map> directly (relies on a
