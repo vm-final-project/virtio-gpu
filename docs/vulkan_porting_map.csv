@@ -1,0 +1,82 @@
+vk_cmd,vn_sym,calls,mesa_file,line,method,tier,category,status
+vkCreateDevice,vn_CreateDevice,1,src/virtio/vulkan/vn_device.c,581,entry-point,2,VkDevice lifecycle,✓ done
+vkDestroyDevice,vn_DestroyDevice,5,src/virtio/vulkan/vn_device.c,632,entry-point,2,VkDevice lifecycle,✓ done
+vkAllocateMemory,vn_AllocateMemory,2,src/virtio/vulkan/vn_device_memory.c,370,entry-point,2,VkDeviceMemory / map / bind,⚙ stub
+vkFreeMemory,vn_FreeMemory,2,src/virtio/vulkan/vn_device_memory.c,412,entry-point,2,VkDeviceMemory / map / bind,✓ done
+vkCreateInstance,vn_CreateInstance,1,src/virtio/vulkan/vn_instance.c,252,entry-point,2,VkInstance lifecycle,✓ done
+vkDestroyInstance,vn_DestroyInstance,5,src/virtio/vulkan/vn_instance.c,397,entry-point,2,VkInstance lifecycle,✓ done
+vkEnumerateInstanceExtensionProperties,vn_EnumerateInstanceExtensionProperties,2,src/virtio/vulkan/vn_instance.c,232,entry-point,2,VkInstance lifecycle,✓ done
+vkEnumerateInstanceLayerProperties,vn_EnumerateInstanceLayerProperties,1,src/virtio/vulkan/vn_instance.c,244,entry-point,2,VkInstance lifecycle,✓ done
+vkEnumerateInstanceVersion,vn_EnumerateInstanceVersion,1,src/virtio/vulkan/vn_instance.c,225,entry-point,2,VkInstance lifecycle,✓ done
+vkGetInstanceProcAddr,vn_GetInstanceProcAddr,8,src/virtio/vulkan/vn_instance.c,445,entry-point,2,VkInstance lifecycle,✓ done
+vkEnumerateDeviceExtensionProperties,vn_EnumerateDeviceExtensionProperties,7,src/virtio/vulkan/vn_physical_device.c,2055,entry-point,2,VkPhysicalDevice / capabilities,✓ done
+vkEnumeratePhysicalDevices,vn_EnumeratePhysicalDevices,7,src/virtio/vulkan/vn_physical_device.c,2006,entry-point,2,VkPhysicalDevice / capabilities,✓ done
+vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR,vn_GetPhysicalDeviceCooperativeMatrixPropertiesKHR,1,src/virtio/vulkan/vn_physical_device.c,3024,entry-point,2,VkPhysicalDevice / capabilities,✗ missing
+vkGetPhysicalDeviceFeatures2,vn_GetPhysicalDeviceFeatures2,3,src/virtio/vulkan/vn_physical_device.c,423,protocol-inline,2,VkPhysicalDevice / capabilities,✓ done
+vkGetPhysicalDeviceMemoryProperties2,vn_GetPhysicalDeviceMemoryProperties2,1,src/virtio/vulkan/vn_physical_device.c,2170,entry-point,2,VkPhysicalDevice / capabilities,✓ done
+vkGetPhysicalDeviceProperties,vn_GetPhysicalDeviceProperties,4,src/virtio/vulkan/vn_physical_device.c,1586,protocol-inline,2,VkPhysicalDevice / capabilities,✓ done
+vkGetPhysicalDeviceProperties2,vn_GetPhysicalDeviceProperties2,11,src/virtio/vulkan/vn_physical_device.c,2090,entry-point,2,VkPhysicalDevice / capabilities,✓ done
+vkCreateBuffer,vn_CreateBuffer,1,src/virtio/vulkan/vn_buffer.c,378,entry-point,3,VkBuffer objects,✓ done
+vkDestroyBuffer,vn_DestroyBuffer,6,src/virtio/vulkan/vn_buffer.c,410,entry-point,3,VkBuffer objects,✓ done
+vkAllocateDescriptorSets,vn_AllocateDescriptorSets,1,src/virtio/vulkan/vn_descriptor_set.c,571,entry-point,3,VkDescriptorSet / pool / layout,✓ done
+vkCreateDescriptorPool,vn_CreateDescriptorPool,1,src/virtio/vulkan/vn_descriptor_set.c,238,entry-point,3,VkDescriptorSet / pool / layout,✓ done
+vkCreateDescriptorSetLayout,vn_CreateDescriptorSetLayout,1,src/virtio/vulkan/vn_descriptor_set.c,157,entry-point,3,VkDescriptorSet / pool / layout,✓ done
+vkDestroyDescriptorPool,vn_DestroyDescriptorPool,1,src/virtio/vulkan/vn_descriptor_set.c,362,entry-point,3,VkDescriptorSet / pool / layout,✓ done
+vkDestroyDescriptorSetLayout,vn_DestroyDescriptorSetLayout,1,src/virtio/vulkan/vn_descriptor_set.c,221,entry-point,3,VkDescriptorSet / pool / layout,✓ done
+vkUpdateDescriptorSets,vn_UpdateDescriptorSets,1,src/virtio/vulkan/vn_descriptor_set.c,849,entry-point,3,VkDescriptorSet / pool / layout,✓ done
+vkCreatePipelineLayout,vn_CreatePipelineLayout,1,src/virtio/vulkan/vn_pipeline.c,330,entry-point,3,VkPipeline / shader modules,✓ done
+vkCreateShaderModule,vn_CreateShaderModule,1,src/virtio/vulkan/vn_pipeline.c,248,entry-point,3,VkPipeline / shader modules,✓ done
+vkDestroyPipeline,vn_DestroyPipeline,1,src/virtio/vulkan/vn_pipeline.c,1825,entry-point,3,VkPipeline / shader modules,✓ done
+vkDestroyPipelineLayout,vn_DestroyPipelineLayout,1,src/virtio/vulkan/vn_pipeline.c,382,entry-point,3,VkPipeline / shader modules,✓ done
+vkDestroyShaderModule,vn_DestroyShaderModule,1,src/virtio/vulkan/vn_pipeline.c,275,entry-point,3,VkPipeline / shader modules,✓ done
+vkAllocateCommandBuffers,vn_AllocateCommandBuffers,1,src/virtio/vulkan/vn_command_buffer.c,835,entry-point,4,VkCommandBuffer recording,✓ done
+vkBeginCommandBuffer,vn_BeginCommandBuffer,2,src/virtio/vulkan/vn_command_buffer.c,1033,entry-point,4,VkCommandBuffer recording,✓ done
+vkCmdBindDescriptorSets,vn_CmdBindDescriptorSets,1,src/virtio/vulkan/vn_command_buffer.c,1237,entry-point,4,VkCommandBuffer recording,✓ done
+vkCmdBindPipeline,vn_CmdBindPipeline,1,src/virtio/vulkan/vn_command_buffer.c,1149,entry-point,4,VkCommandBuffer recording,✓ done
+vkCmdCopyBuffer,vn_CmdCopyBuffer,9,src/virtio/vulkan/vn_command_buffer.c,1401,entry-point,4,VkCommandBuffer recording,✓ done
+vkCmdDispatch,vn_CmdDispatch,1,src/virtio/vulkan/vn_command_buffer.c,1383,entry-point,4,VkCommandBuffer recording,✓ done
+vkCmdFillBuffer,vn_CmdFillBuffer,2,src/virtio/vulkan/vn_command_buffer.c,1525,entry-point,4,VkCommandBuffer recording,✓ done
+vkCmdPipelineBarrier,vn_CmdPipelineBarrier,1,src/virtio/vulkan/vn_command_buffer.c,1692,entry-point,4,VkCommandBuffer recording,✓ done
+vkCmdPushConstants,vn_CmdPushConstants,1,src/virtio/vulkan/vn_command_buffer.c,1850,entry-point,4,VkCommandBuffer recording,✓ done
+vkCmdResetEvent,vn_CmdResetEvent,3,src/virtio/vulkan/vn_command_buffer.c,1621,entry-point,4,VkCommandBuffer recording,✓ done
+vkCmdResetQueryPool,vn_CmdResetQueryPool,1,src/virtio/vulkan/vn_command_buffer.c,1796,entry-point,4,VkCommandBuffer recording,⚙ stub
+vkCmdSetEvent,vn_CmdSetEvent,1,src/virtio/vulkan/vn_command_buffer.c,1591,entry-point,4,VkCommandBuffer recording,✓ done
+vkCmdWaitEvents,vn_CmdWaitEvents,1,src/virtio/vulkan/vn_command_buffer.c,1642,entry-point,4,VkCommandBuffer recording,✓ done
+vkCmdWriteTimestamp,vn_CmdWriteTimestamp,3,src/virtio/vulkan/vn_command_buffer.c,1809,entry-point,4,VkCommandBuffer recording,⚙ stub
+vkCreateCommandPool,vn_CreateCommandPool,1,src/virtio/vulkan/vn_command_buffer.c,694,entry-point,4,VkCommandBuffer recording,✓ done
+vkDestroyCommandPool,vn_DestroyCommandPool,1,src/virtio/vulkan/vn_command_buffer.c,749,entry-point,4,VkCommandBuffer recording,✓ done
+vkEndCommandBuffer,vn_EndCommandBuffer,2,src/virtio/vulkan/vn_command_buffer.c,1119,entry-point,4,VkCommandBuffer recording,✓ done
+vkResetCommandBuffer,vn_ResetCommandBuffer,2,src/virtio/vulkan/vn_command_buffer.c,908,entry-point,4,VkCommandBuffer recording,✓ done
+vkResetCommandPool,vn_ResetCommandPool,7,src/virtio/vulkan/vn_command_buffer.c,777,entry-point,4,VkCommandBuffer recording,✓ done
+vkCreateQueryPool,vn_CreateQueryPool,1,src/virtio/vulkan/vn_query_pool.c,22,entry-point,4,VkQueryPool,✓ done
+vkDestroyQueryPool,vn_DestroyQueryPool,1,src/virtio/vulkan/vn_query_pool.c,156,entry-point,4,VkQueryPool,✓ done
+vkGetQueryPoolResults,vn_GetQueryPoolResults,1,src/virtio/vulkan/vn_query_pool.c,423,entry-point,4,VkQueryPool,⚙ stub
+vkResetQueryPool,vn_ResetQueryPool,1,src/virtio/vulkan/vn_query_pool.c,181,entry-point,4,VkQueryPool,✗ missing
+vkCreateEvent,vn_CreateEvent,2,src/virtio/vulkan/vn_queue.c,2597,entry-point,4,VkQueue / sync primitives,✓ done
+vkCreateFence,vn_CreateFence,3,src/virtio/vulkan/vn_queue.c,1641,entry-point,4,VkQueue / sync primitives,✓ done
+vkCreateSemaphore,vn_CreateSemaphore,4,src/virtio/vulkan/vn_queue.c,2149,entry-point,4,VkQueue / sync primitives,✓ done
+vkDestroyEvent,vn_DestroyEvent,4,src/virtio/vulkan/vn_queue.c,2631,entry-point,4,VkQueue / sync primitives,✓ done
+vkDestroyFence,vn_DestroyFence,3,src/virtio/vulkan/vn_queue.c,1689,entry-point,4,VkQueue / sync primitives,✓ done
+vkDestroySemaphore,vn_DestroySemaphore,4,src/virtio/vulkan/vn_queue.c,2209,entry-point,4,VkQueue / sync primitives,✓ done
+vkGetFenceStatus,vn_GetFenceStatus,1,src/virtio/vulkan/vn_queue.c,1803,entry-point,4,VkQueue / sync primitives,✓ done
+vkQueueSubmit,vn_QueueSubmit,4,src/virtio/vulkan/vn_queue.c,1079,entry-point,4,VkQueue / sync primitives,✓ done
+vkResetEvent,vn_ResetEvent,3,src/virtio/vulkan/vn_queue.c,2688,entry-point,4,VkQueue / sync primitives,✓ done
+vkResetFences,vn_ResetFences,10,src/virtio/vulkan/vn_queue.c,1714,entry-point,4,VkQueue / sync primitives,✓ done
+vkSetEvent,vn_SetEvent,1,src/virtio/vulkan/vn_queue.c,2669,entry-point,4,VkQueue / sync primitives,✓ done
+vkWaitForFences,vn_WaitForFences,9,src/virtio/vulkan/vn_queue.c,1867,entry-point,4,VkQueue / sync primitives,✓ done
+vkWaitSemaphores,vn_WaitSemaphores,1,src/virtio/vulkan/vn_queue.c,2436,entry-point,4,VkQueue / sync primitives,✓ done
+vkBindBufferMemory,vn_BindBufferMemory,1,(not found),—,—,9,not found in Mesa virtio,✓ done
+vkCmdBeginDebugUtilsLabelEXT,vn_CmdBeginDebugUtilsLabelEXT,1,(not found),—,—,9,not found in Mesa virtio,✗ missing
+vkCmdEndDebugUtilsLabelEXT,vn_CmdEndDebugUtilsLabelEXT,1,(not found),—,—,9,not found in Mesa virtio,✗ missing
+vkCmdInsertDebugUtilsLabelEXT,vn_CmdInsertDebugUtilsLabelEXT,1,(not found),—,—,9,not found in Mesa virtio,✗ missing
+vkGetBufferMemoryRequirements,vn_GetBufferMemoryRequirements,1,(not found),—,—,9,not found in Mesa virtio,✓ done
+vkGetMemoryHostPointerPropertiesEXT,vn_GetMemoryHostPointerPropertiesEXT,1,(not found),—,—,9,not found in Mesa virtio,✓ done
+vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV,vn_GetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV,1,(not found),—,—,9,not found in Mesa virtio,✗ missing
+vkGetPhysicalDeviceFeatures,vn_GetPhysicalDeviceFeatures,1,(not found),—,—,9,not found in Mesa virtio,✓ done
+vkGetPhysicalDeviceMemoryProperties,vn_GetPhysicalDeviceMemoryProperties,2,(not found),—,—,9,not found in Mesa virtio,⚙ stub
+vkGetPhysicalDeviceQueueFamilyProperties,vn_GetPhysicalDeviceQueueFamilyProperties,1,(not found),—,—,9,not found in Mesa virtio,✓ done
+vkGetPipelineExecutableStatisticsKHR,vn_GetPipelineExecutableStatisticsKHR,1,(not found),—,—,9,not found in Mesa virtio,✗ missing
+vkMapMemory,vn_MapMemory,1,(not found),—,—,9,not found in Mesa virtio,✓ done
+vkQueueBeginDebugUtilsLabelEXT,vn_QueueBeginDebugUtilsLabelEXT,1,(not found),—,—,9,not found in Mesa virtio,✗ missing
+vkQueueEndDebugUtilsLabelEXT,vn_QueueEndDebugUtilsLabelEXT,1,(not found),—,—,9,not found in Mesa virtio,✗ missing
+vkSetDebugUtilsObjectNameEXT,vn_SetDebugUtilsObjectNameEXT,1,(not found),—,—,9,not found in Mesa virtio,✗ missing
